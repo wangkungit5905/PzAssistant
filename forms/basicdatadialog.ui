@@ -1,0 +1,474 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>basicDataDialog</class>
+ <widget class="QDialog" name="basicDataDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>739</width>
+    <height>451</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>21</y>
+     <width>731</width>
+     <height>411</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="verticalLayout_2">
+    <item>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="currentIndex">
+       <number>0</number>
+      </property>
+      <widget class="QWidget" name="tabImp">
+       <attribute name="title">
+        <string>导入</string>
+       </attribute>
+       <widget class="QPushButton" name="btnImpOk">
+        <property name="geometry">
+         <rect>
+          <x>360</x>
+          <y>300</y>
+          <width>93</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>导入</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnImpCancel">
+        <property name="geometry">
+         <rect>
+          <x>210</x>
+          <y>300</y>
+          <width>93</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>取消</string>
+        </property>
+       </widget>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>70</x>
+          <y>240</y>
+          <width>591</width>
+          <height>29</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout" stretch="0,0,0">
+         <item>
+          <widget class="QLabel" name="label_4">
+           <property name="text">
+            <string>文件名：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtImpFile"/>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnImpBow">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>浏览</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QGroupBox" name="groupBox">
+        <property name="geometry">
+         <rect>
+          <x>70</x>
+          <y>30</y>
+          <width>171</width>
+          <height>181</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>科目信息</string>
+        </property>
+        <widget class="QWidget" name="layoutWidget">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>30</y>
+           <width>160</width>
+           <height>151</height>
+          </rect>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout">
+          <item>
+           <widget class="QCheckBox" name="chxImpFst">
+            <property name="text">
+             <string>一级科目及类别</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="chkImpSndCls">
+            <property name="text">
+             <string>二级科目及类别</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="chxImpSndCmn">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
+            <property name="text">
+             <string>二级科目（共有）</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="chkImpClients">
+            <property name="text">
+             <string>二级科目（业务客户）</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="groupBox_2">
+        <property name="geometry">
+         <rect>
+          <x>300</x>
+          <y>40</y>
+          <width>151</width>
+          <height>181</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>报表结构信息</string>
+        </property>
+        <widget class="QWidget" name="verticalLayoutWidget">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>30</y>
+           <width>136</width>
+           <height>151</height>
+          </rect>
+         </property>
+         <layout class="QVBoxLayout" name="verticalLayout_3">
+          <item>
+           <widget class="QCheckBox" name="chkAssets">
+            <property name="text">
+             <string>资产负债表</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="chkProfit">
+            <property name="text">
+             <string>利润表</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="chkCash">
+            <property name="text">
+             <string>现金流量表</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QCheckBox" name="chkOwner">
+            <property name="text">
+             <string>所有者权益变动表</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+       <widget class="QGroupBox" name="groupBox_3">
+        <property name="geometry">
+         <rect>
+          <x>510</x>
+          <y>39</y>
+          <width>131</width>
+          <height>171</height>
+         </rect>
+        </property>
+        <property name="title">
+         <string>其他必要信息</string>
+        </property>
+        <widget class="QCheckBox" name="chkBgCls">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>40</y>
+           <width>121</width>
+           <height>22</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>凭证分册类型</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="chkMt">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>70</y>
+           <width>94</width>
+           <height>22</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>货币类型</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+        <widget class="QCheckBox" name="chkPzCls">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>100</y>
+           <width>94</width>
+           <height>22</height>
+          </rect>
+         </property>
+         <property name="text">
+          <string>凭证类别</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </widget>
+       <widget class="QPushButton" name="btnNext">
+        <property name="geometry">
+         <rect>
+          <x>500</x>
+          <y>300</y>
+          <width>93</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>下一步</string>
+        </property>
+       </widget>
+       <widget class="QLabel" name="lblStep">
+        <property name="geometry">
+         <rect>
+          <x>641</x>
+          <y>296</y>
+          <width>61</width>
+          <height>31</height>
+         </rect>
+        </property>
+        <property name="font">
+         <font>
+          <family>Andale Mono</family>
+          <pointsize>24</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>3/4</string>
+        </property>
+       </widget>
+      </widget>
+      <widget class="QWidget" name="tabExp">
+       <attribute name="title">
+        <string>导出</string>
+       </attribute>
+       <widget class="QCheckBox" name="chkExpSndSpec">
+        <property name="geometry">
+         <rect>
+          <x>50</x>
+          <y>60</y>
+          <width>132</width>
+          <height>22</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>二级科目（专有）</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnExpOk">
+        <property name="geometry">
+         <rect>
+          <x>360</x>
+          <y>280</y>
+          <width>93</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>导出</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnExpCancel">
+        <property name="geometry">
+         <rect>
+          <x>540</x>
+          <y>280</y>
+          <width>93</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>取消</string>
+        </property>
+       </widget>
+       <widget class="QWidget" name="layoutWidget">
+        <property name="geometry">
+         <rect>
+          <x>56</x>
+          <y>190</y>
+          <width>571</width>
+          <height>29</height>
+         </rect>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,0">
+         <item>
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>文件名：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtExpFile"/>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnExpBow">
+           <property name="text">
+            <string>浏览</string>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+       <widget class="QPushButton" name="btnFstConToBase">
+        <property name="geometry">
+         <rect>
+          <x>390</x>
+          <y>40</y>
+          <width>191</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>转存一级科目配置到基础库</string>
+        </property>
+       </widget>
+       <widget class="QPushButton" name="btnSndConToBase">
+        <property name="geometry">
+         <rect>
+          <x>390</x>
+          <y>90</y>
+          <width>191</width>
+          <height>27</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>转存二级科目配置到基础库</string>
+        </property>
+       </widget>
+      </widget>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,2">
+      <item>
+       <widget class="QLabel" name="lblStage">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QProgressBar" name="progressBar">
+        <property name="value">
+         <number>24</number>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnNext</sender>
+   <signal>clicked()</signal>
+   <receiver>basicDataDialog</receiver>
+   <slot>nextStep()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>545</x>
+     <y>367</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>636</x>
+     <y>404</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnFstConToBase</sender>
+   <signal>clicked()</signal>
+   <receiver>basicDataDialog</receiver>
+   <slot>saveFstToBase()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>519</x>
+     <y>103</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>736</x>
+     <y>117</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnSndConToBase</sender>
+   <signal>clicked()</signal>
+   <receiver>basicDataDialog</receiver>
+   <slot>saveSndToBase()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>493</x>
+     <y>158</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>740</x>
+     <y>172</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>nextStep()</slot>
+  <slot>saveFstToBase()</slot>
+  <slot>saveSndToBase()</slot>
+ </slots>
+</ui>

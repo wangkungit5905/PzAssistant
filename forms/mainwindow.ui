@@ -1,0 +1,1461 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>918</width>
+    <height>600</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <widget class="QMdiArea" name="mdiArea">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>0</y>
+      <width>871</width>
+      <height>511</height>
+     </rect>
+    </property>
+   </widget>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>918</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="mnufile">
+    <property name="title">
+     <string>文件</string>
+    </property>
+    <addaction name="actLogin"/>
+    <addaction name="actLogout"/>
+    <addaction name="actShiftUser"/>
+    <addaction name="actCrtAccount"/>
+    <addaction name="actOpenAccount"/>
+    <addaction name="actCloseAccount"/>
+    <addaction name="separator"/>
+    <addaction name="actAccProperty"/>
+    <addaction name="actDelAcc"/>
+    <addaction name="actRefreshActInfo"/>
+    <addaction name="actImpActFromFile"/>
+    <addaction name="actEmpActToFile"/>
+    <addaction name="separator"/>
+    <addaction name="actPrint"/>
+    <addaction name="actExit"/>
+    <addaction name="separator"/>
+    <addaction name="separator"/>
+   </widget>
+   <widget class="QMenu" name="mnuAccPrcess">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
+    <property name="title">
+     <string>帐务处理</string>
+    </property>
+    <widget class="QMenu" name="mnuEndProcess">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="title">
+      <string>期末处理</string>
+     </property>
+     <addaction name="actImpOtherPz"/>
+     <addaction name="actFordEx"/>
+     <addaction name="actFordPl"/>
+     <addaction name="actJzbnlr"/>
+     <addaction name="actEndAcc"/>
+     <addaction name="separator"/>
+     <addaction name="actAntiImp"/>
+     <addaction name="actAntiJz"/>
+     <addaction name="actAntiEndAcc"/>
+    </widget>
+    <widget class="QMenu" name="mnuAdvOper">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="title">
+      <string>高级凭证操作</string>
+     </property>
+     <addaction name="actVerifyPz"/>
+     <addaction name="actInStatPz"/>
+     <addaction name="separator"/>
+     <addaction name="actAntiVerify"/>
+     <addaction name="actRepealPz"/>
+     <addaction name="actAntiRepeat"/>
+     <addaction name="actAllVerify"/>
+     <addaction name="actAllInstat"/>
+     <addaction name="actPzErrorInspect"/>
+    </widget>
+    <addaction name="actOpenPzs"/>
+    <addaction name="actClosePzs"/>
+    <addaction name="actEditPzs"/>
+    <addaction name="separator"/>
+    <addaction name="mnuEndProcess"/>
+    <addaction name="mnuAdvOper"/>
+    <addaction name="actAddPz"/>
+    <addaction name="actInsertPz"/>
+    <addaction name="actDelPz"/>
+    <addaction name="actSavePz"/>
+    <addaction name="actReassignPzNum"/>
+    <addaction name="actMvUpAction"/>
+    <addaction name="actMvDownAction"/>
+   </widget>
+   <widget class="QMenu" name="mnuData">
+    <property name="title">
+     <string>数据</string>
+    </property>
+    <widget class="QMenu" name="mnuAccBook">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="title">
+      <string>账簿</string>
+     </property>
+     <addaction name="actShowTotal"/>
+     <addaction name="actShowDetail"/>
+     <addaction name="actCashJournal"/>
+     <addaction name="actBankJournal"/>
+     <addaction name="actSubsidiaryLedger"/>
+     <addaction name="actLedger"/>
+    </widget>
+    <widget class="QMenu" name="mnuReport">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="title">
+      <string>报表</string>
+     </property>
+     <addaction name="actIncomeStatements"/>
+     <addaction name="actBalanceSheet"/>
+     <addaction name="actCashFlow"/>
+     <addaction name="actOwnerChanged"/>
+    </widget>
+    <addaction name="actCollCal"/>
+    <addaction name="actSubExtra"/>
+    <addaction name="actCurStat"/>
+    <addaction name="mnuAccBook"/>
+    <addaction name="mnuReport"/>
+   </widget>
+   <widget class="QMenu" name="mnuTool">
+    <property name="title">
+     <string>工具</string>
+    </property>
+    <widget class="QMenu" name="menu_5">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="title">
+      <string>基础数据表</string>
+     </property>
+     <addaction name="actFatSbtClass"/>
+     <addaction name="actFstSbt"/>
+     <addaction name="actSndSbt"/>
+     <addaction name="actBusiAction"/>
+     <addaction name="actPengzhen"/>
+     <addaction name="actFS"/>
+     <addaction name="actSndSubCls"/>
+     <addaction name="actAccountInfo"/>
+     <addaction name="actExchangeRate"/>
+     <addaction name="actAccBookGroup"/>
+     <addaction name="actSubjectExtra"/>
+     <addaction name="actReportStruct"/>
+     <addaction name="actReportAI"/>
+     <addaction name="actBS"/>
+     <addaction name="actIS_Old"/>
+     <addaction name="actIS_New"/>
+    </widget>
+    <widget class="QMenu" name="menu_2">
+     <property name="title">
+      <string>开发者工具</string>
+     </property>
+     <addaction name="actImpTestDatas"/>
+     <addaction name="actSqlTool"/>
+     <addaction name="actBasicDB"/>
+    </widget>
+    <widget class="QMenu" name="menu_4">
+     <property name="title">
+      <string>管理员工具</string>
+     </property>
+     <addaction name="aactTemTask"/>
+     <addaction name="actJzHdsy"/>
+     <addaction name="actJzsyAfterJzhd"/>
+     <addaction name="actForcePzsState"/>
+     <addaction name="actSetPzCls"/>
+     <addaction name="actForceDelPz"/>
+    </widget>
+    <addaction name="actSetupAccInfos"/>
+    <addaction name="actImpBasicDatas"/>
+    <addaction name="actSetupBase"/>
+    <addaction name="actSetupBankInfos"/>
+    <addaction name="actGdzcAdmin"/>
+    <addaction name="actDtfyAdmin"/>
+    <addaction name="separator"/>
+    <addaction name="menu_2"/>
+    <addaction name="menu_4"/>
+    <addaction name="actSecCon"/>
+    <addaction name="menu_5"/>
+   </widget>
+   <widget class="QMenu" name="mnuHelp">
+    <property name="title">
+     <string>帮助</string>
+    </property>
+    <addaction name="actAbout"/>
+   </widget>
+   <widget class="QMenu" name="mnuOption">
+    <property name="title">
+     <string>选项</string>
+    </property>
+    <addaction name="actSubConfig"/>
+   </widget>
+   <widget class="QMenu" name="mnuWindow">
+    <property name="title">
+     <string>窗口</string>
+    </property>
+   </widget>
+   <addaction name="mnufile"/>
+   <addaction name="mnuData"/>
+   <addaction name="mnuAccPrcess"/>
+   <addaction name="mnuOption"/>
+   <addaction name="mnuTool"/>
+   <addaction name="mnuWindow"/>
+   <addaction name="mnuHelp"/>
+  </widget>
+  <widget class="QStatusBar" name="statusbar">
+   <property name="styleSheet">
+    <string notr="true">background-color: rgb(174, 193, 255);</string>
+   </property>
+  </widget>
+  <widget class="QToolBar" name="tbrMain">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actCrtAccount"/>
+   <addaction name="actOpenAccount"/>
+   <addaction name="actCloseAccount"/>
+   <addaction name="actImpActFromFile"/>
+   <addaction name="actEmpActToFile"/>
+   <addaction name="separator"/>
+  </widget>
+  <widget class="QToolBar" name="tbrPzEdit">
+   <property name="windowTitle">
+    <string>toolBar_2</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actSavePz"/>
+   <addaction name="actPrintAdd"/>
+   <addaction name="actPrintDel"/>
+   <addaction name="actSortByZb"/>
+   <addaction name="actSortByPz"/>
+   <addaction name="actAddPz"/>
+   <addaction name="actDelPz"/>
+   <addaction name="actGoFirst"/>
+   <addaction name="actGoPrev"/>
+   <addaction name="actGoNext"/>
+   <addaction name="actGoLast"/>
+   <addaction name="separator"/>
+   <addaction name="actAddAction"/>
+   <addaction name="actDelAction"/>
+   <addaction name="actMvUpAction"/>
+   <addaction name="actMvDownAction"/>
+   <addaction name="actImpYsYf"/>
+  </widget>
+  <widget class="QToolBar" name="tbrPzs">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actOpenPzs"/>
+   <addaction name="actClosePzs"/>
+   <addaction name="actEditPzs"/>
+   <addaction name="actPrint"/>
+   <addaction name="actSearch"/>
+   <addaction name="actNaviToPz"/>
+  </widget>
+  <widget class="QToolBar" name="tbrAdvanced">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>true</bool>
+   </attribute>
+  </widget>
+  <action name="actCrtAccount">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/acc_new.png</normaloff>:/images/acc_new.png</iconset>
+   </property>
+   <property name="text">
+    <string>新建账户</string>
+   </property>
+  </action>
+  <action name="actOpenAccount">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/acc_open.png</normaloff>:/images/acc_open.png</iconset>
+   </property>
+   <property name="text">
+    <string>打开账户</string>
+   </property>
+  </action>
+  <action name="actCloseAccount">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/acc_close.png</normaloff>:/images/acc_close.png</iconset>
+   </property>
+   <property name="text">
+    <string>关闭账户</string>
+   </property>
+  </action>
+  <action name="actRefreshActInfo">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>刷新账户信息</string>
+   </property>
+  </action>
+  <action name="actImpActFromFile">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/acc_export.png</normaloff>:/images/acc_export.png</iconset>
+   </property>
+   <property name="text">
+    <string>附加账户</string>
+   </property>
+   <property name="toolTip">
+    <string>将账户信息读入基本库，并从选定位置拷贝账户数据库文件到标准目录下</string>
+   </property>
+  </action>
+  <action name="actEmpActToFile">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/acc_import.png</normaloff>:/images/acc_import.png</iconset>
+   </property>
+   <property name="text">
+    <string>分离账户</string>
+   </property>
+   <property name="toolTip">
+    <string>从基本库中清除此账户信息，并把账户数据库文件拷贝到选定位置</string>
+   </property>
+  </action>
+  <action name="actExit">
+   <property name="text">
+    <string>退出</string>
+   </property>
+  </action>
+  <action name="actSetupAccInfos">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>设置账户信息</string>
+   </property>
+   <property name="toolTip">
+    <string>设置账户的一般信息</string>
+   </property>
+  </action>
+  <action name="actImpBasicDatas">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>导入基础数据</string>
+   </property>
+   <property name="toolTip">
+    <string>导入会计凭证处理的基本数据信息</string>
+   </property>
+  </action>
+  <action name="actSetupBase">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>设置记账基点</string>
+   </property>
+   <property name="toolTip">
+    <string>设置会计记账的开始时间、科目余额和各期报表数据</string>
+   </property>
+  </action>
+  <action name="actSetupBankInfos">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>设置开户行信息</string>
+   </property>
+   <property name="toolTip">
+    <string>设置账户所使用的开户银行账户信息</string>
+   </property>
+  </action>
+  <action name="actImpTestDatas">
+   <property name="text">
+    <string>测试入口</string>
+   </property>
+   <property name="toolTip">
+    <string>导入测试用的凭证数据集，用于验证计算功能</string>
+   </property>
+  </action>
+  <action name="actSqlTool">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Sql工具</string>
+   </property>
+   <property name="toolTip">
+    <string>直接用Sql命令来显示或更新数据库表内容</string>
+   </property>
+  </action>
+  <action name="actAbout">
+   <property name="text">
+    <string>关于</string>
+   </property>
+   <property name="toolTip">
+    <string>关于本软件的版权信息</string>
+   </property>
+  </action>
+  <action name="actFatSbtClass">
+   <property name="text">
+    <string>一级科目类别表</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑一级科目分类信息</string>
+   </property>
+  </action>
+  <action name="actFstSbt">
+   <property name="text">
+    <string>一级科目表</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑一级科目表的信息</string>
+   </property>
+  </action>
+  <action name="actSndSbt">
+   <property name="text">
+    <string>二级科目表</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑一级科目表的信息</string>
+   </property>
+  </action>
+  <action name="actBusiAction">
+   <property name="text">
+    <string>业务活动表</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑业务活动表的信息</string>
+   </property>
+  </action>
+  <action name="actPengzhen">
+   <property name="text">
+    <string>凭证表</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑凭证表信息</string>
+   </property>
+  </action>
+  <action name="actFS">
+   <property name="text">
+    <string>二级科目映射表</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑一、二级科目映射表</string>
+   </property>
+  </action>
+  <action name="actSndSubCls">
+   <property name="text">
+    <string>二级科目类别表</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑二级科目类别表</string>
+   </property>
+  </action>
+  <action name="actAccountInfo">
+   <property name="text">
+    <string>账户信息表</string>
+   </property>
+  </action>
+  <action name="actExchangeRate">
+   <property name="text">
+    <string>汇率表</string>
+   </property>
+  </action>
+  <action name="actAccBookGroup">
+   <property name="text">
+    <string>凭证分册类别表</string>
+   </property>
+  </action>
+  <action name="actSubjectExtra">
+   <property name="text">
+    <string>科目余额表</string>
+   </property>
+  </action>
+  <action name="actReportStruct">
+   <property name="text">
+    <string>报表信息结构表</string>
+   </property>
+  </action>
+  <action name="actReportAI">
+   <property name="text">
+    <string>报表其他信息表</string>
+   </property>
+  </action>
+  <action name="actBS">
+   <property name="text">
+    <string>资产负债表</string>
+   </property>
+  </action>
+  <action name="actIS_Old">
+   <property name="text">
+    <string>利润表(老)</string>
+   </property>
+  </action>
+  <action name="actIS_New">
+   <property name="text">
+    <string>利润表(新)</string>
+   </property>
+  </action>
+  <action name="actCollCal">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>汇总计算</string>
+   </property>
+   <property name="toolTip">
+    <string>计算指定会计期间各个科目的合计值</string>
+   </property>
+  </action>
+  <action name="actSubExtra">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>科目余额</string>
+   </property>
+   <property name="toolTip">
+    <string>显示各个科目的余额</string>
+   </property>
+  </action>
+  <action name="actCashJournal">
+   <property name="text">
+    <string>现金日记账</string>
+   </property>
+   <property name="toolTip">
+    <string>显示指定会计期间的现金日记账信息</string>
+   </property>
+  </action>
+  <action name="actBankJournal">
+   <property name="text">
+    <string>银行日记账</string>
+   </property>
+   <property name="toolTip">
+    <string>显示指定会计期间的银行日记账信息</string>
+   </property>
+  </action>
+  <action name="actSubsidiaryLedger">
+   <property name="text">
+    <string>明细账</string>
+   </property>
+   <property name="toolTip">
+    <string>显示指定会计期间的明细分类账信息</string>
+   </property>
+  </action>
+  <action name="actLedger">
+   <property name="text">
+    <string>总分类帐</string>
+   </property>
+   <property name="toolTip">
+    <string>显示指定会计期间的总分类账信息</string>
+   </property>
+  </action>
+  <action name="actIncomeStatements">
+   <property name="text">
+    <string>利润表</string>
+   </property>
+   <property name="toolTip">
+    <string>生成利润表</string>
+   </property>
+  </action>
+  <action name="actBalanceSheet">
+   <property name="text">
+    <string>资产负债表</string>
+   </property>
+   <property name="toolTip">
+    <string>生成资产负债表</string>
+   </property>
+  </action>
+  <action name="actCashFlow">
+   <property name="text">
+    <string>现金流量表</string>
+   </property>
+  </action>
+  <action name="actOwnerChanged">
+   <property name="text">
+    <string>所有者权益变动表</string>
+   </property>
+  </action>
+  <action name="actEditPzs">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pzs_edit.png</normaloff>:/images/pzs_edit.png</iconset>
+   </property>
+   <property name="text">
+    <string>编辑凭证集</string>
+   </property>
+  </action>
+  <action name="actSubConfig">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>科目配置</string>
+   </property>
+   <property name="toolTip">
+    <string>配置科目的各种使用信息</string>
+   </property>
+  </action>
+  <action name="actClosePzs">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pzs_close.png</normaloff>:/images/pzs_close.png</iconset>
+   </property>
+   <property name="text">
+    <string>关闭凭证集</string>
+   </property>
+  </action>
+  <action name="actAddPz">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pz_add.png</normaloff>:/images/pz_add.png</iconset>
+   </property>
+   <property name="text">
+    <string>添加凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>在打开的凭证集中添加一个新凭证</string>
+   </property>
+  </action>
+  <action name="actDelPz">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pz_del.png</normaloff>:/images/pz_del.png</iconset>
+   </property>
+   <property name="text">
+    <string>删除凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>删除当前凭证</string>
+   </property>
+  </action>
+  <action name="actMvUpAction">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/go-up.png</normaloff>:/images/go-up.png</iconset>
+   </property>
+   <property name="text">
+    <string>向上移动</string>
+   </property>
+  </action>
+  <action name="actMvDownAction">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/go-down.png</normaloff>:/images/go-down.png</iconset>
+   </property>
+   <property name="text">
+    <string>向下移动</string>
+   </property>
+   <property name="toolTip">
+    <string>向下移动</string>
+   </property>
+  </action>
+  <action name="actGoFirst">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/go_first.png</normaloff>:/images/go_first.png</iconset>
+   </property>
+   <property name="text">
+    <string>第一张</string>
+   </property>
+   <property name="toolTip">
+    <string>翻到第一张凭证</string>
+   </property>
+  </action>
+  <action name="actGoPrev">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/go_previous.png</normaloff>:/images/go_previous.png</iconset>
+   </property>
+   <property name="text">
+    <string>前一张</string>
+   </property>
+   <property name="toolTip">
+    <string>翻到前一张凭证</string>
+   </property>
+  </action>
+  <action name="actGoNext">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/go_next.png</normaloff>:/images/go_next.png</iconset>
+   </property>
+   <property name="text">
+    <string>后一张</string>
+   </property>
+   <property name="toolTip">
+    <string>翻到后一张凭证</string>
+   </property>
+  </action>
+  <action name="actGoLast">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/go_last.png</normaloff>:/images/go_last.png</iconset>
+   </property>
+   <property name="text">
+    <string>最后一张</string>
+   </property>
+   <property name="toolTip">
+    <string>翻到最后一张凭证</string>
+   </property>
+  </action>
+  <action name="actSavePz">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pz_save.png</normaloff>:/images/pz_save.png</iconset>
+   </property>
+   <property name="text">
+    <string>保存凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>保存当前编辑的凭证</string>
+   </property>
+  </action>
+  <action name="actFordEx">
+   <property name="text">
+    <string>结转汇兑损益</string>
+   </property>
+  </action>
+  <action name="actFordPl">
+   <property name="text">
+    <string>结转损益</string>
+   </property>
+   <property name="toolTip">
+    <string>结转损益类各子科目的本期发生额到本年利润</string>
+   </property>
+  </action>
+  <action name="actCurStat">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>本期统计</string>
+   </property>
+   <property name="toolTip">
+    <string>统计本月发生额及科目余额</string>
+   </property>
+  </action>
+  <action name="actPrint">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/printer.png</normaloff>:/images/printer.png</iconset>
+   </property>
+   <property name="text">
+    <string>打印</string>
+   </property>
+   <property name="toolTip">
+    <string>打印凭证</string>
+   </property>
+  </action>
+  <action name="actPrintAdd">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/printer_add.PNG</normaloff>:/images/printer_add.PNG</iconset>
+   </property>
+   <property name="text">
+    <string>加入到打印队列</string>
+   </property>
+   <property name="toolTip">
+    <string>将当前凭证加入到待打印队列中</string>
+   </property>
+  </action>
+  <action name="actPrintDel">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/printer_remove.PNG</normaloff>:/images/printer_remove.PNG</iconset>
+   </property>
+   <property name="text">
+    <string>从可以队列移除</string>
+   </property>
+   <property name="toolTip">
+    <string>将当前凭证从待打印队列中移除</string>
+   </property>
+  </action>
+  <action name="actSortByZb">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/sortByZbNum.PNG</normaloff>:/images/sortByZbNum.PNG</iconset>
+   </property>
+   <property name="text">
+    <string>按自编号排序</string>
+   </property>
+   <property name="toolTip">
+    <string>按自编号排序</string>
+   </property>
+  </action>
+  <action name="actSortByPz">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/sortByPzNum.PNG</normaloff>:/images/sortByPzNum.PNG</iconset>
+   </property>
+   <property name="text">
+    <string>按凭证号排序</string>
+   </property>
+   <property name="toolTip">
+    <string>按凭证号排序</string>
+   </property>
+  </action>
+  <action name="actLogin">
+   <property name="text">
+    <string>登录</string>
+   </property>
+   <property name="toolTip">
+    <string>登录到系统</string>
+   </property>
+  </action>
+  <action name="actLogout">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>登出</string>
+   </property>
+   <property name="toolTip">
+    <string>登出系统</string>
+   </property>
+  </action>
+  <action name="actShiftUser">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>切换用户</string>
+   </property>
+   <property name="toolTip">
+    <string>切换登录的用户</string>
+   </property>
+  </action>
+  <action name="actSecCon">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>安全配置</string>
+   </property>
+   <property name="toolTip">
+    <string>配置系统的权限、用户组、用户和可执行的操作等信息</string>
+   </property>
+  </action>
+  <action name="actDelAcc">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>删除账户</string>
+   </property>
+   <property name="toolTip">
+    <string>删除账户</string>
+   </property>
+  </action>
+  <action name="actCloseCurWindow">
+   <property name="text">
+    <string>关闭当前窗口</string>
+   </property>
+  </action>
+  <action name="actCloseAllWindow">
+   <property name="text">
+    <string>关闭所有窗口</string>
+   </property>
+   <property name="toolTip">
+    <string>关闭所有窗口</string>
+   </property>
+  </action>
+  <action name="actTileWindow">
+   <property name="text">
+    <string>窗口平铺</string>
+   </property>
+   <property name="toolTip">
+    <string>平铺打开的窗口</string>
+   </property>
+  </action>
+  <action name="actCascadeWindow">
+   <property name="text">
+    <string>窗口级联</string>
+   </property>
+   <property name="toolTip">
+    <string>以级联方式显示打开的窗口</string>
+   </property>
+  </action>
+  <action name="actPrevWindow">
+   <property name="text">
+    <string>前一个</string>
+   </property>
+   <property name="toolTip">
+    <string>显示前一个窗口</string>
+   </property>
+  </action>
+  <action name="actNextWindow">
+   <property name="text">
+    <string>后一个</string>
+   </property>
+   <property name="toolTip">
+    <string>显示后一个窗口</string>
+   </property>
+  </action>
+  <action name="actInStatPz">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/antijz.png</normaloff>
+     <normalon>:/images/jz.png</normalon>:/images/antijz.png</iconset>
+   </property>
+   <property name="text">
+    <string>凭证入账</string>
+   </property>
+   <property name="toolTip">
+    <string>将当前凭证计入账簿</string>
+   </property>
+  </action>
+  <action name="actVerifyPz">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/verify-not.png</normaloff>
+     <normalon>:/images/verify-ok.png</normalon>:/images/verify-not.png</iconset>
+   </property>
+   <property name="text">
+    <string>审核通过</string>
+   </property>
+   <property name="toolTip">
+    <string>凭证通过审核</string>
+   </property>
+   <property name="shortcut">
+    <string>Alt+V</string>
+   </property>
+  </action>
+  <action name="actAddAction">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/action_add.png</normaloff>:/images/action_add.png</iconset>
+   </property>
+   <property name="text">
+    <string>新增业务活动</string>
+   </property>
+   <property name="toolTip">
+    <string>在当前凭证中添加新的业务活动</string>
+   </property>
+  </action>
+  <action name="actDelAction">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/action_del.png</normaloff>:/images/action_del.png</iconset>
+   </property>
+   <property name="text">
+    <string>删除业务活动</string>
+   </property>
+   <property name="toolTip">
+    <string>删除当前选定的业务活动</string>
+   </property>
+  </action>
+  <action name="actRepealPz">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pz-cancel.png</normaloff>
+     <normalon>:/images/pz-ok.png</normalon>:/images/pz-cancel.png</iconset>
+   </property>
+   <property name="text">
+    <string>作废</string>
+   </property>
+   <property name="toolTip">
+    <string>作废凭证</string>
+   </property>
+  </action>
+  <action name="actSearch">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pz_search.png</normaloff>:/images/pz_search.png</iconset>
+   </property>
+   <property name="text">
+    <string>搜索</string>
+   </property>
+   <property name="toolTip">
+    <string>搜索符合指定条件的凭证</string>
+   </property>
+  </action>
+  <action name="actNaviToPz">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/naviTo.png</normaloff>:/images/naviTo.png</iconset>
+   </property>
+   <property name="text">
+    <string>转到该号凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>显示指定号码的凭证内容</string>
+   </property>
+  </action>
+  <action name="actAntiRepeat">
+   <property name="text">
+    <string>取消作废</string>
+   </property>
+   <property name="toolTip">
+    <string>取消作废凭证，回到初始录入态</string>
+   </property>
+  </action>
+  <action name="actAllVerify">
+   <property name="text">
+    <string>全部通过审核</string>
+   </property>
+   <property name="toolTip">
+    <string>凭证集内的全部录入态的凭证通过审核</string>
+   </property>
+  </action>
+  <action name="actAllInstat">
+   <property name="text">
+    <string>全部凭证入账</string>
+   </property>
+   <property name="toolTip">
+    <string>将凭证集内通过审核的凭证全部入账</string>
+   </property>
+  </action>
+  <action name="actAntiVerify">
+   <property name="text">
+    <string>取消审核</string>
+   </property>
+   <property name="toolTip">
+    <string>取消已审核、已入账的凭证，使凭证回到初始状态以便编辑</string>
+   </property>
+  </action>
+  <action name="actInsertPz">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>插入凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>在当前凭证之后插入凭证</string>
+   </property>
+  </action>
+  <action name="actReassignPzNum">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>重置凭证号</string>
+   </property>
+   <property name="toolTip">
+    <string>将凭证集内的凭证按日期顺序重新分配凭证号</string>
+   </property>
+  </action>
+  <action name="actImpOtherPz">
+   <property name="text">
+    <string>引入其他凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>引入其他模块自动产生的凭证（比如固定资产折旧、待摊费用等）</string>
+   </property>
+  </action>
+  <action name="actJzbnlr">
+   <property name="text">
+    <string>结转本年利润</string>
+   </property>
+   <property name="toolTip">
+    <string>将本年利润结转至利润分配</string>
+   </property>
+  </action>
+  <action name="actEndAcc">
+   <property name="text">
+    <string>结账</string>
+   </property>
+   <property name="toolTip">
+    <string>结账</string>
+   </property>
+  </action>
+  <action name="actAntiEndAcc">
+   <property name="text">
+    <string>反结账</string>
+   </property>
+   <property name="toolTip">
+    <string>打破结账，使凭证集重新可修改</string>
+   </property>
+  </action>
+  <action name="actAntiJz">
+   <property name="text">
+    <string>反结转</string>
+   </property>
+   <property name="toolTip">
+    <string>取消3种类型的结转凭证</string>
+   </property>
+  </action>
+  <action name="actAntiImp">
+   <property name="text">
+    <string>反引用</string>
+   </property>
+   <property name="toolTip">
+    <string>取消由其他模块引入的凭证</string>
+   </property>
+  </action>
+  <action name="actBasicDB">
+   <property name="text">
+    <string>访问基本库</string>
+   </property>
+   <property name="toolTip">
+    <string>访问基本数据库</string>
+   </property>
+  </action>
+  <action name="actOpenPzs">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/pzs_open.png</normaloff>:/images/pzs_open.png</iconset>
+   </property>
+   <property name="text">
+    <string>打开凭证集</string>
+   </property>
+   <property name="toolTip">
+    <string>打开指定年月的凭证集合</string>
+   </property>
+  </action>
+  <action name="actGdzcAdmin">
+   <property name="text">
+    <string>固定资产管理</string>
+   </property>
+   <property name="toolTip">
+    <string>管理账户内固定资产的折旧</string>
+   </property>
+  </action>
+  <action name="actDtfyAdmin">
+   <property name="text">
+    <string>待摊费用管理</string>
+   </property>
+   <property name="toolTip">
+    <string>待摊费用的分摊管理</string>
+   </property>
+  </action>
+  <action name="actShowTotal">
+   <property name="text">
+    <string>查看总账</string>
+   </property>
+   <property name="toolTip">
+    <string>查看总账</string>
+   </property>
+  </action>
+  <action name="actShowDetail">
+   <property name="text">
+    <string>查看明细账</string>
+   </property>
+   <property name="toolTip">
+    <string>查看明细账</string>
+   </property>
+  </action>
+  <action name="actAccProperty">
+   <property name="text">
+    <string>属性</string>
+   </property>
+   <property name="toolTip">
+    <string>显示和编辑账户属性</string>
+   </property>
+  </action>
+  <action name="aactTemTask">
+   <property name="text">
+    <string>结转损益至本年利润</string>
+   </property>
+   <property name="toolTip">
+    <string>临时任务1</string>
+   </property>
+  </action>
+  <action name="actJzHdsy">
+   <property name="text">
+    <string>结转汇兑损益</string>
+   </property>
+   <property name="toolTip">
+    <string>结转汇兑损益至财务费用</string>
+   </property>
+  </action>
+  <action name="actJzsyAfterJzhd">
+   <property name="text">
+    <string>结转汇兑后结转损益</string>
+   </property>
+   <property name="toolTip">
+    <string>在执行了结转汇兑损益凭证后结转损益类科目到本年利润</string>
+   </property>
+  </action>
+  <action name="actImpYsYf">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/images/importYsYf.png</normaloff>:/images/importYsYf.png</iconset>
+   </property>
+   <property name="text">
+    <string>导入应收应付数据</string>
+   </property>
+   <property name="toolTip">
+    <string>从Excel表格导入应收应付数据</string>
+   </property>
+  </action>
+  <action name="actForceDelPz">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>批量删除凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; color:#008000;&quot;&gt;批量删除，凭证号之间用英文逗号隔开，连续的凭证号可以用连字符“-”连接，比如“2-4,7,8”，表示删除2，3，4，7，8号凭证&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+   </property>
+  </action>
+  <action name="actForcePzsState">
+   <property name="text">
+    <string>强制凭证集状态</string>
+   </property>
+   <property name="toolTip">
+    <string>强制将凭证集设置到指定状态</string>
+   </property>
+  </action>
+  <action name="actSetPzCls">
+   <property name="text">
+    <string>设置凭证类别</string>
+   </property>
+   <property name="toolTip">
+    <string>设置凭证到指定类别-凭证的类别决定了统计阶段的参与度</string>
+   </property>
+  </action>
+  <action name="actPzErrorInspect">
+   <property name="icon">
+    <iconset theme="检查凭证中出现的会影响统计结果的错误">
+     <normaloff/>
+    </iconset>
+   </property>
+   <property name="text">
+    <string>凭证错误检测</string>
+   </property>
+  </action>
+  <action name="actDbUpgrade">
+   <property name="text">
+    <string>数据库升级</string>
+   </property>
+   <property name="toolTip">
+    <string>升级账户数据库的内部格式，以适应新功能</string>
+   </property>
+  </action>
+ </widget>
+ <resources>
+  <include location="../imgers.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>actCloseCurWindow</sender>
+   <signal>triggered()</signal>
+   <receiver>mdiArea</receiver>
+   <slot>closeActiveSubWindow()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actCloseAllWindow</sender>
+   <signal>triggered()</signal>
+   <receiver>mdiArea</receiver>
+   <slot>closeAllSubWindows()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actTileWindow</sender>
+   <signal>triggered()</signal>
+   <receiver>mdiArea</receiver>
+   <slot>tileSubWindows()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actCascadeWindow</sender>
+   <signal>triggered()</signal>
+   <receiver>mdiArea</receiver>
+   <slot>cascadeSubWindows()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actPrevWindow</sender>
+   <signal>triggered()</signal>
+   <receiver>mdiArea</receiver>
+   <slot>activatePreviousSubWindow()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actNextWindow</sender>
+   <signal>triggered()</signal>
+   <receiver>mdiArea</receiver>
+   <slot>activateNextSubWindow()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>459</x>
+     <y>317</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>mdiArea</sender>
+   <signal>subWindowActivated(QMdiSubWindow*)</signal>
+   <receiver>MainWindow</receiver>
+   <slot>subWindowActivated(QMdiSubWindow*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>798</x>
+     <y>207</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>870</x>
+     <y>213</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>subWindowActivated(QMdiSubWindow*)</slot>
+  <slot>userModifyPzState(QAction*)</slot>
+ </slots>
+</ui>

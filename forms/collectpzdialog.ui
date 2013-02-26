@@ -1,0 +1,273 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>collectPzDialog</class>
+ <widget class="QDialog" name="collectPzDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>900</width>
+    <height>472</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <widget class="QWidget" name="">
+   <property name="geometry">
+    <rect>
+     <x>10</x>
+     <y>10</y>
+     <width>881</width>
+     <height>461</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="mLayout">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout">
+        <item>
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>凭证所属年月：</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QDateEdit" name="dateEdit">
+          <property name="displayFormat">
+           <string>yyyy-M</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>凭证分册：</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="cmbBookType"/>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <widget class="QLabel" name="bookType">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="label_3">
+        <property name="text">
+         <string>当月汇率：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblRate">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="2,1">
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QLabel" name="label_5">
+          <property name="text">
+           <string>总账科目</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableView" name="tvTSubs">
+          <property name="editTriggers">
+           <set>QAbstractItemView::NoEditTriggers</set>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+       <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,10,0,3">
+        <item>
+         <widget class="QLabel" name="label_4">
+          <property name="text">
+           <string>明细科目</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableView" name="tvDetails"/>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_6">
+          <property name="text">
+           <string>明细科目按币种合计</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableView" name="tvSums"/>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QPushButton" name="btnCalculator">
+        <property name="text">
+         <string>汇总计算</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnToExcel">
+        <property name="text">
+         <string>导出到Eccel文件</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnSave">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>保存余额</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+  <zorder>buttonBox</zorder>
+  <zorder>bookType</zorder>
+  <zorder>tvTSubs</zorder>
+  <zorder>btnCalculator</zorder>
+  <zorder>label_3</zorder>
+  <zorder>lblRate</zorder>
+  <zorder>btnSave</zorder>
+  <zorder>tvDetails</zorder>
+  <zorder>label_4</zorder>
+  <zorder>label_5</zorder>
+  <zorder>label_6</zorder>
+  <zorder>tvSums</zorder>
+  <zorder>layoutWidget</zorder>
+  <zorder>buttonBox</zorder>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>tvTSubs</sender>
+   <signal>clicked(QModelIndex)</signal>
+   <receiver>collectPzDialog</receiver>
+   <slot>selSubject(QModelIndex)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>304</x>
+     <y>107</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>360</x>
+     <y>54</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnSave</sender>
+   <signal>clicked()</signal>
+   <receiver>collectPzDialog</receiver>
+   <slot>saveExtras()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>258</x>
+     <y>463</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>772</x>
+     <y>414</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>dateEdit</sender>
+   <signal>dateChanged(QDate)</signal>
+   <receiver>collectPzDialog</receiver>
+   <slot>dateChanged(QDate)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>160</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>209</x>
+     <y>54</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnCalculator</sender>
+   <signal>clicked()</signal>
+   <receiver>collectPzDialog</receiver>
+   <slot>calBtnClicked()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>34</x>
+     <y>458</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>431</x>
+     <y>412</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnToExcel</sender>
+   <signal>clicked()</signal>
+   <receiver>collectPzDialog</receiver>
+   <slot>toExcel()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>160</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>326</x>
+     <y>452</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>selSubject(QModelIndex)</slot>
+  <slot>saveExtras()</slot>
+  <slot>dateChanged(QDate)</slot>
+  <slot>calBtnClicked()</slot>
+  <slot>toExcel()</slot>
+ </slots>
+</ui>

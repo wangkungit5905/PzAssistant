@@ -1,0 +1,318 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>DetailsViewDialog</class>
+ <widget class="QDialog" name="DetailsViewDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>809</width>
+    <height>476</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>11</x>
+     <y>12</y>
+     <width>801</width>
+     <height>451</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="mLayout">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblTitle">
+        <property name="font">
+         <font>
+          <family>Andale Mono</family>
+          <pointsize>18</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>现金日记账</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="cmbFstSub"/>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2,1,5,1,2">
+      <property name="leftMargin">
+       <number>5</number>
+      </property>
+      <property name="rightMargin">
+       <number>5</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="lblSub">
+        <property name="font">
+         <font>
+          <family>Andale Mono</family>
+          <pointsize>12</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>币种：</string>
+        </property>
+        <property name="margin">
+         <number>0</number>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="cmbSndSub"/>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblBank">
+        <property name="font">
+         <font>
+          <family>Andale Mono</family>
+          <pointsize>12</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>开户行</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="edtBank">
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="lblAccNum">
+        <property name="font">
+         <font>
+          <family>Andale Mono</family>
+          <pointsize>12</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>银行帐号</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLineEdit" name="edtAccNum">
+        <property name="text">
+         <string/>
+        </property>
+        <property name="readOnly">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QTableView" name="tview"/>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QLabel" name="lblYear">
+        <property name="font">
+         <font>
+          <family>Andale Mono</family>
+          <pointsize>16</pointsize>
+         </font>
+        </property>
+        <property name="text">
+         <string>选择时间：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QDateEdit" name="dateEdit">
+        <property name="displayFormat">
+         <string>yyyy-M</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnView">
+        <property name="text">
+         <string>显示</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnSavtTo">
+        <property name="enabled">
+         <bool>false</bool>
+        </property>
+        <property name="text">
+         <string>保存余额</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnToExcel">
+        <property name="text">
+         <string>输出到Excel文件</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_3">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnView</sender>
+   <signal>clicked()</signal>
+   <receiver>DetailsViewDialog</receiver>
+   <slot>viewDetials()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>265</x>
+     <y>451</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>454</x>
+     <y>448</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tview</sender>
+   <signal>customContextMenuRequested(QPoint)</signal>
+   <receiver>DetailsViewDialog</receiver>
+   <slot>dispContextMenu(QPoint)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>491</x>
+     <y>285</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>726</x>
+     <y>452</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnSavtTo</sender>
+   <signal>clicked()</signal>
+   <receiver>DetailsViewDialog</receiver>
+   <slot>saveExtra()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>345</x>
+     <y>442</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>592</x>
+     <y>459</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cmbSndSub</sender>
+   <signal>currentIndexChanged(QString)</signal>
+   <receiver>DetailsViewDialog</receiver>
+   <slot>curSndSubChanged(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>157</x>
+     <y>63</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>203</x>
+     <y>23</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnToExcel</sender>
+   <signal>clicked()</signal>
+   <receiver>DetailsViewDialog</receiver>
+   <slot>toExcelFile()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>430</x>
+     <y>448</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>580</x>
+     <y>436</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cmbFstSub</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>DetailsViewDialog</receiver>
+   <slot>selFstSub(int)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>481</x>
+     <y>26</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>557</x>
+     <y>20</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>viewDetials()</slot>
+  <slot>dispContextMenu(QPoint)</slot>
+  <slot>saveExtra()</slot>
+  <slot>curSndSubChanged(QString)</slot>
+  <slot>toExcelFile()</slot>
+  <slot>selFstSub(int)</slot>
+ </slots>
+</ui>

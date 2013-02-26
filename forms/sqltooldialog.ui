@@ -1,0 +1,297 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>SqlToolDialog</class>
+ <widget class="QDialog" name="SqlToolDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>886</width>
+    <height>485</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <widget class="QWidget" name="layoutWidget">
+   <property name="geometry">
+    <rect>
+     <x>21</x>
+     <y>10</y>
+     <width>922</width>
+     <height>471</height>
+    </rect>
+   </property>
+   <layout class="QVBoxLayout" name="mlayout" stretch="1,1,10,1">
+    <item>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="text">
+         <string>请输入SQL语句：</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnExcute">
+        <property name="text">
+         <string>执行</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_3">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QComboBox" name="cmbTables"/>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnRefresh">
+        <property name="text">
+         <string>刷新表</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="chkIsEdit">
+        <property name="text">
+         <string>编辑</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnSave">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>创建固定资产相关表</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="chkAttach">
+        <property name="text">
+         <string>附加基础库</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QCheckBox" name="chkImport">
+        <property name="text">
+         <string>附加导入库</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="btnImport">
+        <property name="text">
+         <string>完善账户信息</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_2">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <widget class="QPlainTextEdit" name="edtSql"/>
+    </item>
+    <item>
+     <widget class="QTableView" name="tview"/>
+    </item>
+    <item>
+     <widget class="QPlainTextEdit" name="edtResult">
+      <property name="readOnly">
+       <bool>true</bool>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnExcute</sender>
+   <signal>clicked()</signal>
+   <receiver>SqlToolDialog</receiver>
+   <slot>excuteSql()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>243</x>
+     <y>40</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>549</x>
+     <y>32</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cmbTables</sender>
+   <signal>activated(QString)</signal>
+   <receiver>SqlToolDialog</receiver>
+   <slot>selectedTable(QString)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>365</x>
+     <y>42</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>687</x>
+     <y>36</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkIsEdit</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SqlToolDialog</receiver>
+   <slot>toggled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>508</x>
+     <y>37</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>484</x>
+     <y>57</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnSave</sender>
+   <signal>clicked()</signal>
+   <receiver>SqlToolDialog</receiver>
+   <slot>save()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>644</x>
+     <y>40</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>757</x>
+     <y>58</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>tview</sender>
+   <signal>customContextMenuRequested(QPoint)</signal>
+   <receiver>SqlToolDialog</receiver>
+   <slot>contextMenuRequested(QPoint)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>344</x>
+     <y>354</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>560</x>
+     <y>352</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>chkAttach</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>SqlToolDialog</receiver>
+   <slot>attachBasis(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>762</x>
+     <y>33</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>671</x>
+     <y>46</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnRefresh</sender>
+   <signal>clicked()</signal>
+   <receiver>SqlToolDialog</receiver>
+   <slot>initTableList()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>410</x>
+     <y>24</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>373</x>
+     <y>47</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+ <slots>
+  <slot>excuteSql()</slot>
+  <slot>selectedTable(QString)</slot>
+  <slot>toggled(bool)</slot>
+  <slot>save()</slot>
+  <slot>contextMenuRequested(QPoint)</slot>
+  <slot>attachBasis(bool)</slot>
+  <slot>initTableList()</slot>
+ </slots>
+</ui>

@@ -1,0 +1,723 @@
+#include <QVariant>
+
+#include "account.h"
+#include "common.h"
+#include "global.h"
+#include "utils.h"
+#include "pz.h"
+#include "tables.h"
+
+QSqlDatabase* Account::db;
+
+Account::Account(QString fname/*, QSqlDatabase db*/):fileName(fname)/*,db(db)*/
+{
+    curSuite = 0;
+    curMonth = 0;
+    masterMt = 0;
+    subType = SubjectManager::SUBT_OLD;
+    curPzSet = NULL;
+	isReadOnly = false;
+
+//    //确定账户文件版本号，这些是临时代码，待所有账户文件都升级以后可以不要执行
+//    //一致将版本号归为“1.2”或更高
+//    //首先确定是否存在AccountInfo表
+//    QString s;
+//    QSqlQuery q(*db);
+//    q.exec("select * from sqlite_master where tbl_name='AccountInfo'");
+//    if(!q.first())
+//        crtAccountTable();
+//    q.exec("select * from sqlite_master where tbl_name='gdzcs'");
+//    if(!q.first())
+//        crtGdzcTable();
+//    q.exec("select value from AccountInfo where name='db_version'");
+//    if(!q.first()){
+//        insertVersion();
+//        db_version = "1.2";
+//    }
+//    else
+//        db_version = q.value(0).toString();
+    ///////////////////////////////////
+
+    QSqlQuery q(*db);
+    bool r = q.exec("select code,value from AccountInfo");
+    if(r){
+        InfoField code;
+        QStringList sl;
+        while(q.next()){
+            code = (InfoField)q.value(0).toInt();
+            switch(code){
+            case ACODE:
+                accCode = q.value(1).toString();
+                break;
+            case SNAME:
+                sname = q.value(1).toString();
+                break;
+            case LNAME:
+                lname = q.value(1).toString();
+                break;
+            case FNAME:
+                fileName = q.value(1).toString();
+                break;
+            case SUBTYPE:
+                subType = (SubjectManager::SubjectSysType)q.value(1).toInt();
+                break;
+            case MASTERMT:
+                masterMt = q.value(1).toInt();
+                break;
+            case WAIMT:
+                sl.clear();
+                sl = q.value(1).toString().split(",");
+                foreach(QString v, sl){
+                    waiMt<<v.toInt();
+                }
+                break;
+            case STIME:
+                startTime = q.value(1).toString();
+                break;
+            case ETIME:
+                endTime = q.value(1).toString();
+                break;
+            case CSUITE:
+                curSuite = q.value(1).toInt();
+                break;
+            case SUITENAME:
+                sl.clear();
+                sl = q.value(1).toString().split(",");
+                //每2个元素代表一个帐套年份与帐套名
+                for(int i = 0; i < sl.count(); i+=2){
+                    suiteNames[sl[i].toInt()] = sl[i+1];
+                }
+                break;
+            case LOGFILE:
+                logFileName = q.value(1).toString();
+                break;
+            }
+        }
+
+        //如果表内的信息字段内容不全，则需要提供默认值，以使对象的属性具有意义
+        if(masterMt == 0)
+            masterMt = RMB;
+        //if(fileName.isEmpty())
+        //    fileName = ; //此处应该用某种方法获取账户的文件名
+        //默认，日志文件名同账户文件名同名，但扩展名不同
+        if(logFileName.isEmpty()){
+            logFileName = fileName;
+            logFileName = logFileName.replace(".dat",".log");
+        }
+        if(subType == 0)
+            subType = SubjectManager::SUBT_OLD;
+        if(startTime.isEmpty()){
+            QDate d = QDate::currentDate();
+            int y = d.year();
+            int m = d.month();
+            int sd = 1;
+            int ed = d.daysInMonth();
+            startTime = QDate(y,m,sd).toString(Qt::ISODate);
+            endTime = QDate(y,m,ed).toString(Qt::ISODate);
+        }
+        if(endTime.isEmpty()){
+            QDate d = QDate::fromString(startTime,Qt::ISODate);
+            int days = d.daysInMonth();
+            d.setDate(d.year(),d.month(),days);
+            endTime = d.toString(Qt::ISODate);
+        }
+
+        QList<int> suites = suiteNames.keys();
+        if(!suites.empty()){
+            qSort(suites.begin(),suites.end());
+            startSuite = suites[0];
+            endSuite = suites[suites.count() - 1];
+            if(curSuite == 0)
+                curSuite = endSuite;
+        }
+        else{
+            startSuite = 0;
+            endSuite = 0;
+        }
+    }
+
+    subMng = new SubjectManager(subType,*db);
+}
+
+Account::~Account()
+{
+    delete subMng;
+}
+
+bool Account::isValid()
+{
+    if(accCode.isEmpty() ||
+       sname.isEmpty() ||
+       lname.isEmpty() ||
+       fileName.isEmpty())
+        return false;
+    else
+        return true;
+
+//    if(accCode.isEmpty())
+//        return false;
+//    else if(sname.isEmpty())
+//        return false;
+//    else if(lname.isEmpty())
+//        return false;
+//    else if(fileName.isEmpty())
+//        return false;
+//    else
+//        return true;
+}
+
+void Account::setWaiMt(QList<int> mts)
+{
+    QString s;
+    waiMt = mts;
+    for(int i = 0; i < waiMt.count(); ++i)
+        s.append(QString::number(waiMt[i])).append(",");
+    s.chop(1);
+    savePiece(WAIMT,s);
+}
+
+void Account::addWaiMt(int mt)
+{
+    if(!waiMt.contains(mt))
+        waiMt<<mt;
+}
+
+void Account::delWaiMt(int mt)
+{
+    if(waiMt.contains(mt))
+        waiMt.removeOne(mt);
+}
+
+//获取所有外币的名称列表，用逗号分隔
+QString Account::getWaiMtStr()
+{
+    QString t;
+    foreach(int mt, waiMt)
+        t.append(MTS.value(mt)).append(",");
+    if(!t.isEmpty())
+        t.chop(1);
+    return t;
+}
+
+void Account::appendSuite(int y, QString name)
+{
+    if(!suiteNames.contains(y)){
+        suiteNames[y] = name;
+        savePiece(SUITENAME,assembleSuiteNames());
+        if(y < startSuite)
+            startSuite = y;
+        if(y > endSuite)
+            endSuite = y;
+    }
+}
+
+void Account::setSuiteName(int y, QString name)
+{
+    if(suiteNames.contains(y)){
+        suiteNames[y] = name;
+        savePiece(SUITENAME,assembleSuiteNames());
+    }
+}
+
+void Account::delSuite(int y)
+{
+    if(suiteNames.contains(y)){
+        suiteNames.remove(y);
+        savePiece(SUITENAME,assembleSuiteNames());
+        QList<int> yl;
+        yl = suiteNames.keys();
+        qSort(yl.begin(),yl.end());
+        startSuite = yl[0];
+        endSuite = yl[yl.count()-1];
+    }
+}
+
+//获取当前帐套的起始月份
+int Account::getSuiteFirstMonth(int y)
+{
+    if(y < startSuite || y > endSuite)
+        return 0;
+    if(y == startSuite)
+        return QDate::fromString(startTime,Qt::ISODate).month();
+    else
+        return 1;
+}
+
+//获取当前帐套的结束月份
+int Account::getSuiteLastMonth(int y)
+{
+    if(y < startSuite || y > endSuite)
+        return 0;
+    if(y == endSuite)
+        return QDate::fromString(endTime,Qt::ISODate).month();
+    else
+        return 12;
+}
+
+//获取账户期初年份（即开始记账的前一个月所处的年份）
+int Account::getBaseYear()
+{
+    QDate d = QDate::fromString(startTime,Qt::ISODate);
+    int m = d.month();
+    int y = d.year();
+    if(m == 1)
+        return y-1;
+    else
+        return y;
+}
+
+//获取账户期初月份
+int Account::getBaseMonth()
+{
+    QDate d = QDate::fromString(startTime,Qt::ISODate);
+    int m = d.month();
+    if(m == 1)
+        return 12;
+    else
+        return m-1;
+}
+
+
+//获取凭证集对象
+PzSetMgr* Account::getPzSet()
+{
+    if(curMonth == 0)
+        return NULL;
+    if(!curPzSet)
+        curPzSet = new PzSetMgr(curSuite,curMonth,user,*db);
+    return curPzSet;
+}
+
+//关闭凭证集
+void Account::colsePzSet()
+{
+    curPzSet->close();
+    delete curPzSet;
+    curPzSet = NULL;
+}
+
+void Account::setDatabase(QSqlDatabase *db)
+{Account::db=db;}
+
+/**
+ * @brief Account::versionMaintain
+ *  账户模块版本维护
+ * @param cancel
+ * @return
+ */
+bool Account::versionMaintain(bool &cancel)
+{
+    VersionManager* vm = new VersionManager(VersionManager::MT_ACC);
+    //每当有新的可用升级函数时，就在此添加
+    //vm->appendVersion(1,3,&Account::updateTo1_3);
+    //vm->appendVersion(1,4,&Account::updateTo1_4);
+    //vm->appendVersion(1,5,&Account::updateTo1_5);
+    bool r = vm->versionMaintain(cancel);
+    delete vm;
+    return r;
+
+}
+
+
+/**
+ * @brief Account::getVersion
+ *  获取账户数据库版本
+ * @param mv
+ * @param sv
+ * @return
+ */
+bool Account::getVersion(int &mv, int &sv)
+{
+    QSqlQuery q(*db);
+    QString s = QString("select %1,%2 from %3 where %4=%5")
+            .arg(fld_acc_name).arg(fld_acc_value).arg(tbl_account)
+            .arg(fld_acc_code).arg(DBVERSION);
+    if(!q.exec(s))
+        return false;
+    if(!q.first())
+        return false;
+    QStringList ls = q.value(1).toString().split(".");
+    if(ls.count() != 2)
+        return false;
+    bool ok;
+    mv = ls.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = ls.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+    return true;
+}
+
+/**
+ * @brief Account::setVersion
+ *  设置账户数据库版本
+ * @param mv
+ * @param sv
+ * @return
+ */
+bool Account::setVersion(int mv, int sv)
+{
+    QSqlQuery q(*db);
+    QString verStr = QString("%1.%2").arg(mv).arg(sv);
+    QString s = QString("update %1 set %2=%3 where %4=%5").arg(tbl_account).arg(fld_acc_value)
+            .arg(verStr).arg(fld_acc_code).arg(DBVERSION);
+    if(!q.exec(s))
+        return false;
+    return true;
+}
+
+bool Account::updateTo1_3()
+{
+    //1、创建转移记录表，转移记录描述表
+    //2、为了使账户可以编辑，初始化一条转移记录（在系统当前时间，由本机转出并转入的转移记录）
+    QSqlQuery q(*db);
+    QString s = "create table transfers(id integer primary key, smid integer, dmid integer, state integer, outTime text, inTime text)";
+    if(!q.exec(s))
+        return false;
+    s = "create table transferDescs(id integer primary key, tid integer, outDesc text, inDesc text)";
+    if(!q.exec(s))
+        return false;
+    int mid = AppConfig::getInstance()->getLocalMid();
+    QString curTime = QDateTime::currentDateTime().toString(Qt::ISODate);
+    s = QString("insert into transfers(smid,dmid,state,outTime,inTime) values(%1,%2,%3,'%4','%5')")
+            .arg(mid).arg(mid).arg(ATS_TranInDes).arg(curTime).arg(curTime);
+    if(!q.exec(s))
+        return false;
+    s = "select last_insert_rowid()";
+    if(!q.exec(s) || !q.first())
+        return false;
+    int tid = q.value(0).toInt();
+    QString outDesc = QObject::tr("默认初始由本机转出");
+    QString inDesc = QObject::tr("默认初始由本机转入");
+    s = QString("insert into transferDescs(tid,outDesc,inDesc) values(%1,'%2','%3')")
+            .arg(tid).arg(outDesc).arg(inDesc);
+    if(!q.exec(s))
+        return false;
+
+    return setVersion(1,3);
+}
+
+//将帐套名哈希表装配成一个字符串形式
+QString Account::assembleSuiteNames()
+{
+    QString s;
+    QList<int> yl = suiteNames.keys();
+    qSort(yl.begin(),yl.end());
+    for(int i = 0; i < yl.count(); ++i)
+        s.append(QString::number(yl[i])).append(",")
+                .append(suiteNames.value(yl[i]))
+                .append(",");
+    s.chop(1);
+    return s;
+}
+
+
+//void Account::saveAll()
+//{
+//    QSqlQuery iq,uq; //分别用于插入和更新
+//    bool r = q.exec("delete from AccountInfo");
+//    r = q.prepare("insert into AccountInfo(code,name,value) values(:code,:name,:value)");
+//    //uq.prepare("update AccountInfo set value = :value where code = :code");
+//    q.bindValue(":code",ACODE);
+//    q.bindValue(":name","accountCode");
+//    q.bindValue(":value,", accCode);
+//    q.exec();
+//    q.bindValue(":code",SNAME);
+//    q.bindValue(":name","shortName");
+//    q.bindValue(":value,", sname);
+//    q.exec();
+//    q.bindValue(":code",LNAME);
+//    q.bindValue(":name","longName");
+//    q.bindValue(":value,", LNAME);
+//    q.exec();
+//    q.bindValue(":code",FNAME);
+//    q.bindValue(":name","fileName");
+//    q.bindValue(":value,", fileName);
+//    q.exec();
+//    q.bindValue(":code",SUBTYPE);
+//    q.bindValue(":name","subType");
+//    q.bindValue(":value,", QString::number(subType));
+//    q.exec();
+//    q.bindValue(":code",MASTERMT);
+//    q.bindValue(":name","masterMt");
+//    q.bindValue(":value,", QString::number(masterMt));
+//    q.exec();
+//    QString l;
+//    for(int i = 0; i < waiMt.count(); ++i)
+//        l.append(QString::number(waiMt[i])).append(",");
+//    l.chop(1);
+//    q.bindValue(":code",WAIMT);
+//    q.bindValue(":name","WaiBiList");
+//    q.bindValue(":value,", l);
+//    q.exec();
+//    q.bindValue(":code",STIME);
+//    q.bindValue(":name","startTime");
+//    q.bindValue(":value,", startTime);
+//    q.exec();
+//    q.bindValue(":code",ETIME);
+//    q.bindValue(":name","endTime");
+//    q.bindValue(":value,", endTime);
+//    q.exec();
+//    q.bindValue(":code",SSUITE);
+//    q.bindValue(":name","startSuite");
+//    q.bindValue(":value,", QString::number(startSuite));
+//    q.exec();
+//    q.bindValue(":code",ESUITE);
+//    q.bindValue(":name","endSuite");
+//    q.bindValue(":value,", QString::number(endSuite));
+//    q.exec();
+//    q.bindValue(":code",CSUITE);
+//    q.bindValue(":name","currentSuite");
+//    q.bindValue(":value,", QString::number(curSuite));
+//    q.exec();
+////    QList<int> sl = suiteNames.keys();
+////    l.clear();
+////    qSort(sl.begin(),sl.end());
+////    for(int i = 0; i < sl.count(); ++i)
+////        l.append(QString::number(sl[i])).append(",")
+////        .append(suiteNames.value(sl[i]));
+//    l = assembleSuiteNames();
+//    q.bindValue(":code",SUITENAME);
+//    q.bindValue(":name","suiteName");
+//    q.bindValue(":value,", l);
+//    q.exec();
+//    q.bindValue(":code",LOGFILE);
+//    q.bindValue(":name","logFileName");
+//    q.bindValue(":value,", logFileName);
+//    q.exec();
+
+//}
+
+//保存指定部分的账户信息
+void Account::savePiece(InfoField f, QString v)
+{
+    QSqlQuery q(*db);
+    QString s = QString("select id from AccountInfo where code=%1").arg(f);
+    if(q.exec(s) && q.first())
+        s = QString("update AccountInfo set value='%1' where code=%2")
+                .arg(v).arg(f);
+    else{
+        QString name;
+        switch(f){
+        case ACODE:
+            name = "accountCode";
+            break;
+        case SNAME:
+            name = "shortName";
+            break;
+        case LNAME:
+            name = "longName";
+            break;
+        case FNAME:
+            name = "fileName";
+            break;
+        case SUBTYPE:
+            name = "subType";
+            break;
+        case RPTTYPE:
+            name = "reportType";
+            break;
+        case MASTERMT:
+            name = "masterMt";
+            break;
+        case WAIMT:
+            name = "WaiBiList";
+            break;
+        case STIME:
+            name = "startTime";
+            break;
+        case ETIME:
+            name = "endTime";
+            break;
+        case CSUITE:
+            name = "currentSuite";
+            break;
+        case SUITENAME:
+            name = "suiteNames";
+            break;
+        case LOGFILE:
+            name = "logFileName";
+            break;
+        case LASTACCESS:
+            name = "lastAccessTime";
+            break;
+        }
+        s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+                .arg(f).arg(name).arg(v);
+
+    }
+    bool r = q.exec(s);
+    int i = 0;
+}
+
+//获取帐套内凭证集的开始、结束月份
+bool Account::getSuiteMonthRange(int y,int& sm, int &em)
+{
+    if(!suiteNames.contains(y))
+        return false;
+
+    QDate sd = QDate::fromString(startTime,Qt::ISODate);
+    QDate ed = QDate::fromString(endTime,Qt::ISODate);
+
+    if((y > sd.year()) && (y < ed.year())){
+        sm = 1;em = 12;
+    }
+    else if((y == sd.year() && (y < ed.year()))){
+        sm = sd.month(); em = 12;
+    }
+    else if((y > sd.year()) && (y == ed.year())){
+        sm = 1; em = ed.month();
+    }
+    else{
+        sm = sd.month(); em = ed.month();
+    }
+    return true;
+
+
+}
+
+
+
+QString Account::getAllLogs()
+{
+
+}
+
+QString Account::getLog(QDateTime time)
+{
+
+}
+
+void Account::appendLog(QDateTime time, QString log)
+{
+
+}
+
+void Account::delAllLogs()
+{
+
+}
+
+void Account::delLogs(QDateTime start, QDateTime end)
+{
+
+}
+
+
+//临时，创建账户信息表
+void Account::crtAccountTable()
+{
+    QSqlQuery q(*db),q1(*db);
+    bool r;
+    QString s;
+
+    //创建新的账户信息表，将老的账户信息表内的数据转入新表
+    r = q.exec("CREATE TABLE AccountInfo(id INTEGER PRIMARY KEY, code int, name TEXT, value TEXT)");
+    //转储老的账户信息表
+    r = q.exec("select * from AccountInfos");
+    r = q.first();
+    //账户代码
+    QString ts = q.value(ACCOUNT_CODE).toString();
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::ACODE).arg("accountCode").arg(ts);
+    r = q1.exec(s);
+    //账户开始记账时间
+    ts = q.value(ACCOUNT_BASETIME).toString().append("-01");
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::STIME).arg("startTime").arg(ts);
+    r = q1.exec(s);
+    //账户终止记账时间
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::ETIME).arg("endTime").arg("2011-11-30");
+    r = q1.exec(s);
+    //账户简称
+    ts = q.value(ACCOUNT_SNAME).toString();
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::SNAME).arg("shortName").arg(ts);
+    r = q1.exec(s);
+    //账户全称
+    ts = q.value(ACCOUNT_LNAME).toString();
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::LNAME).arg("longName").arg(ts);
+    r = q1.exec(s);
+    //账户所用科目类型
+    int v = q.value(ACCOUNT_USEDSUB).toInt();
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::SUBTYPE).arg("subType").arg(QString::number(v));
+    r = q1.exec(s);
+    //所用报表类型
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::RPTTYPE).arg("reportType").arg(QString::number(v));
+    r = q1.exec(s);
+    //本币
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::MASTERMT).arg("masterMt").arg("1");
+    r = q1.exec(s);
+    //外币
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::WAIMT).arg("WaiBiList").arg("2");
+    r = q1.exec(s);
+
+    //当前帐套
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::CSUITE).arg("currentSuite").arg("2011");
+    r = q1.exec(s);
+    //帐套名列表
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::SUITENAME).arg("suiteNames").arg(QObject::tr("2011,2011年"));
+    r = q1.exec(s);
+    //账户最后访问时间
+    ts = q.value(ACCOUNT_LASTTIME).toString();
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::LASTACCESS).arg("lastAccessTime").arg(ts);
+    r = q1.exec(s);
+    //日志文件名
+    //ts = curAccount->getFileName();
+    ts = fileName;
+    //ts.replace(".dat",".log");
+    ts.append(".log");
+    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+            .arg(Account::LOGFILE).arg("logFileName").arg(ts);
+    r = q1.exec(s);
+
+
+}
+
+void Account::crtGdzcTable()
+{
+    QSqlQuery q1(*db);
+    QString s;
+    bool r;
+    ////////////////////////////////////////////////////////////////////
+    //创建固定资产类别表
+    //s = "CREATE TABLE gdzc_classes(id INTEGER PRIMARY KEY, code INTEGER, name TEXT, zjMonths INTEGER)";
+    //r = q1.exec(s);
+    //创建固定资产表
+    s = "CREATE TABLE gdzcs(id INTEGER PRIMARY KEY,code INTEGER,pcls INTEGER,"
+        "scls INTEGER,name TEXT,model TEXT,buyDate TEXT,prime DOUBLE,"
+        "remain DOUBLE,min DOUBLE,zjMonths INTEGER,desc TEXT)";
+    r = q1.exec(s);
+    //创建固定资产折旧信息表
+    s = "CREATE TABLE gdzczjs(id INTEGER PRIMARY KEY,gid INTEGER,pid INTEGER,"
+        "bid INTEGER,date TEXT,price DOUBLE)";
+    r = q1.exec(s);
+}
+
+//void Account::insertVersion()
+//{
+//    QSqlQuery q(db);
+//    QString s;
+
+//    s = QString("insert into AccountInfo(code,name,value) values("
+//                "%1,'db_version','1.2')").arg(DBVERSION);
+//    q.exec(s);
+//}
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////
+

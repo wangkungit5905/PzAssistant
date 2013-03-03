@@ -243,7 +243,7 @@
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,0,0">
+      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,0,0,0">
        <item>
         <widget class="QToolButton" name="btnPrt">
          <property name="text">
@@ -257,14 +257,24 @@
        <item>
         <widget class="QPushButton" name="btnSave">
          <property name="text">
-          <string>保存</string>
+          <string>保存余额</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QPushButton" name="btnClose">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="text">
-          <string>关闭</string>
+          <string>确定</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnCancel">
+         <property name="text">
+          <string>取消</string>
          </property>
         </widget>
        </item>
@@ -303,13 +313,6 @@
    </property>
   </action>
   <zorder>tview</zorder>
-  <zorder>label</zorder>
-  <zorder>label_7</zorder>
-  <zorder>label_8</zorder>
-  <zorder>cmbStartRate</zorder>
-  <zorder>cmbEndRate</zorder>
-  <zorder>edtStartRate</zorder>
-  <zorder>edtEndRate</zorder>
   <zorder>line_4</zorder>
   <zorder>line_5</zorder>
   <zorder></zorder>
@@ -323,7 +326,7 @@
    <slot>save()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>792</x>
+     <x>806</x>
      <y>588</y>
     </hint>
     <hint type="destinationlabel">
@@ -339,12 +342,28 @@
    <slot>accept()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>929</x>
+     <x>838</x>
      <y>575</y>
     </hint>
     <hint type="destinationlabel">
      <x>971</x>
      <y>578</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>btnCancel</sender>
+   <signal>clicked()</signal>
+   <receiver>ViewExtraDialog</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>951</x>
+     <y>570</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>998</x>
+     <y>538</y>
     </hint>
    </hints>
   </connection>

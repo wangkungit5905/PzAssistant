@@ -124,10 +124,6 @@
      </property>
      <addaction name="actShowTotal"/>
      <addaction name="actShowDetail"/>
-     <addaction name="actCashJournal"/>
-     <addaction name="actBankJournal"/>
-     <addaction name="actSubsidiaryLedger"/>
-     <addaction name="actLedger"/>
     </widget>
     <widget class="QMenu" name="mnuReport">
      <property name="enabled">
@@ -141,7 +137,6 @@
      <addaction name="actCashFlow"/>
      <addaction name="actOwnerChanged"/>
     </widget>
-    <addaction name="actCollCal"/>
     <addaction name="actSubExtra"/>
     <addaction name="actCurStat"/>
     <addaction name="mnuAccBook"/>
@@ -187,10 +182,6 @@
      <property name="title">
       <string>管理员工具</string>
      </property>
-     <addaction name="aactTemTask"/>
-     <addaction name="actJzHdsy"/>
-     <addaction name="actJzsyAfterJzhd"/>
-     <addaction name="actForcePzsState"/>
      <addaction name="actSetPzCls"/>
      <addaction name="actForceDelPz"/>
     </widget>
@@ -231,7 +222,7 @@
    <addaction name="mnuWindow"/>
    <addaction name="mnuHelp"/>
   </widget>
-  <widget class="QStatusBar" name="statusbar">
+  <widget class="PaStatusBar" name="statusbar">
    <property name="styleSheet">
     <string notr="true">background-color: rgb(174, 193, 255);</string>
    </property>
@@ -1337,6 +1328,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>PaStatusBar</class>
+   <extends>QStatusBar</extends>
+   <header>mainwindow.h</header>
+  </customwidget>
+ </customwidgets>
  <resources>
   <include location="../imgers.qrc"/>
  </resources>

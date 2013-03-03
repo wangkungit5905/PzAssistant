@@ -49,6 +49,176 @@
 #include "tem.h"
 
 
+/////////////////////////////////PaStatusBar////////////////////////////////
+PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
+{
+    QLabel *l = new QLabel(tr("日期:"),this);
+    pzSetDate.setText("                       ");
+    QHBoxLayout* hl1 = new QHBoxLayout(this);
+    hl1->addWidget(l);
+    hl1->addWidget(&pzSetDate);
+
+    l = new QLabel(tr("凭证集状态："),this);
+    pzSetState.setText("              ");
+    QHBoxLayout* hl2 = new QHBoxLayout(this);
+    hl2->addWidget(l);    hl2->addWidget(&pzSetState);
+    l = new QLabel(tr("余额状态："),this);
+    hl2->addWidget(l);    hl2->addWidget(&extraState);
+
+    l = new QLabel(tr("凭证总数:"),this);
+    pzCount.setText("   ");
+    QHBoxLayout* hl3 = new QHBoxLayout(this);
+    hl3->addWidget(l);
+    hl3->addWidget(&pzCount);
+    l = new QLabel(tr("作废："));
+    pzRepeal.setText(" ");
+    hl3->addWidget(l);hl3->addWidget(&pzRepeal);
+    l = new QLabel(tr("录入："));
+    pzRecording.setText("   ");
+    hl3->addWidget(l);hl3->addWidget(&pzRecording);
+    l = new QLabel(tr("审核："));
+    pzVerify.setText(" ");
+    hl3->addWidget(l);hl3->addWidget(&pzVerify);
+    l = new QLabel(tr("入账："));
+    pzInstat.setText(" ");
+    hl3->addWidget(l);hl3->addWidget(&pzInstat);
+
+    l = new QLabel(tr("用户:"),this);
+    lblUser.setText("           ");
+    QHBoxLayout* hl4 = new QHBoxLayout(this);
+    hl4->addWidget(l);   hl4->addWidget(&lblUser);
+
+    QHBoxLayout* ml = new QHBoxLayout(this);
+    ml->addLayout(hl1);ml->addLayout(hl2);
+    ml->addLayout(hl3);ml->addLayout(hl4);
+    QFrame *f = new QFrame(this);
+    f->setLayout(ml);
+    f->setFrameShadow(QFrame::Sunken);
+    addPermanentWidget(f);
+
+    pBar = new QProgressBar;
+}
+
+PaStatusBar::~PaStatusBar()
+{
+    delete pBar;
+}
+
+/**
+ * @brief PaStatusBar::setDate
+ * 设置凭证集日期信息
+ * @param date
+ */
+void PaStatusBar::setPzSetDate(int y, int m)
+{
+    if(y==0 or m==0){
+        pzSetDate.setText("");
+        return;
+    }
+    QDate d(y,m,1);
+    int dend = d.daysInMonth();
+    QString ds = tr("%1年%2月1日——%1年%2月%3日").arg(y).arg(m).arg(dend);
+    pzSetDate.setText(ds);
+}
+
+/**
+ * @brief PaStatusBar::setPzSetState
+ * 设置凭证集状态信息
+ * @param state
+ */
+void PaStatusBar::setPzSetState(PzsState state)
+{
+    pzSetState.setText(pzsStates.value(state));
+    if(state == Ps_NoOpen){
+        setPzCounts(0,0,0,0,0);
+        setExtraState(false);
+    }
+}
+
+void PaStatusBar::setPzCounts(int repeal, int recording, int verify, int instat, int amount)
+{
+    setRepealCount(repeal);
+    setRecordingCount(recording);
+    setVerifyCount(verify);
+    setInstantCount(instat);
+    setPzAmount(amount);
+}
+
+void PaStatusBar::resetPzCounts()
+{
+    setRepealCount(0);
+    setRecordingCount(0);
+    setVerifyCount(0);
+    setInstantCount(0);
+    setPzAmount(0);
+}
+
+
+/**
+ * @brief PaStatusBar::setUser
+ * 设置当前登入用户
+ * @param user
+ */
+void PaStatusBar::setUser(User *user)
+{
+    if(user)
+        lblUser.setText(user->getName());
+    else
+        lblUser.setText("");
+}
+
+/**
+ * @brief PaStatusBar::startProgress
+ * 开始一个进度条指示
+ * @param amount
+ */
+void PaStatusBar::startProgress(int amount)
+{
+    pBar->setRange(0,amount);
+    pBar->setValue(0);
+    addWidget(pBar,1);
+}
+
+/**
+ * @brief PaStatusBar::adjustProgress
+ * 调整进度指示
+ * @param value
+ */
+void PaStatusBar::adjustProgress(int value)
+{
+    pBar->setValue(value);
+}
+
+/**
+ * @brief PaStatusBar::notificationProgress
+ * 进度通知
+ * @param amount：进度最大值
+ * @param curp：进度当前值（如果为0，则启动进度，如果是0到amount的值，则显示进度，其他值，则终止进度）
+ */
+void PaStatusBar::notificationProgress(int amount, int curp)
+{
+    if(curp == 0){
+        pAmount = amount;
+        startProgress(amount);
+    }
+    else if(curp > 0 && curp < amount)
+        adjustProgress(curp);
+    else
+        endProgress();
+}
+
+/**
+ * @brief PaStatusBar::endProgress
+ * 终止进度条指示
+ */
+void PaStatusBar::endProgress()
+{
+    removeWidget(pBar);
+}
+
+
+///////////////////////////////////////MainWindow////////////////////////////////
+
 int mdiAreaWidth;
 int mdiAreaHeight;
 
@@ -63,6 +233,7 @@ MainWindow::MainWindow(QWidget *parent) :
 
     curPzModel = NULL;  //初始时凭证集未打开
     curPzSetState = Ps_NoOpen;
+    isExtraVolid = false;
     sortBy = true; //默认按凭证号进行排序
     isOpenPzSet = false;
 
@@ -72,6 +243,7 @@ MainWindow::MainWindow(QWidget *parent) :
     curey = 0;
     curem = 0;
     cured = 0;
+    pzRepeal=0;pzRecording=0;pzVerify=0;pzInstat=0;pzAmount=0;
 
     //初始化对话框窗口指针为NULL
     dlgAcc = NULL;
@@ -82,13 +254,6 @@ MainWindow::MainWindow(QWidget *parent) :
     dlgBankDaily = NULL;
     dlgDetailDaily = NULL;
     dlgTotalDaily = NULL;    
-
-//    subWinSet.insert(PZEDIT);
-//    subWinSet.insert(PZSTAT);
-//    subWinSet.insert(CASHDAILY);
-//    subWinSet.insert(BANKDAILY);
-//    subWinSet.insert(DETAILSDAILY);
-//    subWinSet.insert(TOTALDAILY);
 
     curPzn = 0;
 
@@ -105,22 +270,22 @@ MainWindow::MainWindow(QWidget *parent) :
 
     //初始化状态条
     //起止日期
-    l1 = new QLabel;
-    ui->statusbar->addPermanentWidget(l1);
-    lblPzsDate = new QLabel;
-    ui->statusbar->addPermanentWidget(lblPzsDate);
+    //l1 = new QLabel;
+    //ui->statusbar->addPermanentWidget(l1);
+    //lblPzsDate = new QLabel;
+    //ui->statusbar->addPermanentWidget(lblPzsDate);
 
     //凭证集状态
-    l2 = new QLabel(tr("凭证集状态："));
-    ui->statusbar->addPermanentWidget(l2);
-    lblPzSetState = new QLabel(pzsStates.value(curPzSetState));
-    ui->statusbar->addPermanentWidget(lblPzSetState);
+    //l2 = new QLabel(tr("凭证集状态："));
+    //ui->statusbar->addPermanentWidget(l2);
+    //lblPzSetState = new QLabel(pzsStates.value(curPzSetState));
+    //ui->statusbar->addPermanentWidget(lblPzSetState);
 
     //登录用户
-    l3 = new QLabel(tr("当前登录用户："));
-    ui->statusbar->addPermanentWidget(l3);
-    lblCurUser = new QLabel(tr("未登录"));
-    ui->statusbar->addPermanentWidget(lblCurUser);
+   // l3 = new QLabel(tr("当前登录用户："));
+    //ui->statusbar->addPermanentWidget(l3);
+    //lblCurUser = new QLabel(tr("未登录"));
+    //ui->statusbar->addPermanentWidget(lblCurUser);
 
     on_actLogin_triggered(); //显示登录窗口
 
@@ -170,9 +335,7 @@ MainWindow::MainWindow(QWidget *parent) :
                        .arg(tr("无账户被打开")));
     }
 
-
-    //ui->actClosePzs->setEnabled(false); //刚打开账户还未打开凭证集，因此必须禁用
-    ui->tbrPzEdit->setVisible(false);    
+    refreshShowPzsState();
     refreshTbrVisble();
     refreshActEnanble();
 }
@@ -376,9 +539,9 @@ void MainWindow::setActiveSubWindow(QWidget *window)
 /////////////////////////文件菜单处理槽部分/////////////////////////////////////////
 void MainWindow::newAccount()
 {
-    dlgAcc = new CreateAccountDialog(this);
-    connect(dlgAcc, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-    dlgAcc->show();
+//    dlgAcc = new CreateAccountDialog(this);
+//    connect(dlgAcc, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
+//    dlgAcc->show();
 }
 
 void MainWindow::openAccount()
@@ -544,7 +707,7 @@ void MainWindow::refreshActInfo()
 //退出应用
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if(curAccountId != 0){       //为了在下次打开应用时自动打开最后打开的账户
+    if(curAccount != NULL){       //为了在下次打开应用时自动打开最后打开的账户
         int id = curAccountId;
         closeAccount();
         curAccountId = id;
@@ -564,7 +727,6 @@ void MainWindow::exit()
     if(curAccountId != 0)
         closeAccount();
     ui->mdiArea->closeAllSubWindows();
-
     close();
 }
 
@@ -572,8 +734,6 @@ void MainWindow::exit()
 //打开凭证集
 void MainWindow::openPzs()
 {
-    //PSetting setting;
-    //QString lname = setting.readAccountFullName(curAccount);
     QString sname,lname; //帐户名
     BusiUtil::getCompanyName(sname,lname);
     OpenPzDialog* dlg = new OpenPzDialog(curAccount);
@@ -597,42 +757,13 @@ void MainWindow::openPzs()
        //过滤模型数据
        QString fileStr = QString("date like '%1%'").arg(dateStr);
        curPzModel->setFilter(fileStr);
-       curPzModel->select();       
-       if(!BusiUtil::getPzsState(cursy,cursm,curPzSetState)){
-           curPzSetState = Ps_Rec;
-           BusiUtil::setPzsState(cursy,cursm,Ps_Rec);
-       }
+       curPzModel->select();
 
-       //在状态条中显示打开的凭证集的起止日期和状态
-       QString sd = QString(tr("(%1年%2月%3日——%4年%5月%6日)")).arg(cursy)
-               .arg(cursm).arg(cursd).arg(curey).arg(curem).arg(cured);
-       l1->setText(tr("起止日期："));
-       lblPzsDate->setText(sd);
-       lblPzSetState->setText(pzsStates.value(curPzSetState));
-
-       //在状态条中显示凭证集中各种状态的凭证数
-       int amount = curPzModel->rowCount();
-       QHash<PzState,int> counts;
-       PzState pzs;
-       for(int i = 0; i < amount; ++i){
-           pzs = (PzState )curPzModel->data(curPzModel->index(i,PZ_PZSTATE)).toInt();
-           counts[pzs]++;
-       }
-       if(amount > 0){
-           QString info = tr("本期共有%1张凭证，其中（").arg(amount);
-           QHashIterator<PzState,int> it(counts);
-           while(it.hasNext()){
-               it.next();
-               info.append(tr("%1：%2，").arg(pzStates.value(it.key())).arg(it.value()));
-           }
-           info.chop(1); info.append(tr("）"));
-           showTemInfo(info);
-       }
-       else
-           showTemInfo(tr("本期还没有任何凭证。"));
-
-
+       if(!BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount))
+           sqlWarning();
        BusiUtil::getRates(cursy,cursm,curRates); //初始化全局汇率表
+       isExtraVolid = BusiUtil::getExtraState(cursy,cursm);
+       refreshShowPzsState();
        curRates[RMB] = 1.00;
        refreshTbrVisble();
        refreshActEnanble();
@@ -642,42 +773,40 @@ void MainWindow::openPzs()
 
 void MainWindow::closePzs()
 {
-    //关闭凭证集时，要先关闭所有与该凭证集相关的子窗口
-    if(subWindows.contains(PZEDIT))
-        subWindows.value(PZEDIT)->close();
-    if(subWindows.contains(PZSTAT))                  //显示本期统计的窗口
-        subWindows.value(PZSTAT)->close();
+    //在关闭凭证集前，要检测是否有未保存的修改
+    if(ui->actSavePz->isEnabled()){
+        if(QMessageBox::Accepted ==
+                QMessageBox::warning(0,tr("提示信息"),tr("凭证集已被改变，要保存吗？"),
+                                     QMessageBox::Yes|QMessageBox::No))
+            on_actSavePz_triggered();
 
-    if(subWindows.contains(CASHDAILY))               //现金日记账窗口
-        subWindows.value(CASHDAILY)->close();
-    if(subWindows.contains(BANKDAILY))               //银行日记账窗口
-        subWindows.value(BANKDAILY)->close();
-    if(subWindows.contains(DETAILSDAILY))            //明细账窗口
+    }
+    //关闭凭证集时，要先关闭所有与该凭证集相关的子窗口
+    if(subWindows.contains(PZEDIT))                 //凭证编辑窗口
+        subWindows.value(PZEDIT)->close();
+    if(subWindows.contains(PZSTAT))                 //显示本期统计的窗口
+        subWindows.value(PZSTAT)->close();    
+    if(subWindows.contains(DETAILSDAILY))           //明细账窗口
         subWindows.value(DETAILSDAILY)->close();
-    if(subWindows.contains(TOTALDAILY))              //总分类账窗口
+    if(subWindows.contains(TOTALDAILY))             //总分类账窗口
         subWindows.value(TOTALDAILY)->close();
 
     if(curPzModel)
         delete curPzModel;
 
     BusiUtil::setPzsState(cursy,cursm,curPzSetState);
+    BusiUtil::setExtraState(cursy,cursm,isExtraVolid);
+    isExtraVolid = false;
     curPzModel = NULL;
     isOpenPzSet = false;
-    cursy = 0;
-    cursm = 0;
-    cursd = 0;
-    curey = 0;
-    curem = 0;
-    cured = 0;
+    cursy = 0;cursm = 0;cursd = 0;curey = 0;curem = 0;cured = 0;
+    pzRepeal=0;pzRecording=0;pzVerify=0;pzInstat=0;pzAmount=0;
 
-    l1->setText("");
-    lblPzsDate->setText("");
-    lblPzSetState->setText(pzsStates.value(Ps_NoOpen));
-
+    ui->statusbar->setPzSetDate(0,0);
+    ui->statusbar->setPzSetState(Ps_NoOpen);
+    ui->statusbar->resetPzCounts();
     refreshTbrVisble();
     refreshActEnanble();    
-
-
 }
 
 //在当前打开的凭证集中进行录入、修改凭证等编辑操作
@@ -712,16 +841,15 @@ void MainWindow::editPzs()
     connect(dlg, SIGNAL(selectedBaAction(bool)), this, SLOT(userSelBaAction(bool)));
     connect(dlg, SIGNAL(saveCompleted()), this, SLOT(pzContentSaved()));
     connect(dlg, SIGNAL(pzsStateChanged()), this, SLOT(refreshShowPzsState()));
+    connect(dlg,SIGNAL(mustRestat()),this,SLOT(extraChanged()));
 
     //设置当前打开凭证可选的时间范围
     QDate start = QDate(cursy,cursm,cursd);
     QDate end = QDate(cursy,cursm, cured);
     dlg->setDateRange(start, end);
 
-    //根据凭证集的状态，设置对话框的只读状态（有待推敲）
-    if(curPzSetState != Ps_Rec){
+    if(curPzSetState == Ps_Jzed)
         dlg->setReadOnly(true);
-    }
 
     QByteArray* sinfo;
     SubWindowDim* winfo;
@@ -730,26 +858,7 @@ void MainWindow::editPzs()
     if(winfo)
         delete winfo;
     if(sinfo)
-        delete sinfo;
-
-    //获取凭证集合所属月份的汇率(这里要判断会计期间处于一个月份以内才有意义，如果跨越月份，则必须在
-    //编辑凭证的对话框内增加实时获取当前凭证所使用的汇率的机制，这可以通过捕获凭证日期的改变来实时
-    //更新当前汇率。)
-//    QSqlQuery query;
-//    QString qs = QString("select usd2rmb from ExchangeRates where (year = %1) and (month = %2)")
-//                 .arg(cursy).arg(cursm);
-//    if((query.exec(qs)) && (query.first()))
-//        dlgEditPz->setRate(query.value(0).toDouble());
-
-    //QHash<int,double> rates;
-    //BusiUtil::getRates(cursy, cursm, rates);
-    //dlgEditPz->initRate(rates);
-
-    //pdlg->exec();
-    //pdlg->show();
-
-
-
+        delete sinfo;    
     refreshTbrVisble();
     refreshActEnanble();
 }
@@ -766,30 +875,9 @@ void MainWindow::handAssignPzNum(){
 }
 
 ///////////////////////数据菜单处理槽部分/////////////////////////////////////
-//汇总计算
-void MainWindow::collectCalculate()
-{
-    CollectPzDialog* dlg = new CollectPzDialog;
-    dlg->setDateLimit(cursy,cursm,curey,curem);
-    dlg->setWindowTitle(tr("汇总窗口"));
-    ui->mdiArea->addSubWindow(dlg);
-    dlg->show();
-}
-
 //显示科目余额
 void MainWindow::viewSubjectExtra()
 {
-//    SubjectExtraDialog* dlg = new SubjectExtraDialog;
-//    dlg->setWindowTitle(tr("科目余额窗口"));
-//    if(isOpenPzSet)  //在一级打开凭证集的情况下，直接显示该时间段的余额
-//        dlg->setDate(cursy,cursm);
-//    ui->mdiArea->addSubWindow(dlg);
-//    dlg->show();
-
-//    if(!isOpenPzSet){
-//        pzsWarning();
-//        return;
-//    }
     LookupSubjectExtraDialog* dlg;
     if(subWindows.contains(LOOKUPSUBEXTRA)){
         dlg = static_cast<LookupSubjectExtraDialog*>(subWindows.value(LOOKUPSUBEXTRA)->widget());
@@ -893,65 +981,8 @@ void MainWindow::setupBankInfos()
 
 bool MainWindow::impTestDatas()
 {
-//    SubjectManager* sm = curAccount->getSubjectManager();
-//    int id;
-//    id = sm->getCashRmbSid();
-//    int i = 0;
 
 
-//    QString s;
-//    Double d1(1.12);
-//    Double d2(2.32);
-//    Double d3 = d1+d2;
-//    s = d3.toString();
-//    d3  = d1-d2;
-//    s = d3.toString();
-//    d3 = d1*d2;
-//    s = d3.toString();
-//    d3 = d1/d2;
-//    s = d3.toString();
-//    d1+=d2;
-//    s = d1.toString();
-//    d1-=d2;
-//    s = d1.toString();
-//    d1*=d2;
-//    s = d1.toString();
-//    d1/=d2;
-//    s = d1.toString();
-//    int i = 0;
-
-
-    //计算当期发生额
-//    QHash<int,double> jsum,jdsum,dsum,ddsum;
-//    QHash<int,Double> d_jsum,d_jdsum,d_dsum,d_ddsum;
-//    bool isSave;
-//    int amount;
-//    BusiUtil::calAmountByMonth(2011,5,jsum,dsum,jdsum,ddsum,isSave,amount);
-//    BusiUtil::calAmountByMonth2(2011,6,d_jsum,d_dsum,d_jdsum,d_ddsum,isSave,amount);
-//    int i = 0;
-
-    //将主营业务收入和成本下币种为美元的会计分录转换为人民币
-    //tranUsdToRbm(2011,5,72,ConnectionManager::getConnect());
-    //tranUsdToRbm(2011,5,77,ConnectionManager::getConnect());
-
-    //结转汇兑损益
-    //BusiUtil::genForwordEx2(2011,12,curUser);
-
-    //结转损益类科目到本年利润（有提示窗，供用户输入要结转的年月）
-    //jzsy();
-
-    //删除结转汇兑损益凭证Pzc_Jzhd_Bank
-//    BusiUtil::delSpecPz(2011,12,Pzc_Jzhd_Bank);
-//    BusiUtil::delSpecPz(2011,12,Pzc_Jzhd_Ys);
-//    BusiUtil::delSpecPz(2011,12,Pzc_Jzhd_Yf);
-
-    //结转2011年5月的损益类科目至本年利润
-    //BusiUtil::genForwordPl2(2011,12,curUser);
-
-    // 删除结转损益（收入和费用两张）的凭证
-    BusiUtil::delSpecPz(2011,12,Pzc_JzsyIn);
-    BusiUtil::delSpecPz(2011,12,Pzc_JzsyFei);
-    BusiUtil::setPzsState(2011,12,Ps_JzhdV);
 }
 
 
@@ -977,80 +1008,81 @@ void MainWindow::about()
 //处理向导式的新账户创建的4个步骤
 void MainWindow::toCrtAccNextStep(int curStep, int nextStep)
 {
-    if((curStep == 1) && (nextStep == 2)){ //结束账户一般信息的输入
-        QString code = dlgAcc->getCode();
-        QString sname = dlgAcc->getSName();
-        QString lname = dlgAcc->getLName();
-        QString filename = dlgAcc->getFileName();
-        int reportType = dlgAcc->getReportType();
+    //表现不理想，暂且不用
+//    if((curStep == 1) && (nextStep == 2)){ //结束账户一般信息的输入
+//        QString code = dlgAcc->getCode();
+//        QString sname = dlgAcc->getSName();
+//        QString lname = dlgAcc->getLName();
+//        QString filename = dlgAcc->getFileName();
+//        int reportType = dlgAcc->getReportType();
 
-        //创建该账户对应的数据库，并建立基本数据表和导入基本数据,必要情况下显示创建进度
-        //检查是否存在同名文件，如有，则恢复刚才的对话框的内容允许用户进行修改
-        QString qn = QString("./datas/databases/%1").arg(filename);
+//        //创建该账户对应的数据库，并建立基本数据表和导入基本数据,必要情况下显示创建进度
+//        //检查是否存在同名文件，如有，则恢复刚才的对话框的内容允许用户进行修改
+//        QString qn = QString("./datas/databases/%1").arg(filename);
 
-        if(!QFile::exists(qn + ".dat") ||   //如果文件不存在或
-           (QFile::exists(qn + ".dat") &&   //文件存在且要求覆盖
-           (QMessageBox::Yes == QMessageBox::critical(0, qApp->tr("文件名称冲突"),
-                qApp->tr("数据库文件名已存在，要覆盖吗？\n"
-                "文件覆盖后将导致先前文件的数据全部丢失"),
-                QMessageBox::Yes | QMessageBox::No)))){
-            //创建数据库文件并打开连接
-            ConnectionManager::openConnection(filename);
-            adb = ConnectionManager::getConnect();
-            createBasicTable(); //创建基本表
+//        if(!QFile::exists(qn + ".dat") ||   //如果文件不存在或
+//           (QFile::exists(qn + ".dat") &&   //文件存在且要求覆盖
+//           (QMessageBox::Yes == QMessageBox::critical(0, qApp->tr("文件名称冲突"),
+//                qApp->tr("数据库文件名已存在，要覆盖吗？\n"
+//                "文件覆盖后将导致先前文件的数据全部丢失"),
+//                QMessageBox::Yes | QMessageBox::No)))){
+//            //创建数据库文件并打开连接
+//            ConnectionManager::openConnection(filename);
+//            adb = ConnectionManager::getConnect();
+//            createBasicTable(); //创建基本表
 
-            //将账户信息添加到数据库文件中
-            QSqlQuery query;
-            query.prepare("INSERT INTO AccountInfos(code, sname, lname) "
-                          "VALUES(:code, :sname, :lname)");
-            query.bindValue(":code", code);
-            query.bindValue(":sname", sname);
-            query.bindValue(":lname", lname);
-            query.exec();
+//            //将账户信息添加到数据库文件中
+//            QSqlQuery query;
+//            query.prepare("INSERT INTO AccountInfos(code, sname, lname) "
+//                          "VALUES(:code, :sname, :lname)");
+//            query.bindValue(":code", code);
+//            query.bindValue(":sname", sname);
+//            query.bindValue(":lname", lname);
+//            query.exec();
 
-            //将该账户添加到应用程序的配置信息中（帐户简称，数据库文件名对）并将该账户设置为当前账户
-            AppConfig* appSetting = AppConfig::getInstance();
-            curAccountId = appSetting->addAccountInfo(code, sname, lname, filename);
-            appSetting->setUsedReportType(curAccountId, reportType);
+//            //将该账户添加到应用程序的配置信息中（帐户简称，数据库文件名对）并将该账户设置为当前账户
+//            AppConfig* appSetting = AppConfig::getInstance();
+//            curAccountId = appSetting->addAccountInfo(code, sname, lname, filename);
+//            appSetting->setUsedReportType(curAccountId, reportType);
 
-            appSetting->setRecentOpenAccount(curAccountId);
-            setWindowTitle(tr("会计凭证处理系统---") + lname);
-            //enaActOnAccOpened(true);
-            refreshTbrVisble();
-            refreshActEnanble();
-            dlgAcc->close();
+//            appSetting->setRecentOpenAccount(curAccountId);
+//            setWindowTitle(tr("会计凭证处理系统---") + lname);
+//            //enaActOnAccOpened(true);
+//            refreshTbrVisble();
+//            refreshActEnanble();
+//            dlgAcc->close();
 
-            dlgBank = new SetupBankDialog;
-            connect(dlgBank, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-            dlgBank->show();
-        }
-    }
-    else if((curStep == 2) && (nextStep == 3)){
-        dlgBank->close();
-        dlgData = new BasicDataDialog;
-        connect(dlgData, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-        dlgData->show();
-    }
-    else if((curStep == 3) && (nextStep == 4)){
-        dlgData->close();
-        dlgBase = new SetupBaseDialog;
-        connect(dlgBase, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-        dlgBase->show();
-    }
-    else if((curStep == 4) && (nextStep == 4)){
-        dlgBase->close();
+//            dlgBank = new SetupBankDialog;
+//            connect(dlgBank, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
+//            dlgBank->show();
+//        }
+//    }
+//    else if((curStep == 2) && (nextStep == 3)){
+//        dlgBank->close();
+//        dlgData = new BasicDataDialog;
+//        connect(dlgData, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
+//        dlgData->show();
+//    }
+//    else if((curStep == 3) && (nextStep == 4)){
+//        dlgData->close();
+//        dlgBase = new SetupBaseDialog;
+//        connect(dlgBase, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
+//        dlgBase->show();
+//    }
+//    else if((curStep == 4) && (nextStep == 4)){
+//        dlgBase->close();
 
-        delete dlgAcc;
-        delete dlgBank;
-        delete dlgData;
-        delete dlgBase;
-    }
-    else if(nextStep == 0){
-        delete dlgAcc;
-        delete dlgBank;
-        delete dlgData;
-        delete dlgBase;
-    }
+//        delete dlgAcc;
+//        delete dlgBank;
+//        delete dlgData;
+//        delete dlgBase;
+//    }
+//    else if(nextStep == 0){
+//        delete dlgAcc;
+//        delete dlgBank;
+//        delete dlgData;
+//        delete dlgBase;
+//    }
 }
 
 //刷新工具条的可见性
@@ -1163,30 +1195,18 @@ void MainWindow::refreshActEnanble()
         ui->mnuEndProcess->setEnabled(isOpenPzSet);
     }
 
-    //期末处理
-    //引入其他凭证
-    r = (curPzSetState == Ps_Stat1) || (curPzSetState == Ps_Stat3);
-    ui->actImpOtherPz->setEnabled(r);
-    //结转汇兑损益
-    r = (curPzSetState == Ps_Stat1) || (curPzSetState == Ps_Stat2);
-    ui->actFordEx->setEnabled(r);
-    //结转损益
-    //r = (curPzSetState == Ps_Stat2) || (curPzSetState == Ps_Stat3);
-    ui->actFordPl->setEnabled(curPzSetState == Ps_JzsyPre);
-    //结转本年利润
-    ui->actJzbnlr->setEnabled(curPzSetState == Ps_Stat4);
-    //结账
-    //r = (curPzSetState == Ps_Stat5) ||
-    //    (jzlrByYear && (cursm != 12) && (curPzSetState == Ps_Stat4));
-    //ui->actEndAcc->setEnabled(r);
-    //反结转
-    r = (curPzSetState >= Ps_ImpOther) && (curPzSetState <= Ps_Stat5);
-    ui->actAntiJz->setEnabled(r);
+    //期末处理   
+    ui->actImpOtherPz->setEnabled(false);    //引入其他凭证
+    r = ((curPzSetState == Ps_AllVerified) && !ui->actSavePz->isEnabled());
+    ui->actFordEx->setEnabled(r);   //结转汇兑损益
+    ui->actFordPl->setEnabled(r);   //结转损益
+    ui->actJzbnlr->setEnabled(r);   //结转本年利润
+    ui->actEndAcc->setEnabled(r && isExtraVolid); //结转（全部审核了且余额是有效的）
+    ui->actAntiJz->setEnabled(curPzSetState != Ps_Jzed);   //反结转（未结账便可以）
     //反引入
-    r = (curPzSetState >= Ps_ImpOther) && (curPzSetState <= Ps_JzsyPre);
-    ui->actAntiImp->setEnabled(r);
-    //反结账
-    ui->actAntiEndAcc->setEnabled(curPzSetState == Ps_Jzed);
+    //r = (curPzSetState >= Ps_ImpOther) && (curPzSetState <= Ps_JzsyPre);
+    ui->actAntiImp->setEnabled(false);  //当前因为还未实现，所有先禁用
+    ui->actAntiEndAcc->setEnabled(curPzSetState == Ps_Jzed);    //反结账
 
 
     //高级凭证操作
@@ -1262,13 +1282,12 @@ void MainWindow::refreshActEnanble()
         else{
             //添加、插入凭证（这些操作都是针对手工录入凭证）
             r = curUser->haveRight(allRights.value(Right::AddPz)) && isPzEdit
-                    && (curPzSetState != Ps_Jzed)/*(curPzSetState < Ps_Stat1+1)*/;
+                    && (curPzSetState != Ps_Jzed);
             ui->actAddPz->setEnabled(r);
             ui->actInsertPz->setEnabled(r);
             //删除凭证
             r = curUser->haveRight(allRights.value(Right::DelPz)) && isPzEdit
-                    && (curPzModel->rowCount() > 0)
-                    && (curPzState == Pzs_Recording); //为简单起见，规定只有处于录入态的凭证可以删除
+                    && (curPzModel->rowCount() > 0) && (curPzState != Ps_Jzed);
             ui->actDelPz->setEnabled(r);
         }
 
@@ -1325,15 +1344,19 @@ void MainWindow::refreshActEnanble()
         ui->actSubExtra->setEnabled(false);
         //ui->actCollCal->setEnabled(false);  //该菜单项已弃用
         ui->actCurStat->setEnabled(false);
-        ui->mnuAccBook->setEnabled(false);
-        ui->mnuReport->setEnabled(false);
+        ui->actShowDetail->setEnabled(false);
+        ui->actShowTotal->setEnabled(false);
+        //ui->mnuAccBook->setEnabled(false);
+        //ui->mnuReport->setEnabled(false);
     }
     else{
         ui->actSubExtra->setEnabled(isOpenPzSet);
-        //ui->actCollCal->setEnabled(isOpenPzSet);
-        ui->actCurStat->setEnabled(isOpenPzSet);
-        ui->mnuAccBook->setEnabled(isOpenPzSet);
-        ui->mnuReport->setEnabled(isOpenPzSet);
+        r = isOpenPzSet && !ui->actSavePz->isEnabled();
+        ui->actCurStat->setEnabled(r);      //本期统计
+        ui->actShowDetail->setEnabled(r);   //显示明细账
+        ui->actShowTotal->setEnabled(r);    //显示总账
+        //ui->mnuAccBook->setEnabled(isOpenPzSet);
+        //ui->mnuReport->setEnabled(isOpenPzSet);
     }
 
     //工具菜单处理
@@ -1440,215 +1463,9 @@ void MainWindow::enaActOnLogin(bool isEnabled)
         //检测当前登录用户是否具有打开、关闭账户的权限，并启用或禁用相应菜单项
 
     }
-
 }
 
-QSqlTableModel* MainWindow::initSingleTableModel(int witch)
-{
-    QSqlTableModel* model;
-    QSqlRelationalTableModel* rmodel;
-    CustomRelationTableModel* crmodel;
-    QList<int> sortClos;
-
-    CustomRelationModel* cmodel;
-    QMap<int, QVariant> map;
-    //int row;
-
-    switch(witch){
-    case 1:                     //一级科目表
-        rmodel = new QSqlRelationalTableModel;
-        rmodel->setTable("FirSubjects");
-        rmodel->setRelation(FSTSUB_BELONGTO, QSqlRelation("FstSubClasses", "id", "name"));
-        rmodel->setHeaderData(FSTSUB_ID, Qt::Horizontal, QObject::tr("ID"));
-        rmodel->setHeaderData(FSTSUB_SUBCODE, Qt::Horizontal, QSqlQueryModel::tr("科目代码"));
-        rmodel->setHeaderData(FSTSUB_REMCODE, Qt::Horizontal, QObject::tr("助记符"));
-        rmodel->setHeaderData(FSTSUB_BELONGTO, Qt::Horizontal, QObject::tr("科目所属类别"));
-        rmodel->setHeaderData(FSTSUB_WEIGHT, Qt::Horizontal, QObject::tr("科目使用权重"));
-        rmodel->setHeaderData(FSTSUB_SUBNAME, Qt::Horizontal, QObject::tr("科目名称"));
-        rmodel->setHeaderData(FSTSUB_DESC, Qt::Horizontal, QObject::tr("科目简单描述"));
-        rmodel->setHeaderData(FSTSUB_UTILS, Qt::Horizontal, QObject::tr("用法举例"));
-        rmodel->select();
-        model = rmodel;
-        break;
-    case 2:                     //二级科目信息表
-        //rmodel = new QSqlRelationalTableModel;
-        model = new QSqlTableModel;
-        model->setTable("SecSubjects");
-        //rmodel->setRelation(SNDSUB_PID, QSqlRelation("FirSubjects", "id", "subName"));
-        model->setHeaderData(SNDSUB_ID, Qt::Horizontal, QObject::tr("ID"));
-        //rmodel->setHeaderData(SNDSUB_PID, Qt::Horizontal, QSqlQueryModel::tr("所属一级科目"));
-        model->setHeaderData(SNDSUB_SUBNAME, Qt::Horizontal, QObject::tr("科目名称"));
-        model->setHeaderData(SNDSUB_SUBLONGNAME, Qt::Horizontal, QObject::tr("科目详名"));
-        //rmodel->setHeaderData(SNDSUB_SUBCODE, Qt::Horizontal, QObject::tr("科目代码"));
-        model->setHeaderData(SNDSUB_REMCODE, Qt::Horizontal, QObject::tr("科目助记符"));
-        model->setHeaderData(SNDSUB_CALSS, Qt::Horizontal, QObject::tr("科目所属类别"));
-        //rmodel->setHeaderData(SNDSUB_FS, Qt::Horizontal, QObject::tr("使用频度统计值"));
-        model->select();
-        //model = rmodel;
-        break;
-    case 3:                     //业务活动表
-        model = new QSqlTableModel;
-        model->setTable("BusiActions");
-        model->setHeaderData(2, Qt::Horizontal, QSqlQueryModel::tr("摘要"));
-        model->setHeaderData(3, Qt::Horizontal, QSqlQueryModel::tr("一级科目"));
-        model->setHeaderData(4, Qt::Horizontal, QSqlQueryModel::tr("二级科目"));
-        model->setHeaderData(5, Qt::Horizontal, QSqlQueryModel::tr("借方金额"));
-        model->setHeaderData(6, Qt::Horizontal, QSqlQueryModel::tr("贷方金额"));
-        model->setHeaderData(7, Qt::Horizontal, QSqlQueryModel::tr("货币类型"));
-        model->select();
-        break;
-    case 4:                   //凭证表
-        crmodel = new CustomRelationTableModel;
-        crmodel->setTable("PingZhengs");
-        //crmodel->setRelation(PZ_ACCOUNTBOOKGROUP, QSqlRelation("AccountBookGroups", "code", "name"));
-
-        //sortClos << PZ_ACCOUNTBOOKGROUP << Qt::AscendingOrder; //按凭证分册类别的升序
-        sortClos << PZ_DATE << Qt::AscendingOrder; //按日期的升序
-        sortClos << PZ_NUMBER << Qt::AscendingOrder; //按凭证总号的升序
-        //sortClos << PZ_NUMBERSUB << Qt::AscendingOrder; //按凭证分号的升序
-        crmodel->setSort(sortClos);
-        //rmodel->setSort(PZ_NUMBER, Qt::AscendingOrder);
-        model = crmodel;
-        model->select();
-        break;
-    case 5:                   //一级科目类别表
-        model = new QSqlTableModel;
-        model->setTable("FstSubClasses");
-        model->setHeaderData(0, Qt::Horizontal, QObject::tr("ID"));
-        model->setHeaderData(1, Qt::Horizontal, QObject::tr("类别名称"));
-        model->select();
-        break;
-
-    case FSAGENTTABLE:  //一级科目到二级科目的映射表
-//        model = new QSqlTableModel;
-//        model->setTable("fsagent");
-//        model->setHeaderData(FSAGENT_ID, Qt::Horizontal, QObject::tr("ID"));
-//        model->setHeaderData(FSAGENT_FID, Qt::Horizontal, QObject::tr("一级科目"));
-//        model->setHeaderData(FSAGENT_SID, Qt::Horizontal, QObject::tr("二级科目"));
-//        model->setHeaderData(FSAGENT_SUBCODE, Qt::Horizontal, QObject::tr("科目代码"));
-//        model->setHeaderData(FSAGENT_FS, Qt::Horizontal, QObject::tr("使用频度统计值"));
-//        model->select();
-        rmodel = new QSqlRelationalTableModel;
-        rmodel->setTable("FSAgent");
-        rmodel->setRelation(FSAGENT_FID, QSqlRelation("FirSubjects", "id", "subName"));
-        rmodel->setRelation(FSAGENT_SID, QSqlRelation("SecSubjects", "id", "subName"));
-        rmodel->setHeaderData(FSAGENT_ID, Qt::Horizontal, QObject::tr("ID"));
-        rmodel->setHeaderData(FSAGENT_FID, Qt::Horizontal, QObject::tr("一级科目"));
-        rmodel->setHeaderData(FSAGENT_SID, Qt::Horizontal, QObject::tr("二级科目"));
-        rmodel->setHeaderData(FSAGENT_SUBCODE, Qt::Horizontal, QObject::tr("科目代码"));
-        rmodel->setHeaderData(FSAGENT_FS, Qt::Horizontal, QObject::tr("使用频度统计值"));
-
-        rmodel->select();
-        model = rmodel;
-        break;
-
-    case SNDSUBCLSTABLE:                   //二级科目类别表
-        model = new QSqlTableModel;
-        model->setTable("SndSubClass");
-        model->setHeaderData(SNDSUBCLASS_ID, Qt::Horizontal, QObject::tr("ID"));
-        model->setHeaderData(SNDSUBCLASS_CODE, Qt::Horizontal, QObject::tr("类别代码"));
-        model->setHeaderData(SNDSUBCLASS_NAME, Qt::Horizontal, QObject::tr("类别名称"));
-        model->setHeaderData(SNDSUBCLASS_EXPLAIN, Qt::Horizontal, QObject::tr("简要说明"));
-        model->select();
-        break;
-
-    case ACCOUNTINFO:                 //账户信息表
-        model = new QSqlTableModel;
-        model->setTable("AccountInfos");
-        model->setHeaderData(ACCOUNTINFO_ID, Qt::Horizontal, QObject::tr("ID"));
-        model->setHeaderData(ACCOUNT_SNAME, Qt::Horizontal, QObject::tr("账户简称"));
-        model->setHeaderData(ACCOUNT_LNAME, Qt::Horizontal, QObject::tr("账户全称"));
-        model->select();
-        break;
-
-    case EXCHANGERATE:    //汇率表
-        model = new QSqlTableModel;
-        model->setTable("ExchangeRates");
-        model->setHeaderData(EXCHANGERATE_ID, Qt::Horizontal, QObject::tr("ID"));
-        model->setHeaderData(EXCHANGERATE_YEAR, Qt::Horizontal, QObject::tr("年份"));
-        model->setHeaderData(EXCHANGERATE_MONTH, Qt::Horizontal, QObject::tr("月份"));
-        model->setHeaderData(EXCHANGERATE_USDTORMB, Qt::Horizontal, QObject::tr("美元兑rmb"));
-        model->select();
-        break;
-
-    case ACCOUNTBOOKGROUP:      //账簿分类表
-        model = new QSqlTableModel;
-        model->setTable("AccountBookGroups");
-        model->setHeaderData(ACCBOOKGROUP_ID, Qt::Horizontal, QObject::tr("ID"));
-        model->setHeaderData(ACCBOOKGROUP_NAME, Qt::Horizontal, QObject::tr("账簿名称"));
-        model->setHeaderData(ACCBOOKGROUP_EXPLAIN, Qt::Horizontal, QObject::tr("对归属于此账簿的凭证说明"));
-        model->select();
-        break;
-
-    case SUJECTEXTRA:   //科目余额表
-        model = new QSqlTableModel;
-        model->setTable("SubjectExtras");
-        model->select();
-        break;
-
-    case REPORTSTRUCTS:   //报表结构信息表
-        model = new QSqlTableModel;
-        model->setTable("ReportStructs");
-        model->setHeaderData(RS_CLSID, Qt::Horizontal, QObject::tr("报表类别代码D"));
-        model->setHeaderData(RS_TYPE, Qt::Horizontal, QObject::tr("报表分类代码"));
-        model->setHeaderData(RS_VIEWORDER, Qt::Horizontal, QObject::tr("显示顺序"));
-        model->setHeaderData(RS_CALORDER, Qt::Horizontal, QObject::tr("计算顺序"));
-        model->setHeaderData(RS_FIELDNAME, Qt::Horizontal, QObject::tr("报表字段名"));
-        model->setHeaderData(RS_FIELDTITLE, Qt::Horizontal, QObject::tr("报表字段标题"));
-        model->setHeaderData(RS_FIELDFORMULA, Qt::Horizontal, QObject::tr("报表字段的计算公式"));
-        model->select();
-        break;
-
-
-    case REPORTADDITIONINFO:   //报表其他信息表
-        model = new QSqlTableModel;
-        model->setTable("ReportAdditionInfo");
-        model->setHeaderData(RAI_CLSID, Qt::Horizontal, QObject::tr("报表类别代码D"));
-        model->setHeaderData(RAI_TYPE, Qt::Horizontal, QObject::tr("报表分类代码"));
-        model->setHeaderData(RAI_TABLENAME, Qt::Horizontal, QObject::tr("表名"));
-        model->setHeaderData(RAI_TITLE, Qt::Horizontal, QObject::tr("报表标题"));
-        model->select();
-        break;
-
-    case INCOMESTATMENTS_OLD:   //利润表（老）
-        model = new QSqlTableModel;
-        model->setTable("OldProfits");
-        model->setHeaderData(PROFITS_YEAR, Qt::Horizontal, QObject::tr("年份"));
-        model->setHeaderData(PROFITS_MONTH, Qt::Horizontal, QObject::tr("月份"));
-        //建议从报表信息结构表中读取报表字段标题
-        //model->setHeaderData(PROFITS_START+1, Qt::Horizontal, QObject::tr("显示顺序"));
-        //model->setHeaderData(PROFITS_START+2, Qt::Horizontal, QObject::tr("计算顺序"));
-        //model->setHeaderData(PROFITS_START+3, Qt::Horizontal, QObject::tr("报表字段名"));
-
-        model->select();
-        break;
-
-    case INCOMESTATMENTS_NEW:   //利润表（新）
-        model = new QSqlTableModel;
-        model->setTable("NewProfits");
-        model->setHeaderData(PROFITS_YEAR, Qt::Horizontal, QObject::tr("年份"));
-        model->setHeaderData(PROFITS_MONTH, Qt::Horizontal, QObject::tr("月份"));
-        //建议从报表信息结构表中读取报表字段标题
-        //model->setHeaderData(PROFITS_START+1, Qt::Horizontal, QObject::tr("显示顺序"));
-        //model->setHeaderData(PROFITS_START+2, Qt::Horizontal, QObject::tr("计算顺序"));
-        //model->setHeaderData(PROFITS_START+3, Qt::Horizontal, QObject::tr("报表字段名"));
-
-        model->select();
-        break;
-
-    case 40:  //原始的凭证表（显示表的原始字段的数据）
-        model = new QSqlTableModel;
-        model->setTable("PingZhengs");
-        model->select();
-        break;
-    }
-
-
-
-    return model;
-}
-
-//凭证状态改变处理槽（用以在用户导航凭证时正确显示和设置凭证的当前状态）
+//凭证状态改变处理槽（用以在用户通过凭证编辑窗口导航凭证时正确显示和设置凭证的当前状态）
 void MainWindow::pzStateChange(int scode)
 {
     curPzState = scode;
@@ -1679,7 +1496,6 @@ void MainWindow::pzStateChange(int scode)
         break;
     }
     //refreshActEnanble();
-
     refreshAdvancPzOperBtn();
 }
 
@@ -1722,24 +1538,46 @@ void MainWindow::userModifyPzState(bool checked)
 {
     QRadioButton* send = qobject_cast<QRadioButton*>(sender());
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
+    PzState old = (PzState)pzEdit->getPzState();
+    switch(old){
+    case Pzs_Repeal:
+        pzRepeal--;
+        break;
+    case Pzs_Recording:
+        pzRecording--;
+        break;
+    case Pzs_Verify:
+        pzVerify--;
+        break;
+    case Pzs_Instat:
+        pzInstat--;
+        break;
+    }
+
     if(send == rdoVerifyPz){
         curPzState = Pzs_Verify;
+        pzVerify++;
         pzEdit->setPzState(Pzs_Verify,curUser);
     }
     else if(send == rdoInstatPz){
         curPzState = Pzs_Instat;
+        pzInstat++;
         pzEdit->setPzState(Pzs_Instat,curUser);
     }
     else if(send == rdoRepealPz){
         curPzState = Pzs_Repeal;
+        pzRepeal++;
         pzEdit->setPzState(Pzs_Repeal,curUser);
     }
     else{
         curPzState = Pzs_Recording;
+        pzRecording++;
         pzEdit->setPzState(Pzs_Recording,curUser);
     }
+    refreshShowPzsState();
     refreshAdvancPzOperBtn();
-    ui->actSavePz->setEnabled(true);    
+    ui->actSavePz->setEnabled(true);
+    isExtraVolid = false;
 }
 
 //根据用户所选的业务活动的状况决定移动和删除业务活动按钮的启用状态
@@ -1772,7 +1610,8 @@ void MainWindow::on_actAddPz_triggered()
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
     if(curPzSetState != Ps_Jzed){
         pzEdit->addPz();
-        //BusiUtil::setPzsState(cursy,cursm,Ps_Rec);
+        pzRecording++;
+        pzAmount++;
         refreshShowPzsState();
         refreshActEnanble();
     }
@@ -1782,9 +1621,10 @@ void MainWindow::on_actAddPz_triggered()
 void MainWindow::on_actInsertPz_triggered()
 {
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
-    if(curPzSetState < Ps_Stat1+1){
+    if(curPzSetState != Ps_Jzed){
         pzEdit->insertPz();
-        BusiUtil::setPzsState(cursy,cursm,Ps_Rec);
+        pzRecording++;
+        pzAmount++;
         refreshShowPzsState();
         refreshActEnanble();
     }
@@ -1794,31 +1634,30 @@ void MainWindow::on_actInsertPz_triggered()
 void MainWindow::on_actDelPz_triggered()
 {
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
-    pzEdit->delPz();
-    PzsState newState;
-    if((curPzSetState >= Ps_Rec) && (curPzSetState <= Ps_Stat1))
-        newState = Ps_Rec;
-    else if((curPzSetState >= Ps_ImpOther) && (curPzSetState <= Ps_Stat2))
-        newState = Ps_Stat1;
-    else if((curPzSetState >= Ps_Jzhd) && (curPzSetState <= Ps_Stat3))
-        newState = Ps_Stat1;
-    else if((curPzSetState >= Ps_Jzsy) && (curPzSetState <= Ps_Stat4)){
-        bool req1,req2;
-        BusiUtil::reqGenImpOthPz(cursy,cursm,req1);
-        BusiUtil::reqGenJzHdsyPz(cursy,cursm,req2);
-        if(req1 && req2)
-            newState = Ps_Stat1;
-        else if(req1 && !req2)
-            newState = Ps_Stat3;
-        else if(!req1 && req2)
-            newState = Ps_Stat2;
-        else
-            newState = Ps_JzsyPre;
+    if(curPzSetState != Ps_Jzed){
+        switch(curPzState){
+        case Pzs_Repeal:
+            pzRepeal--;
+            break;
+        case Pzs_Recording:
+            pzRecording--;
+            break;
+        case Pzs_Verify:
+            pzVerify--;
+            break;
+        case Pzs_Instat:
+            pzInstat--;
+            break;
+        }
+        pzAmount--;
+        pzEdit->delPz();
+        isExtraVolid = false; //删除包含有会计分录（且金额非零）的凭证将导致余额的失效。这里不做过于细致的检测
+        refreshShowPzsState();
+        refreshActEnanble();
     }
-
 }
 
-//新增业务活动
+//新增会计分录
 void MainWindow::on_actAddAction_triggered()
 {
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
@@ -1832,10 +1671,6 @@ void MainWindow::on_actDelAction_triggered()
 {
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
     pzEdit->delBusiAct();
-    //因为只能删除录入态的凭证，因此不会引起凭证集状态的改变
-    //BusiUtil::refreshPzsState(cursy,cursm,curPzModel);
-    //refreshPzSetState();
-    //refreshActEnanble();
 }
 
 //导航到第一张凭证
@@ -1866,13 +1701,19 @@ void MainWindow::on_actGoLast_triggered()
     pzEdit->naviLast();
 }
 
-//提交对凭证的改变
+/**
+ * @brief MainWindow::on_actSavePz_triggered
+ *  提交对凭证集的改变
+ */
 void MainWindow::on_actSavePz_triggered()
 {
+    //保存当前凭证的内容
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
     pzEdit->save();
-    ui->actSavePz->setEnabled(false);
+    //保存凭证集相关的状态
     refreshShowPzsState();
+    ui->actSavePz->setEnabled(false);
+
 }
 
 //判定损益类科目是收入类还是费用类（临时代码）
@@ -1903,6 +1744,15 @@ void MainWindow::pzsWarning()
                          tr("凭证集还未打开。在执行任何账户操作前，请先打开凭证集"));
 }
 
+/**
+ * @brief MainWindow::sqlWarning
+ *  数据库访问发生错误警告
+ */
+void MainWindow::sqlWarning()
+{
+    QMessageBox::critical(0,tr("错误提示"),tr("在访问账户数据库文件时，发生错误！"));
+}
+
 //显示受影响的凭证数
 void MainWindow::showPzNumsAffected(int num)
 {
@@ -1927,132 +1777,58 @@ void MainWindow::saveSubWinInfo(subWindowType winEnum, QByteArray* sinfo)
     delete info;
 }
 
-//读取当前凭证集的最新状态，并设置对应变量和状态条信息
+/**
+ * @brief MainWindow::refreshShowPzsState
+ *  保存当前凭证集的状态信息，并在状态条上显示
+ */
 void MainWindow::refreshShowPzsState()
 {
-    PzsState old = curPzSetState;
-    BusiUtil::getPzsState(cursy,cursm,curPzSetState);
-    if(old != curPzSetState){
-        lblPzSetState->setText(pzsStates.value(curPzSetState));
-        refreshActEnanble();
-
-        //通知其他相关子窗口（某些子窗口可能需要重新进行计算，比如本期统计等）
+    //显示各类凭证的数目
+    ui->statusbar->setPzCounts(pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+    PzsState state;
+    BusiUtil::getPzsState(cursy,cursm,state);
+    //如果凭证集原先未结账，则根据实际的凭证审核状态来决定凭证集的状态
+    if(!isOpenPzSet)
+        state = Ps_NoOpen;
+    else if(state == Ps_Jzed)
+        curPzSetState = Ps_Jzed;
+    else{
+        if(pzRecording > 0)
+            curPzSetState = Ps_Rec;
+        else
+            curPzSetState = Ps_AllVerified;
     }
+    if(cursy != 0 && cursy !=0){
+        BusiUtil::setPzsState(cursy,cursm,curPzSetState);   //保存凭证集状态
+        BusiUtil::setExtraState(cursy,cursm,isExtraVolid);  //保存余额状态
+    }
+    ui->statusbar->setPzSetState(curPzSetState);
+    ui->statusbar->setExtraState(isExtraVolid);
+}
+
+/**
+ * @brief MainWindow::extraValid
+ *  余额已经更新为有效（由本期统计窗口反馈给主窗口）
+ */
+void MainWindow::extraValid()
+{
+    isExtraVolid = true;
+    refreshShowPzsState();
+    refreshActEnanble();
 }
 
 //结转汇兑损益
 void MainWindow::on_actFordEx_triggered()
 {
-//    if(!isOpenPzSet){
-//        pzsWarning();
-//        return;
-//    }
-
-//    //给用户一个选项，是否真的需要执行汇兑损益的结转
-//    QMessageBox* dlg = new 	QMessageBox(this);
-//    QAbstractButton* btnOk = dlg->addButton(tr("确定"),QMessageBox::AcceptRole);
-//    QAbstractButton* btnSkit = dlg->addButton(tr("跳过"),QMessageBox::AcceptRole);
-//    QAbstractButton* btnCancel = dlg->addButton(tr("取消"),QMessageBox::RejectRole);
-//    dlg->exec();
-//    if(btnCancel == dlg->clickedButton()){
-//        int i = 0;
-//        return;
-//    }
-//    else if(btnOk == dlg->clickedButton()){
-//        if(BusiUtil::genForwordEx(cursy,cursm,curUser)){
-//            showTemInfo(tr("成功创建结转汇兑损益凭证"));
-//            refreshShowPzsState();
-//            refreshActEnanble();
-//        }
-//        else
-//            showTemInfo(tr("在创建结转汇兑损益凭证时出错"));
-//        return;
-//    }
-//    else{ //跳过结转时，设置下月的汇率为本月汇率，且设置凭证集状态
-//        int y,m;
-//        if(cursm == 12){
-//            y = cursy + 1;
-//            m = 1;
-//        }
-//        else{
-//            y = cursy;
-//            m = cursm + 1;
-//        }
-//        BusiUtil::saveRates(y,m,curRates);
-//        bool req;
-//        BusiUtil::reqGenImpOthPz(cursy,cursm,req);
-//        if(req)
-//            BusiUtil::setPzsState(cursy,cursm,Ps_Stat3);
-//        else  //如果同时也不需要引入其他凭证，则直接准备结转损益
-//            BusiUtil::setPzsState(cursy,cursm,Ps_JzsyPre);
-//        refreshShowPzsState();
-//        refreshActEnanble();
-//        return;
-//    }
+    if(!jzhdsy())
+        QMessageBox::critical(0,tr("错误信息"),tr("在创建结转汇兑损益的凭证时发生错误!"));
 }
 
 //结转损益
 void MainWindow::on_actFordPl_triggered()
 {
-//    if(!isOpenPzSet){
-//        pzsWarning();
-//        return;
-//    }
-
-//    PzsState state;
-//    if(!BusiUtil::getPzsState(cursy,cursm,state)){
-//        showTemInfo(tr("不能读取凭证集状态，操作无法完成！"));
-//        return;
-//    }
-//    //进行结转损益的先决状态是Ps_JzsyPre
-//    if(state != Ps_JzsyPre){
-//        QMessageBox::information(this, tr("提示信息"),
-//                                 tr("当前凭证集还未做好结转损益前的准备，\n"
-//                                    "这通常是由于还未执行引入其他凭证或结转汇兑损益操作引起的！"));
-//        return;
-//    }
-//    if(state >= Ps_JzsyV){
-//        QMessageBox::information(this, tr("提示信息"),
-//                                 tr("你已经审核了结转损益凭证，必须先取消审核才能重新执行！"));
-//        return;
-//    }
-
-/////////////这些代码原先就已经注释掉的////////////////////////
-//        bool req = false;
-
-//    //如果执行了引入其他凭证，但没有执行结转汇兑损益操作
-//    if(!BusiUtil::reqGenJzHdsyPz(cursy,cursm,req)){
-//        QMessageBox::information(this, tr("错误信息"),
-//                                 tr("在请求是否需要生成结转汇兑损益凭证时出错"));
-//        return;
-//    }
-//    if((state == Ps_Stat2) && req){
-//        QMessageBox::information(this, tr("提示信息"),
-//                                 tr("你还没有执行结转汇兑损益操作！"));
-//        return;
-//    }
-
-//    //如果执行了结转汇兑损益但没有执行引入其他凭证操作
-//    if(!BusiUtil::reqGenImpOthPz(cursy,cursm,req)){
-//        QMessageBox::information(this, tr("错误信息"),
-//                                 tr("在请求是否需要引入其他凭证时出错"));
-//        return;
-//    }
-//    if((state == Ps_Stat3) && req){
-//        QMessageBox::information(this, tr("提示信息"),
-//                                 tr("你还没有执行引入其他凭证操作！"));
-//        return;
-//    }
-///////////////////////////////////////////////////////////////////////////////
-
-//    if(BusiUtil::genForwordPl(cursy,cursm,curUser)){
-//        showTemInfo(tr("成功创建结转损益凭证！"));
-//        refreshShowPzsState();
-//        refreshActEnanble();
-//    }
-//    else
-//        showTemInfo(tr("在创建结转损益凭证的过程中发生了错误！"));
-
+    if(!jzsy())
+        QMessageBox::critical(0,tr("错误信息"),tr("在创建结转损益的凭证时发生错误!"));
 }
 
 //统计本期发生额及其科目余额
@@ -2062,6 +1838,8 @@ void MainWindow::on_actCurStat_triggered()
         pzsWarning();
         return;
     }
+    //为了使本期统计得以正确执行，必须将主窗口记录的凭证集状态保存到账户中
+    BusiUtil::setPzsState(cursy,cursm,curPzSetState);
     ViewExtraDialog* dlg;
     if(subWindows.contains(PZSTAT)){
         dlg = static_cast<ViewExtraDialog*>(subWindows.value(PZSTAT)->widget());
@@ -2073,197 +1851,167 @@ void MainWindow::on_actCurStat_triggered()
 
     SubWindowDim* winfo;
     QByteArray* sinfo;
-    bool exist = VariousUtils::getSubWinInfo(PZSTAT,winfo,sinfo);
+    VariousUtils::getSubWinInfo(PZSTAT,winfo,sinfo);
     dlg = new ViewExtraDialog(cursy, cursm, sinfo, this );
     connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
-    connect(dlg,SIGNAL(pzsStateChanged()),this,SLOT(refreshShowPzsState()));
-    //dlg->setDate(cursy,cursm);    
+    connect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
 
     showSubWindow(PZSTAT,winfo,dlg);
-    //if(exist)
-    //    showSubWindow(PZSTAT,&winfo,dlg);
-    //else
-    //    showSubWindow(PZSTAT,NULL,dlg);
     if(winfo)
         delete winfo;
     if(sinfo)
         delete sinfo;
+}
 
-//    subWindows[PZSTAT] = new MyMdiSubWindow;
-//    subWindows[PZSTAT]->setWidget(dlgPzStat);
-//    //设置凭证本期统计窗口的激活状态（必须在子窗口加入到mdi区域之前设置，精确地说应该在show之前）
-//    if(!subWinActStates.contains(PZSTAT))
-//        subWinActStates[PZSTAT] = true;
-//    ui->mdiArea->addSubWindow(subWindows[PZSTAT]);
-//    connect(subWindows[PZSTAT], SIGNAL(windowClosed(QMdiSubWindow*)),
+//显示现金日记账
+void MainWindow::on_actCashJournal_triggered()
+{
+//    if(subWindows.contains(CASHDAILY)){
+//        dlgCashDaily->refresh();
+//        ui->mdiArea->setActiveSubWindow(subWindows.value(CASHDAILY));
+//        return;
+//    }
+//    dlgCashDaily = new DetailsViewDialog2;
+//    dlgCashDaily->setDateLimit(cursy, cursm, curey, curem);
+//    dlgCashDaily->setWindowTitle(tr("现金日记账"));
+//    subWindows[CASHDAILY] = new MyMdiSubWindow;
+//    subWindows[CASHDAILY]->setWidget(dlgCashDaily);
+//    ui->mdiArea->addSubWindow(subWindows[CASHDAILY]);
+//    connect(subWindows[CASHDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
 //            this, SLOT(subWindowClosed(QMdiSubWindow*)));
-//    //在此之前一定要设置子窗口的激活状态
-//    dlgPzStat->show();
-
-//    SubWindowInfo* info = new SubWindowInfo;
-//    if(VariousUtils::getSubWinInfo(PZSTAT,info)){
-//        subWindows.value(PZSTAT)->move(info->x,info->y);
-//        subWindows.value(PZSTAT)->resize(info->w,info->h);
+//    //设置凭证本期统计窗口的激活状态
+//    if(!subWinActStates.contains(CASHDAILY))
+//        subWinActStates[CASHDAILY] = true;
+//    dlgCashDaily->show();
+//    SubWindowDim* info = new SubWindowDim;
+//    QByteArray* oinfo;
+//    if(VariousUtils::getSubWinInfo(CASHDAILY,info,oinfo)){
+//        subWindows.value(CASHDAILY)->move(info->x,info->y);
+//        subWindows.value(CASHDAILY)->resize(info->w,info->h);
 //    }
 //    else{
 //        int w = 1322; //对话框的首选尺寸
 //        int h = 650;
 //        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
 //        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
-//        subWindows.value(PZSTAT)->move(10,10);
-//        subWindows.value(PZSTAT)->resize(w, h);
+//        subWindows.value(CASHDAILY)->move(10,10);
+//        subWindows.value(CASHDAILY)->resize(w, h);
 //    }
-}
-
-//显示现金日记账
-void MainWindow::on_actCashJournal_triggered()
-{
-    if(subWindows.contains(CASHDAILY)){
-        dlgCashDaily->refresh();
-        ui->mdiArea->setActiveSubWindow(subWindows.value(CASHDAILY));
-        return;
-    }
-    dlgCashDaily = new DetailsViewDialog2;
-    dlgCashDaily->setDateLimit(cursy, cursm, curey, curem);
-    dlgCashDaily->setWindowTitle(tr("现金日记账"));    
-    subWindows[CASHDAILY] = new MyMdiSubWindow;
-    subWindows[CASHDAILY]->setWidget(dlgCashDaily);
-    ui->mdiArea->addSubWindow(subWindows[CASHDAILY]);
-    connect(subWindows[CASHDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
-            this, SLOT(subWindowClosed(QMdiSubWindow*)));
-    //设置凭证本期统计窗口的激活状态
-    if(!subWinActStates.contains(CASHDAILY))
-        subWinActStates[CASHDAILY] = true;
-    dlgCashDaily->show();
-    SubWindowDim* info = new SubWindowDim;
-    QByteArray* oinfo;
-    if(VariousUtils::getSubWinInfo(CASHDAILY,info,oinfo)){
-        subWindows.value(CASHDAILY)->move(info->x,info->y);
-        subWindows.value(CASHDAILY)->resize(info->w,info->h);
-    }
-    else{
-        int w = 1322; //对话框的首选尺寸
-        int h = 650;
-        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
-        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
-        subWindows.value(CASHDAILY)->move(10,10);
-        subWindows.value(CASHDAILY)->resize(w, h);
-    }
-    delete info;
-    connect(dlgCashDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
+//    delete info;
+//    connect(dlgCashDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
 
 }
 
 //显示银行日记帐
 void MainWindow::on_actBankJournal_triggered()
 {
-    if(dlgBankDaily){
-        dlgBankDaily->refresh();
-        ui->mdiArea->setActiveSubWindow(subWindows.value(BANKDAILY));
-    }
-    dlgBankDaily = new DetailsViewDialog2(2);
-    dlgBankDaily->setDateLimit(cursy, cursm, curey, curem);
-    dlgBankDaily->setWindowTitle(tr("银行日记账"));
-    subWindows[BANKDAILY] = new MyMdiSubWindow;
-    subWindows[BANKDAILY]->setWidget(dlgBankDaily);
-    ui->mdiArea->addSubWindow(subWindows[BANKDAILY]);
-    connect(subWindows[BANKDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
-            this, SLOT(subWindowClosed(QMdiSubWindow*)));
-    //设置凭证银行日记账窗口的激活状态
-    if(!subWinActStates.contains(BANKDAILY))
-        subWinActStates[BANKDAILY] = true;
-    dlgBankDaily->show();
-    SubWindowDim* info = new SubWindowDim;
-    QByteArray* oinfo;
-    if(VariousUtils::getSubWinInfo(BANKDAILY,info,oinfo)){
-        subWindows.value(BANKDAILY)->move(info->x,info->y);
-        subWindows.value(BANKDAILY)->resize(info->w,info->h);
-    }
-    else{
-        int w = 1322; //对话框的首选尺寸
-        int h = 650;
-        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
-        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
-        subWindows.value(BANKDAILY)->move(10,10);
-        subWindows.value(BANKDAILY)->resize(w, h);
-    }
-    delete info;
-    connect(dlgBankDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
+//    if(dlgBankDaily){
+//        dlgBankDaily->refresh();
+//        ui->mdiArea->setActiveSubWindow(subWindows.value(BANKDAILY));
+//    }
+//    dlgBankDaily = new DetailsViewDialog2(2);
+//    dlgBankDaily->setDateLimit(cursy, cursm, curey, curem);
+//    dlgBankDaily->setWindowTitle(tr("银行日记账"));
+//    subWindows[BANKDAILY] = new MyMdiSubWindow;
+//    subWindows[BANKDAILY]->setWidget(dlgBankDaily);
+//    ui->mdiArea->addSubWindow(subWindows[BANKDAILY]);
+//    connect(subWindows[BANKDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
+//            this, SLOT(subWindowClosed(QMdiSubWindow*)));
+//    //设置凭证银行日记账窗口的激活状态
+//    if(!subWinActStates.contains(BANKDAILY))
+//        subWinActStates[BANKDAILY] = true;
+//    dlgBankDaily->show();
+//    SubWindowDim* info = new SubWindowDim;
+//    QByteArray* oinfo;
+//    if(VariousUtils::getSubWinInfo(BANKDAILY,info,oinfo)){
+//        subWindows.value(BANKDAILY)->move(info->x,info->y);
+//        subWindows.value(BANKDAILY)->resize(info->w,info->h);
+//    }
+//    else{
+//        int w = 1322; //对话框的首选尺寸
+//        int h = 650;
+//        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
+//        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
+//        subWindows.value(BANKDAILY)->move(10,10);
+//        subWindows.value(BANKDAILY)->resize(w, h);
+//    }
+//    delete info;
+//    connect(dlgBankDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
 }
 
 //显示明细帐
 void MainWindow::on_actSubsidiaryLedger_triggered()
 {
-    if(dlgDetailDaily){
-        dlgDetailDaily->refresh();
-        ui->mdiArea->setActiveSubWindow(subWindows.value(DETAILSDAILY));
-        return;
-    }
-    dlgDetailDaily = new DetailsViewDialog2(3);
-    dlgDetailDaily->setDateLimit(cursy, cursm, curey, curem);
-    dlgDetailDaily->setWindowTitle(tr("明细账"));
-    connect(dlgDetailDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
-    subWindows[DETAILSDAILY] = new MyMdiSubWindow;
-    subWindows[DETAILSDAILY]->setWidget(dlgDetailDaily);
-    ui->mdiArea->addSubWindow(subWindows[DETAILSDAILY]);
-    connect(subWindows[DETAILSDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
-            this, SLOT(subWindowClosed(QMdiSubWindow*)));
-    if(!subWinActStates.contains(DETAILSDAILY))
-        subWinActStates[DETAILSDAILY] = true;
-    dlgDetailDaily->show();
-    SubWindowDim* info = new SubWindowDim;
-    QByteArray* oinfo;
-    if(VariousUtils::getSubWinInfo(CASHDAILY,info,oinfo)){
-        subWindows.value(DETAILSDAILY)->move(info->x,info->y);
-        subWindows.value(DETAILSDAILY)->resize(info->w,info->h);
-    }
-    else{
-        int w = 1322; //对话框的首选尺寸
-        int h = 650;
-        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
-        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
-        subWindows.value(DETAILSDAILY)->move(10,10);
-        subWindows.value(DETAILSDAILY)->resize(w, h);
-    }
-    delete info;
+//    if(dlgDetailDaily){
+//        dlgDetailDaily->refresh();
+//        ui->mdiArea->setActiveSubWindow(subWindows.value(DETAILSDAILY));
+//        return;
+//    }
+//    dlgDetailDaily = new DetailsViewDialog2(3);
+//    dlgDetailDaily->setDateLimit(cursy, cursm, curey, curem);
+//    dlgDetailDaily->setWindowTitle(tr("明细账"));
+//    connect(dlgDetailDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
+//    subWindows[DETAILSDAILY] = new MyMdiSubWindow;
+//    subWindows[DETAILSDAILY]->setWidget(dlgDetailDaily);
+//    ui->mdiArea->addSubWindow(subWindows[DETAILSDAILY]);
+//    connect(subWindows[DETAILSDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
+//            this, SLOT(subWindowClosed(QMdiSubWindow*)));
+//    if(!subWinActStates.contains(DETAILSDAILY))
+//        subWinActStates[DETAILSDAILY] = true;
+//    dlgDetailDaily->show();
+//    SubWindowDim* info = new SubWindowDim;
+//    QByteArray* oinfo;
+//    if(VariousUtils::getSubWinInfo(CASHDAILY,info,oinfo)){
+//        subWindows.value(DETAILSDAILY)->move(info->x,info->y);
+//        subWindows.value(DETAILSDAILY)->resize(info->w,info->h);
+//    }
+//    else{
+//        int w = 1322; //对话框的首选尺寸
+//        int h = 650;
+//        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
+//        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
+//        subWindows.value(DETAILSDAILY)->move(10,10);
+//        subWindows.value(DETAILSDAILY)->resize(w, h);
+//    }
+//    delete info;
 }
 
 //显示总分类帐
 void MainWindow::on_actLedger_triggered()
 {
-    if(dlgTotalDaily){
-        dlgTotalDaily->refresh();
-        ui->mdiArea->setActiveSubWindow(subWindows.value(TOTALDAILY));
-        return;
-    }
-    dlgTotalDaily = new DetailsViewDialog2(4);
-    dlgTotalDaily->setDateLimit(cursy, cursm, curey, curem);
-    dlgTotalDaily->setWindowTitle(tr("总分类账"));
-    connect(dlgTotalDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
+//    if(dlgTotalDaily){
+//        dlgTotalDaily->refresh();
+//        ui->mdiArea->setActiveSubWindow(subWindows.value(TOTALDAILY));
+//        return;
+//    }
+//    dlgTotalDaily = new DetailsViewDialog2(4);
+//    dlgTotalDaily->setDateLimit(cursy, cursm, curey, curem);
+//    dlgTotalDaily->setWindowTitle(tr("总分类账"));
+//    connect(dlgTotalDaily, SIGNAL(openSpecPz(int,int)), this, SLOT(openSpecPz(int,int)));
 
-    subWindows[TOTALDAILY] = new MyMdiSubWindow;
-    subWindows[TOTALDAILY]->setWidget(dlgTotalDaily);
-    ui->mdiArea->addSubWindow(subWindows[TOTALDAILY]);
-    connect(subWindows[TOTALDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
-            this, SLOT(subWindowClosed(QMdiSubWindow*)));
-    if(!subWinActStates.contains(TOTALDAILY))
-        subWinActStates[TOTALDAILY] = true;
-    dlgTotalDaily->show();
-    SubWindowDim* info = new SubWindowDim;
-    QByteArray* oinfo;
-    if(VariousUtils::getSubWinInfo(TOTALDAILY,info,oinfo)){
-        subWindows.value(TOTALDAILY)->move(info->x,info->y);
-        subWindows.value(TOTALDAILY)->resize(info->w,info->h);
-    }
-    else{
-        int w = 1322; //对话框的首选尺寸
-        int h = 650;
-        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
-        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
-        subWindows.value(TOTALDAILY)->move(10,10);
-        subWindows.value(TOTALDAILY)->resize(w, h);
-    }
-    delete info;
+//    subWindows[TOTALDAILY] = new MyMdiSubWindow;
+//    subWindows[TOTALDAILY]->setWidget(dlgTotalDaily);
+//    ui->mdiArea->addSubWindow(subWindows[TOTALDAILY]);
+//    connect(subWindows[TOTALDAILY], SIGNAL(windowClosed(QMdiSubWindow*)),
+//            this, SLOT(subWindowClosed(QMdiSubWindow*)));
+//    if(!subWinActStates.contains(TOTALDAILY))
+//        subWinActStates[TOTALDAILY] = true;
+//    dlgTotalDaily->show();
+//    SubWindowDim* info = new SubWindowDim;
+//    QByteArray* oinfo;
+//    if(VariousUtils::getSubWinInfo(TOTALDAILY,info,oinfo)){
+//        subWindows.value(TOTALDAILY)->move(info->x,info->y);
+//        subWindows.value(TOTALDAILY)->resize(info->w,info->h);
+//    }
+//    else{
+//        int w = 1322; //对话框的首选尺寸
+//        int h = 650;
+//        w = (w>(screenWidth*0.8))? w:(screenWidth * 0.8);
+//        h = (h>(screenHeight*0.9))? h:(screenHeight * 0.9);
+//        subWindows.value(TOTALDAILY)->move(10,10);
+//        subWindows.value(TOTALDAILY)->resize(w, h);
+//    }
+//    delete info;
 }
 
 //打印
@@ -2572,7 +2320,7 @@ void MainWindow::on_actLogin_triggered()
     LoginDialog* dlg = new LoginDialog;
     if(dlg->exec() == QDialog::Accepted){
         curUser = dlg->getLoginUser();
-        lblCurUser->setText(curUser->getName());
+        ui->statusbar->setUser(curUser);
         //enaActOnLogin(true);
         //ui->actLogin->setEnabled(false);
         //ui->actLogout->setEnabled(true);
@@ -2586,7 +2334,7 @@ void MainWindow::on_actLogin_triggered()
 void MainWindow::on_actLogout_triggered()
 {
     curUser = NULL;
-    lblCurUser->setText(tr("未登录"));
+    ui->statusbar->setUser(curUser);
     //enaActOnLogin(false);
     refreshTbrVisble();
     refreshActEnanble();
@@ -2599,7 +2347,7 @@ void MainWindow::on_actShiftUser_triggered()
     LoginDialog* dlg = new LoginDialog;
     if(dlg->exec() == QDialog::Accepted){
         curUser = dlg->getLoginUser();
-        lblCurUser->setText(curUser->getName());
+        ui->statusbar->setUser(curUser);
     }
     refreshTbrVisble();
     refreshActEnanble();
@@ -2658,30 +2406,22 @@ void MainWindow::on_actAllVerify_triggered()
         pzsWarning();
         return;
     }
-    int pzState, rows = 0, num = 0;
-    QProgressBar pb;
-    ui->statusbar->addWidget(&pb);
-    pb.setMinimum(0);
-    pb.setMaximum(curPzModel->rowCount());
-    pb.setValue(num);
-    for(int i = 0; i < curPzModel->rowCount(); i++){
-        pzState = curPzModel->data(curPzModel->index(i,PZ_PZSTATE)).toInt();
-        if(pzState == Pzs_Recording){
-            curPzModel->setData(curPzModel->index(i,PZ_PZSTATE),Pzs_Verify);
-            curPzModel->setData(curPzModel->index(i,PZ_VUSER),curUser->getUserId());
-            rows++;
-        }
-        pb.setValue(++num);
-    }
-    curPzModel->submitAll();
-    //BusiUtil::refreshPzsState(cursy,cursm,curPzModel);
-    curPzSetState = Ps_HandV;
-    BusiUtil::setPzsState(cursy,cursm,Ps_HandV);
+
+    int affectedRows;
+    BusiUtil::setAllPzState(cursy,cursm,Pzs_Verify,Pzs_Recording,affectedRows);
+    BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     refreshShowPzsState();
-    showPzNumsAffected(rows);
+    showPzNumsAffected(affectedRows);
+    if(subWindows.contains(PZEDIT)){
+        PzDialog2* dlg = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
+        int pid = dlg->getCurPzId();
+        curPzModel->select();
+        dlg->naviTo(pid);
+    }
+    isExtraVolid = false;
 }
 
-//全部手工凭证入账
+//全部凭证入账
 void MainWindow::on_actAllInstat_triggered()
 {
     if(!curUser->haveRight(allRights.value(Right::InstatPz))){
@@ -2692,43 +2432,39 @@ void MainWindow::on_actAllInstat_triggered()
         pzsWarning();
         return;
     }
-    int pzState, rows = 0, num = 0;
-    QProgressBar pb;
-    ui->statusbar->addWidget(&pb);
-    pb.setMinimum(0);
-    pb.setMaximum(curPzModel->rowCount());
-    pb.setValue(num);
-    for(int i = 0; i < curPzModel->rowCount(); i++){
-        pzState = curPzModel->data(curPzModel->index(i,PZ_PZSTATE)).toInt();
-        if(pzState == Pzs_Verify){
-            curPzModel->setData(curPzModel->index(i,PZ_PZSTATE),Pzs_Instat);
-            curPzModel->setData(curPzModel->index(i,PZ_BUSER),curUser->getUserId());
-            rows++;
-        }
-        pb.setValue(num);
-    }
-    curPzModel->submitAll();    
-    //入账操作对凭证集的状态没有影响
-    //BusiUtil::refreshPzsState(cursy,cursm,curPzModel);
-    //refreshShowPzsState();
-    showPzNumsAffected(rows);
 
+    int affectedRows;
+    BusiUtil::setAllPzState(cursy,cursm,Pzs_Instat,Pzs_Verify,affectedRows);
+    BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+    refreshShowPzsState();
+    showPzNumsAffected(affectedRows);
+    if(subWindows.contains(PZEDIT)){
+        PzDialog2* dlg = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
+        int pid = dlg->getCurPzId();
+        curPzModel->select();
+        dlg->naviTo(pid);
+    }
+    isExtraVolid = false;
 }
 
 //取消已审核或已入账的凭证，使凭证回到初始状态
 void MainWindow::on_actAntiVerify_triggered()
 {
     PzDialog2* pzEdit = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
-    if(pzEdit){
-        if((pzEdit->getPzState() == Pzs_Verify)
-                || (pzEdit->getPzState() == Pzs_Instat)){
-            pzEdit->setPzState(Pzs_Recording, curUser);
-            curPzState = Pzs_Recording;
-            pzStateChange(Pzs_Recording);
-            refreshAdvancPzOperBtn();
-            //ui->actSavePz->setEnabled(true);
-        }
-    }
+    if(!pzEdit)
+        return;
+    if((pzEdit->getPzState() == Pzs_Repeal) || pzEdit->getPzState() == Pzs_Recording)
+        return;
+    if(pzEdit->getPzState() == Pzs_Verify)
+        pzVerify--;
+    else if(pzEdit->getPzState() == Pzs_Instat)
+        pzInstat--;
+    curPzState = Pzs_Recording;
+    pzRecording++;
+    pzEdit->setPzState(Pzs_Recording, curUser);
+    pzStateChange(Pzs_Recording);
+    ui->actSavePz->setEnabled(true);
+    refreshShowPzsState();
 }
 
 //重新分派凭证号
@@ -2743,46 +2479,46 @@ void MainWindow::on_actReassignPzNum_triggered()
 //引入其他模块自动产生的凭证（比如固定资产折旧、待摊费用等）
 void MainWindow::on_actImpOtherPz_triggered()
 {
-    if(!isOpenPzSet){
-        pzsWarning();
-        return;
-    }
+//    if(!isOpenPzSet){
+//        pzsWarning();
+//        return;
+//    }
 
-    QSet<OtherModCode> mods;
-    ImpOthModDialog* dlg = new ImpOthModDialog(1,this);
+//    QSet<OtherModCode> mods;
+//    ImpOthModDialog* dlg = new ImpOthModDialog(1,this);
 
-    //如果用户选择取消，则什么也不做
-    if(QDialog::Rejected == dlg->exec()){
-        delete dlg;
-        return;
-    }
+//    //如果用户选择取消，则什么也不做
+//    if(QDialog::Rejected == dlg->exec()){
+//        delete dlg;
+//        return;
+//    }
 
-    //用户选择跳过
-    if(dlg->isSelSkip()){
-        bool req;
-        BusiUtil::reqGenJzHdsyPz(cursy,cursm,req);
-        if(req)
-            BusiUtil::setPzsState(cursy, cursm, Ps_Stat2);
-        else  //如果同时也不需要结转汇兑损益，则直接准备结转损益
-            BusiUtil::setPzsState(cursy, cursm, Ps_JzsyPre);
-        delete dlg;
-        return;
-    }
+//    //用户选择跳过
+//    if(dlg->isSelSkip()){
+//        bool req;
+//        BusiUtil::reqGenJzHdsyPz(cursy,cursm,req);
+//        if(req)
+//            BusiUtil::setPzsState(cursy, cursm, Ps_Stat2);
+//        else  //如果同时也不需要结转汇兑损益，则直接准备结转损益
+//            BusiUtil::setPzsState(cursy, cursm, Ps_JzsyPre);
+//        delete dlg;
+//        return;
+//    }
 
-    //用户选择确定
-    QSet<OtherModCode> selMods;
-    dlg->selModules(selMods);
-    if(!BusiUtil::impPzFromOther(cursy,cursm,selMods))
-        showTemInfo(tr("在引入由其他模块创建的凭证时出错！"));
-    else if(selMods.empty())
-        showTemInfo(tr("你未选择模块，本次操作什么也不做！"));
-    else{
-        showTemInfo(tr("成功引入由其他模块创建的凭证！"));
-        refreshShowPzsState();
-        refreshActEnanble();
-    }
+//    //用户选择确定
+//    QSet<OtherModCode> selMods;
+//    dlg->selModules(selMods);
+//    if(!BusiUtil::impPzFromOther(cursy,cursm,selMods))
+//        showTemInfo(tr("在引入由其他模块创建的凭证时出错！"));
+//    else if(selMods.empty())
+//        showTemInfo(tr("你未选择模块，本次操作什么也不做！"));
+//    else{
+//        showTemInfo(tr("成功引入由其他模块创建的凭证！"));
+//        refreshShowPzsState();
+//        refreshActEnanble();
+//    }
 
-    delete dlg;
+//    delete dlg;
 }
 
 //结转本年利润
@@ -2793,17 +2529,32 @@ void MainWindow::on_actJzbnlr_triggered()
         return;
     }
     if(curPzSetState == Ps_Jzed){
-        QMessageBox::information(this, tr("提示信息"), tr("已结账，不能添加任何凭证"));
+        QMessageBox::information(this, tr("提示信息"), tr("已结账，不能添加任何凭证！"));
         return;
     }
-    //创建一个结转本年利润到利润分配的特种类别凭证，允许用户编辑此凭证
+    if(curPzSetState != Ps_AllVerified){
+        QMessageBox::warning(this, tr("提示信息"), tr("当前凭证集内存在未审核凭证，不能结转！"));
+        return;
+    }
+    if(!isExtraVolid){
+        QMessageBox::warning(this, tr("提示信息"), tr("当前余额无效，请重新统计并保存余额！"));
+        return;
+    }
+    //损益类凭证必须已经结转了
+    int count;
+    BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
+    if(count > 0){
+        QMessageBox::warning(this, tr("提示信息"), tr("在结转本年利润前，必须先结转损益类科目到本年利润！"));
+        return;
+    }
+    //创建一个结转本年利润到利润分配的特种类别空白凭证，由用户手动编辑此凭证
     PzData d;
     QDate date(cursy,cursm,1);
     date.setDate(cursy,cursm,date.daysInMonth());
     d.date = date.toString(Qt::ISODate);
     d.attNums = 0;
-    d.pzNum = curPzModel->rowCount()+1;
-    d.pzZbNum = curPzModel->rowCount()+1;
+    d.pzNum = pzAmount+1;
+    d.pzZbNum = pzAmount+1;
     d.state = Pzs_Recording;
     d.pzClass = Pzc_Jzlr;
     d.jsum = 0; d.dsum = 0;
@@ -2811,8 +2562,11 @@ void MainWindow::on_actJzbnlr_triggered()
     d.verify = NULL;
     d.bookKeeper = NULL;
 
-    if(BusiUtil::genJzbnlr(cursy,cursm,d)){
+    if(BusiUtil::crtNewPz(&d)){
         showTemInfo(tr("成功创建结转本年利润凭证！"));
+        pzAmount++;
+        pzRecording++;
+        isExtraVolid = false;
         refreshShowPzsState();
         refreshActEnanble();
         //如果凭证编辑窗口已打开，则定位到刚创建的凭证
@@ -2837,16 +2591,21 @@ void MainWindow::on_actEndAcc_triggered()
         QMessageBox::information(this, tr("提示信息"), tr("已经结账"));
         return;
     }
+    if(curPzSetState != Ps_AllVerified){
+        QMessageBox::warning(this, tr("提示信息"), tr("凭证集内存在未审核凭证，不能结账！"));
+        return;
+    }
+    if(!isExtraVolid){
+        QMessageBox::warning(this, tr("提示信息"), tr("当前的余额无效，不能结账！"));
+        return;
+    }
     if(QMessageBox::Yes == QMessageBox::information(this,tr("提示信息"),
                                                     tr("结账后，将不能再次对凭证集进行修改，确认要结账吗？"),
                                                     QMessageBox::Yes | QMessageBox::No)){
+        curPzSetState = Ps_Jzed;
         BusiUtil::setPzsState(cursy,cursm,Ps_Jzed);
-        showTemInfo(tr("当前凭证集已结账！"));
-        //要刷新界面，以反映凭证集状态的变化        
         refreshShowPzsState();
         refreshActEnanble();
-        //refreshTbrVisble();
-        //refreshAdvancPzOperBtn();
         return;
     }
 }
@@ -2854,44 +2613,45 @@ void MainWindow::on_actEndAcc_triggered()
 //反结转
 void MainWindow::on_actAntiJz_triggered()
 {
-//    //提供3种结转凭证类型（按优先级从高到低依次为结转利润、结转损益、结转汇兑损益）
-//    //的取消功能，由用户来选择。
+    //提供3种结转凭证类型（按优先级从高到低依次为结转利润、结转损益、结转汇兑损益）
+    //的取消功能，由用户来选择。
 
-//    //功能需求说明：
-//    //1：应允许用户在任意状态点（在执行了任意结转操作后的状态点）执行反结转功能
-//    //这个可以通过控制此菜单项的启用性来完成。
+    //功能需求说明：
+    //1：只要凭证集未结账，就允许用户执行反结转功能，这个可以通过控制此菜单项的启用性来完成。
+    //2：可选性限制，根据当前凭证集实际存在的结转凭证状况调整可以反结转的凭证项
+    //3：结转凭证的产生有一个顺序的要求，从前往后依次是结转汇兑损益、结转损益、结转利润。
+    //当反结转时也应该以反序操作。
 
-//    //1：可选性限制，即是否可选择，还要取决于当前凭证集的状态。
-//    //比如当前凭证集状态是结转损益（Ps_Stat4），则只有结转损益、引入和结转汇兑是可以选的，结转利润不能选
-
-//    //2：自动选择限制
-//    //如果已经执行了结转损益操作，选择取消引入时，还必须自动选中取消结转汇兑损益和取消结转损益，并使其
-//    //不可更改（即对应的复选框不可用）
-
-//    //在反结转后执行的操作，应能够自动地处理后续动作
-
-//    bool req;
-//    QHash<PzdClass,bool> reqs;
-//    BusiUtil::reqGenJzHdsyPz(cursy,cursm,req);
-//    reqs[Pzd_Jzhd] = !req;
-//    BusiUtil::reqForwordPl(cursy,cursm,req);
-//    reqs[Pzd_Jzsy] = !req;
-//    BusiUtil::reqGenJzbnlr(cursy,cursm,req);
-//    reqs[Pzd_Jzlr] = !req;
-//    PzsState state;
-//    AntiJzDialog dlg(reqs,state,this);
-//    if(QDialog::Accepted == dlg.exec()){
-//        QHash<PzdClass,bool> sels;
-//        if(dlg.selected(sels)){
-//            if(sels.value(Pzd_Jzlr))
-//                BusiUtil::antiJzbnlr(cursy,cursm);
-//            if(sels.value(Pzd_Jzsy))
-//                BusiUtil::antiForwordPl(cursy,cursm);
-//            if(sels.value(Pzd_Jzhd))
-//                BusiUtil::antiJzhdsyPz(cursy,cursm);
-//        }
-
-//    }
+    if(!isOpenPzSet){
+        pzsWarning();
+        return;
+    }
+    QHash<PzdClass,bool> isExists;
+    BusiUtil::haveSpecClsPz(cursy,cursm,isExists);
+    AntiJzDialog dlg(isExists,this);
+    bool isAnti = false;
+    if(QDialog::Accepted == dlg.exec()){
+        isExists.clear();
+        isExists = dlg.selected();
+        int affeced = 0;
+        if(isExists.value(Pzd_Jzlr)){
+            isAnti = true;
+            BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzlr,affeced);
+        }
+        if(isExists.value(Pzd_Jzsy)){
+            isAnti = true;
+            BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzsy,affeced);
+        }
+        if(isExists.value(Pzd_Jzhd)){
+            isAnti = true;
+            BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzhd,affeced);
+        }
+        if(affeced > 0){
+            isExtraVolid = false;
+            BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+        }
+        refreshShowPzsState();
+    }
 }
 
 //反结账
@@ -2908,7 +2668,8 @@ void MainWindow::on_actAntiEndAcc_triggered()
     }
     BusiUtil::setPzsState(cursy,cursm,/*Ps_Stat5*/Ps_Rec);
     allPzToRecording(cursy,cursm);
-    curPzSetState = Ps_Rec;
+    isExtraVolid = false;
+    BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     refreshShowPzsState();
     refreshActEnanble();
 }
@@ -2947,29 +2708,29 @@ void MainWindow::on_actBasicDB_triggered()
 //固定资产管理
 void MainWindow::on_actGdzcAdmin_triggered()
 {
-    QByteArray* sinfo;
-    SubWindowDim* winfo;
-    VariousUtils::getSubWinInfo(GDZCADMIN,winfo,sinfo);
-    GdzcAdminDialog* dlg = new GdzcAdminDialog(sinfo);
-    showSubWindow(GDZCADMIN,winfo,dlg);
-    if(sinfo)
-        delete sinfo;
-    if(winfo)
-        delete winfo;
+//    QByteArray* sinfo;
+//    SubWindowDim* winfo;
+//    VariousUtils::getSubWinInfo(GDZCADMIN,winfo,sinfo);
+//    GdzcAdminDialog* dlg = new GdzcAdminDialog(sinfo);
+//    showSubWindow(GDZCADMIN,winfo,dlg);
+//    if(sinfo)
+//        delete sinfo;
+//    if(winfo)
+//        delete winfo;
 }
 
 //待摊费用管理
 void MainWindow::on_actDtfyAdmin_triggered()
 {
-    QByteArray* sinfo;
-    SubWindowDim* winfo;
-    VariousUtils::getSubWinInfo(DTFYADMIN,winfo,sinfo);
-    DtfyAdminDialog* dlg = new DtfyAdminDialog(sinfo,adb);
-    showSubWindow(DTFYADMIN,winfo,dlg);
-    if(sinfo)
-        delete sinfo;
-    if(winfo)
-        delete winfo;
+//    QByteArray* sinfo;
+//    SubWindowDim* winfo;
+//    VariousUtils::getSubWinInfo(DTFYADMIN,winfo,sinfo);
+//    DtfyAdminDialog* dlg = new DtfyAdminDialog(sinfo,adb);
+//    showSubWindow(DTFYADMIN,winfo,dlg);
+//    if(sinfo)
+//        delete sinfo;
+//    if(winfo)
+//        delete winfo;
 }
 
 //查看总账
@@ -3032,6 +2793,8 @@ void MainWindow::showSubWindow(subWindowType winType, SubWindowDim* winfo, QDial
         case PZEDIT:
         case PZSTAT:
             dlg = w;
+            //在linux平台上测试，如果设置最大或最小化按钮，则同时出现关闭按钮，我晕
+            //subWindows.value(winType)->setWindowFlags(Qt::CustomizeWindowHint);
             break;
         case TOTALVIEW:
             dlg = w;
@@ -3105,215 +2868,152 @@ void MainWindow::showSubWindow(subWindowType winType, SubWindowDim* winfo, QDial
     }
 }
 
-//将指定的凭证集内的所有凭证入账
-bool MainWindow::allInstat(int y, int m)
-{
-    QSqlQuery q;
-    QString s;
 
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    s = QString("update PingZhengs set pzState=%1 where pzState != %2"
-                " and date like '%3%'")
-            .arg(Pzs_Instat).arg(Pzs_Repeal).arg(ds);
-    if(!q.exec(s))
-        return false;
-    BusiUtil::setPzsState(y,m,Ps_JzhdV);
-    return true;
-}
-
-//审核结转损益类科目的凭证
-bool MainWindow::instatJzsyPz(int y, int m)
-{
-    QSqlQuery q;
-    QString s;
-
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    s = QString("update PingZhengs set pzState=%1 where (isForward = %2 "
-                "or isForward = %3) and date like '%4%'")
-            .arg(Pzs_Instat).arg(Pzc_JzsyIn).arg(Pzc_JzsyFei).arg(ds);
-    if(!q.exec(s))
-        return false;
-    return true;
-}
-
+/**
+ * @brief MainWindow::jzsy
+ *  结转损益科目到本年利润
+ * @return
+ */
 bool MainWindow::jzsy()
 {
-    //结转损益科目到本年利润
-        bool r;
-        QDialog dlg;
-        QDateEdit* date = new QDateEdit(QDate::currentDate());
-        date->setDisplayFormat("yyyy-M");
-        QLabel* lab = new QLabel(tr("请选择要结转损益的年月："));
-        QHBoxLayout* l1 = new QHBoxLayout;
-        l1->addWidget(lab);
-        l1->addWidget(date);
-        QPushButton* btnOk = new QPushButton(tr("确定"));
-        QPushButton* btnCancel = new QPushButton(tr("取消"));
-        QHBoxLayout* l2 = new QHBoxLayout;
-        l2->addWidget(btnOk);
-        l2->addWidget(btnCancel);
-        QVBoxLayout* l = new QVBoxLayout;
-        l->addLayout(l1);
-        l->addLayout(l2);
-        dlg.setLayout(l);
-        connect(btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
-        connect(btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
-
-
-        if(dlg.exec() == QDialog::Rejected)
-            return false;
-
-        int y = date->date().year();
-        int m = date->date().month();
-        //删除先前存在的结转凭证，这是因为要取得结转前的正确余额
-        BusiUtil::delSpecPz(y,m,Pzc_JzsyIn);
-        BusiUtil::delSpecPz(y,m,Pzc_JzsyFei);
-        BusiUtil::setPzsState2(y,m,Ps_JzhdV);
-        ViewExtraDialog* vdlg = new ViewExtraDialog(y,m);//统计本期发生额并保存余额
-        if(vdlg->exec() == QDialog::Rejected)
-            return false;
-        delete vdlg;
-        BusiUtil::setPzsState(y,m,Ps_JzsyPre);
-        BusiUtil::genForwordPl2(y,m,curUser); //创建结转凭证
-        instatJzsyPz(y,m);  //将结转凭证入账
-        BusiUtil::setPzsState(y,m,Ps_JzsyV);
-        vdlg = new ViewExtraDialog(y,m); //再次统计本期发生额并保存余额
-        if(vdlg->exec() == QDialog::Rejected)
-            return false;
-        delete vdlg;
-        //r = BusiUtil::setPzsState(y,m,Ps_Jzed);
-        QMessageBox::information(0,tr("提示信息"),tr("成功创建结转损益凭证！"));
-}
-
-//在执行了结转汇兑损益后，执行的结转损益类科目到本年利润
-bool MainWindow::jzsy2()
-{
-    if(QMessageBox::Yes != QMessageBox::warning(this,"warning",
-                        tr("执行本操作前，要确保已经执行了结转汇兑损益操作，并统计后保存余额。"
-                           "继续：点击是，取消：点击否 ！！"),
-                         QMessageBox::Yes|QMessageBox::No,
-                         QMessageBox::Yes))
+    if(!isOpenPzSet){
+        pzsWarning();
         return true;
+    }
+    if(curPzSetState != Ps_AllVerified){
+        QMessageBox::warning(0,tr("警告信息"),tr("凭证集内存在未审核凭证，不能结转！"));
+        return true;
+    }
+    if(!isExtraVolid){
+        QMessageBox::warning(0,tr("警告信息"),tr("余额无效，请重新进行统计并保存正确余额！"));
+        return true;
+    }
+    //1、检测本期和下期汇率是否有变动，如果有，则检测是否执行了结转汇兑损益，如果没有，则退出
+    QHash<int,Double> sRates,eRates;
+    int y=cursy,m=cursm;
+    BusiUtil::getRates2(y,m,sRates);
+    if(m == 12){
+        y++;
+        m = 1;
+    }
+    else{
+        m++;
+    }
+    BusiUtil::getRates2(y,m,eRates);
 
-    //结转损益科目到本年利润
-    bool r;
-    QDialog dlg;
-    QDateEdit* date = new QDateEdit(QDate::currentDate());
-    date->setDisplayFormat("yyyy-M");
-    QLabel* lab = new QLabel(tr("请选择要结转损益的年月："));
-    QHBoxLayout* l1 = new QHBoxLayout;
-    l1->addWidget(lab);
-    l1->addWidget(date);
-    QPushButton* btnOk = new QPushButton(tr("确定"));
-    QPushButton* btnCancel = new QPushButton(tr("取消"));
-    QHBoxLayout* l2 = new QHBoxLayout;
-    l2->addWidget(btnOk);
-    l2->addWidget(btnCancel);
-    QVBoxLayout* l = new QVBoxLayout;
-    l->addLayout(l1);
-    l->addLayout(l2);
-    dlg.setLayout(l);
-    connect(btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
-    connect(btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
-
-
-    if(dlg.exec() == QDialog::Rejected)
-        return false;
-
-    int y = date->date().year();
-    int m = date->date().month();
+    if(eRates.empty()){
+        QString tip = tr("下期汇率未设置，请先设置：%1年%2月美金汇率：").arg(y).arg(m);
+        bool ok;
+        double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,0,0,100,2,&ok);
+        if(!ok)
+            return true;
+        eRates[USD] = Double(rate);
+        BusiUtil::saveRates2(y,m,eRates);
+    }
+    //汇率不等，则检查是否执行了结转汇兑损益
+    if(sRates.value(USD) != eRates.value(USD)){
+        int count;
+        BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzhd,count);
+        if(count != 0){
+            QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证有误！"));
+            return true;
+        }
+    }
 
     //删除先前存在的结转凭证，这是因为要取得结转前的正确余额
-    BusiUtil::delSpecPz(y,m,Pzc_JzsyIn);
-    BusiUtil::delSpecPz(y,m,Pzc_JzsyFei);
-    r = allInstat(y,m);
+    int count;
+    BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
+    if(count < 2){
+        BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzsy,count);
+        BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+        isExtraVolid = false;
+        refreshShowPzsState();
+    }
 
-    BusiUtil::setPzsState(y,m,Ps_JzsyPre);
-    BusiUtil::genForwordPl2(y,m,curUser); //创建结转凭证
-    instatJzsyPz(y,m);  //将结转凭证入账
-    BusiUtil::setPzsState(y,m,Ps_JzsyV);
-    ViewExtraDialog* vdlg = new ViewExtraDialog(y,m); //再次统计本期发生额并保存余额
-    if(vdlg->exec() == QDialog::Rejected)
+    if(!BusiUtil::genForwordPl2(cursy,cursm,curUser)) //创建结转凭证
         return false;
-    delete vdlg;
-    //r = BusiUtil::setPzsState(y,m,Ps_Jzed);
+    BusiUtil::specPzClsInstat(cursy,cursm,Pzd_Jzsy,count); //将结转凭证入账
+    pzInstat+=count;
+    pzAmount+=count;
+    isExtraVolid = false;
+    refreshShowPzsState();
+    ViewExtraDialog* vdlg = new ViewExtraDialog(cursy,cursm); //再次统计本期发生额并保存余额
+    connect(vdlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
+    if(vdlg->exec() == QDialog::Rejected){
+        disconnect(vdlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
+        delete vdlg;
+        return false;
+    }
+    disconnect(vdlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
+    delete vdlg;    
     QMessageBox::information(0,tr("提示信息"),tr("成功创建结转损益凭证！"));
+    return true;
 }
-
 
 //结转汇兑损益
 bool MainWindow::jzhdsy()
-{
-    //结转汇兑损益到财务费用
-        QDialog dlg;
-        QDateEdit* date = new QDateEdit(QDate::currentDate());
-        date->setDisplayFormat("yyyy-M");
-        QLabel* lab = new QLabel(tr("请选择要结转汇兑损益的年月："));
-        QHBoxLayout* l1 = new QHBoxLayout;
-        l1->addWidget(lab);
-        l1->addWidget(date);
-        QPushButton* btnOk = new QPushButton(tr("确定"));
-        QPushButton* btnCancel = new QPushButton(tr("取消"));
-        QHBoxLayout* l2 = new QHBoxLayout;
-        l2->addWidget(btnOk);
-        l2->addWidget(btnCancel);
-        QVBoxLayout* l = new QVBoxLayout;
-        l->addLayout(l1);
-        l->addLayout(l2);
-        dlg.setLayout(l);
-        connect(btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
-        connect(btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+{    
+    if(!isOpenPzSet){
+        pzsWarning();
+        return true;
+    }
+    if(curPzSetState != Ps_AllVerified){
+        QMessageBox::warning(0,tr("警告信息"),tr("凭证集内存在未审核凭证，不能结转！"));
+        return true;
+    }
+    if(!isExtraVolid){
+        QMessageBox::warning(0,tr("警告信息"),tr("余额无效，请重新进行统计并保存正确余额！"));
+        return true;
+    }
 
+    //因为汇兑损益的结转要涉及到期末汇率，即下期的汇率，要求用户确认汇率是否正确
+    QHash<int,Double> rates;
+    int yy,mm;
+    if(cursm == 12){
+        yy = cursy+1;
+        mm = 1;
+    }
+    else{
+        yy = cursy;
+        mm = cursm+1;
+    }
+    BusiUtil::getRates2(yy,mm,rates);
+    QString tip = tr("请确认汇率是否正确：%1年%2月美金汇率：").arg(yy).arg(mm);
+    bool ok;
+    double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,rates.value(USD).getv(),0,100,2,&ok);
+    if(!ok)
+        return true;
+    rates[USD] = Double(rate);
+    int affected;
+    BusiUtil::saveRates2(yy,mm,rates);
+    BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzhd,affected);
+    if(affected > 0){
+        BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+        refreshShowPzsState();
+    }
 
-        if(dlg.exec() == QDialog::Rejected)
-            return false;
+    if(!BusiUtil::genForwordEx2(cursy,cursm,curUser))
+        return false;
+    BusiUtil::specPzClsInstat(cursy,cursm,Pzd_Jzhd,affected);
+    pzInstat+=affected;
+    pzAmount+=affected;
+    isExtraVolid = false;
+    refreshShowPzsState();
 
-        int y = date->date().year();
-        int m = date->date().month();
-
-        //因为汇兑损益的结转要涉及到期末汇率，即下期的汇率，要求用户确认汇率是否正确
-        QHash<int,Double> rates;
-        int yy,mm;
-        if(m == 12){
-            yy = y+1;
-            mm = 1;
-        }
-        else{
-            yy = y;
-            mm = m+1;
-        }
-        BusiUtil::getRates2(yy,mm,rates);
-        QString tip = tr("%1年%2月美金汇率：").arg(yy).arg(mm);
-        bool ok;
-        double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,rates.value(USD).getv(),0,100,2,&ok);
-        if(!ok)
-            return false;
-        rates[USD] = Double(rate);
-        BusiUtil::saveRates2(yy,mm,rates);
-
-        BusiUtil::delSpecPz(y,m,Pzc_Jzhd_Bank);
-        BusiUtil::delSpecPz(y,m,Pzc_Jzhd_Ys);
-        BusiUtil::delSpecPz(y,m,Pzc_Jzhd_Yf);
-        BusiUtil::setPzsState2(y,m,Ps_HandV);
-
-        ViewExtraDialog* vdlg = new ViewExtraDialog(y,m);//统计本期发生额并保存余额
-        if(vdlg->exec() == QDialog::Rejected)
-            return false;
-        delete vdlg;
-
-        BusiUtil::setPzsState(y,m,Ps_Stat1);
-        BusiUtil::genForwordEx2(y,m,curUser);
-        BusiUtil::setPzsState2(y,m,Ps_JzhdV);
-
-        vdlg = new ViewExtraDialog(y,m);     //统计本期发生额并保存余额
-        if(vdlg->exec() == QDialog::Rejected)
-            return false;
-        delete vdlg;
-
-        showTemInfo(tr("成功创建结转汇兑损益凭证！"));
-        QMessageBox::information(0,tr("提示信息"),tr("成功创建结转汇兑损益凭证！"));
+    //统计结转汇兑损益后的本期发生额并保存余额
+    ViewExtraDialog* dlg = new ViewExtraDialog(cursy,cursm);
+    connect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
+    dlg->setWindowFlags(Qt::CustomizeWindowHint);
+    if(dlg->exec() == QDialog::Rejected){
+        QMessageBox::information(0,tr("提示信息"),tr("结转汇兑损益后，没有进行统计并保存余额！"));
+        disconnect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
+        delete dlg;
+        return true;
+    }
+    disconnect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
+    delete dlg;
+    QMessageBox::information(0,tr("提示信息"),tr("成功创建结转汇兑损益凭证！"));
+    return true;
 }
 
 
@@ -3332,81 +3032,12 @@ void MainWindow::on_actAccProperty_triggered()
 }
 
 /**
- * @brief MainWindow::on_aactTemTask_triggered
- *  结转损益至本年利润
- */
-void MainWindow::on_aactTemTask_triggered()
-{
-    jzsy();
-}
-
-/**
  * @brief MainWindow::on_actJzHdsy_triggered
  *  结转汇兑损益
  */
 void MainWindow::on_actJzHdsy_triggered()
 {
     jzhdsy();
-}
-
-/**
- * @brief MainWindow::on_actJzsyAfterJzhd_triggered
- *  结转汇兑后结转损益至本年利润
- */
-void MainWindow::on_actJzsyAfterJzhd_triggered()
-{
-    jzsy2();
-}
-
-/**
- * @brief MainWindow::on_actForcePzsState_triggered
- *  强制设置凭证集状态
- */
-void MainWindow::on_actForcePzsState_triggered()
-{
-    if(!isOpenPzSet){
-        pzsWarning();
-        return;
-    }
-    QDialog* dlg = new QDialog;
-    QLabel* lb1 = new QLabel(tr("当前凭证集状态："),dlg);
-    QLabel* lbCur = new QLabel(pzsStates.value(curPzSetState),dlg);
-    QLabel* lb2 = new QLabel(tr("目标凭证集状态："));
-    QComboBox* cmb = new QComboBox(dlg);
-    cmb->addItem(pzsStates.value(Ps_Rec),Ps_Rec);
-    cmb->addItem(pzsStates.value(Ps_HandV),Ps_HandV);
-    cmb->addItem(pzsStates.value(Ps_Jzhd),Ps_Jzhd);
-    cmb->addItem(pzsStates.value(Ps_JzhdV),Ps_JzhdV);
-    cmb->addItem(pzsStates.value(Ps_Jzsy),Ps_Jzsy);
-    cmb->addItem(pzsStates.value(Ps_JzsyV),Ps_JzsyV);
-    cmb->addItem(pzsStates.value(Ps_Jzbnlr),Ps_Jzbnlr);
-    cmb->addItem(pzsStates.value(Ps_JzbnlrV),Ps_JzbnlrV);
-    cmb->addItem(pzsStates.value(Ps_Jzed),Ps_Jzed);
-
-    int index = cmb->findData(curPzSetState);
-    cmb->setCurrentIndex(index);
-    QVBoxLayout* lm = new QVBoxLayout;
-    QGridLayout* l1 = new QGridLayout;
-    QHBoxLayout* l2 = new QHBoxLayout;
-    l1->addWidget(lb1,0,0);
-    l1->addWidget(lbCur,0,1);
-    l1->addWidget(lb2,1,0);
-    l1->addWidget(cmb,1,1);
-    QPushButton* btnOk = new QPushButton(tr("确定"));
-    QPushButton* btnCancel = new QPushButton(tr("取消"));
-    connect(btnOk, SIGNAL(clicked()), dlg, SLOT(accept()));
-    connect(btnCancel, SIGNAL(clicked()), dlg, SLOT(reject()));
-    l2->addWidget(btnOk);
-    l2->addWidget(btnCancel);
-    lm->addLayout(l1);
-    lm->addLayout(l2);
-    dlg->setLayout(lm);
-    dlg->resize(300,200);
-    if(dlg->exec() == QDialog::Rejected)
-        return;
-    PzsState ps = (PzsState)cmb->itemData(cmb->currentIndex()).toInt();
-    BusiUtil::setPzsState2(cursy,cursm,ps);
-    refreshShowPzsState();
 }
 
 /**
@@ -3507,11 +3138,16 @@ void MainWindow::on_actPzErrorInspect_triggered()
 //实现中，在删除后未考虑对凭证号进行重置。
 void MainWindow::on_actForceDelPz_triggered()
 {
+    if(!isOpenPzSet){
+        pzsWarning();
+        return;
+    }
     QDialog* dlg = new QDialog(this);
     QLabel* ly = new QLabel(tr("凭证所属年月"),dlg);
     QDateEdit* date = new QDateEdit(dlg);
-    date->setDate(QDate(2011,1,1));
+    date->setDate(QDate(cursy,cursm,1));
     date->setDisplayFormat("yyyy-M");
+    date->setReadOnly(false);
     QLabel* ln = new QLabel(tr("凭证号"),dlg);
     QLineEdit* edtPzNums = new QLineEdit(dlg);
     QPushButton* btnOk = new QPushButton(tr("确定"));
@@ -3603,6 +3239,7 @@ void MainWindow::on_actForceDelPz_triggered()
             }
         }
     }
+    isExtraVolid = false;
     QMessageBox::information(0,tr("提示信息"),tr("成功删除凭证！"));
 }
 

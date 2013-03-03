@@ -234,7 +234,7 @@ bool PzSetMgr::open()
     }
 
     if(!BusiUtil::getPzsState(y,m,state)){
-        state = Ps_Ori;
+        state = Ps_NoOpen;
         if(!BusiUtil::setPzsState(y,m,state))
             return false;
     }
@@ -466,8 +466,9 @@ bool PzSetMgr::PzSetMgr::saveExtra()
 {
     //保存当期余额之前，需要判断是否需要再次计算当期余额
     //（比如在凭证集打开后，进行了会影响当期余额的编辑操作）
-    return BusiUtil::savePeriodBeginValues(y,m,endExtra,endDir,
-                                           endDetExtra,endDetDir,state,false);
+    //return BusiUtil::savePeriodBeginValues(y,m,endExtra,endDir,
+    //                                       endDetExtra,endDetDir,state,false);
+    return true;
 }
 
 //读取当期余额（读取的是最近一次保存到余额表中的数据）

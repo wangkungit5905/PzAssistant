@@ -77,12 +77,11 @@ bool ImpOthModDialog::selModules(QSet<OtherModCode>& selMods)
 //参数 reqs：键为要取消的凭证大类代码，值为是否已经进行了结转操作，如果还未执行结转，
 //则不能执行取消操作，相应的选择框也将禁用。
 //state：当前凭证集的状态
-AntiJzDialog::AntiJzDialog(QHash<PzdClass,bool> haved, PzsState state, QWidget *parent) :
+AntiJzDialog::AntiJzDialog(QHash<PzdClass,bool> haved, QWidget *parent) :
     QDialog(parent),
     ui(new Ui::AntiJzDialog)
 {
     ui->setupUi(this);
-    setLayout(ui->mLayout);
     this->haved = haved;
     ui->chkJzhd->setEnabled(haved.value(Pzd_Jzhd));
     ui->chkJzsy->setEnabled(haved.value(Pzd_Jzsy));
@@ -96,20 +95,13 @@ AntiJzDialog::~AntiJzDialog()
 
 //获取用户的选择，如果未选，则返回false，否则返回true
 //参数 reqs：键为要取消的凭证大类代码，值表示对应的选择框是否被选择了
-bool AntiJzDialog::selected(QHash<PzdClass,bool>& sels)
+QHash<PzdClass,bool> AntiJzDialog::selected()
 {
-    if(ui->chkJzhd->checkState())
-        sels[Pzd_Jzhd] = true;
-    else
-        sels[Pzd_Jzhd] = false;
-    if(ui->chkJzsy->checkState())
-        sels[Pzd_Jzsy] = true;
-    else
-        sels[Pzd_Jzsy] = false;
-    if(ui->chkJzlr->checkState())
-        sels[Pzd_Jzlr] = true;
-    else
-        sels[Pzd_Jzlr] = false;
+    QHash<PzdClass,bool> sels;
+    sels[Pzd_Jzhd] = ui->chkJzhd->isChecked();
+    sels[Pzd_Jzsy] = ui->chkJzsy->isChecked();
+    sels[Pzd_Jzlr] = ui->chkJzlr->isChecked();
+    return sels;
 }
 
 //用户选择了取消结转本年利润，则要自动选择其他比它优先级低的选取框

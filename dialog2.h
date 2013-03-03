@@ -129,7 +129,7 @@ public slots:
 
 signals:
     void infomation(QString info);       //向主窗口发送要在状态条上显示的信息
-    void pzsStateChanged();
+    void pzsExtraSaved();
 
 private slots:
     void onSelFstSub(int index);

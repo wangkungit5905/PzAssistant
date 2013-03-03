@@ -6,7 +6,7 @@
 #include <QSqlQuery>
 
 #include "commdatastruct.h"
-
+#include "common.h"
 
 
 class VersionManager;
@@ -29,6 +29,8 @@ public:
     static QSqlDatabase getBaseDbConnect();
 
     bool readPingzhenClass(QHash<PzClass,QString>& pzClasses);
+    bool readPzStates(QHash<PzState, QString> &names);
+    bool readPzSetStates(QHash<PzsState,QString>& snames, QHash<PzsState,QString>& lnames);
     void setUsedReportType(int accId, int rt){}
     int addAccountInfo(QString code, QString aName, QString lName, QString filename);
 

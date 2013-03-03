@@ -123,18 +123,13 @@ int appInit()
     initSecurity();    
     appCfg->initGlobalVar();
 
-    AppConfig::getInstance()->readPingzhenClass(pzClasses);
+    appCfg->readPzSetStates(pzsStates,pzsStateDescs);
+    appCfg->readPingzhenClass(pzClasses);
+    appCfg->readPzStates(pzStates);
 
     //初始化凭证状态名表
     QSqlQuery q(bdb);
     bool r;
-
-//    r = q.exec("DROP TABLE IF EXISTS pzsStateNames");
-//    r = q.exec("ALTER TABLE pzsStateNames2 RENAME TO pzsStateNames");
-    r = q.exec("select code,state from pzStateNames");
-    while(q.next()){
-        pzStates[(PzState)q.value(0).toInt()] = q.value(1).toString();
-    }
 
     pzClsImps.insert(Pzc_GdzcZj);
     pzClsImps.insert(Pzc_Dtfy);
@@ -145,15 +140,6 @@ int appInit()
 
     pzClsJzsys.insert(Pzc_JzsyIn);
     pzClsJzsys.insert(Pzc_JzsyFei);
-
-    //初始化凭证集状态名表
-    r = q.exec("select code,state,desc from pzsStateNames");
-    while(q.next()){
-        PzsState code;
-        code = (PzsState)q.value(0).toInt();
-        pzsStates[code] = q.value(1).toString();
-        pzsStateDescs[code] = q.value(2).toString();
-    }
 
     //初始化币种表
     r = q.exec("select code,name from MoneyTypes");

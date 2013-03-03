@@ -152,6 +152,7 @@ signals:
                                               //序号（基于1），nums：凭证集内的凭证总数
     void selectedBaAction(bool isSel);   //用户选择了业务活动
     void saveCompleted();    //凭证自动保存完成，用于通知主窗口，使其对此做出反映    
+    void mustRestat();      //凭证集的内容发生了影响统计余额结果的改变
 
 private:
     void init();

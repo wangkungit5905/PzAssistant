@@ -634,28 +634,6 @@ public:
         return true;
     }
 
-//    /**
-//        获取指定科目下的所有子科目的余额（直接从SubjectExtras和detailExtras读取）
-//        参数ids：一级科目的id列表，values：余额表，isByMt：是否按币种区分
-//        values的key：当isByMt为true时，key = 子科目id x 10 + 币种代码
-//        当isByMt为false时，key = 子科目id
-//    */
-//    static bool getExtraBySub(QList<int>& ids, QHash<int,double>& values, bool isByMt)
-//    {
-
-//    }
-
-    /**
-        计算本期发生额，参数jSums：一级科目借方发生额，key = 一级科目id x 10 + 币种代码
-                     参数dSums：一级科目贷方发生额，key = 一级科目id x 10 + 币种代码
-                        sjSums：明细科目借方发生额，key = 明细科目id x 10 + 币种代码
-                        sdSums：明细科目贷方发生额，key = 明细科目id x 10 + 币种代码
-                        isSave：是否可以保存余额，amount：参予统计的凭证数
-    */
-    static bool calAmountByMonth(int y, int m, QHash<int,double>& jSums, QHash<int,double>& dSums,
-                                 QHash<int,double>& sjSums, QHash<int,double>& sdSums,
-                                 bool& isSave, int& amount);
-
     static bool calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
                                  QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
                                  bool& isSave, int& amount);
@@ -668,7 +646,8 @@ public:
     /**
         构造统计查询语句（根据当前凭证集的状态来构造将不同类别的凭证纳入统计范围的SQL语句）
     */
-    static bool genStatSql(int y, int m, QString& s);
+    //static bool genStatSql(int y, int m, QString& s);
+    static bool genStatSql2(int y, int m, QString& s);
 
     /**
         计算本期余额
@@ -787,209 +766,11 @@ public:
 
     static bool readDetExtraForMt2(int y,int m, int sid, int mt, Double& v, int& dir);
 
-    /**
-        保存当期余额值。key为一二级科目的id * 10 + 币种代码
-        带F的是总账科目，带S的是明细科目，dir代表借贷方向
-        isSetup true：表示保存当期余额，false：保存设定的期初值。
-    */
-    static bool savePeriodBeginValues(int y, int m, QHash<int, double> newF, QHash<int, int> newFDir,
-                                      QHash<int, double> newS, QHash<int, int> newSDir,
-                                      PzsState& pzsState, bool isSetup = true);
-
-
     static bool savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, int> newFDir,
                                           QHash<int, Double> newS, QHash<int, int> newSDir,
-                                          PzsState& pzsState, bool isSetup = true);
+                                          bool isSetup = true);
     static bool savePeriodEndValues(int y, int m, QHash<int, Double> newF, QHash<int, Double> newS);
 
-
-    /**
-        保存指定时间的科目余额
-         参数 sums：一级科目当期发生额，ssums：明细科目当期发生额，key同上
-         ????要不要考虑凭证集的状态？？？
-    */
-    static bool saveExtryByMonth(int y,int m,QHash<int,double>& sums,
-                                 QHash<int,double>ssums)
-    {
-        bool r;
-        QSqlQuery q,q2;
-        QString s;
-
-        //首先检测是否存在前期的余额，如果没有要向用户报告，有用户决定是否保存
-        QHash<int,double>preSums,preSSums; //前期余额值
-        QHash<int,int> preFDirs,preSDirs;  //前期余额方向
-        int yy,mm;
-        if(m == 1){
-            yy = y-1;
-            mm = 12;
-        }
-        else{
-            yy = y;
-            mm = m -1;
-        }
-
-        bool isNew = false;  //是否保存的是第一个月的余额数据
-        if(!readExtraByMonth(yy,mm,preSums,preFDirs,preSSums,preSDirs)){
-            QString info = QString(QObject::tr("数据库中没有%1年%2月的余额记录！\n"))
-                           .arg(y).arg(m);
-            info.append(QObject::tr("如果是第一个月的数据则选yes，否则说明数据库记录不完整\n"
-                           "缺少前一个月的数据，请选择no"));
-            if(QMessageBox::No == QMessageBox::question(0,
-                            QObject::tr("询问信息"),info,
-                            QMessageBox::Yes | QMessageBox::No))
-                return false;
-            else
-                isNew = true;
-        }
-
-        //////////////////////////////////////////////////
-//        //计算当期发生额
-//        QHash<int,double> curSums,curSSums; //当期发生额
-//        if(!readExtraByMonth(y,m,curSums,curSSums))
-//            return false;
-
-//        //计算余额
-//        QHash<int,double> exSums,exSSums;
-//        QHashIterator<int,double> it(curSums);
-//        while(it.hasNext()){
-//            it.next();
-//            exSums[it.key()] = preSums[it.key()] + curSums[it.key()];
-//        }
-//        QHashIterator<int,double> is(curSSums);
-//        while(is.hasNext()){
-//            is.next();
-//            exSSums[is.key()] = preSSums[is.key()] + curSSums[is.key()];
-//        }
-
-        //构造余额数据
-        QHashIterator<int,double> ips(preSums);
-        while(ips.hasNext()){
-            ips.next();
-            sums[ips.key()] += ips.value();
-        }
-        QHashIterator<int,double> ipss(preSSums);
-        while(ipss.hasNext()){
-            ipss.next();
-            ssums[ipss.key()] += ipss.value();
-        }
-
-        //保存余额到数据库中
-        //首先检测是否已经有当期的余额记录，如有则删除
-        r = q.exec(QString("select id from SubjectExtras where (year = %1)"
-                       " and (month = %2)").arg(y).arg(m));
-        if(r){
-            while(q.next()){
-                int id = q.value(0).toInt();
-                r = q2.exec(QString("delete from detailExtras where seid = %1").arg(id));//删除明细余额
-                r = q2.exec(QString("delete from SubjectExtras where id = %1").arg(id)); //删除总账余额
-            }
-        }
-
-//        s = QString("delete from SubjectExtras where (year = %1) "
-//                    "and (month = %2)").arg(y).arg(m);
-//        r = q.exec(s);
-
-
-
-        //构造插入语句
-        QList<QString> fnList; //要绑定值的字段名列表（有insert语句中由冒号前导的符号）
-        QString fnStr = "(year, month, state, mt, ";       //SQL 的insert语句中的表字段部分
-        QString vStr = "values(:year, :month, :state, :mt, ";  //values 部分
-        QHash<int,QString>fldNames; //一级科目id到保存余额的字段名的映射
-        getFidToFldName(fldNames);
-        QList<QString> fields = fldNames.values();
-        qSort(fields.begin(),fields.end());
-        for(int i = 0; i < fields.count(); ++i){
-            QString fname = fields[i];
-            fnStr.append(fname);
-            fnStr.append(", ");
-            vStr.append(":");
-            vStr.append(fname);
-            vStr.append(", ");
-            fnList.append(fname);
-        }
-        fnStr.chop(2);
-        fnStr.append(") ");
-        vStr.chop(2);
-        vStr.append(")");
-        s = "insert into SubjectExtras ";
-        s.append(fnStr);
-        s.append(vStr);
-        r = q.prepare(s);
-
-        //按币种分别插入余额值
-        QHash<int,QString> mts;
-        getMTName(mts);
-        QHashIterator<int,QString> mti(mts);
-        while(mti.hasNext()){
-            mti.next();
-            //绑定年月值及币种代码
-            q.bindValue(":year", y);
-            q.bindValue(":month", m);
-            q.bindValue(":state", 1);  //结转状态有待考虑
-            q.bindValue(":mt", mti.key());
-
-            //绑定总账科目余额值
-            QHash<QString,int> names; //对fldNames进行倒置，从字段名映射到科目id
-            QHashIterator<int,QString>  i(fldNames);
-            while(i.hasNext()){
-                i.next();
-                names[i.value()] = i.key();
-            }
-            for(int i = 0; i < fnList.count(); ++i)
-                q.bindValue(":"+fnList[i], sums.value(names[fnList[i]]*10+mti.key()));
-
-            r = q.exec();
-        }
-
-
-
-///////////////////////////////////////////
-        //提取保存当期总账科目余额的记录id集合
-        s = QString("select id,mt from SubjectExtras where (year = %1) "
-                    "and (month = %2)").arg(y).arg(m);
-        r = q.exec(s);
-        while(q.next()){
-            int curId = q.value(0).toInt();//保存总账科目余额的记录id
-            int mt = q.value(1).toInt(); //总账科目余额的币种代码
-            //将当期的明细余额值保存到detailExtras中
-            QHashIterator<int,double> ip(ssums);
-            while(ip.hasNext()){
-                ip.next();
-                if((ip.key() % 10) == mt){ //对应币种保存明细科目余额
-                    int id = ip.key() / 10;//明细科目id
-                    s = QString("insert into detailExtras(seid,fsid,value) "
-                                "values(%1,%2,%3)")
-                            .arg(curId).arg(id).arg(ip.value());
-                    r = q2.exec(s);
-                }
-
-            }
-        }
-
-
-
-
-//            s = QString("select id from detailExtras where (seid = %1) "
-//                        "and (fsid = %2) and (mt = %3)")
-//                    .arg(curId).arg(id).arg(mt);
-//            r = q.exec(s);
-//            int eid; //detailExtras表的id列
-//            if(q.first()){
-//                isExist = true;
-//                eid = q.value(0).toInt();
-//            }
-//            //存在则更新
-//            if(isExist){
-//                s = QString("update detailExtras set value = %1 where "
-//                            "id = %2").arg(ip.value()).arg(eid);
-//            }
-//            else{//不存在则插入
-
-//            }
-//        }
-        return true;
-    }
 
     //生成明细科目日记账数据列表（金额式）
     static bool getDailyForJe(int y,int m, int fid, int sid,
@@ -1046,59 +827,6 @@ public:
     //获取指定年月指定类别的凭证id
     static bool getPzIdForSpecCls(int y, int m, int cls, User* user, int& id);
 
-    /////////////////////////////////////////////////////////////
-    //将整数集合转为简写的文本形式（每个连续的数字区段用比如“4-8”的形式，多个区段用逗号分隔）
-//    static void IntSetToStr(QSet<int> set, QString& s)
-//    {
-//        if(set.count() > 0){
-//            QList<int> pzs = set.toList();
-//            qSort(pzs.begin(),pzs.end());
-//            int prev = pzs[0],next = pzs[0];
-//            //QString s;
-//            for(int i = 1; i < pzs.count(); ++i){
-//                if((pzs[i] - next) == 1){
-//                    next = pzs[i];
-//                }
-//                else{
-//                    if(prev == next)
-//                        s.append(QString::number(prev)).append(",");
-//                    else
-//                        s.append(QString("%1-%2").arg(prev).arg(next)).append(",");
-//                    prev = next = pzs[i];
-//                }
-//            }
-//            if(prev == next)
-//                s.append(QString::number(prev));
-//            else
-//                s.append(QString("%1-%2").arg(prev).arg(pzs[pzs.count() - 1]));
-
-//        }
-//    }
-
-//    //将简写的文本格式转为整数集合
-//    static bool strToIntSet(QString s, QSet<int>& set)
-//    {
-//        //首先用规则表达式验证字符串中是否存在不可解析的字符，如有则返回false
-//        if(false)
-//            return false;
-
-//        set.clear();
-//        //对打印范围的编辑框文本进行解析，生成凭证号集合
-//        QStringList sels = s.split(",");
-//        for(int i = 0; i < sels.count(); ++i){
-//            if(sels[i].indexOf('-') == -1)
-//                set.insert(sels[i].toInt());
-//            else{
-//                QStringList ps = sels[i].split("-");
-//                int start = ps[0].toInt();
-//                int end = ps[1].toInt();
-//                for(int j = start; j <= end; ++j)
-//                    set.insert(j);
-//            }
-//        }
-//        return true;
-//    }
-
     //
     static bool delActionsInPz(int pzId);
 
@@ -1125,8 +853,6 @@ public:
     static bool getPzsState(int y,int m,PzsState& state);
     //设置凭证集状态
     static bool setPzsState(int y,int m,PzsState state);
-    //设置凭证集状态，并根据设定的状态调整凭证集内凭证的审核入账状态
-    static bool setPzsState2(int y,int m,PzsState state);
 
     //获取银行存款下所有外币账户对应的明细科目id列表
     static bool getOutMtInBank(QList<int>& ids, QList<int>& mt);
@@ -1146,13 +872,8 @@ public:
     //读取银行帐号
     static bool readAllBankAccont(QHash<int,BankAccount*>& banks);
 
-    //刷新凭证集状态
-    static bool refreshPzsState(int y,int m,CustomRelationTableModel* model/*,
-                                QSet<int> pcImps = pzClsImps,
-                                QSet<int> pcJzhds = pzClsJzhds,
-                                QSet<int> pcJzsys = pzClsJzsys*/);
-    //
-
+    static bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
+    static bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
 
     //引入其他模块产生的凭证
     static bool impPzFromOther(int y,int m, QSet<OtherModCode> mods);
@@ -1162,30 +883,12 @@ public:
     static bool reqGenImpOthPz(int y,int m, bool& req);
 
     //创建结转汇兑损益凭证
-    static bool genForwordEx(int y, int m, User* user, int state = Pzs_Recording);
     static bool genForwordEx2(int y, int m, User* user, int state = Pzs_Recording);
-    //取消结转汇兑损益凭证
-    static bool antiJzhdsyPz(int y, int m);
     //是否需要结转汇兑损益
     static bool reqGenJzHdsyPz(int y, int m, bool& req);
 
     //创建结转损益类科目到本年利润的凭证
-    //static bool genForwordPl(int y, int m, QHash<int,QString>* fnames,
-    //                         QHash<int,QString>* snames, User* user);
-    static bool genForwordPl(int y, int m, User* user);
     static bool genForwordPl2(int y, int m, User *user);
-    //取消结转损益类科目到本年利润的凭证
-    static bool antiForwordPl(int y, int m);
-    //是否需要创建结转损益类科目到本年利润的凭证
-    static bool reqForwordPl(int y, int m, bool& req);
-
-    //生成结转本年利润的凭证
-    static bool genJzbnlr(int y, int m, PzData& d);
-    //取消结转本年利润的凭证
-    static bool antiJzbnlr(int y, int m);
-    //是否需要创建结转本年利润的凭证
-    static bool reqGenJzbnlr(int y, int m, bool& req);
-
 
     //获取指定范围的科目id列表
     static bool getSubRange(int sfid,int ssid,int efid,int esid,
@@ -1206,16 +909,20 @@ public:
     static bool isInSSub(int sid){return inSIds.contains(sid);}
 
     //获取所有在二级科目类别表中名为“固定资产类”的科目（已归并到Gdzc类）
-    //static bool getGdzcSubClass(QHash<int,QString>& names);
-    static bool delSpecPz(int y, int m, PzClass pzCls);
+    static QList<PzClass> getSpecClsPzCode(PzdClass cls);
+    static bool delSpecPz(int y, int m, PzdClass pzCls, int &affected);
+    static bool haveSpecClsPz(int y, int m, QHash<PzdClass,bool>& isExist);
+    static bool setExtraState(int y, int m, bool isVolid);
+    static bool getExtraState(int y, int m);
+    static bool specPzClsInstat(int y, int m, PzdClass cls, int &affected);
+    static bool setAllPzState(int y, int m, PzState state, PzState includeState,
+                              int &affected, User* user = curUser);
 
 private:
     //为查询处于指定状态的某些类别的凭证生成过滤子句
     static void genFiltState(QList<int> pzCls, PzState state, QString& s);
     //生成过滤出指定类别的凭证的条件语句
     static QString genFiltStateForSpecPzCls(QList<int> pzClses);
-    //删除指定年月的指定类别凭证
-
 
     //固定资产管理模块是否需要产生凭证
     static bool reqGenGdzcPz(int y, int m, bool& req);
@@ -1236,6 +943,8 @@ private:
     static bool isJzhdPzCls(PzClass pzc);    //是否是由系统自动产生的结转汇兑损益凭证类别
     static bool isJzsyPzCls(PzClass pzc);    //是否是由系统自动产生的结转损益凭证类别
     static bool isOtherPzCls(PzClass pzc);   //是否是其他由系统产生并允许用户修改的凭证类别
+
+
 };
 
 

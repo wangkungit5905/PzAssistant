@@ -12,6 +12,7 @@
 #include "global.h"
 #include "common.h"
 #include "dialogs.h"
+#include "tables.h"
 
 
 /////////////////////////////////////////////////////////////////////

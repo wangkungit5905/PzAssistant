@@ -1162,13 +1162,14 @@ void PzDialog2::save(bool isForm)
                 dataMapping->setCurrentIndex(idx);
                 pzDirty = false;
             }
+            //凭证集状态的改变在主窗口内检测并显示，这里可以不用考虑
+            //在主窗口的保存命令中，会检测凭证集的状态，并显示。
             if(pzStateDirty){  //如果凭证状态发生了改变，则还要刷新凭证集的状态
-                PzsState oldState,newState;
-                BusiUtil::getPzsState(cury,curm,oldState);
-                BusiUtil::refreshPzsState(cury,curm,model);
-                BusiUtil::getPzsState(cury,curm,newState);
-                if(oldState != newState)
-                    emit pzsStateChanged();
+//                PzsState oldState,newState;
+//                BusiUtil::getPzsState(cury,curm,oldState);
+//                BusiUtil::getPzsState(cury,curm,newState);
+//                if(oldState != newState)
+//                    emit pzsStateChanged();
                 pzStateDirty = false;
             }
             if(acDirty){  //保存凭证业务活动数据
@@ -1300,7 +1301,7 @@ void PzDialog2::keyPressEvent(QKeyEvent * event)
 
 }
 
-//当业务活动表格中的某个项目的数据发送改变时
+//当业务活动表格中的某个项目的数据发生改变时
 void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
 {
     //用这个信号来捕获表格项数据改变事件，有一个缺陷，即在仅仅打开编辑器，
@@ -1344,6 +1345,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         }
         busiActions[row]->fid = fid;
         b = true;
+        emit mustRestat();
     }
     else if((col == ActionEditItemDelegate::SNDSUB)
             && (item->data(Qt::EditRole).toInt() != busiActions[row]->sid)){
@@ -1390,6 +1392,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         }
         busiActions[row]->sid = sid;
         b = true;
+        emit mustRestat();
     }
     else if((col == ActionEditItemDelegate::MTYPE)
               && (item->data(Qt::EditRole).toInt() != busiActions[row]->mt)){
@@ -1417,6 +1420,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         installDataWatch();
         busiActions[row]->mt = mt;
         b = true;
+        emit mustRestat();
     }
     else if(col == ActionEditItemDelegate::JV){
         if((busiActions[row]->dir == DIR_J)
@@ -1436,6 +1440,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         }
         b = true;
         calSums();
+        emit mustRestat();
     }
     else if(col == ActionEditItemDelegate::DV){
         if((busiActions[row]->dir == DIR_D)
@@ -1453,6 +1458,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         }
         b = true;
         calSums();
+        emit mustRestat();
     }
 
     if(b){

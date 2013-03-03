@@ -7,6 +7,7 @@
 #include <QSqlTableModel>
 #include <QSpinBox>
 #include <QDockWidget>
+#include <QStatusBar>
 
 
 #include "dialogs.h"
@@ -22,6 +23,38 @@
 namespace Ui {
     class MainWindow;
 }
+
+class PaStatusBar : public QStatusBar
+{
+    Q_OBJECT
+public:
+    PaStatusBar(QWidget* parent=0);
+    ~PaStatusBar();
+    void setPzSetDate(int y, int m);
+    void setPzSetState(PzsState state);
+    void setExtraState(bool isValid){extraState.setText(isValid?tr("有效"):tr("无效"));}
+    void setPzAmount(int c){pzCount.setText(c!=0?QString::number(c):"");}
+    void setRepealCount(int c){pzRepeal.setText(c!=0?QString::number(c):"");}
+    void setRecordingCount(int c){pzRecording.setText(c!=0?QString::number(c):"");}
+    void setVerifyCount(int c){pzVerify.setText(c!=0?QString::number(c):"");}
+    void setInstantCount(int c){pzInstat.setText(c!=0?QString::number(c):"");}
+    void setPzCounts(int repeal,int recording,int verify,int instat,int amount);
+    void resetPzCounts();
+    void setUser(User* user);
+
+public slots:
+    void notificationProgress(int amount, int curp);
+private:
+    void startProgress(int amount);
+    void endProgress();
+    void adjustProgress(int value);
+
+    QLabel pzSetDate,pzSetState,extraState,lblUser,pzCount,pzRepeal,pzRecording,pzVerify,pzInstat;
+    QProgressBar* pBar;
+    int pAmount;  //进度指示器的最大值
+};
+
+
 
 extern int mdiAreaWidth;       //主窗口Mdi区域宽度
 extern int mdiAreaHeight;      //主窗口Mdi区域高度
@@ -78,12 +111,7 @@ private slots:
     void handAssignPzNum();
 
     //数据菜单
-    void collectCalculate();      //汇总
     void viewSubjectExtra();      //显示科目余额
-    //void viewTotalAccBook();      //总分类帐
-    //void viewDetailAccBook();     //明细帐
-    //void viewCashDiaryAccBook();  //现金日记帐
-    //void viewBankDiaryAccBook();  //银行日记帐
     void generateBalanceSheet();  //生成资产负债表
     void generateIncomeStatements(); //生成利润表
 
@@ -125,11 +153,13 @@ private slots:
     void curPzIndexChanged(int idx, int nums);
     void pzContentSaved();
 
-    //void userModifyPzState(QAction *action);
     void userModifyPzState(bool checked);
     void userSelBaAction(bool isSel);
     void showTemInfo(QString info);
     void refreshShowPzsState();
+    void extraChanged(){isExtraVolid = false;} //由于凭证集发生了影响统计余额的改变，导致当前余额失效，
+                                               //目前主要由凭证编辑窗口的编辑动作引起，反馈给主窗口
+    void extraValid();
 
     void on_actAddPz_triggered();
 
@@ -148,10 +178,6 @@ private slots:
     void on_actGoLast_triggered();
 
     void on_actSavePz_triggered();
-
-    //void on_actClosePz_triggered();
-
-    //void on_actForward_triggered();
 
     void on_actFordPl_triggered();
 
@@ -189,12 +215,6 @@ private slots:
 
     void on_actMvDownAction_triggered();
 
-    //void on_actInStat_triggered(bool checked);
-
-    //void on_actVeriPz_triggered(bool checked);
-
-    //void on_actRepealPz_triggered(bool checked);
-
     void on_actSearch_triggered();
 
     void on_actNaviToPz_triggered();
@@ -221,15 +241,11 @@ private slots:
 
     void on_actAntiImp_triggered();
 
-    //void on_actVerifyPz_triggered(bool checked);
-
     void on_actBasicDB_triggered();
 
     void on_actGdzcAdmin_triggered();
 
     void on_actDtfyAdmin_triggered();
-
-    void on_actForcePzsState_triggered();
 
     void on_actSetPzCls_triggered();
 
@@ -239,11 +255,7 @@ private slots:
 
     void on_actAccProperty_triggered();
 
-	void on_aactTemTask_triggered();
-
-	void on_actJzHdsy_triggered();
-
-    void on_actJzsyAfterJzhd_triggered();
+    void on_actJzHdsy_triggered();
 
     void on_actPzErrorInspect_triggered();
 
@@ -256,7 +268,6 @@ private:
     void initDockWidget();
     void accountInit();    
     QDialog* activeMdiChild();
-    //bool checkPzsIsOpen();
     void refreshTbrVisble();
     void refreshActEnanble();
     void refreshAdvancPzOperBtn();
@@ -264,20 +275,14 @@ private:
     bool isIncoming(int id);
     void rightWarnning(int right);
     void pzsWarning();
+    void sqlWarning();
     void showPzNumsAffected(int num);
     void saveSubWinInfo(subWindowType winEnum, QByteArray* sinfo = NULL);
 
     void showSubWindow(subWindowType winType, SubWindowDim* dinfo = NULL, QDialog* w = NULL);
 
-    bool allInstat(int y,int m);
-    bool instatJzsyPz(int y,int m);
     bool jzsy();
-    bool jzsy2();
-	bool jzhdsy();
-
-    //bool accVersionInspect();
-
-    QSqlTableModel* initSingleTableModel(int witch);
+    bool jzhdsy();
 
     Ui::MainWindow *ui;
 
@@ -312,9 +317,9 @@ private:
     QHash<subWindowType,bool> subWinActStates;   //子窗口的激活状态
 
     //状态条部件
-    QLabel *l1,*lblPzsDate;
-    QLabel *l2,*lblPzSetState;
-    QLabel *l3,*lblCurUser;
+    //QLabel *l1,*lblPzsDate;
+    //QLabel *l2,*lblPzSetState;
+    //QLabel *l3,*lblCurUser;
 
 
     //工具条上的部件
@@ -326,6 +331,9 @@ private:
 
     bool isOpenPzSet;
     int curPzState;  //当前凭证的状态代码，用以确定高级凭证操作按钮的启用状态
+    bool isExtraVolid; //当前凭证集的余额是否有效
+    //bool isRefreshPzSetState;  //是否需要刷新凭证集状态
+    int pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount; //作废、录入、审核、入账凭证数，总数
     PzClass curPzCls; //当前凭证类别
     PzsState curPzSetState; //当前凭证集状态
     QRadioButton *rdoRecording, *rdoRepealPz, *rdoInstatPz, *rdoVerifyPz;

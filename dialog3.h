@@ -54,10 +54,10 @@ class AntiJzDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit AntiJzDialog(QHash<PzdClass,bool> haved, PzsState state, QWidget *parent = 0);
+    explicit AntiJzDialog(QHash<PzdClass,bool> haved, QWidget *parent = 0);
     ~AntiJzDialog();
 
-    bool selected(QHash<PzdClass,bool>& sels);
+    QHash<PzdClass, bool> selected();
 
 private slots:
 

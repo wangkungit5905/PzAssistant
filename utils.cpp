@@ -928,21 +928,25 @@ bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, 
     QString s;
     QSqlQuery q1,q2,q3,q4;
     bool r, hasNew = false;
+    QSqlDatabase db = QSqlDatabase::database();
+
+    if(!db.transaction())
+        return false;
 
     s = QString("insert into BusiActions(pid,summary,firSubID,secSubID,"
                 "moneyType,jMoney,dMoney,dir,NumInPz) values(:pid,:summary,"
                 ":fid,:sid,:mt,:jv,:dv,:dir,:num)");
-    r = q1.prepare(s);
+    q1.prepare(s);
     s = QString("update BusiActions set summary=:summary,firSubID=:fid,"
                 "secSubID=:sid,moneyType=:mt,jMoney=:jv,dMoney=:dv,"
                 "dir=:dir,NumInPz=:num where id=:id");
-    r = q2.prepare(s);
+    q2.prepare(s);
     s = "update BusiActions set NumInPz=:num where id=:id";
-    r = q3.prepare(s);
+    q3.prepare(s);
     s = "delete from BusiActions where id=:id";
-    r = q4.prepare(s);
+    q4.prepare(s);
 
-    BusiActionData2* blankItem;
+    //BusiActionData2* blankItem;
     if(!busiActions.isEmpty()){
         for(int i = 0; i < busiActions.count(); ++i){
             busiActions[i]->num = i + 1;  //在保存的同时，重新赋于顺序号
@@ -967,9 +971,7 @@ bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, 
                     q1.bindValue(":dir", DIR_D);
                 }
                 q1.bindValue(":num", busiActions[i]->num);
-                r = q1.exec();
-                if(r)
-                    busiActions[i]->state = BusiActionData2::INIT;
+                q1.exec();
                 break;
             case BusiActionData2::EDITED:
                 q2.bindValue(":summary", busiActions[i]->summary);
@@ -988,30 +990,34 @@ bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, 
                 }
                 q2.bindValue(":num", busiActions[i]->num);
                 q2.bindValue("id", busiActions[i]->id);
-                r = q2.exec();
-                if(r)
-                    busiActions[i]->state = BusiActionData2::INIT;
+                q2.exec();
                 break;
             case BusiActionData2::NUMCHANGED:
                 q3.bindValue(":num", busiActions[i]->num);
                 q3.bindValue(":id", busiActions[i]->id);
-                r = q3.exec();
-                if(r)
-                    busiActions[i]->state = BusiActionData2::INIT;
+                q3.exec();
                 break;
             }
+            busiActions[i]->state = BusiActionData2::INIT;
         }
+        if(!db.commit())
+            return false;
         //回读新增的业务活动的id(待需要时再使用此代码)
         if(hasNew){
             r = getActionsInPz2(pid,busiActions);
         }
     }
     if(!dels.isEmpty()){
+        if(!db.transaction())
+            return false;
         for(int i = 0; i < dels.count(); ++i){
             q4.bindValue(":id", dels[i]->id);
-            r = q4.exec();
+            q4.exec();
         }
+        if(!db.commit())
+            return false;
     }
+
     return r;
 }
 
@@ -2205,233 +2211,6 @@ bool BusiUtil::genPzPrintDatas2(int y, int m, QList<PzPrintData2 *> &datas, QSet
 /**
     结转损益（将损益类科目结转至本年利润）
 */
-bool BusiUtil::genForwordPl(int y, int m, User *user)
-{
-    //直接从科目余额表中读取损益类科目的余额数进行结转，因此在执行此操作之前必须在打开凭证集后，
-    //并且处于结转损益前的准备状态
-    QSqlQuery q;
-    QString s;
-    bool r = 0;    
-
-    //因为在主窗口调用此函数时已经检测了凭证集的状态，因此这里忽略凭证集状态检测
-    QHash<int,double>rates;
-    if(!getRates(y,m,rates)){
-        qDebug() << QObject::tr("不能获取%1年%2月的汇率").arg(y).arg(m);
-        return false;
-    }
-    rates[RMB] = 1;
-
-    //基本步骤：
-    //1、读取科目余额
-    QHash<int,double>extra,extraDet; //总账科目和明细账科目余额
-    QHash<int,int>extraDir,extraDetDir; //总账科目和明细账科目余额方向
-    if(!readExtraByMonth(y,m,extra,extraDir,extraDet,extraDetDir)){
-        qDebug() << "Don't save subject extra !";
-        return false;
-    }
-
-    //2、创建结转凭证。
-    //在创建结转凭证前要检测是否以前已经进行过结转，如有则要先删除与此两凭证相关的所有业务活动
-    //并且重用凭证表的对应记录
-    int idNewIn;    //结转收入的凭证id
-    int idNewFei;   //结转费用的凭证id
-    int pzNum;  //结转凭证所使用的凭证号（结转收入和结转费用两张凭证号是紧挨的，且收入在前费用在后）
-
-    QDate pzDate(y,m,1); //凭证日期为当前打开凭证集的最后日期
-    pzDate.setDate(y,m,pzDate.daysInMonth());
-    QString strPzDate = pzDate.toString(Qt::ISODate);    
-
-    //创建新的或读取现存的结转收入类凭证id值
-    s = QString("select id,number from PingZhengs where (isForward = %1) and "
-                "(date='%2')").arg(Pzc_JzsyIn).arg(strPzDate);
-    if(q.exec(s) && q.first()){        
-        idNewIn = q.value(0).toInt();
-        pzNum = q.value(1).toInt();
-        s = QString("delete from BusiActions where pid = %1").arg(idNewIn);
-        r = q.exec(s); //删除原先属于此凭证的所有业务活动
-        //恢复凭证状态到初始录入态
-        s = QString("update PingZhengs set pzState=%1,ruid=%2 where id = %3")
-                .arg(Pzs_Recording).arg(user->getUserId()).arg(idNewIn);
-        r = q.exec(s);
-    }
-    else{
-        //创建新凭证之前，先获取凭证集内可用的最大凭证号
-        pzNum = getMaxPzNum(y,m);        
-        s = QString("insert into PingZhengs(date,number,isForward,pzState,ruid) "
-                    "values('%1',%2,%3,%4,%5)").arg(strPzDate).arg(pzNum)
-                .arg(Pzc_JzsyIn).arg(Pzs_Recording).arg(user->getUserId());
-        r = q.exec(s);
-        //回读此凭证的id
-        s = QString("select id from PingZhengs where (isForward = %1) and "
-                    "(date='%2')").arg(Pzc_JzsyIn).arg(strPzDate);
-        r = q.exec(s); r = q.first();
-        idNewIn = q.value(0).toInt();
-    }
-
-    //创建新的或读取现存的结转费用类凭证id值
-    s = QString("select id,number from PingZhengs where (isForward = %1) and "
-                "(date='%2')").arg(Pzc_JzsyFei).arg(strPzDate);
-    pzNum++;
-    if(q.exec(s) && q.first()){
-        idNewFei = q.value(0).toInt();
-        s = QString("delete from BusiActions where pid = %1").arg(idNewFei);
-        r = q.exec(s); //删除原先属于此凭证的所有业务活动
-        //恢复凭证状态到初始录入态
-        s = QString("update PingZhengs set pzState=%1,ruid=%2 where id = %3")
-                .arg(Pzs_Recording).arg(user->getUserId()).arg(idNewFei);
-        r = q.exec(s);
-    }
-    else{
-        s = QString("insert into PingZhengs(date,number,isForward,pzState,ruid) "
-                    "values('%1',%2,%3,%4,%5)").arg(strPzDate).arg(pzNum)
-                .arg(Pzc_JzsyFei).arg(Pzs_Recording).arg(user->getUserId());
-        r = q.exec(s);
-        //回读此凭证的id
-        s = QString("select id from PingZhengs where (isForward = %1) and "
-                    "(date='%2')").arg(Pzc_JzsyFei).arg(strPzDate);
-        r = q.exec(s); r = q.first();
-        idNewFei = q.value(0).toInt();
-    }
-
-    //3、填充结转凭证的业务活动数据
-    //获取“本年利润-结转”子账户-的id
-    int bnlrId;
-    if(!getIdByName(bnlrId, QObject::tr("本年利润"))){
-        qDebug() << QObject::tr("不能获取本年利润科目的id值");
-        return false;
-    }
-    s = QString("select FSAgent.id from FSAgent join SecSubjects "
-                "where (FSAgent.sid = SecSubjects.id) and "
-                "(FSAgent.fid = %1) and (SecSubjects.subName = '%2')")
-            .arg(bnlrId).arg(QObject::tr("结转"));
-    if(!q.exec(s) || !q.first()){
-        qDebug() << QObject::tr("不能获取”本年利润-结转“子账户");
-        return false;
-    }    
-    int bnlrSid = q.value(0).toInt();  //本年利润--结转子账户id
-
-    QList<BusiActionData*> fad,iad;      //费用和收入结转凭证的业务活动数据列表
-    QHash<int, QList<int> > fids,iids;   //费用类和收入类的明细科目id集合，键为一级科目id，值为该一级科目下的子目id集合
-    BusiUtil::getAllIdForSy(true,iids);  //获取所有收入类总账-明细id列表
-    BusiUtil::getAllIdForSy(false,fids); //获取所有费用类总账-明细id列表
-
-    QList<int> fidLst = fids.keys();     //费用类一级科目id的列表（按id的大小顺序排列，应该是以科目代码顺序排列，
-    qSort(fidLst.begin(),fidLst.end());  //这里简略实现，使用此列表只是为了生成的业务活动按预定的顺序）
-    QList<int> iidLst = iids.keys();     //收入类一级科目id的列表（按id的大小顺序排列，应该是以科目代码顺序排列）
-    qSort(iidLst.begin(),iidLst.end());
-    QHash<int,QString> mtHash;
-    getMTName(mtHash);
-    QList<int> mts = mtHash.keys();      //所有币种代码列表
-
-    int sid,key;  //二级科目id、查询余额的键
-    BusiActionData *bd1;
-    int num = 1; //业务活动在凭证内的序号
-
-    double iv = 0, fv = 0; //结转凭证的借贷合计值
-    SubjectManager* sm = curAccount->getSubjectManager();
-
-    //结转收入类凭证的业务活动列表
-    for(int i = 0; i < iidLst.count(); ++i)
-        for(int j = 0; j < iids.value(iidLst[i]).count(); ++j)
-            for(int k = 0; k < mts.count(); ++k){
-                sid = iids.value(iidLst[i])[j];
-                key = sid * 10 + mts[k];
-                if(extraDet.contains(key) && extraDet.value(key) != 0){
-                    bd1 = new BusiActionData;
-                    bd1->state = BusiActionData::NEW; //新业务活动
-                    bd1->num = num++;
-                    bd1->pid = idNewIn;
-                    bd1->fid = iidLst[i];
-                    bd1->sid = sid;
-                    bd1->summary = QObject::tr("结转（%1-%2）至本年利润")
-                            .arg(sm->getFstSubName(iidLst[i]))
-                            .arg(sm->getSndSubName(sid));
-                    bd1->mt = mts[k];
-                    //结转收入类到本年利润，一般是损益类科目放在借方，本年利润放在贷方
-                    //因此，如果损益类科目余额是借方时，把它放在借方，并用负数表示。
-                    bd1->dir = DIR_J;
-                    if(extraDetDir.value(key) == DIR_J)
-                        bd1->v = -extraDet.value(key);
-                    else
-                        bd1->v = extraDet.value(key);
-                    iad.append(bd1);
-                    iv += rates.value(bd1->mt) * bd1->v;
-                }
-            }
-    //创建本年利润-结转的借方会计分录
-    bd1 = new BusiActionData;
-    bd1->state = BusiActionData::NEW; //新业务活动
-    bd1->num = num++;
-    bd1->pid = idNewIn;
-    bd1->fid = bnlrId;
-    bd1->sid = bnlrSid;
-    bd1->summary = QObject::tr("结转收入至本年利润");
-    bd1->mt = RMB;                     //币种
-    bd1->dir = DIR_D;
-    bd1->v = iv;
-    iad.append(bd1);
-
-    //结转费用类凭证的业务活动列表
-    //SubjectManager* sm = curAccount->getSubjectManager();
-    num = 1;
-    for(int i = 0; i < fidLst.count(); ++i)
-        for(int j = 0; j < fids.value(fidLst[i]).count(); ++j)
-            for(int k = 0; k < mts.count(); ++k){
-                sid = fids.value(fidLst[i])[j];
-                key = sid * 10 + mts[k];
-                if(extraDet.contains(key) && extraDet.value(key) != 0){
-                    bd1 = new BusiActionData;
-                    bd1->state = BusiActionData::NEW; //新业务活动
-                    bd1->num = num++;
-                    bd1->pid = idNewFei;
-                    bd1->fid = fidLst[i];
-                    bd1->sid = sid;
-                    bd1->summary = QObject::tr("结转（%1-%2）至本年利润")
-                            .arg(sm->getFstSubName(fidLst[i]))
-                            .arg(sm->getSndSubName(sid));
-                    bd1->mt = mts[k];
-                    //结转费用类到本年利润，一般是损益类科目放在贷方，本年利润方在借方
-                    //因此，如果损益类科目余额是贷方时，把它放在贷方，并用负数表示。
-                    bd1->dir = DIR_D;
-                    if(extraDetDir.value(key) == DIR_D)
-                        bd1->v = -extraDet.value(key);
-                    else
-                        bd1->v = extraDet.value(key);
-                    fad.append(bd1);
-                    fv += rates.value(bd1->mt) * bd1->v;
-                }
-            }
-
-    //创建本年利润-结转的借方会计分录
-    bd1 = new BusiActionData;
-    bd1->state = BusiActionData::NEW; //新业务活动
-    bd1->num = num++;
-    bd1->pid = idNewFei;
-    bd1->fid = bnlrId;
-    bd1->sid = bnlrSid;
-    bd1->summary = QObject::tr("结转费用至本年利润");
-    bd1->mt = RMB;                        //币种
-    bd1->dir = DIR_J;
-    bd1->v = fv;
-    fad.append(bd1);
-
-    //保存业务活动数据
-    saveActionsInPz(idNewIn,iad);
-    saveActionsInPz(idNewFei,fad);
-    //更新合计值
-    s = QString("update PingZhengs set jsum = %1,dsum = %2 where id = %3")
-            .arg(iv).arg(iv).arg(idNewIn);
-    r = q.exec(s);
-    s = QString("update PingZhengs set jsum = %1,dsum = %2 where id = %3")
-            .arg(fv).arg(fv).arg(idNewFei);
-    r = q.exec(s);
-
-    setPzsState(y,m,Ps_Jzsy);
-}
-
-/**
-    结转损益（将损益类科目结转至本年利润）
-*/
 bool BusiUtil::genForwordPl2(int y, int m, User *user)
 {
     //直接从科目余额表中读取损益类科目的余额数进行结转，因此在执行此操作之前必须在打开凭证集后，
@@ -2650,319 +2429,8 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
             .arg(fv.getv()).arg(fv.getv()).arg(idNewFei);
     r = q.exec(s);
 
-    setPzsState2(y,m,Ps_Jzsy);
     return true;
 }
-
-
-//取消结转损益类科目到本年利润的凭证
-bool BusiUtil::antiForwordPl(int y, int m)
-{
-    return delSpecPz(y,m,Pzc_Jzhd_Bank) &&
-           delSpecPz(y,m,Pzc_Jzhd_Ys) &&
-           delSpecPz(y,m,Pzc_Jzhd_Yf) &&
-           setPzsState(y,m,Ps_JzsyPre);
-}
-
-//是否需要创建结转损益类科目到本年利润的凭证
-bool BusiUtil::reqForwordPl(int y, int m, bool& req)
-{
-    //为简单起见，只通过检测凭证集状态来确定
-    PzsState state;
-    bool r = getPzsState(y,m,state);
-    if(state >= Ps_Stat4)
-        req = false;
-    else
-        req = true;
-    return r;
-}
-
-
-/**
-    结转汇兑损益
-*/
-//bool BusiUtil::genForwordEx(int y, int m, User* user)
-//{
-//    //只有在通过了审核阶段1（即凭证集已经进行了第一阶段的统计并保存了余额后）
-//    QSqlQuery q;
-//    QString s;
-//    bool r;
-
-//    int state = 0;
-//    if(!getPzsState(y,m,state) && state == PS_STAT2){
-//        QMessageBox::warning(0,QObject::tr("操作拒绝"),
-//            QObject::tr("只有在凭证集通过了第一阶段的统计并保存余额后，才能进行此操作"));
-//        return false;
-//    }
-
-//    //获取当期汇率表
-//    QHash<int,double> rates,endRates,diffRates;
-//    if(!getRates(y, m, rates)){
-//        QMessageBox::information(0 ,QObject::tr("提示信息"),QObject::tr("没有指定当期汇率！"));
-//        return false;
-//    }
-
-//    //读取期末汇率（即下一月汇率），并初始化汇率设定对话框
-//    int yy = y;
-//    int mm = m;
-//    if(mm == 12){
-//        mm = 1;
-//        yy++;
-//    }
-//    else
-//        mm++;
-//    //
-//    RateSetDialog* dlg = new RateSetDialog(2);
-//    dlg->setCurRates(&rates);    //设置本期汇率
-//    getRates(yy, mm, endRates);  //获取期末汇率
-//    dlg->setEndRates(&endRates); //设置期末汇率
-//    if(QDialog::Rejected == dlg->exec())
-//        return false;
-//    saveRates(yy,mm,endRates);
-
-//    //计算汇率差
-//    QHashIterator<int,double> it(rates);
-//    while(it.hasNext()){
-//        it.next();
-//        double diff = it.value() - endRates.value(it.key()); //期初汇率 - 期末汇率
-//        if(diff != 0)
-//            diffRates[it.key()] = diff;
-//    }
-//    if(diffRates.count() == 0)   //如果所有的外币汇率都没有变化，则无须进行汇兑损益的结转
-//        return false;
-
-//    //获取财务费用-汇兑损益科目id
-//    int cwId,hdId;
-//    if(!getIdByName(cwId, QObject::tr("财务费用")))
-//        return false;
-//    if(!getSidByName(QObject::tr("财务费用"),QObject::tr("汇兑损益"),hdId))
-//        return false;
-
-//    QString bCode;//银行存款科目代码及科目id
-//    if(!getSubCodeByName(bCode, QString(QObject::tr("银行存款"))))
-//        return false;
-//    int bankId = 0;
-//    if(!getIdByCode(bankId, bCode))
-//        return false;
-
-//    QString ysCode;//应收账款科目代码及科目id
-//    if(!getSubCodeByName(ysCode, QString(QObject::tr("应收账款"))))
-//        return false;
-//    int ysId = 0;
-//    if(!BusiUtil::getIdByCode(ysId, ysCode))
-//        return false;
-
-//    QString yfCode;//应付账款科目代码及科目id
-//    if(!getSubCodeByName(yfCode, QString(QObject::tr("应付账款"))))
-//        return false;
-//    int yfId = 0;
-//    if(!getIdByCode(yfId, yfCode))
-//        return false;
-
-//    //获取结转汇兑凭证的id值
-//    int pid;  //结转汇兑损益的凭证的id
-//    QDate d(y,m,1);
-//    d.setDate(y,m,d.daysInMonth());
-//    QString ds = d.toString(Qt::ISODate);
-
-//    s = QString("select id from PingZhengs where (date='%1') and (isForward=%2)")
-//            .arg(ds).arg(PZC_JZHD);
-//    if(q.exec(s) && q.first()){
-//        pid = q.value(0).toInt();
-//        //删除原先属于该凭证的所有业务活动
-//        s = QString("delete from BusiActions where pid=%1").arg(pid);
-//        r = q.exec(s);
-//    }
-//    else{
-//        int pzNum = getMaxPzNum(y,m);
-//        s = QString("insert into PingZhengs(date,number,isForward,pzState,ruid) "
-//                    "values('%1',%2,%3,%4,%5)").arg(ds).arg(pzNum).arg(PZC_JZHD)
-//                .arg(PZS_RECORDING).arg(user->getUserId());
-//        r = q.exec(s);
-//        if(r){
-//            s = QString("select id from PingZhengs where (date='%1') and (isForward=%2)")
-//                    .arg(ds).arg(PZC_JZHD);
-//            r = q.exec(s); r = q.first();
-//            pid = q.value(0).toInt();
-//        }
-//        else{
-//            qDebug() << QObject::tr("创建结转汇兑凭证失败");
-//            return false;
-//        }
-//    }
-
-//    QList<int> wbIds,wbMts;  //银行存款科目下的外币科目id及其对应的币种代码列表
-//    getOutMtInBank(wbIds, wbMts);
-
-//    //读取银行存款-外币子科目余额，并依余额值、余额方向和汇率差的方向生成业务活动数据
-//    QList<BusiActionData*> balst;  //保存业务活动数据的列表
-//    BusiActionData *bd1,*bd2;
-//    double v,sum=0;   //子目余额、借贷值合计
-//    int edir;   //余额方向（整形表示，有1，0，-1）
-//    bool ebdir; //余额方向
-//    bool dir; //业务活动的银行存款方的借贷方向，该方向的判定规则：
-//              //银行存款余额的方向 && 汇率差的方向（汇率变小为借或正） = 业务活动的借贷方向
-//    int num = 1;  //业务活动序号
-
-//    QList<int> ids;        //银行存款、应收、应付总目下的所有子目的id列表
-//    QList<QString> names;  //上面子目的名称
-//    QHash<int,QString> bankSubNames;  //银行存款下所有外币科目（科目id到科目名称）的映射表
-
-//    //生成与结转银行存款汇兑损益的业务活动条目
-//    if(getSndSubInSpecFst(bankId,ids,names)){
-//        for(int i = 0; i < ids.count(); ++i){
-//            if(names[i].indexOf(QObject::tr("人民币")) == -1)
-//                bankSubNames[ids[i]] = names[i];
-//        }
-//        for(int i = 0; i < wbIds.count(); ++i){
-//            if(readDetExtraForMt(y,m,wbIds[i],wbMts[i],v,edir)){
-//                if(edir == DIR_J)
-//                    ebdir = true;
-//                else if(edir == DIR_D)
-//                    ebdir = false;
-//                else            //跳过余额为零的子目
-//                    continue;
-//                bd1 = new BusiActionData;  //存放银行存款一方
-//                bd2 = new BusiActionData;  //存放财务费用一方
-//                bd1->num = num++;
-//                bd2->num = num++;
-//                bd1->state = BusiActionData::NEW;
-//                bd2->state = BusiActionData::NEW;
-//                bd1->pid = pid;
-//                bd2->pid = pid;
-//                bd1->fid = bankId;
-//                bd2->fid = cwId;
-//                bd1->sid = wbIds[i];
-//                bd2->sid = hdId;
-//                bd1->mt = RMB;
-//                bd2->mt = RMB;
-//                bd1->summary = QObject::tr("结转汇兑损益");
-//                bd2->summary = QObject::tr("结转自银行存款-%1的汇兑损益")
-//                        .arg(bankSubNames.value(wbIds[i]));
-//                dir = (diffRates.value(wbMts[i]) > 0);
-//                if(dir){
-//                    bd1->v = v * diffRates.value(wbMts[i]);
-//                    bd2->v = v * diffRates.value(wbMts[i]);
-//                }
-//                else{
-//                    bd1->v = -v * diffRates.value(wbMts[i]);
-//                    bd2->v = -v * diffRates.value(wbMts[i]);
-//                }
-//                sum += bd1->v;
-//                bd1->dir = ebdir && dir;
-//                bd2->dir = !(ebdir && dir);
-//                balst << bd1 << bd2;
-//            }
-//        }
-//    }
-
-
-//    //生成与结转应收账款汇兑损益的业务活动条目
-//    ids.clear(); names.clear();
-//    wbMts = rates.keys();  //获取所有外币的代码列表
-//    if(getSndSubInSpecFst(ysId,ids,names)){
-//        for(int i = 0; i < wbMts.count(); ++i) //外层币种
-//            for(int j = 0; j < ids.count(); ++j){      //内存应收账款子目
-//                if(readDetExtraForMt(y,m,ids[j],wbMts[i],v,edir)){
-//                    if(edir == DIR_J)
-//                        ebdir = true;
-//                    else if(edir == DIR_D)
-//                        ebdir = false;
-//                    else            //跳过余额为零的子目
-//                        continue;
-//                    bd1 = new BusiActionData;  //存放应收账款一方
-//                    bd2 = new BusiActionData;  //存放财务费用一方
-//                    bd1->num = num++;
-//                    bd2->num = num++;
-//                    bd1->state = BusiActionData::NEW;
-//                    bd2->state = BusiActionData::NEW;
-//                    bd1->pid = pid;
-//                    bd2->pid = pid;
-//                    bd1->fid = ysId;
-//                    bd2->fid = cwId;
-//                    bd1->sid = ids[j];
-//                    bd2->sid = hdId;
-//                    bd1->mt = RMB;
-//                    bd2->mt = RMB;
-//                    bd1->summary = QObject::tr("结转汇兑损益");
-//                    bd2->summary = QObject::tr("结转自应收账款-%1的汇兑损益").arg(names[j]);
-//                    dir = (diffRates.value(wbMts[i]) > 0); //汇率降低为真
-//                    if(dir){
-//                        bd1->v = v * diffRates.value(wbMts[i]);
-//                        bd2->v = v * diffRates.value(wbMts[i]);
-//                    }
-//                    else{
-//                        bd1->v = -v * diffRates.value(wbMts[i]);
-//                        bd2->v = -v * diffRates.value(wbMts[i]);
-//                    }
-//                    sum += bd1->v;
-//                    bd1->dir = ebdir && dir;
-//                    bd2->dir = !(ebdir && dir);
-//                    balst << bd1 << bd2;
-//                }
-//            }
-//    }
-
-//    //生成与结转应付存款汇兑损益的业务活动条目
-//    ids.clear();
-//    names.clear();
-//    if(getSndSubInSpecFst(yfId,ids,names)){
-//        for(int i = 0; i < wbMts.count(); ++i) //外层币种
-//            for(int j = 0; j < ids.count(); ++j){      //内层应付账款子目
-//                if(readDetExtraForMt(y,m,ids[j],wbMts[i],v,edir)){
-//                    if(edir == DIR_J)
-//                        ebdir = true;
-//                    else if(edir == DIR_D)
-//                        ebdir = false;
-//                    else            //跳过余额为零的子目
-//                        continue;
-//                    bd1 = new BusiActionData;  //存放应付账款一方
-//                    bd2 = new BusiActionData;  //存放财务费用一方
-//                    bd1->num = num++;
-//                    bd2->num = num++;
-//                    bd1->state = BusiActionData::NEW;
-//                    bd2->state = BusiActionData::NEW;
-//                    bd1->pid = pid;
-//                    bd2->pid = pid;
-//                    bd1->fid = yfId;
-//                    bd2->fid = cwId;
-//                    bd1->sid = ids[j];
-//                    bd2->sid = hdId;
-//                    bd1->mt = RMB;
-//                    bd2->mt = RMB;
-//                    bd1->summary = QObject::tr("结转汇兑损益");
-//                    bd2->summary = QObject::tr("结转自应付账款-%1的汇兑损益").arg(names[j]);
-//                    dir = (diffRates.value(wbMts[i]) > 0); //汇率降低为真
-//                    if(dir){
-//                        bd1->v = v * diffRates.value(wbMts[i]);
-//                        bd2->v = v * diffRates.value(wbMts[i]);
-//                    }
-//                    else{
-//                        bd1->v = -v * diffRates.value(wbMts[i]);
-//                        bd2->v = -v * diffRates.value(wbMts[i]);
-//                    }
-//                    sum += bd1->v;
-//                    bd1->dir = ebdir && dir;
-//                    bd2->dir = !(ebdir && dir);
-//                    balst << bd1 << bd2;
-//                }
-//            }
-//    }
-
-
-//    //保存业务活动到数据库
-//    saveActionsInPz(pid,balst);
-
-//    //清除内存
-//    for(int i = 0; i < balst.count(); ++i)
-//        delete balst[i];
-//    balst.clear();
-
-//    //更新借贷合计值
-//    s = QString("update PingZhengs set jsum=%1,dsum=%1 where id=%2").arg(sum).arg(pid);
-//    r = q.exec(s);
-//    return r;
-//}
 
 //获取指定年月指定特种类别（非手工录入凭证）凭证的id（如不存在则创建新的）
 bool BusiUtil::getPzIdForSpecCls(int y, int m, int cls, User* user, int& id)
@@ -3002,331 +2470,14 @@ bool BusiUtil::getPzIdForSpecCls(int y, int m, int cls, User* user, int& id)
     }
 }
 
-/**
-    结转汇兑损益（此版本将产生3个凭证，分别结转银行，应收和应付）
-    执行此操作到前提是凭证集状态必须是Ps_Stat2--即所有相关凭证（包括手工录入和自动引入的凭证）
-    都已审核/入账，并进行了统计和余额保存。
-*/
-bool BusiUtil::genForwordEx(int y, int m, User* user, int state)
-{
-    //如果凭证集处于Ps_Stat1状态，则必须测试当期是否需要引入由其他模块产生的
-    //需要在结转汇兑损益之前存在的凭证，如果有，则提示用户先进行相应的操作。如果
-    //没有，则直接将凭证集状态转到Ps_Stat1态，以便进行后续操作。
-
-
-    //只有在通过了审核阶段1（即凭证集已经进行了第一阶段的统计并保存了余额后）
-    QSqlQuery q;
-    QString s;
-    bool r;
-
-    PzsState pzsState;
-    if(getPzsState(y,m,pzsState)){
-        QMessageBox::warning(0,QObject::tr("操作拒绝"),
-            QObject::tr("无法获取当前年月的凭证集状态！"));
-        return false;
-    }
-    if((pzsState != Ps_Stat1) && (pzsState != Ps_Stat2)){
-        QMessageBox::warning(0,QObject::tr("操作拒绝"),
-            QObject::tr("执行此操作前，必须先进行第一阶段的统计并保存了余额后！"));
-        return false;
-    }
-
-    //获取当期汇率表
-    QHash<int,double> rates,endRates,diffRates;
-    if(!getRates(y, m, rates)){
-        QMessageBox::information(0 ,QObject::tr("提示信息"),QObject::tr("没有指定当期汇率！"));
-        return false;
-    }
-
-    //读取期末汇率（即下一月汇率），并初始化汇率设定对话框
-    int yy = y;
-    int mm = m;
-    if(mm == 12){
-        mm = 1;
-        yy++;
-    }
-    else
-        mm++;
-    //
-    RateSetDialog* dlg = new RateSetDialog(2);
-    dlg->setCurRates(&rates);    //设置本期汇率
-    getRates(yy, mm, endRates);  //获取期末汇率
-    dlg->setEndRates(&endRates); //设置期末汇率
-    if(QDialog::Rejected == dlg->exec())
-        return false;
-    saveRates(yy,mm,endRates);
-
-    //计算汇率差
-    QHashIterator<int,double> it(rates);
-    while(it.hasNext()){
-        it.next();
-        double diff = it.value() - endRates.value(it.key()); //期初汇率 - 期末汇率
-        if(diff != 0)
-            diffRates[it.key()] = diff;
-    }
-    if(diffRates.count() == 0)   //如果所有的外币汇率都没有变化，则无须进行汇兑损益的结转
-        return false;
-
-    //获取财务费用-汇兑损益科目id
-    int cwId,hdId;
-    if(!getIdByName(cwId, QObject::tr("财务费用")))
-        return false;
-    if(!getSidByName(QObject::tr("财务费用"),QObject::tr("汇兑损益"),hdId))
-        return false;
-
-    QString bCode;//银行存款科目代码及科目id
-    if(!getSubCodeByName(bCode, QString(QObject::tr("银行存款"))))
-        return false;
-    int bankId = 0;
-    if(!getIdByCode(bankId, bCode))
-        return false;
-
-    QString ysCode;//应收账款科目代码及科目id
-    if(!getSubCodeByName(ysCode, QString(QObject::tr("应收账款"))))
-        return false;
-    int ysId = 0;
-    if(!BusiUtil::getIdByCode(ysId, ysCode))
-        return false;
-
-    QString yfCode;//应付账款科目代码及科目id
-    if(!getSubCodeByName(yfCode, QString(QObject::tr("应付账款"))))
-        return false;
-    int yfId = 0;
-    if(!getIdByCode(yfId, yfCode))
-        return false;
-
-
-    //获取结转汇兑凭证的id值
-    int bankPid;  //结转银行汇兑损益的凭证的id
-    int ysPid;    //结转应收汇兑损益的凭证的id
-    int yfPid;    //结转应付汇兑损益的凭证的id
-    getPzIdForSpecCls(y,m,Pzc_Jzhd_Bank,user,bankPid);
-    getPzIdForSpecCls(y,m,Pzc_Jzhd_Ys,user,ysPid);
-    getPzIdForSpecCls(y,m,Pzc_Jzhd_Yf,user,yfPid);
-
-    QList<int> wbIds,wbMts;  //银行存款科目下的外币科目id及其对应的币种代码列表
-    getOutMtInBank(wbIds, wbMts);
-
-    //读取银行存款-外币子科目余额，并依余额值、余额方向和汇率差的方向生成业务活动数据
-    QList<BusiActionData*> balst;  //保存业务活动数据的列表
-    BusiActionData *bd1,*bd2;
-    double v,sum=0;   //子目余额、借贷值合计
-    int edir;   //余额方向（整形表示，有1，0，-1）
-    bool ebdir; //余额方向
-    bool dir; //业务活动的银行存款方的借贷方向，该方向的判定规则：
-              //银行存款余额的方向 && 汇率差的方向（汇率变小为借或正） = 业务活动的借贷方向
-    int num = 1;  //业务活动序号
-
-    QList<int> ids;        //银行存款、应收、应付总目下的所有子目的id列表
-    QList<QString> names;  //上面子目的名称
-    QHash<int,QString> bankSubNames;  //银行存款下所有外币科目（科目id到科目名称）的映射表
-
-    //创建结转银行存款各子目的结转汇兑损益凭证
-    //生成与结转银行存款汇兑损益的业务活动条目
-    if(getSndSubInSpecFst(bankId,ids,names)){
-        for(int i = 0; i < ids.count(); ++i){
-            if(names[i].indexOf(QObject::tr("人民币")) == -1)
-                bankSubNames[ids[i]] = names[i];
-        }
-        for(int i = 0; i < wbIds.count(); ++i){
-            if(readDetExtraForMt(y,m,wbIds[i],wbMts[i],v,edir)){
-                if(edir == DIR_J)
-                    ebdir = true;
-                else if(edir == DIR_D)
-                    ebdir = false;
-                else            //跳过余额为零的子目
-                    continue;
-                bd1 = new BusiActionData;  //存放银行存款一方
-                bd2 = new BusiActionData;  //存放财务费用一方
-                bd1->num = num++;
-                bd2->num = num++;
-                bd1->state = BusiActionData::NEW;
-                bd2->state = BusiActionData::NEW;
-                bd1->pid = bankPid;
-                bd2->pid = bankPid;
-                bd1->fid = bankId;
-                bd2->fid = cwId;
-                bd1->sid = wbIds[i];
-                bd2->sid = hdId;
-                bd1->mt = RMB;
-                bd2->mt = RMB;
-                bd1->summary = QObject::tr("结转汇兑损益");
-                bd2->summary = QObject::tr("结转自银行存款-%1的汇兑损益")
-                        .arg(bankSubNames.value(wbIds[i]));
-                dir = (diffRates.value(wbMts[i]) > 0);
-                if(dir){
-                    bd1->v = v * diffRates.value(wbMts[i]);
-                    bd2->v = v * diffRates.value(wbMts[i]);
-                }
-                else{
-                    bd1->v = -v * diffRates.value(wbMts[i]);
-                    bd2->v = -v * diffRates.value(wbMts[i]);
-                }
-                sum += bd1->v;
-                bd1->dir = ebdir && dir;
-                bd2->dir = !(ebdir && dir);
-                balst << bd1 << bd2;
-            }
-        }
-        //保存业务活动到数据库
-        saveActionsInPz(bankPid,balst);
-
-        //清除内存
-        for(int i = 0; i < balst.count(); ++i)
-            delete balst[i];
-        balst.clear();
-
-        //更新借贷合计值
-        s = QString("update PingZhengs set jsum=%1,dsum=%1,pzState=%3 where id=%2")
-                .arg(sum).arg(bankPid).arg(state);
-        r = q.exec(s);
-    }
-
-    //生成与结转应收账款汇兑损益的业务活动条目
-    ids.clear(); names.clear();
-    wbMts = rates.keys();  //获取所有外币的代码列表
-    if(getSndSubInSpecFst(ysId,ids,names)){
-        for(int i = 0; i < wbMts.count(); ++i) //外层币种
-            for(int j = 0; j < ids.count(); ++j){      //内存应收账款子目
-                if(readDetExtraForMt(y,m,ids[j],wbMts[i],v,edir)){
-                    if(edir == DIR_J)
-                        ebdir = true;
-                    else if(edir == DIR_D)
-                        ebdir = false;
-                    else            //跳过余额为零的子目
-                        continue;
-                    bd1 = new BusiActionData;  //存放应收账款一方
-                    bd2 = new BusiActionData;  //存放财务费用一方
-                    bd1->num = num++;
-                    bd2->num = num++;
-                    bd1->state = BusiActionData::NEW;
-                    bd2->state = BusiActionData::NEW;
-                    bd1->pid = ysPid;
-                    bd2->pid = ysPid;
-                    bd1->fid = ysId;
-                    bd2->fid = cwId;
-                    bd1->sid = ids[j];
-                    bd2->sid = hdId;
-                    bd1->mt = RMB;
-                    bd2->mt = RMB;
-                    bd1->summary = QObject::tr("结转汇兑损益");
-                    bd2->summary = QObject::tr("结转自应收账款-%1的汇兑损益").arg(names[j]);
-                    dir = (diffRates.value(wbMts[i]) > 0); //汇率降低为真
-                    if(dir){
-                        bd1->v = v * diffRates.value(wbMts[i]);
-                        bd2->v = v * diffRates.value(wbMts[i]);
-                    }
-                    else{
-                        bd1->v = -v * diffRates.value(wbMts[i]);
-                        bd2->v = -v * diffRates.value(wbMts[i]);
-                    }
-                    sum += bd1->v;
-                    bd1->dir = ebdir && dir;
-                    bd2->dir = !(ebdir && dir);
-                    balst << bd1 << bd2;
-                }
-            }
-        //保存业务活动到数据库
-        saveActionsInPz(ysPid,balst);
-
-        //清除内存
-        for(int i = 0; i < balst.count(); ++i)
-            delete balst[i];
-        balst.clear();
-
-        //更新借贷合计值和凭证状态
-        s = QString("update PingZhengs set jsum=%1,dsum=%1,pzState=%3 where id=%2")
-                .arg(sum).arg(ysPid).arg(state);
-        r = q.exec(s);
-    }
-
-    //生成与结转应付存款汇兑损益的业务活动条目
-    ids.clear();
-    names.clear();
-    if(getSndSubInSpecFst(yfId,ids,names)){
-        for(int i = 0; i < wbMts.count(); ++i) //外层币种
-            for(int j = 0; j < ids.count(); ++j){      //内层应付账款子目
-                if(readDetExtraForMt(y,m,ids[j],wbMts[i],v,edir)){
-                    if(edir == DIR_J)
-                        ebdir = true;
-                    else if(edir == DIR_D)
-                        ebdir = false;
-                    else            //跳过余额为零的子目
-                        continue;
-                    bd1 = new BusiActionData;  //存放应付账款一方
-                    bd2 = new BusiActionData;  //存放财务费用一方
-                    bd1->num = num++;
-                    bd2->num = num++;
-                    bd1->state = BusiActionData::NEW;
-                    bd2->state = BusiActionData::NEW;
-                    bd1->pid = yfPid;
-                    bd2->pid = yfPid;
-                    bd1->fid = yfId;
-                    bd2->fid = cwId;
-                    bd1->sid = ids[j];
-                    bd2->sid = hdId;
-                    bd1->mt = RMB;
-                    bd2->mt = RMB;
-                    bd1->summary = QObject::tr("结转汇兑损益");
-                    bd2->summary = QObject::tr("结转自应付账款-%1的汇兑损益").arg(names[j]);
-                    dir = (diffRates.value(wbMts[i]) > 0); //汇率降低为真
-                    if(dir){
-                        bd1->v = v * diffRates.value(wbMts[i]);
-                        bd2->v = v * diffRates.value(wbMts[i]);
-                    }
-                    else{
-                        bd1->v = -v * diffRates.value(wbMts[i]);
-                        bd2->v = -v * diffRates.value(wbMts[i]);
-                    }
-                    sum += bd1->v;
-                    bd1->dir = ebdir && dir;
-                    bd2->dir = !(ebdir && dir);
-                    balst << bd1 << bd2;
-                }
-            }
-        //保存业务活动到数据库
-        saveActionsInPz(yfPid,balst);
-
-        //清除内存
-        for(int i = 0; i < balst.count(); ++i)
-            delete balst[i];
-        balst.clear();
-
-        //更新借贷合计值和凭证状态
-        s = QString("update PingZhengs set jsum=%1,dsum=%1,pzState=%3 where id=%2")
-                .arg(sum).arg(yfPid).arg(state);
-        r = q.exec(s);
-    }
-    return r;
-}
 
 /**
     结转汇兑损益（此版本将产生3个凭证，分别结转银行，应收和应付）
-    执行此操作到前提是凭证集状态必须是Ps_Stat2--即所有相关凭证（包括手工录入和自动引入的凭证）
-    都已审核/入账，并进行了统计和余额保存。
 */
 bool BusiUtil::genForwordEx2(int y, int m, User *user, int state)
 {
-    //如果凭证集处于Ps_Stat1状态，则必须测试当期是否需要引入由其他模块产生的
-    //需要在结转汇兑损益之前存在的凭证，如果有，则提示用户先进行相应的操作。如果
-    //没有，则直接将凭证集状态转到Ps_Stat1态，以便进行后续操作。
-
-
-    //只有在通过了审核阶段1（即凭证集已经进行了第一阶段的统计并保存了余额后）
     QSqlQuery q;
     QString s;
-
-    PzsState pzsState;
-    if(!getPzsState(y,m,pzsState)){
-        QMessageBox::warning(0,QObject::tr("操作拒绝"),
-            QObject::tr("无法获取当前年月的凭证集状态！"));
-        return false;
-    }
-    if((pzsState != Ps_Stat1) && (pzsState != Ps_Stat2)){
-        QMessageBox::warning(0,QObject::tr("操作拒绝"),
-            QObject::tr("执行此操作前，必须先进行第一阶段的统计并保存了余额后！"));
-        return false;
-    }
 
     //获取当期汇率表
     QHash<int,Double> rates,endRates,diffRates;//本期、期末汇率和汇率差
@@ -3349,14 +2500,6 @@ bool BusiUtil::genForwordEx2(int y, int m, User *user, int state)
         QMessageBox::information(0 ,QObject::tr("提示信息"),QObject::tr("没有指定期末汇率！"));
         return false;
     }
-    //
-//    RateSetDialog* dlg = new RateSetDialog(2);
-//    dlg->setCurRates(&rates);    //设置本期汇率
-//    getRates(yy, mm, endRates);  //获取期末汇率
-//    dlg->setEndRates(&endRates); //设置期末汇率
-//    if(QDialog::Rejected == dlg->exec())
-//        return false;
-//    saveRates(yy,mm,endRates);
 
     //计算汇率差
     QHashIterator<int,Double> it(rates);
@@ -3425,7 +2568,7 @@ bool BusiUtil::genForwordEx2(int y, int m, User *user, int state)
     QList<QString> names;  //上面子目的名称
     QHash<int,QString> bankSubNames;  //银行存款下所有外币科目（科目id到科目名称）的映射表
 
-    //创建结转银行存款各子目的结转汇兑损益凭证
+    //1、创建结转银行存款各子目的结转汇兑损益凭证
     //生成与结转银行存款汇兑损益的业务活动条目
     if(getSndSubInSpecFst(bankId,ids,names)){
         for(int i = 0; i < ids.count(); ++i){
@@ -3479,7 +2622,7 @@ bool BusiUtil::genForwordEx2(int y, int m, User *user, int state)
             return false;
     }
 
-    //生成与结转应收账款汇兑损益的业务活动条目
+    //2、生成与结转应收账款汇兑损益的业务活动条目
     sum=0.00; num=0;
     ids.clear(); names.clear();
     wbMts = rates.keys();  //获取所有外币的代码列表
@@ -3535,7 +2678,7 @@ bool BusiUtil::genForwordEx2(int y, int m, User *user, int state)
             return false;
     }
 
-    //生成与结转应付存款汇兑损益的业务活动条目
+    //3、生成与结转应付存款汇兑损益的业务活动条目
     ids.clear();
     names.clear();
     sum = 0.00; num=0;
@@ -4287,6 +3430,17 @@ bool BusiUtil::readDetExtraForMt(int y,int m, int sid, int mt, double& v, int& d
     return true;
 }
 
+/**
+ * @brief BusiUtil::readDetExtraForMt2
+ *  读取指定月份-指定明细科目-指定币种的余额
+ * @param y
+ * @param m
+ * @param sid       明细科目id
+ * @param mt        币种代码
+ * @param v         余额值
+ * @param dir       余额方向
+ * @return
+ */
 bool BusiUtil::readDetExtraForMt2(int y, int m, int sid, int mt, Double &v, int &dir)
 {
     QSqlQuery q;
@@ -4324,372 +3478,10 @@ bool BusiUtil::readDetExtraForMt2(int y, int m, int sid, int mt, Double &v, int 
     return true;
 }
 
-///**
-//    保存期初余额值。key为一二级科目的id * 10 + 币种代码
-//    带F的是总账科目，带S的是明细科目
-//    基本实现测率：分两步走，先处理总账，后处理明细账
-//        对于每个大步，首先比较新、老值集，将需要更新、新增的科目加入到更新列表，将需要清零的科目
-//        加入到清零列表，然后分别处理
-//*/
-//bool BusiUtil::savePeriodBeginValues(int y, int m, QHash<int, double> oldF, QHash<int, int> oldFDir,
-//                                     QHash<int, double> oldS, QHash<int, int> oldSDir,
-//                                     QHash<int, double> newF, QHash<int, int> newFDir,
-//                                     QHash<int, double> newS, QHash<int, int> newSDir)
-//{
-
-//    QHash<int,int> exists; //SubjectExtras表中已有的保存各币种余额值记录的id(key是币种代码，value是记录id)
-//    QSqlQuery q;
-//    QString s;
-
-//    s = QString("select id,mt from SubjectExtras where (year = %1) "
-//                "and (month = %2)").arg(y).arg(m);
-//    bool r = q.exec(s);
-//    while(q.next()){
-//        exists[q.value(1).toInt()] = q.value(0).toInt();
-//    }
-
-//    //第一步 处理总账科目余额
-//    QHash<int,QString> fldNames; //一级科目id到保存其余额的字段名
-//    BusiUtil::getFidToFldName(fldNames);
-
-//    QHash<int,double> dels(oldF);  //要删除的总账科目余额表（对于总账科目的余额，删除只是将其字段值清零，因为他们共用同一条记录）key为科目的id * 10 + 币种代码
-//    QHash<int,QList<int> > ups;    //需要更新值的科目id列表，key是币种代码，value是要更新的科目id列表
-//    QHash<int,QList<int> > resets; //需要清零的科目id列表，key是币种代码，value需要清零的科目id
-
-//    QHashIterator<int,double>* it = new QHashIterator<int,double>(newF);
-//    while(it->hasNext()){
-//        it->next();
-//        if(oldF.contains(it->key())){ //如果新老值集都包含该科目，则无需删除
-//            dels.remove(it->key());
-//            if(it->value() != oldF.value(it->key())){ //如果值发生了改变，则将该科目的id加入到更新表
-//                ups[it->key() % 10].append(it->key() / 10);
-//            }
-//        }
-//        else
-//            ups[it->key() % 10].append(it->key() / 10); //新增的条目当然也加入到更新列表，因为对于总账科目余额值的添加和更新都在一个记录上进行，执行的都是SQL的更新操作
-//    }
-//    //构造需清零的科目id列表
-//    if(dels.count()>0){
-//        it = new QHashIterator<int,double>(dels);
-//        while(it->hasNext()){
-//            it->next();
-//            resets[it->key() % 10].append(it->key() / 10);
-//        }
-//    }
-
-//    //保存改变或新增的一级科目余额值
-//    QHashIterator<int,QList<int> >* ii = new QHashIterator<int,QList<int> >(ups);
-//    while(ii->hasNext()){
-//        ii->next();
-//        if(!exists.contains(ii->key())){ //构造插入语句（也即是说，在SubjectExtra表中还没有对应于该币种的余额的记录）
-//            s = QString("insert into SubjectExtras(year,month,state,mt,");
-//            QString vs = QString("values(%1,%2,%3,%4,")
-//                    .arg(y).arg(m).arg(1).arg(ii->key());
-//            for(int i = 0; i < ii->value().count(); ++i){
-//                s.append(fldNames.value(ii->value()[i]));
-//                s.append(",");
-//                vs.append(QString::number(newF.value(ii->value()[i] * 10 + ii->key()),'f',2));
-//                vs.append(",");
-//            }
-//            s.chop(1);
-//            s.append(") ");
-//            vs.chop(1);
-//            vs.append(")");
-//            s.append(vs);
-//            r = q.exec(s);
-//            //回读该条记录的id值
-//            s = QString("select id from SubjectExtras where (year = %1) "
-//                    "and (month = %2) and (mt = %3)").arg(y).arg(m).arg(ii->key());
-//            r = q.exec(s); r = q.first();
-//            exists[ii->key()] = q.value(0).toInt();
-//        }
-//        else{ //构造更新语句（也即是说，在SubjectExtra表中已经存在对应于该币种的余额的记录）
-//            s = QString("update SubjectExtras set ");
-//            for(int i = 0; i < ii->value().count(); ++i){
-//                s.append(QString("%1=%2,").arg(fldNames.value(ii->value()[i]))
-//                         .arg(newF.value(ii->value()[i] * 10 + ii->key())));
-//            }
-//            s.chop(1);
-//            s.append(QString(" where (year=%1) and (month=%2) and (mt=%3)")
-//                     .arg(y).arg(m).arg(ii->key()));
-//            r = q.exec(s);
-//        }
-//    }
-
-//    //对已不存在的余额值清零
-//    ii = new QHashIterator<int,QList<int> >(resets);
-//    while(ii->hasNext()){
-//        ii->next();
-//        s = QString("update SubjectExtras set ");
-//        for(int i = 0; i < ii->value().count(); ++i){
-//            s.append(QString("%1=0,").arg(fldNames.value(ii->value()[i])));
-//        }
-//        s.chop(1);s.append(" ");
-//        s.append(QString("where (year=%1) and (month=%2) and (mt=%3)")
-//                 .arg(y).arg(m).arg(ii->key()));
-//        r = q.exec(s);
-//    }
-
-//    //第二步 处理明细科目余额
-//    dels.clear();
-//    dels = oldS;
-//    QList<int> upLst,newLst,deLst; //要更新、新增和删除的键列表
-//    it = new QHashIterator<int,double>(newS);
-//    while(it->hasNext()){
-//        it->next();
-//        if(oldS.contains(it->key())){
-//            dels.remove(it->key());
-//            if(it->value() != oldS.value(it->key())){
-//                upLst.append(it->key());
-//            }
-//        }
-//        else
-//            newLst.append(it->key());
-//    }
-//    deLst = dels.keys();
-
-//    //删除操作
-//    for(int i = 0; i < deLst.count(); ++i){
-//        s = QString("delete from detailExtras where (seid = %1) "
-//                    "and (fsid = %2)").arg(exists.value(deLst[i]%10))
-//                .arg(deLst[i]/10);
-//        r = q.exec(s);
-//    }
-//    //更新操作
-//    for(int i = 0; i < upLst.count(); ++i){
-//        s = QString("update detailExtras set value = %1 "
-//                    "where (seid = %2) and (fsid = %3)")
-//                .arg(newS.value(upLst[i]))
-//                .arg(exists.value(upLst[i]%10))
-//                .arg(upLst[i]/10);
-//        r = q.exec(s);
-//    }
-
-//    //插入操作
-//    for(int i = 0; i < newLst.count(); ++i){
-//        s = QString("insert into detailExtras(seid,fsid,value) "
-//                    "values(%1,%2,%3)").arg(exists.value(newLst[i]%10))
-//                .arg(newLst[i]/10).arg(newS.value(newLst[i]));
-//        r = q.exec(s);
-//    }
-//    if(r)
-//        return true;
-//    else
-//        return false;
-//}
-
-/**
-    此方法用来保存设定的期初值，和当期余额值。key为一二级科目的id * 10 + 币种代码
-    isSetup true：表示保存当期余额，false：保存设定的期初值。
-    基本实现策略：
-
-*/
-bool BusiUtil::savePeriodBeginValues(int y, int m, QHash<int, double> newF, QHash<int, int> newFDir,
-                                     QHash<int, double> newS, QHash<int, int> newSDir,
-                                     PzsState& pzsState, bool isSetup)
-{
-    QSqlQuery q;
-    QString s;
-
-    QHash<int,QString> fldNames; //一级科目id到保存其余额的字段名
-    BusiUtil::getFidToFldName(fldNames);
-
-    //1、初始化exist表，此表是SubjectExtras表中已有的保存各币种余额值记录的id
-    //(key是币种代码，value是记录id)
-    QHash<int,int> exists;
-    s = QString("select id,mt from SubjectExtras where (year = %1) "
-                "and (month = %2)").arg(y).arg(m);
-    bool r = q.exec(s);
-    while(q.next())
-        exists[q.value(1).toInt()] = q.value(0).toInt();
-
-    //获取所有币种代码列表
-    QHash<int,QString> mtHash; //币种代码和名称
-    getMTName(mtHash);
-    QList<int> mtLst = mtHash.keys(); //币种代码的列表
-
-    //获取所有本账户内启用的总账和明细帐科目id
-    QList<int> fids,sids;
-    r = q.exec("select id from FirSubjects where isView = 1");
-    while(q.next())
-        fids << q.value(0).toInt();
-    r = q.exec("select id from FSAgent");
-    while(q.next())
-        sids << q.value(0).toInt();
-
-    //读取老值集
-    QHash<int, double> oldF,oldS;   //余额
-    QHash<int,int>     odF, odS;    //方向
-    readExtraByMonth(y,m,oldF,odF,oldS,odS);
-
-    //初始化总账科目余额和方向的sql更新语句
-    QString s1,s2,vs1,vs2;
-    int key;    
-    bool oc,nc; //分别表示某个指定余额值是否存在于老值或新值集中
-    bool flag  = false; //是否需要执行sql语句的标记
-    //1、处理总账科目余额及方向
-    //遍历所有币种和总账科目id的组合键来匹配键值
-    for(int i = 0; i < mtLst.count(); ++i){
-        if(!exists.contains(mtLst[i])){ //不存在则执行插入操作
-            s1 = "insert into SubjectExtras(year,month,mt,";
-            s2 = "insert into SubjectExtraDirs(year,month,mt,";
-            vs1 = QString(" values(%1,%2,%3,").arg(y).arg(m).arg(mtLst[i]);
-            vs2 = QString(" values(%1,%2,%3,").arg(y).arg(m).arg(mtLst[i]);
-            for(int j = 0; j < fids.count(); ++j){
-                key = fids[j] * 10 + mtLst[i];    //科目id加币种代码构成键
-                if(newF.contains(key)){
-                    s1.append(fldNames.value(fids[j])).append(",");
-                    s2.append(fldNames.value(fids[j])).append(",");
-                    vs1.append(QString("%1,").arg(QString::number(newF.value(key),'f',2)));
-                    vs2.append(QString("%1,").arg(QString::number(newFDir.value(key))));
-                }
-            }
-            s1.chop(1); s1.append(")");
-            vs1.chop(1); vs1.append(")");
-            s1.append(vs1);
-            s2.chop(1); s2.append(")");
-            vs2.chop(1); vs2.append(")");
-            s2.append(vs2);
-            r = q.exec(s1);
-            r = q.exec(s2);
-            //回读seid
-            s1 = QString("select id from SubjectExtras where (year=%1) and "
-                         "(month=%2) and (mt=%3)").arg(y).arg(m).arg(mtLst[i]);
-            r = q.exec(s1); r = q.first();
-            exists[mtLst[i]] = q.value(0).toInt();
-        }
-        else{  //存在则执行更新操作
-            s1 = "update SubjectExtras set ";
-            s2 = "update SubjectExtraDirs set ";
-            for(int j = 0; j < fids.count(); ++j){
-                key = fids[j] * 10 + mtLst[i];    //科目id加币种代码构成键
-                nc = newF.contains(key);
-                oc = oldF.contains(key);                
-                if(!nc && !oc)
-                    continue;
-                else if(oldF.value(key) == newF.value(key)){ //值没变但方向变了
-                    if(odF.value(key) !=  newFDir.value(key)){
-                        flag = true;
-                        s2.append(QString("%1=%2,").arg(fldNames.value(fids[j]))
-                                  .arg(QString::number(newFDir.value(key))));
-                    }                    
-                }
-                else if(!nc && oc){ //如果新值没有老值有，则清零
-                    flag = true;
-                    s1.append(QString("%1=0,").arg(fldNames.value(fids[j])));
-                    s2.append(QString("%1=0,").arg(fldNames.value(fids[j])));
-                }
-                else{
-                    flag = true;
-                    s1.append(QString("%1=%2,").arg(fldNames.value(fids[j]))
-                              .arg(QString::number(newF.value(key),'f',2)));
-                    s2.append(QString("%1=%2,").arg(fldNames.value(fids[j]))
-                              .arg(QString::number(newFDir.value(key))));
-                }
-            }
-            if(flag){
-                s1.chop(1);
-                s2.chop(1);
-                QString ws = QString(" where (year=%1) and (month=%2) and (mt=%3)")
-                        .arg(y).arg(m).arg(mtLst[i]);
-                s1.append(ws); s2.append(ws);
-                r = q.exec(s1);
-                r = q.exec(s2);
-            }
-        }
-    }
-
-    //2、处理明细账科目余额及方向
-    for(int i = 0; i < mtLst.count(); ++i){
-        for(int j = 0; j < sids.count(); ++j){
-            key = sids[j] * 10 + mtLst[i];
-            oc = oldS.contains(key); //老值集是否包含该键
-            nc = newS.contains(key); //新值集是否包含该键
-            if(!oc && !nc)                //如果新老值都不包含，则跳过
-                continue;
-            else if(oc && !nc){ //如果老值包含新值不包含则要删除
-                s = QString("delete from detailExtras where (seid=%1) and (fsid=%2) ")
-                            .arg(exists.value(mtLst[i])).arg(sids[j]);
-                r = q.exec(s);                
-            }
-            else if(!oldS.contains(key) && newS.contains(key)){ //如果新值包含老值不包含则要新增
-                s = QString("insert into detailExtras(seid,fsid,dir,value) "
-                            "values(%1,%2,%3,%4)").arg(exists.value(mtLst[i]))
-                        .arg(sids[j]).arg(QString::number(newSDir.value(key)))
-                        .arg(QString::number(newS.value(key),'f',2));
-                r = q.exec(s);                
-            }
-            else if((oldS.value(key) != newS.value(key))
-                    || (odS.value(key) != newSDir.value(key))){ //值或方向改变了
-                s = QString("update detailExtras set dir=%1,value=%2 where "
-                            "(seid=%3) and (fsid=%4)").arg(QString::number(newSDir.value(key)))
-                        .arg(QString::number(newS.value(key),'f',2))
-                        .arg(exists.value(mtLst[i])).arg(sids[j]);
-                r = q.exec(s);
-            }
-        }
-    }
-
-    //应根据当前凭证集内的凭证状态和凭证集先前到状态来决定此时的凭证集状态
-
-    //判定保存余额后的凭证集的新状态
-    //PzsState pzsState;
-    if(!isSetup)  //如果是保存设定的期初值，则凭证集状态为结账        
-        setPzsState(y,m,Ps_Jzed);
-    else{        
-        if(!getPzsState(y,m,pzsState)){  //如果不能读取凭证集状态，则假定它是初始态
-            pzsState = Ps_Rec;
-            setPzsState(y,m,pzsState);
-        }
-        else{
-            bool stateChanged = false;
-            bool req;
-            switch(pzsState){
-            case Ps_HandV:
-                pzsState = Ps_Stat1;
-                stateChanged = true;
-                break;
-            case Ps_ImpV:
-                reqGenJzHdsyPz(y,m,req);
-                if(req)
-                    pzsState = Ps_Stat2;
-                else
-                    pzsState = Ps_JzsyPre;
-                stateChanged = true;
-                break;
-            case Ps_JzhdV:
-                reqGenImpOthPz(y,m,req);
-                if(req)
-                    pzsState = Ps_Stat3;
-                else
-                    pzsState = Ps_JzsyPre;
-                stateChanged = true;
-                break;
-            case Ps_JzsyV:
-                //如果配置为每年年底执行一次本年利润的结转，且月份不是12月份，则直接准备结账
-                if(jzlrByYear && (m != 12))
-                    pzsState = Ps_Stat5;
-                else{
-                    pzsState = Ps_Stat4;
-                }
-                stateChanged = true;
-                break;
-            case Ps_JzbnlrV:
-                pzsState = Ps_Stat5;
-                stateChanged = true;
-                break;
-            }
-            //保存凭证集状态
-            if(stateChanged)
-                setPzsState(y,m,pzsState);
-        }
-    }
-    return r;
-}
 
 /**
  * @brief BusiUtil::savePeriodBeginValues2
- *  保存原币余额到表SubjectExtras，detailExtras
+ *  保存各科目原币形式的余额到表SubjectExtras，detailExtras
  * @param y
  * @param m
  * @param newF
@@ -4700,7 +3492,7 @@ bool BusiUtil::savePeriodBeginValues(int y, int m, QHash<int, double> newF, QHas
  * @param isSetup
  * @return
  */
-bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, int> newFDir, QHash<int, Double> newS, QHash<int, int> newSDir, PzsState &pzsState, bool isSetup)
+bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, int> newFDir, QHash<int, Double> newS, QHash<int, int> newSDir, bool isSetup)
 {
     QSqlQuery q;
     QString s;
@@ -4713,7 +3505,7 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
     QHash<int,int> exists;
     s = QString("select id,mt from SubjectExtras where (year = %1) "
                 "and (month = %2)").arg(y).arg(m);
-    bool r = q.exec(s);
+    q.exec(s);
     while(q.next())
         exists[q.value(1).toInt()] = q.value(0).toInt();
 
@@ -4724,10 +3516,10 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
 
     //获取所有本账户内启用的总账和明细帐科目id
     QList<int> fids,sids;
-    r = q.exec("select id from FirSubjects where isView = 1");
+    q.exec("select id from FirSubjects where isView = 1");
     while(q.next())
         fids << q.value(0).toInt();
-    r = q.exec("select id from FSAgent");
+    q.exec("select id from FSAgent");
     while(q.next())
         sids << q.value(0).toInt();
 
@@ -4769,12 +3561,12 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
             s2.chop(1); s2.append(")");
             vs2.chop(1); vs2.append(")");
             s2.append(vs2);
-            r = q.exec(s1);
-            r = q.exec(s2);
+            q.exec(s1);
+            q.exec(s2);
             //回读seid
             s1 = QString("select id from SubjectExtras where (year=%1) and "
                          "(month=%2) and (mt=%3)").arg(y).arg(m).arg(mtLst[i]);
-            r = q.exec(s1); r = q.first();
+            q.exec(s1); q.first();
             exists[mtLst[i]] = q.value(0).toInt();
         }
         else{  //存在则执行更新操作
@@ -4817,13 +3609,18 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
                 QString ws = QString(" where (year=%1) and (month=%2) and (mt=%3)")
                         .arg(y).arg(m).arg(mtLst[i]);
                 s1.append(ws); s2.append(ws);
-                r = q.exec(s1);
-                r = q.exec(s2);
+                q.exec(s1);
+                q.exec(s2);
             }
         }
     }
 
     //2、处理明细账科目余额及方向
+    QSqlDatabase db = QSqlDatabase::database();
+    if(!db.transaction()){
+        QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("在保存余额操作期间，启动事务失败！"));
+        return false;
+    }
     for(int i = 0; i < mtLst.count(); ++i){
         for(int j = 0; j < sids.count(); ++j){
             key = sids[j] * 10 + mtLst[i];
@@ -4834,93 +3631,47 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
             else if(oc && !nc){ //如果老值包含新值不包含则要删除
                 s = QString("delete from detailExtras where (seid=%1) and (fsid=%2) ")
                             .arg(exists.value(mtLst[i])).arg(sids[j]);
-                r = q.exec(s);
+                q.exec(s);
             }
-            else if(!oldS.contains(key) && newS.contains(key)){ //如果新值包含老值不包含则要新增
+            //如果新值包含老值不包含则要新增
+            else if(!oldS.contains(key) && newS.contains(key)){
                 //注意：如果这里直接使用Double::getv()方法，由于返回的双精度实数使用了科学计数法，
                 //当数位超过7位时，看起来好像失去了精度（最后几位好像被省略了）
                 //因此，这里我使用了字符串来代替，以输出实际的实数值。
                 QString sv;
                 if(newS.value(key) == 0)
-                    sv = "0";
-                else
-                    sv = newS.value(key).toString();
+                    continue;
+                sv = newS.value(key).toString();
                 s = QString("insert into detailExtras(seid,fsid,dir,value) "
                             "values(%1,%2,%3,%4)").arg(exists.value(mtLst[i]))
                         .arg(sids[j]).arg(newSDir.value(key))
                         .arg(sv);
-                r = q.exec(s);
+                q.exec(s);
             }
             else if((oldS.value(key) != newS.value(key))
                     || (odS.value(key) != newSDir.value(key))){ //值或方向改变了
                 QString sv;
                 if(newS.value(key) == 0)
-                    sv = "0";
-                else
-                    sv = newS.value(key).toString();
+                    continue;
+                sv = newS.value(key).toString();
                 s = QString("update detailExtras set dir=%1,value=%2 where "
                             "(seid=%3) and (fsid=%4)").arg(newSDir.value(key))
                         .arg(sv).arg(exists.value(mtLst[i])).arg(sids[j]);
-                r = q.exec(s);
+                q.exec(s);
             }
         }
     }
+    if(!db.commit()){
+        QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("在保存余额操作期间，提交事务失败！"));
+        return false;
+    }
 
-    //应根据当前凭证集内的凭证状态和凭证集先前到状态来决定此时的凭证集状态
+    //设置余额状态为有效
+    setExtraState(y,m,true);
 
-    //判定保存余额后的凭证集的新状态
-    //PzsState pzsState;
     if(!isSetup)  //如果是保存设定的期初值，则凭证集状态为结账
         setPzsState(y,m,Ps_Jzed);
-    else{
-        if(!getPzsState(y,m,pzsState)){  //如果不能读取凭证集状态，则假定它是初始态
-            pzsState = Ps_Rec;
-            setPzsState(y,m,pzsState);
-        }
-        else{
-            bool stateChanged = false;
-            bool req;
-            switch(pzsState){
-            case Ps_HandV:
-                pzsState = Ps_Stat1;
-                stateChanged = true;
-                break;
-            case Ps_ImpV:
-                reqGenJzHdsyPz(y,m,req);
-                if(req)
-                    pzsState = Ps_Stat2;
-                else
-                    pzsState = Ps_JzsyPre;
-                stateChanged = true;
-                break;
-            case Ps_JzhdV:
-                reqGenImpOthPz(y,m,req);
-                if(req)
-                    pzsState = Ps_Stat3;
-                else
-                    pzsState = Ps_JzsyPre;
-                stateChanged = true;
-                break;
-            case Ps_JzsyV:
-                //如果配置为每年年底执行一次本年利润的结转，且月份不是12月份，则直接准备结账
-                if(jzlrByYear && (m != 12))
-                    pzsState = Ps_Stat5;
-                else{
-                    pzsState = Ps_Stat4;
-                }
-                stateChanged = true;
-                break;
-            case Ps_JzbnlrV:
-                pzsState = Ps_Stat5;
-                stateChanged = true;
-                break;
-            }
-            //保存凭证集状态
-            if(stateChanged)
-                setPzsState(y,m,pzsState);
-        }
-    }
-    return r;
+    return true;
 }
 
 //保存科目的外币（转换为人民币）余额(SubjectMmtExtras,detailMmtExtras)
@@ -5045,6 +3796,11 @@ bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
     }
 
     //保存子科目
+    QSqlDatabase db = QSqlDatabase::database();
+    if(!db.transaction()){
+        QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("在保存余额操作期间，启动事务失败！"));
+        return false;
+    }
     for(int i = 0; i < mtLst.count(); ++i){
         for(int j = 0; j < sids.count(); ++j){
             key = sids[j] * 10 + mtLst[i];
@@ -5067,9 +3823,8 @@ bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
                 //因此，这里我使用了字符串来代替，以输出实际的实数值。
                 QString sv;
                 if(newS.value(key) == 0)
-                    sv = "0";
-                else
-                    sv = newS.value(key).toString();
+                    continue;
+                sv = newS.value(key).toString();
                 s = QString("insert into %1(%2,%3,%4) values(%5,%6,%7)")
                             .arg(tbl_sdem).arg(fld_sdem_seid).arg(fld_sdem_fsid)
                         .arg(fld_sdem_value).arg(exists.value(mtLst[i]))
@@ -5080,9 +3835,8 @@ bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
             else if(oldS.value(key) != newS.value(key)){ //值改变了
                 QString sv;
                 if(newS.value(key) == 0)
-                    sv = "0";
-                else
-                    sv = newS.value(key).toString();
+                    continue;
+                sv = newS.value(key).toString();
                 s = QString("update %1 set %2=%3 where (%4=%5) and (%6=%7)")
                             .arg(tbl_sdem).arg(fld_sdem_value).arg(sv)
                         .arg(fld_sdem_seid).arg(exists.value(mtLst[i]))
@@ -5091,6 +3845,10 @@ bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
                     return false;
             }
         }
+    }
+    if(!db.commit()){
+        QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("在保存余额操作期间，提交事务失败！"));
+        return false;
     }
 }
 
@@ -5128,272 +3886,228 @@ QString BusiUtil::genFiltStateForSpecPzCls(QList<int> pzClses)
     return sql;
 }
 
-//删除指定年月的指定类别凭证
-bool BusiUtil::delSpecPz(int y, int m, PzClass pzCls)
+/**
+ * @brief BusiUtil::delSpecPz
+ *  删除指定年月的指定类别凭证
+ * @param y
+ * @param m
+ * @param pzCls         凭证大类
+ * @param pzCntAffected 删除的凭证数
+ * @return
+ */
+bool BusiUtil::delSpecPz(int y, int m, PzdClass pzCls, int 	&affected)
 {
     QString s;
     QSqlQuery q,q2;
-
-    QDate d(y,m,1);
-    QString ds = d.toString(Qt::ISODate);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
     ds.chop(3);
-
-    s = QString("select id from PingZhengs where (date like '%1%') and (isForward=%2)")
-            .arg(ds).arg(pzCls);
-    if(q.exec(s)){
-        int id;
-        while(q.next()){
-            id = q.value(0).toInt();
-            s = QString("delete from BusiActions where pid=%1").arg(id);
-            if(!q2.exec(s))  //删除凭证所属业务活动
-                return false;
-            s = QString("delete from PingZhengs where id=%1").arg(id);
-            if(q2.exec(s))   //删除凭证
-                return true;
-            else
-                return false;
-        }
-        return true; //没有凭证记录
-    }
-    else
+    QList<PzClass> codes = getSpecClsPzCode(pzCls);
+    QSqlDatabase db = QSqlDatabase::database();
+    if(!db.transaction())
         return false;
+    QList<int> ids;
+    for(int i = 0; i < codes.count(); ++i){
+        s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
+        q.exec(s);q.first();
+        ids<<q.value(0).toInt();
+    }
+    if(!db.commit())
+        return false;
+    if(!db.transaction())
+        return false;
+    affected = 0;
+    for(int i = 0; i < ids.count(); ++i){
+        s = QString("delete from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_pid).arg(ids.at(i));
+        q.exec(s);
+        s = QString("delete from %1 where id=%2").arg(tbl_pz).arg(ids.at(i));
+        q.exec(s);
+        affected += q.numRowsAffected();
+    }
+    return db.commit();
 }
 
 /**
-    构造统计查询语句（根据当前凭证集的状态来构造将不同类别的凭证纳入统计范围的SQL语句）
-*/
-bool BusiUtil::genStatSql(int y, int m, QString& s)
+ * @brief BusiUtil::haveSpecClsPz
+ *  检测凭证集内各类特殊凭证是否存在
+ * @param y
+ * @param m
+ * @param isExist
+ * @return
+ */
+bool BusiUtil::haveSpecClsPz(int y, int m, QHash<PzdClass, bool> &isExist)
 {
-    QList<int> rpz;    //要查询的处于录入状态的凭证类别列表
-    QList<int> inpz;   //要查询的处于入账状态的凭证类别列表
-    QString rs;   //录入状态凭证过滤条件
-    QString ins;  //入账状态凭证过滤条件
+    QSqlQuery q;
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6 or %4=%7)")
+            .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(Pzc_Jzhd_Bank)
+            .arg(Pzc_Jzhd_Ys).arg(Pzc_Jzhd_Yf);
+    if(!q.exec(s))
+        return false;
+    isExist[Pzd_Jzhd] = q.first();
 
-//    QSet<int> states;  //需要作处理的凭证集状态（因为目前还不确定具体哪些状态需要处理）
-//    states<<Ps_Ori<<Ps_HandV<<Ps_Stat1<<Ps_ImpOther<<Ps_ImpV<<Ps_Stat2
-//          <<Ps_Jzhd<<Ps_Jzhd1<<Ps_Stat3<<Ps_Jzsy<<Ps_Jzsy1<<Ps_Stat4
-//          <<Ps_Jzbnlr<<Ps_Jzbnlr1<<Ps_Stat5;
+    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6)")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+                .arg(Pzc_JzsyIn).arg(Pzc_JzsyFei);
+    if(!q.exec(s))
+        return false;
+    isExist[Pzd_Jzsy] = q.first();
+    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+                .arg(Pzc_Jzlr);
+    if(!q.exec(s))
+        return false;
+    isExist[Pzd_Jzlr] = q.first();
+    return true;
+}
 
+/**
+ * @brief BusiUtil::setExtraState
+ *  设置余额是否有效
+ * @param y
+ * @param m
+ * @param isVolid
+ * @return
+ */
+bool BusiUtil::setExtraState(int y, int m, bool isVolid)
+{
+    //记录外币余额的那条记录，不考虑用state字段来记录
+    QSqlQuery q;
+    QString s = QString("select id from %1 where %2=%3 and %4=%5 and %6=%7")
+            .arg(tbl_se).arg(fld_se_year).arg(y).arg(fld_se_month).arg(m)
+            .arg(fld_se_mt).arg(RMB);
+    if(!q.exec(s))
+        return false;
+    if(q.first()){
+        int id = q.value(0).toInt();
+        s = QString("update %1 set %2=%3 where id=%4")
+                .arg(tbl_se).arg(fld_se_state).arg(isVolid?1:0).arg(id);
+    }
+    else{
+        s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,%8,%9)")
+                .arg(tbl_se).arg(fld_se_year).arg(fld_se_month).arg(fld_se_state)
+                .arg(fld_se_mt).arg(y).arg(m).arg(isVolid?1:0).arg(RMB);
+    }
+    return q.exec(s);
+}
+
+/**
+ * @brief BusiUtil::getExtraState
+ *  获取余额是否正确的反映了指定凭证集的最新状态
+ * @param y
+ * @param m
+ * @return
+ */
+bool BusiUtil::getExtraState(int y, int m)
+{
+    QSqlQuery q;
+    QString s = QString("select %1 from %2 where %3=%4 and %5=%6 and %7=%8")
+            .arg(fld_se_state).arg(tbl_se).arg(fld_se_year).arg(y).arg(fld_se_month)
+            .arg(m).arg(fld_se_mt).arg(RMB);
+    if(!q.exec(s))
+        return false;
+    if(!q.first())
+        return false;
+    return q.value(0).toBool();
+}
+
+/**
+ * @brief BusiUtil::specPzClsInstat
+ *  将指定类别凭证全部入账
+ * @param y
+ * @param m
+ * @param cls
+ * @param affected  收影响的凭证条目
+ * @return
+ */
+bool BusiUtil::specPzClsInstat(int y, int m, PzdClass cls, int &affected)
+{
+    QSqlDatabase db = QSqlDatabase::database();
+    QSqlQuery q(db);
+    QString s;
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QList<PzClass> codes = getSpecClsPzCode(cls);
+    if(!db.transaction())
+        return false;
+    affected = 0;
+    for(int i = 0; i < codes.count(); ++i){
+        s = QString("update %1 set %2=%3 where (%4 like '%5%') and %6=%7")
+                .arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Instat)
+                .arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
+        q.exec(s);
+        affected += q.numRowsAffected();
+    }
+    return db.commit();
+}
+
+/**
+ * @brief BusiUtil::setAllPzState
+ *  设置凭证集内的所有具有指定状态的凭证到目的状态
+ * @param y
+ * @param m
+ * @param state         目的状态
+ * @param includeState  指定的凭证状态
+ * @param affected      受影响的行数
+ * @param user
+ * @return
+ */
+bool BusiUtil::setAllPzState(int y, int m, PzState state, PzState includeState , int &affected, User *user)
+{
+    QSqlQuery q;
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString userField;
+    if(state == Pzs_Recording)
+        userField = fld_pz_ru;
+    else if(state == Pzs_Verify)
+        userField = fld_pz_vu;
+    else if(state == Pzs_Instat)
+        userField = fld_pz_bu;
+    QString s = QString("update %1 set %2=%3,%4=%5 where (%6 like '%7%') and %2=%8")
+            .arg(tbl_pz).arg(fld_pz_state).arg(state).arg(userField)
+            .arg(user->getUserId()).arg(fld_pz_date).arg(ds).arg(includeState);
+    affected = 0;
+    if(!q.exec(s))
+        return false;
+    affected = q.numRowsAffected();
+    return true;
+}
+
+
+/**
+ * @brief BusiUtil::genStatSql2
+ *  依据新的简化版凭证集状态
+ *  构造统计查询语句（根据当前凭证集的状态来构造将不同类别的凭证纳入统计范围的SQL语句）
+ * @param y
+ * @param m
+ * @param s
+ * @return
+ */
+bool BusiUtil::genStatSql2(int y, int m, QString &s)
+{
     //获取凭证集状态
     PzsState pzsState;
-    if(!getPzsState(y,m,pzsState)){
-        pzsState = Ps_Rec;
-        setPzsState(y,m,pzsState);
-    }
-//    if(!states.contains(pzsState))
-//        return false;
-
+    //refreshPzsState2(y,m);
+    getPzsState(y,m,pzsState);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
     switch(pzsState){
-    case Ps_Rec: //如果是原始态，则查询所有手工录入的非作废凭证
-        rpz<<Pzc_Hand;
+    case Ps_Rec:
+        //应该只返回必要的字段（id、凭证类别等）
+        s = QString("select * from %1 where (%2 like '%3%') and %4!=%5")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_state).arg(Pzs_Repeal);
         break;
-    case Ps_HandV:  //查询所有手工录入的已入账凭证
-    case Ps_Stat1:
-        inpz<<Pzc_Hand;
+    case Ps_AllVerified:
+        case Ps_Jzed:
+        s = QString("select * from %1 where (%2 like '%3%') and %4=%5")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_state).arg(Pzs_Instat);
         break;
-
-    case Ps_ImpOther:  //查询所有手工录入的已入账凭证，以及由其他模块引入未审核凭证
-        inpz<<Pzc_Hand;
-        rpz = impPzCls.toList();
-        break;
-    case Ps_ImpV :  //查询所有手工录入，以及由其他模块引入的已入账凭证
-    case Ps_Stat2:
-        inpz<<Pzc_Hand<<impPzCls.toList();
-        break;
-
-    case Ps_Jzhd:  //查询所有手工录入、其他模块引入的入账凭证，以及结转汇兑损益的未审核凭证
-        inpz<<Pzc_Hand<<impPzCls.toList();
-        rpz<<jzhdPzCls.toList();
-        break;
-    case Ps_JzhdV: //查询所有手工录入、其他模块引入以及结转汇兑损益的入账凭证
-    case Ps_Stat3:
-        inpz<<Pzc_Hand<<impPzCls.toList()<<jzhdPzCls.toList();
-        break;
-
-    case Ps_Jzsy: //查询所有手工录入、其他模块引入以及结转汇兑损益的入账凭证，以及结转损益的未审核凭证
-        inpz<<Pzc_Hand<<impPzCls.toList()<<jzhdPzCls.toList();
-        rpz<<jzsyPzCls.toList();
-        break;
-
-    case Ps_JzsyV: //查询所有手工录入、其他模块引入、结转汇兑损益、结转损益的入账凭证
-    case Ps_Stat4:
-        inpz<<Pzc_Hand<<impPzCls.toList()<<jzhdPzCls.toList()<<jzsyPzCls.toList();
-        break;
-
-    case Ps_Jzbnlr: //查询以上所有凭证以及结转本年利润的未审核凭证
-        inpz<<Pzc_Hand<<impPzCls.toList()<<jzhdPzCls.toList()<<jzsyPzCls.toList();
-        rpz<<Pzc_Jzlr;
-        break;
-
-    case Ps_JzbnlrV: //查询以上所有入账凭证
-    case Ps_Stat5:
-    case Ps_Jzed:
-        inpz<<Pzc_Hand<<impPzCls.toList()<<jzhdPzCls.toList()
-            <<jzsyPzCls.toList()<<Pzc_Jzlr;
-        break;
-
     }
-
-    if(inpz.empty() && rpz.empty())
-        return false;
-    else{
-        //凭证集的年月时间
-        QDate d = QDate(y,m,1);
-        QString sd = d.toString(Qt::ISODate);
-        sd.chop(3);
-
-        //装配查询语句（初始语句是查询指定年月的所有凭证）
-        s = QString("select * from PingZhengs where (date like '%1%')").arg(sd);
-        genFiltState(inpz,Pzs_Instat,ins);
-        genFiltState(rpz,Pzs_Recording,rs);
-
-        if(!inpz.empty() && !rpz.empty()){
-            s.append(QString(" and ((%1) or (%2))").arg(ins).arg(rs));
-        }
-        else if(!inpz.empty()){
-            s.append(QString(" and (%1)").arg(ins));
-        }
-        else
-            s.append(QString(" and (%1)").arg(rs));
-    }
-
     return true;
 }
 
-/**
-    计算本期发生额，参数jSums：一级科目借方发生额，key = 一级科目id x 10 + 币种代码
-                 参数dSums：一级科目贷方发生额，key = 一级科目id x 10 + 币种代码
-                    sjSums：明细科目借方发生额，key = 明细科目id x 10 + 币种代码
-                    sdSums：明细科目贷方发生额，key = 明细科目id x 10 + 币种代码
-                    isSave：是否可以保存余额，amount：参予统计的凭证数
-    应根据凭证集的状态来决定参予统计的凭证范围
-*/
-bool BusiUtil::calAmountByMonth(int y, int m, QHash<int,double>& jSums, QHash<int,double>& dSums,
-             QHash<int,double>& sjSums, QHash<int,double>& sdSums,
-                                bool& isSave, int& amount)
-{
-    QSqlQuery q,q2;
-    QString s;
-    bool r;
-
-    //初始化汇率表
-    QHash<int,double>rates;
-    if(!getRates(y,m,rates))
-        return false;
-
-    //初始化币种表
-    QHash<int,QString> mts;
-    if(!getMTName(mts))
-        return false;
-    rates[RMB] = 1;
-
-    //初始化需要进行明细核算的一级科目的id列表
-    QList<int> detSubs;
-    if(!getReqDetSubs(detSubs))
-        return false;
-
-    //生成查询语句
-    if(!genStatSql(y,m,s))
-        return false;
-
-    if(!q.exec(s)){
-        QMessageBox::information(0, QObject::tr("提示信息"),
-                                 QString(QObject::tr("在计算本期发生额时不能获取凭证集")));
-        return false;
-    }
-
-    //判定是否可以保存余额
-    QSet<PzsState> canSave;  //可以执行保存余额动作的凭证集状态代码集合
-    canSave<<Ps_HandV<<Ps_Stat1
-           <<Ps_ImpV<<Ps_Stat2
-           <<Ps_JzhdV<<Ps_Stat3
-           <<Ps_JzsyV<<Ps_Stat4
-           <<Ps_JzbnlrV<<Ps_Stat5;
-    PzsState state;
-    getPzsState(y,m,state);
-    if(canSave.contains(state))
-        isSave = true;
-    else
-        isSave = false;
-
-    //遍历凭证集
-    amount = 0;
-    while(q.next()){
-        int pid,fid,sid,ac,mtype;
-        double jv,dv;  //业务活动的借贷金额
-        int dir;      //业务活动借贷方向
-
-        pid = q.value(0).toInt(); //凭证id
-        s = QString("select * from BusiActions where pid = %1").arg(pid);
-        if(!q2.exec(s)){
-            QMessageBox::information(0, QObject::tr("提示信息"),
-                                     QString(QObject::tr("在计算本期发生额时不能获取id为%1的凭证的业务活动表")).arg(pid));
-            return false;
-        }
-        amount++;
-        //遍历凭证的业务活动
-        while(q2.next()){
-            int key;
-            fid = q2.value(BACTION_FID).toInt();
-            sid = q2.value(BACTION_SID).toInt();
-            mtype = q2.value(BACTION_MTYPE).toInt();
-            dir = q2.value(BACTION_DIR).toInt();
-            if(dir == DIR_J){//发生在借方
-                jv = q2.value(BACTION_JMONEY).toDouble();
-                jSums[fid*10+mtype] += jv;
-                if(!dSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
-                    dSums[fid*10+mtype] = 0;
-                if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
-                    key = sid*10+mtype;
-                    sjSums[key] += jv;
-                    if(!sdSums.contains(key))
-                        sdSums[key] = 0;
-                }
-            }
-            else{
-                dv = q2.value(BACTION_DMONEY).toDouble();
-                dSums[fid*10+mtype] += dv;
-                if(!jSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
-                    jSums[fid*10+mtype] = 0;
-                if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
-                    key = sid*10+mtype;
-                    sdSums[key] += dv;
-                    if(!sjSums.contains(key))
-                        sjSums[key] = 0;
-                }
-            }
-        }        
-    }
-
-    //执行四舍五入
-//    QString ds;
-//    double v;
-//    QHashIterator<int,double>* it = new QHashIterator<int,double>(jSums);
-//    while(it->hasNext()){
-//        it->next();
-//        ds = QString::number(it->value(),'f',2);
-//        v = ds.toDouble();
-//        jSums[it->key()] = v;
-//        jSums[it->key()] = QString::number(it->value(),'f',2).toDouble();
-//    }
-//    it = new QHashIterator<int,double>(dSums);
-//    while(it->hasNext()){
-//        it->next();
-//        dSums[it->key()] = QString::number(it->value(),'f',2).toDouble();
-//    }
-//    it = new QHashIterator<int,double>(sjSums);
-//    while(it->hasNext()){
-//        it->next();
-//        dSums[it->key()] = QString::number(it->value(),'f',2).toDouble();
-//    }
-//    it = new QHashIterator<int,double>(sdSums);
-//    while(it->hasNext()){
-//        it->next();
-//        dSums[it->key()] = QString::number(it->value(),'f',2).toDouble();
-//    }
-
-    return true;
-}
 
 //使用Double来计算本期发生额
 bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
@@ -5421,7 +4135,7 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
         return false;
 
     //生成查询语句
-    if(!genStatSql(y,m,s))
+    if(!genStatSql2(y,m,s))
         return false;
 
     if(!q.exec(s)){
@@ -5431,18 +4145,9 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
     }
 
     //判定是否可以保存余额
-    QSet<PzsState> canSave;  //可以执行保存余额动作的凭证集状态代码集合
-    canSave<<Ps_HandV<<Ps_Stat1
-           <<Ps_ImpV<<Ps_Stat2
-           <<Ps_JzhdV<<Ps_Stat3
-           <<Ps_JzsyV<<Ps_Stat4
-           <<Ps_JzbnlrV<<Ps_Stat5;
     PzsState state;
     getPzsState(y,m,state);
-    if(canSave.contains(state))
-        isSave = true;
-    else
-        isSave = false;
+    isSave = (state == Ps_AllVerified);
 
     //遍历凭证集
     amount = 0;
@@ -5984,7 +4689,7 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
         return false;
 
     //生成查询语句
-    if(!genStatSql(y,m,s))
+    if(!genStatSql2(y,m,s))
         return false;
 
     if(!q.exec(s)){
@@ -5994,18 +4699,9 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
     }
 
     //判定是否可以保存余额
-    QSet<PzsState> canSave;  //可以执行保存余额动作的凭证集状态代码集合
-    canSave<<Ps_HandV<<Ps_Stat1
-           <<Ps_ImpV<<Ps_Stat2
-           <<Ps_JzhdV<<Ps_Stat3
-           <<Ps_JzsyV<<Ps_Stat4
-           <<Ps_JzbnlrV<<Ps_Stat5;
     PzsState state;
     getPzsState(y,m,state);
-    if(canSave.contains(state))
-        isSave = true;
-    else
-        isSave = false;
+    isSave = (state == Ps_AllVerified);
 
     //遍历凭证集
     amount = 0;
@@ -6207,131 +4903,50 @@ int BusiUtil::getMaxPzNum(int y, int m)
 //读取凭证集状态
 bool BusiUtil::getPzsState(int y,int m,PzsState& state)
 {
-    QSqlQuery q;
-    QString s;
-    bool r;
-
-    s = QString("select state from PZSetStates where (year=%1) and (month=%2)")
-            .arg(y).arg(m);
-    if(q.exec(s) && q.first()){
-        state = (PzsState)q.value(0).toInt();
+    QSqlQuery q;    
+    if(y==0 && m==0){
+        state = Ps_NoOpen;
         return true;
     }
-    else
+    QString s = QString("select %1 from %2 where (%3=%4) and (%5=%6)")
+            .arg(fld_pzss_state).arg(tbl_pzsStates).arg(fld_pzss_year)
+            .arg(y).arg(fld_pzss_month).arg(m);
+    if(!q.exec(s))
         return false;
+    if(!q.first())  //还没有记录，则表示刚开始录入凭证
+        state = Ps_Rec;
+    else
+        state = (PzsState)q.value(0).toInt();
+    return true;
 }
 
 //设置凭证集状态
 bool BusiUtil::setPzsState(int y,int m,PzsState state)
 {
     QSqlQuery q;
-    QString s;
-    bool r;
-
     //首先检测是否存在对应记录
-    s = QString("select state from PZSetStates where (year=%1) and (month=%2)")
-            .arg(y).arg(m);
-    if(q.exec(s) && q.first()){
-        s = QString("update PZSetStates set state=%1 where (year=%2) and (month=%3)")
-                .arg(state).arg(y).arg(m);
-        r = q.exec(s);
-        return r;
-    }
-    else{
-        s = QString("insert into PZSetStates(year,month,state) values(%1,%2,%3)")
-                .arg(y).arg(m).arg(state);
-        r = q.exec(s);
-        return r;
-    }
-}
-
-/**
- * @brief BusiUtil::setPzsState2
- *  //设置凭证集状态，并根据设定的状态调整凭证集内凭证的审核入账状态
- * @param y
- * @param m
- * @param state
- * @return
- */
-bool BusiUtil::setPzsState2(int y, int m, PzsState state)
-{
-    QSqlQuery q;
-    QList<int> rpzs,inpzs;  //要影响的凭证类别（分别对应入账凭证、录入状态凭证）
-    QString s1 = QString("update PingZhengs set pzState=");  //更新语句头
-    QString fs1,fs2;  //过滤条件表达式（分别对应入账凭证、录入状态凭证）
-
-    switch(state){
-    case Ps_Rec:  //初始态，所有手工凭证都将处于录入态
-        rpzs<<Pzc_Hand;
-        break;
-    case Ps_HandV: //所有手工输入凭证都审核通过并入账
-    case Ps_Stat1:
-        inpzs<<Pzc_Hand;
-        break;
-    case Ps_Jzhd:   //结转汇兑损益的凭证处于未审核，而手工凭证入账
-        inpzs<<Pzc_Hand;
-        rpzs<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
-        break;
-    case Ps_JzhdV:  //结转汇兑损益凭证和手工凭证都入账
-    case Ps_Stat3:
-    case Ps_JzsyPre:
-        inpzs<<Pzc_Hand<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
-        break;
-    case Ps_Jzsy: //结转损益凭证处于未审核，而手工、结转汇兑损益凭证都入账
-        rpzs<<Pzc_JzsyIn<<Pzc_JzsyFei;
-        inpzs<<Pzc_Hand<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
-        break;
-    case Ps_JzsyV: //手工、结转汇兑损益、结转损益凭证都入账
-        inpzs<<Pzc_Hand<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf<<Pzc_JzsyIn<<Pzc_JzsyFei;
-        break;
-    case Ps_Jzbnlr: //结转本年利润处于未审核、而手工、结转汇兑损益、结转损益凭证都入账
-        rpzs<<Pzc_Jzlr;
-        inpzs<<Pzc_Hand<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf<<Pzc_JzsyIn<<Pzc_JzsyFei;
-        break;
-    case Ps_JzbnlrV:  //手工、结转汇兑损益、结转损益、结转本年利润凭证都入账
-        inpzs<<Pzc_Hand<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf<<Pzc_JzsyIn<<Pzc_JzsyFei<<Pzc_Jzlr;
-        break;
-    case Ps_Lrfp :   //待以后考虑
-        break;
-    case Ps_LrfpV:   //待以后考虑
-        break;
-    }
-
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-
-    if(rpzs.empty() && inpzs.empty()){
-        QString s = QString("%1 where (date like '%2%') and (%3!=%4))")
-                  .arg(Pzs_Instat).arg(ds)
-                  .arg(fld_pz_state).arg(Pzs_Repeal);
-        QString sql = s1 + s;
-        if(!q.exec(sql))
+    QString s = QString("select %1 from %2 where (%3=%4) and (%5=%6)")
+            .arg(fld_pzss_state).arg(tbl_pzsStates).arg(fld_pzss_year)
+            .arg(y).arg(fld_pzss_month).arg(m);
+    if(!q.exec(s))
+        return false;
+    if(q.first()){
+        s = QString("update %1 set %2=%3 where (%4=%5) and (%6=%7)")
+                .arg(tbl_pzsStates).arg(fld_pzss_state).arg(state)
+                .arg(fld_pzss_year).arg(y).arg(fld_pzss_month).arg(m);
+        if(!q.exec(s))
             return false;
     }
     else{
-        if(!rpzs.empty()){
-            fs1 = BusiUtil::genFiltStateForSpecPzCls(rpzs);
-            QString s = QString("%1 where (date like '%2%') and (%3!=%4) and (%5)")
-                      .arg(Pzs_Recording).arg(ds)
-                      .arg(fld_pz_state).arg(Pzs_Repeal)
-                      .arg(fs1);
-            QString sql = s1 + s;
-            if(!q.exec(sql))
-                return false;
-        }
-        if(!inpzs.empty()){
-            fs2 = BusiUtil::genFiltStateForSpecPzCls(inpzs);
-            QString s = QString("%1 where (date like '%2%') and (%3!=%4) and (%5)")
-                      .arg(Pzs_Instat).arg(ds)
-                      .arg(fld_pz_state).arg(Pzs_Repeal)
-                      .arg(fs2);
-            QString sql = s1 + s;
-            if(!q.exec(sql))
-                return false;
-        }
+        s = QString("insert into %1(%2,%3,%4) values(%5,%6,%7)").arg(tbl_pzsStates)
+                .arg(fld_pzss_year).arg(fld_pzss_month).arg(fld_pzss_state)
+                .arg(y).arg(m).arg(state);
+        if(!q.exec(s))
+            return false;
     }
-    return setPzsState(y,m,state);
+    return true;
 }
+
 
 /**
     获取银行存款下所有外币账户对应的明细科目id列表
@@ -6375,32 +4990,25 @@ bool BusiUtil::getOutMtInBank(QList<int>& ids, QList<int>& mt)
 bool BusiUtil::crtNewPz(PzData* pz)
 {
     QSqlQuery q;
-    QString s;
-    bool r;
-
-    s = QString("insert into PingZhengs(date,number,zbNum,jsum,dsum,isForward,encNum"
-                ",pzState,vuid,ruid,buid) values('%1',%2,%3,%4,%5,%6,%7,%8,%9,%10,%11)")
+    QString s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12) "
+                        "values('%13',%14,%15,%16,%17,%18,%19,%20,%21,%22,%23)").arg(tbl_pz)
+            .arg(fld_pz_date).arg(fld_pz_number).arg(fld_pz_zbnum).arg(fld_pz_jsum)
+            .arg(fld_pz_dsum).arg(fld_pz_class).arg(fld_pz_encnum).arg(fld_pz_state)
+            .arg(fld_pz_vu).arg(fld_pz_ru).arg(fld_pz_bu)
             .arg(pz->date).arg(pz->pzNum).arg(pz->pzZbNum).arg(pz->jsum)
-            .arg(pz->dsum).arg(pz->pzClass).arg(pz->attNums).arg(Pzs_Max)
+            .arg(pz->dsum).arg(pz->pzClass).arg(pz->attNums).arg(pz->state)
             .arg(pz->verify!=NULL?pz->verify->getUserId():NULL)
             .arg(pz->producer!=NULL?pz->producer->getUserId():NULL)
             .arg(pz->bookKeeper!=NULL?pz->bookKeeper->getUserId():NULL);
-    r = q.exec(s);
-    if(r){
-        s = QString("select id from PingZhengs where pzState = %1").arg(Pzs_Max);
-        if(q.exec(s) && q.first()){
-            pz->pzId = q.value(0).toInt();
-            s = QString("update PingZhengs set pzState = %1 where pzState = %2")
-                    .arg(pz->state).arg(Pzs_Max);
-            if(q.exec(s))
-                return true;
-            else
-                return false;
-        }
-        else
-            return false;
-    }
-    return r;
+    if(!q.exec(s))
+        return false;
+
+    s = QString("select last_insert_rowid()");
+    if(q.exec(s) && q.first())
+        pz->pzId = q.value(0).toInt();
+    else
+        return false;
+    return true;
 }
 
 //按凭证日期，重新设置凭证集内的凭证号
@@ -6533,137 +5141,88 @@ bool BusiUtil::readAllBankAccont(QHash<int,BankAccount*>& banks)
         return false;
 }
 
-//刷新凭证集状态
-bool BusiUtil::refreshPzsState(int y,int m,CustomRelationTableModel* model/*,
-                      QSet<int> pcImps, QSet<int> pcJzhds,QSet<int> pcJzsys*/)
 
-
+/**
+ * @brief BusiUtil::scanPzSetCount
+ *  扫描凭证集内的凭证，分别计数各类凭证的数目和总数
+ * @param y
+ * @param m
+ * @param repeal        作废
+ * @param recording     录入
+ * @param verify        审核
+ * @param instat        入账
+ * @param amount        总数
+ * @return
+ */
+bool BusiUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount)
 {
-    //（此刷新动作主要使凭证状态从录入态转到审核态）
-    //执行此函数的时机是，用户修改了凭证状态（而非凭证的其他数据）
-    bool ori = false;  //初始态（任一手工录入凭证处于录入状态时，它为真）
-    bool handV = true; //所有手工录入凭证处于审核或入账状态时，它为真
-    bool handE = false;//手工录入凭证是否存在
-
-    bool imp = false;  //引入态（任一自动引入的凭证还未审核或入账时，它为真）
-    bool impV = true;  //引入审核态（所有自动引入的凭证都已审核或入账时，它为真）
-    bool impE = false; //引入凭证是否存在
-
-    bool jzhd = false;  //结转汇兑态（任一结转汇兑损益的凭证处于录入态时，它为真）
-    bool jzhdV = true;  //结转汇兑审核态（所有结转汇兑损益的凭证已审核或入账时，它为真）
-    bool jzhdE = false; //结转汇兑损益的凭证是否存在
-
-
-    bool jzsy = false; //结转损益态（任一结转损益的凭证处于录入态时，它为真）
-    bool jzsyV = true; //结转损益审核态（所有结转损益的凭证处于已审核或入账时，它为真）
-    bool jzsyE = false;//结转损益的凭证是否存在
-
-    bool jzlr = false; //结转本年利润态（结转本年利润的凭证处于录入态时，它为真）
-    bool jzlrV = true; //结转本年利润态（结转本年利润的凭证已审核或入账时，它为真）
-    bool jzlrE = false;//结转本年利润的凭证是否存在
-
-    PzsState oldPs, newPs = Ps_Rec;  //原先保存的和新的凭证集状态
-    if(!getPzsState(y,m,oldPs)){
-        qDebug() << "Don't get current pingzheng set state!!";
+    QSqlQuery q;
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select %1 from %2 where %3 like '%4%'")
+            .arg(fld_pz_state).arg(tbl_pz).arg(fld_pz_date).arg(ds);
+    if(!q.exec(s))
         return false;
-    }
-    if(oldPs == Ps_Jzed)  //如果已结账，则不用继续
-        return true;
-
-    int state;
-    int pzCls;
-    for(int i = 0; i < model->rowCount(); ++i){
-        state = model->data(model->index(i,PZ_PZSTATE)).toInt();
-        pzCls = model->data(model->index(i,PZ_CLS )).toInt();
-
-        if(state == Pzs_Repeal)
-            continue;
-        //如果是手工录入凭证
-        if(pzCls == Pzc_Hand){
-            handE = true;
-            if(state == Pzs_Recording){
-                ori = true;
-                handV = false;
-                break;
-            }
-        }
-        //如果是其他模块引入的凭证
-        else if(impPzCls.contains(pzCls)){
-            impE = true;
-            if(state == Pzs_Recording){
-                imp = true;
-                impV = false;
-                break;
-            }
-        }
-        //如果是结转汇兑损益的凭证
-        else if(jzhdPzCls.contains(pzCls)){
-            jzhdE = true;
-            if(state == Pzs_Recording){
-                jzhd = true;
-                jzhdV = false;
-                break;
-            }
-        }
-        //如果是结转损益的凭证
-        else if(jzsyPzCls.contains(pzCls)){
-            jzsyE = true;
-            if(state == Pzs_Recording){
-                jzsy = true;
-                jzsyV = false;
-                break;
-            }
-        }
-        //如果是结转本年利润的凭证
-        else if((pzCls == Pzc_Jzlr)){
-            jzlrE = true;
-            if(state == Pzs_Recording){
-                jzlr = true;
-                jzlrV = false;
-                break;
-            }
+    repeal=0;recording=0;verify=0;instat=0;amount=0;
+    PzState state;
+    while(q.next()){
+        amount++;
+        state = (PzState)q.value(0).toInt();
+        switch(state){
+        case Pzs_Repeal:
+            repeal++;
+            break;
+        case Pzs_Recording:
+            recording++;
+            break;
+        case Pzs_Verify:
+            verify++;
+            break;
+        case Pzs_Instat:
+            instat++;
+            break;
         }
     }
-
-    //根据凭证的扫描情况以及凭证集的先前状态，决定新状态
-    if(ori)
-        newPs = Ps_Rec;
-    else if(imp)
-        newPs = Ps_ImpOther;
-    else if(jzhd)
-        newPs = Ps_Jzhd;
-    else if(jzsy)
-        newPs = Ps_Jzsy;
-    else if(jzlr)
-        newPs = Ps_Jzbnlr;
-
-    else if((oldPs == Ps_Jzbnlr)  && jzlrV && jzlrE)   //如果已经审核了结转本年利润凭证
-        newPs = Ps_JzbnlrV;
-    else if((oldPs == Ps_Jzsy) && jzsyV && jzsyE) //如果结转损益凭证都进行了审核
-        newPs = Ps_JzsyV;
-    else if((oldPs == Ps_Jzhd) && jzhdV && jzhdE) //如果结转汇兑损益凭证都进行了审核
-        newPs = Ps_JzhdV;
-    else if((oldPs == Ps_ImpOther) && impV && impE) //如果引入的其他凭证都审核通过
-        newPs = Ps_ImpV;
-    else if((oldPs == Ps_Rec) && handV && handE) //如果所有手工录入的凭证都审核通过
-        newPs = Ps_HandV;
-
-    setPzsState(y,m,newPs);
+    return true;
 }
 
-//取消结转汇兑损益凭证
-bool BusiUtil::antiJzhdsyPz(int y, int m)
+/**
+ * @brief BusiUtil::inspectJzPzExist
+ *  检查指定类别的凭证是否存在、是否齐全
+ * @param y
+ * @param m
+ * @param pzCls 凭证大类别
+ * @param count 指定的凭证大类必须具有的凭证数（返回值大于0，则表示凭证不齐全）
+ * @return
+ */
+bool BusiUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
 {
-    PzsState state;
-    getPzsState(y,m,state);
-    if((state < Ps_ImpOther) && (state >= Ps_JzsyPre)){
-        QMessageBox::warning(0,QObject::tr("操作拒绝"),
-            QObject::tr("执行此操作前，必须已经结转了汇兑损益，并且还未执行损益类科目的结转！"));
+    QSqlQuery q;
+    QList<PzClass> pzClses;
+    if(pzCls == Pzd_Jzhd)
+        pzClses<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+    else if(pzCls == Pzd_Jzsy)
+        pzClses<<Pzc_JzsyIn<<Pzc_JzsyFei;
+    else if(pzCls == Pzd_Jzlr)
+        pzClses<<Pzc_Jzlr;
+    count = pzClses.count();
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select %1 from %2 where %3 like '%4%'")
+            .arg(fld_pz_class).arg(tbl_pz).arg(fld_pz_date).arg(ds)/*.arg(fld_pz_number)*/;
+    if(!q.exec(s))
         return false;
+    PzClass cls;
+    while(q.next()){
+        cls = (PzClass)q.value(0).toInt();
+        if(pzClses.contains(cls)){
+            pzClses.removeOne(cls);
+            count--;
+        }
+        if(count==0)
+            break;
     }
-    return delSpecPz(y,m,Pzc_Jzhd_Bank) &&
-           delSpecPz(y,m,Pzc_Jzhd_Ys) &&
-           delSpecPz(y,m,Pzc_Jzhd_Yf);
+    return true;
 }
 
 //生成固定资产折旧凭证
@@ -6683,86 +5242,86 @@ bool BusiUtil::genDtfyPz(int y,int m)
 //引入其他模块产生的凭证
 bool BusiUtil::impPzFromOther(int y,int m, QSet<OtherModCode> mods)
 {
-    PzsState state;
-    getPzsState(y,m,state);
-    if((state != Ps_Stat1) && (state != Ps_Stat3)){
-        QMessageBox::warning(0,QObject::tr("提示信息"),
-            QObject::tr("执行此操作前，必须先统计保存了所有的手工凭证或引入凭证之后"));
-        return false;
-    }
+//    PzsState state;
+//    getPzsState(y,m,state);
+//    if((state != Ps_Stat1) && (state != Ps_Stat3)){
+//        QMessageBox::warning(0,QObject::tr("提示信息"),
+//            QObject::tr("执行此操作前，必须先统计保存了所有的手工凭证或引入凭证之后"));
+//        return false;
+//    }
 
-    if(!mods.empty()){
-        //一个模块的出错，应不影响其他模块的执行
-        bool err = false;
-        if(mods.contains(OM_GDZC) && !genGdzcZjPz(y,m)){
-            err = true;
-            QMessageBox::warning(0,QObject::tr("提示信息"),
-                QObject::tr("在执行引入固定资产折旧凭证时出错！！"));
-        }
-        if(mods.contains(OM_DTFY) && !genDtfyPz(y,m)){
-            err = true;
-            QMessageBox::warning(0,QObject::tr("提示信息"),
-                QObject::tr("在执行引入待摊费用凭证时出错！！"));
-        }
-        //如果所有要引入的模块都未发生错误，则更新凭证集状态
-        if(!err){
-            BusiUtil::setPzsState(y,m,Ps_ImpOther);
-            return true;
-        }
-        else
-            return false;
-    }    
-    return true;
+//    if(!mods.empty()){
+//        //一个模块的出错，应不影响其他模块的执行
+//        bool err = false;
+//        if(mods.contains(OM_GDZC) && !genGdzcZjPz(y,m)){
+//            err = true;
+//            QMessageBox::warning(0,QObject::tr("提示信息"),
+//                QObject::tr("在执行引入固定资产折旧凭证时出错！！"));
+//        }
+//        if(mods.contains(OM_DTFY) && !genDtfyPz(y,m)){
+//            err = true;
+//            QMessageBox::warning(0,QObject::tr("提示信息"),
+//                QObject::tr("在执行引入待摊费用凭证时出错！！"));
+//        }
+//        //如果所有要引入的模块都未发生错误，则更新凭证集状态
+//        if(!err){
+//            BusiUtil::setPzsState(y,m,Ps_ImpOther);
+//            return true;
+//        }
+//        else
+//            return false;
+//    }
+//    return true;
 }
 
 //取消引入的由其他模块产生的凭证
 bool BusiUtil::antiImpPzFromOther(int y, int m, QSet<OtherModCode> mods)
 {
-    PzsState state;
-    getPzsState(y,m,state);
-    if((state < Ps_ImpOther) && (state >= Ps_JzsyPre)){
-        QMessageBox::warning(0,QObject::tr("操作拒绝"),
-            QObject::tr("执行此操作前，必须已经引入了由其他模块产生的凭证，并且未执行损益类科目的结转！"));
-        return false;
-    }
-    if(!mods.empty()){
-        bool err = false;
-        if(mods.contains(OM_GDZC) && !antiGdzcPz(y,m)){
-            err = true;
-            QMessageBox::warning(0,QObject::tr("提示信息"),
-                QObject::tr("在执行取消引入的固定资产折旧凭证时出错！！"));
-        }
-        if(mods.contains(OM_DTFY) && !antiDtfyPz(y,m)){
-            err = true;
-            QMessageBox::warning(0,QObject::tr("提示信息"),
-                QObject::tr("在执行引入取消引入的待摊费用凭证时出错！！"));
-        }
-        //如果所有要引入的模块都未发生错误，则更新凭证集状态
-        if(!err){
-            bool req;
-            BusiUtil::reqGenJzHdsyPz(y,m,req);
-            if(req) //如果还没有进行汇兑损益的结转，则置新状态为进行结转汇兑损益前的状态
-                BusiUtil::setPzsState(y,m,Ps_Stat1);
-            else
-                BusiUtil::setPzsState(y,m,Ps_Stat3);
-            return true;
-        }
-        else
-            return false;
-    }
+//    PzsState state;
+//    getPzsState(y,m,state);
+//    if((state < Ps_ImpOther) && (state >= Ps_JzsyPre)){
+//        QMessageBox::warning(0,QObject::tr("操作拒绝"),
+//            QObject::tr("执行此操作前，必须已经引入了由其他模块产生的凭证，并且未执行损益类科目的结转！"));
+//        return false;
+//    }
+//    if(!mods.empty()){
+//        bool err = false;
+//        if(mods.contains(OM_GDZC) && !antiGdzcPz(y,m)){
+//            err = true;
+//            QMessageBox::warning(0,QObject::tr("提示信息"),
+//                QObject::tr("在执行取消引入的固定资产折旧凭证时出错！！"));
+//        }
+//        if(mods.contains(OM_DTFY) && !antiDtfyPz(y,m)){
+//            err = true;
+//            QMessageBox::warning(0,QObject::tr("提示信息"),
+//                QObject::tr("在执行引入取消引入的待摊费用凭证时出错！！"));
+//        }
+//        //如果所有要引入的模块都未发生错误，则更新凭证集状态
+//        if(!err){
+//            bool req;
+//            BusiUtil::reqGenJzHdsyPz(y,m,req);
+//            if(req) //如果还没有进行汇兑损益的结转，则置新状态为进行结转汇兑损益前的状态
+//                BusiUtil::setPzsState(y,m,Ps_Stat1);
+//            else
+//                BusiUtil::setPzsState(y,m,Ps_Stat3);
+//            return true;
+//        }
+//        else
+//            return false;
+//    }
     return true;
 }
 
 //取消固定资产管理模块引入的凭证
 bool BusiUtil::antiGdzcPz(int y, int m)
 {
-    return delSpecPz(y,m,Pzc_GdzcZj);
+    return true;
 }
 
 //取消待摊费用管理模块引入的凭证
 bool BusiUtil::antiDtfyPz(int y, int m)
 {
-    return delSpecPz(y,m,Pzc_Dtfy);
+    return true;
 }
 
 //是否是由其他模块引入的凭证类别
@@ -6891,44 +5450,6 @@ bool BusiUtil::reqGenJzHdsyPz(int y, int m, bool& req)
     return true;
 }
 
-//生成结转本年利润的凭证
-bool BusiUtil::genJzbnlr(int y, int m, PzData& d)
-{
-    PzsState state;
-    getPzsState(y,m,state);
-    if(state != Ps_Stat4){
-        QMessageBox::warning(0,QObject::tr("提示信息"),
-            QObject::tr("在结转本年利润前，必须统计保存结转损益后的余额"));
-        return false;
-    }
-    return crtNewPz(&d);
-}
-
-//取消结转本年利润的凭证
-bool BusiUtil::antiJzbnlr(int y, int m)
-{
-    return delSpecPz(y,m,Pzc_Jzlr) && setPzsState(y,m,Ps_Stat4);
-}
-
-//是否需要创建结转本年利润的凭证
-bool BusiUtil::reqGenJzbnlr(int y, int m, bool& req)
-{
-    PzsState state;
-    bool r = getPzsState(y,m,state);
-    if(state < Ps_Stat5){
-        if(jzlrByYear){
-            if(m == 12)
-                req = true;
-            else
-                req = false;
-        }
-        else
-            req = false;
-    }
-    req = false;
-    return r;
-}
-
 
 //获取指定范围的科目id列表
 //参数sfid，ssid代表开始的一级、二级科目id，efid、esid代表结束的一级、二级科目id
@@ -7026,6 +5547,24 @@ bool BusiUtil::isAccMtS(int sid)
         int fid = q.value(0).toInt();
         return isAccMt(fid);
     }
+}
+
+/**
+ * @brief BusiUtil::getSpecClsPzCode
+ *  获取指定大类凭证的类别代码列表
+ * @param cls
+ * @return
+ */
+QList<PzClass> BusiUtil::getSpecClsPzCode(PzdClass cls)
+{
+    QList<PzClass> codes;
+    if(cls == Pzd_Jzhd)
+        codes<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+    else if(cls == Pzd_Jzsy)
+        codes<<Pzc_JzsyIn<<Pzc_JzsyFei;
+    else if(cls == Pzd_Jzlr)
+        codes<<Pzc_Jzlr;
+    return codes;
 }
 
 //获取所有在二级科目类别表中名为“固定资产类”的科目

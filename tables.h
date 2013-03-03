@@ -145,14 +145,32 @@
 //#define BACTION_NUMINPZ   9   //该业务活动在凭证业务活动表中的序号（NumInPz INTEGER）
 //                              //（序号决定了在表中的具体位置，基于1）
 
+//**************************主目余额表（以原币计）*****************************/
+//（各科目的字段名由代表科目类别的字母代码加上科目国标代码组成）
+//A（资产类）B（负债类）C（共同类）D（所有者权益类）E（成本类）F（损益类）
+//CREATE TABLE SubjectExtras(id INTEGER PRIMARY KEY, year INTEGER, month INTEGER,
+//state INTEGER, mt INTEGER, A1001 REAL...)
+#define tbl_se "SubjectExtras"
+#define fld_se_year     "year"
+#define fld_se_month    "month"
+#define fld_se_state    "state"     //余额是否有效（即最近一次保存此余额后凭证集是否做了影响统计余额的操作）
+#define fld_se_mt       "mt"        //币种代码
+
+#define SE_YEAR 1      //(year INTEGER)
+#define SE_MONTH 2     //(month INTEGER) （如果month=12，则表示是年度余额）
+#define SE_STATE 3     //（state INTEGER）余额结转状态
+#define SE_MT 4        //（mt  INTEGER） 币种代码
+#define SE_SUBSTART 5  //第一个科目所对应的字段索引号
+// ......
+
 //***********************主科目外币（转换为本币）余额表************************
 /* CREATE TABLE SubjectMmtExtras(id INTEGER PRIMARY KEY, year INTEGER,
    month INTEGER,mt INTEGER,A1002 REAL,A1131 REAL,B2121 REAL)            */
 //字段名
 #define tbl_sem  "SubjectMmtExtras"
-#define fld_sem_year  "year"
-#define fld_sem_month "month"
-#define fld_sem_mt  "mt"
+#define fld_sem_year  "year"        //
+#define fld_sem_month "month"       //
+#define fld_sem_mt  "mt"            //币种代码
 #define fld_sem_bank "A1002"
 #define fld_sem_ys "A1131"
 #define fld_sem_yf "B2121"
@@ -189,6 +207,23 @@
 #define ACCOUNT_NAME     2      //账户信息字段名（name TEXT）
 #define ACCOUNT_VALUE    3      //账户信息字段值（value TEXT）
 
+
+//凭证集状态表
+//CREATE TABLE PZSetStates(id INTEGER PRIMARY KEY, year INTEGER, month INTEGER, state INTEGER)
+//字段名
+#define tbl_pzsStates "PZSetStates"
+#define fld_pzss_year "year"
+#define fld_pzss_month "month"
+#define fld_pzss_state "state"
+//字段索引
+#define PZSS_YEAR 1
+#define PZSS_MONTH 2
+#define PZSS_STATE 3
+
+
+
+
+
 //转移表（transfers）
 //create table transfers(id integer primary key, smid integer, dmid integer,
 //state integer, outTime text, inTime text)
@@ -219,6 +254,28 @@
 #define TRANSDESC_IN    3
 
 //////////*****************基本库数据表********************************//////////
+//凭证状态名表
+//CREATE TABLE pzStateNames(id INTEGER PRIMARY KEY, code INTEGER, state TEXT)
+//字段名
+#define tbl_pzStateName "pzStateNames"
+#define fld_pzsn_code "code"
+#define fld_pzsn_name "state"
+//字段索引
+#define PZSN_CODE 1
+#define PZSN_NAME 2
+
+
+//凭证集状态名表
+//CREATE TABLE "pzsStateNames"(id INTEGER PRIMARY KEY, code INTEGER, state TEXT, desc TEXT)
+//字段名
+#define tbl_pzsStateNames "pzsStateNames"
+#define fld_pzssn_code "code"
+#define fld_pzssn_sname "state"
+#define fld_pzssn_lname "desc"
+//字段索引
+#define PZSSN_CODE  1
+#define PZSSN_SNAME 2
+#define PZSSN_LNAME 3
 
 //主机表（machines）
 //CREATE TABLE machines(id integer primary key, type integer, mid integer,

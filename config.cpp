@@ -5,6 +5,7 @@
 
 #include "global.h"
 #include "config.h"
+#include "tables.h"
 
 QSettings *AppConfig::appIni = new QSettings("./config/app/appSetting.ini", QSettings::IniFormat);
 AppConfig* AppConfig::instance = 0;
@@ -32,7 +33,7 @@ bool AppConfig::versionMaintain(bool& cancel)
     getInstance();
     VersionManager* vm = new VersionManager(VersionManager::MT_CONF);
     //每当有新的可用升级函数时，就在此添加
-    //vm->appendVersion(1,1,&AppConfig::updateTo1_1);
+    vm->appendVersion(1,1,&AppConfig::updateTo1_1);
     //vm->appendVersion(1,2,&AppConfig::updateTo1_2);
     //vm->appendVersion(2,0,&AppConfig::updateTo2_0);
     bool r = vm->versionMaintain(cancel);
@@ -92,6 +93,47 @@ bool AppConfig::readPingzhenClass(QHash<PzClass, QString> &pzClasses)
         pzClasses[(PzClass)code] = appIni->value(key).toString();
     }
     appIni->endGroup();
+    return true;
+}
+
+/**
+ * @brief AppConfig::readPzStates
+ *  获取凭证状态名集合
+ * @param names
+ * @return
+ */
+bool AppConfig::readPzStates(QHash<PzState, QString>& names)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_pzStateName);
+    if(!q.exec(s))
+        return false;
+    while(q.next()){
+        names[(PzState)q.value(PZSN_CODE).toInt()] = q.value(PZSN_NAME).toString();
+    }
+    return true;
+}
+
+/**
+ * @brief AppConfig::readPzSetStates
+ *  读取凭证集状态名
+ * @param snames
+ * @param lnames
+ * @return
+ */
+bool AppConfig::readPzSetStates(QHash<PzsState, QString> &snames, QHash<PzsState, QString> &lnames)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_pzsStateNames);
+    if(!q.exec(s))
+        return false;
+    PzsState code;
+    QString sn,ln;
+    while(q.next()){
+        code = (PzsState)q.value(PZSSN_CODE).toInt();
+        snames[code] = q.value(PZSSN_SNAME).toString();
+        lnames[code] = q.value(PZSSN_LNAME).toString();
+    }
     return true;
 }
 
@@ -313,8 +355,48 @@ bool AppConfig::setVersion(int mv, int sv)
 }
 
 
-
+/**
+ * @brief AppConfig::updateTo1_1
+ *  升级任务描述：
+ *  1、用新的简化版凭证集状态替换原先相对复杂的
+ * @return
+ */
 bool AppConfig::updateTo1_1()
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1").arg(tbl_pzsStateNames);
+    if(!q.exec(s))
+        return false;
+
+    QList<PzsState> codes;
+    QHash<PzsState,QString> snames,lnames;
+    codes<<Ps_NoOpen<<Ps_Rec<<Ps_AllVerified<<Ps_Jzed;
+    snames[Ps_NoOpen] = QObject::tr("未打开");
+    snames[Ps_Rec] = QObject::tr("录入态");
+    snames[Ps_AllVerified] = QObject::tr("入账态");
+    snames[Ps_Jzed] = QObject::tr("结转");
+    lnames[Ps_NoOpen] = QObject::tr("未打开凭证集");
+    lnames[Ps_Rec] = QObject::tr("正在录入凭证");
+    lnames[Ps_AllVerified] = QObject::tr("凭证都已审核，可以进行统计并保存余额");
+    lnames[Ps_Jzed] = QObject::tr("已结账，不能做出任何影响凭证集数据的操作");
+
+    if(!db.transaction())
+        return false;
+    for(int i = 0; i < codes.count(); ++i){
+        PzsState code = codes.at(i);
+        s = QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')")
+                .arg(tbl_pzsStateNames).arg(fld_pzssn_code).arg(fld_pzssn_sname)
+                .arg(fld_pzssn_lname).arg(code).arg(snames.value(code))
+                .arg(lnames.value(code));
+        q.exec(s);
+    }
+    if(!db.commit())
+        return true;
+    return setVersion(1,1);
+
+}
+
+bool AppConfig::updateTo1_2()
 {
     //1、在基本库中添加machines表，并初始化4个默认主机
     //2、根据用户的选择设置isLacal字段（配置本机是哪个主机标识）
@@ -358,12 +440,7 @@ bool AppConfig::updateTo1_1()
     s = QString("update machines set isLocal=1 where mid=%1").arg(mid);
     if(!q.exec(s))
         return false;
-    return setVersion(1,1);
-}
-
-bool AppConfig::updateTo1_2()
-{
-    return true;
+    return setVersion(1,2);
 }
 
 bool AppConfig::updateTo2_0()

@@ -941,14 +941,12 @@ void ViewExtraDialog::save()
     QHash<int,Double> oldF,oldS;    //前期余额值
     QHash<int,int> oldFDir,oldSDir; //前期余额方向
     BusiUtil::readExtraByMonth2(y,m,oldF,oldFDir,oldS,oldSDir);
-    PzsState pzsState;
-    qDebug()<<tr("财务费用-汇兑损益余额：%1").arg(endDetExa.value(601).toString());
-
-    BusiUtil::savePeriodBeginValues2(y,m,endExa,endExaDir,endDetExa,endDetExaDir,pzsState);
+    BusiUtil::savePeriodBeginValues2(y,m,endExa,endExaDir,endDetExa,endDetExaDir,false);
     BusiUtil::savePeriodEndValues(y,m,endExaR,endDetExaR);//以本币计的外币余额
-    ui->lblPzsState->setText(pzsStates.value(pzsState));
-    emit pzsStateChanged();
+    emit pzsExtraSaved();
     ui->btnSave->setEnabled(false);
+    ui->btnCancel->setEnabled(false);
+    ui->btnClose->setEnabled(true);
 }
 
 //当选择一个总账科目时，初始化可用的明细科目
@@ -1239,6 +1237,10 @@ void ViewExtraDialog::viewTable()
         ui->btnSave->setEnabled(false);
         return;
     }
+    //应根据凭证集的状态和当前选择的科目的范围来决定保存按钮是否启用
+    PzsState state;
+    BusiUtil::getPzsState(y,m,state);
+    isCanSave = (state == Ps_AllVerified);
     ui->btnSave->setEnabled((fid == 0) && (sid == 0) && isCanSave);
 }
 
@@ -1832,8 +1834,8 @@ void ViewExtraDialog::initHashs()
         qDebug() << "Don't get current happen cash amount!!";
         return;
     }
-    //应根据凭证集的状态来决定保存按钮是否启用
-    //ui->btnSave->setEnabled(isCanSave);
+
+
     QString info = tr("本期共有%1张凭证参予了统计。").arg(amount);
     emit infomation(info);
 
@@ -1845,26 +1847,26 @@ void ViewExtraDialog::initHashs()
     BusiUtil::calCurExtraByMonth3(y,m,preExaR,preDetExaR,preExaDir,preDetExaDir,
                                  curJHpnR,curJDHpnR,curDHpnR,curDDHpnR,
                                  endExaR,endDetExaR,endExaDirR,endDetExaDirR);
-    qDebug()<<tr("银行-人民币：")
-            <<tr("期初       ")
-            <<tr("借方       ")
-            <<tr("贷方       ")
-            <<tr("期末       ");
-    qDebug()<<tr("          ")
-           <<preExaR.value(21).toString()
-           <<curJHpnR.value(21).toString()
-           <<curDHpnR.value(21).toString()
-           <<endExaR.value(21).toString();
-    qDebug()<<tr("银行-美 金：")
-            <<tr("期初       ")
-            <<tr("借方       ")
-            <<tr("贷方       ")
-            <<tr("期末       ");
-    qDebug()<<tr("          ")
-           <<preExaR.value(22).toString()
-           <<curJHpnR.value(22).toString()
-           <<curDHpnR.value(22).toString()
-           <<endExaR.value(22).toString();
+//    qDebug()<<tr("银行-人民币：")
+//            <<tr("期初       ")
+//            <<tr("借方       ")
+//            <<tr("贷方       ")
+//            <<tr("期末       ");
+//    qDebug()<<tr("          ")
+//           <<preExaR.value(21).toString()
+//           <<curJHpnR.value(21).toString()
+//           <<curDHpnR.value(21).toString()
+//           <<endExaR.value(21).toString();
+//    qDebug()<<tr("银行-美 金：")
+//            <<tr("期初       ")
+//            <<tr("借方       ")
+//            <<tr("贷方       ")
+//            <<tr("期末       ");
+//    qDebug()<<tr("          ")
+//           <<preExaR.value(22).toString()
+//           <<curJHpnR.value(22).toString()
+//           <<curDHpnR.value(22).toString()
+//           <<endExaR.value(22).toString();
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -3584,9 +3586,8 @@ void SetupBaseDialog2::on_btnSave_clicked()
     }
 
     //保存
-    PzsState pzsStates = Ps_Jzed;
     BusiUtil::savePeriodBeginValues2(year, month, fSums, fDirs,
-                                     sSums, sDirs, pzsStates); //保存原币期初余额
+                                     sSums, sDirs); //保存原币期初余额
     BusiUtil::savePeriodEndValues(year,month,fRSums,sRSums);   //保存本币期初余额
     isDirty = false;
     ui->btnSave->setEnabled(isDirty);

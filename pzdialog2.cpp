@@ -154,7 +154,7 @@ void PzDialog2::init()
         curPzClass = Pzc_Hand;
     }
 
-    BusiUtil::getActionsInPz2(curPzId, busiActions);
+    BusiUtil::getActionsInPz(curPzId, busiActions);
     numActions = busiActions.count();
 
     //初始化业务活动表    
@@ -228,7 +228,7 @@ void PzDialog2::initAction()
 
     if(curPzId != 0){
         //installDataWatch(false);
-        BusiUtil::getActionsInPz2(curPzId, busiActions);
+        BusiUtil::getActionsInPz(curPzId, busiActions);
         //addBusiAct();
         numActions = busiActions.count();
         //refreshVHeaderView();

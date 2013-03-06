@@ -342,16 +342,20 @@ void BusiUtil::init()
 
     //初始化需要按币种分别核算的科目的集合
     //这些是临时代码，未来需要从一级科目表的某个字段中读取或采用其他的配置机制
-    getIdByCode(fid,"1002"); //银行
-    accToMt.insert(fid);
-    getIdByCode(fid,"1131"); //应收
-    accToMt.insert(fid);
-    getIdByCode(fid,"2121"); //应付
-    accToMt.insert(fid);
-    getIdByCode(fid,"1151"); //预付
-    accToMt.insert(fid);
-    getIdByCode(fid,"2131"); //预收
-    accToMt.insert(fid);
+    s = QString("select id from %1 where %2=1").arg(tbl_fsub).arg(fld_fsub_isUseWb);
+    r = q.exec(s);
+    while(q.next())
+        accToMt.insert(q.value(0).toInt());
+//    getIdByCode(fid,"1002"); //银行
+//    accToMt.insert(fid);
+//    getIdByCode(fid,"1131"); //应收
+//    accToMt.insert(fid);
+//    getIdByCode(fid,"2121"); //应付
+//    accToMt.insert(fid);
+//    getIdByCode(fid,"1151"); //预付
+//    accToMt.insert(fid);
+//    getIdByCode(fid,"2131"); //预收
+//    accToMt.insert(fid);
 
     //初始化损益类科目中收入类和费用类科目id集合
     r = q.exec("select id,jdDir from FirSubjects where (belongTo=5) "
@@ -364,7 +368,8 @@ void BusiUtil::init()
             feiIds.insert(fid);
         else
             inIds.insert(fid);
-        s = QString("select id from FSAgent where fid = %1").arg(fid);
+        s = QString("select id from %1 where %2 = %3")
+                .arg(tbl_fsa).arg(fld_fsa_fid).arg(fid);
         r = q2.exec(s);
         while(q2.next()){
             sid = q2.value(0).toInt();
@@ -378,202 +383,303 @@ void BusiUtil::init()
 }
 
 /**
-    读取指定年月的汇率
-*/
-bool BusiUtil::getRates(int y,int m, QHash<int,double>& rates){
+ * @brief BusiUtil::getRates2
+ *  读取指定年月的汇率
+ * @param y
+ * @param m
+ * @param rates     汇率表，键为币种代码
+ * @param mainMt    记账货币（母币）
+ * @return
+ */
+bool BusiUtil::getRates2(int y, int m, QHash<int,Double>& rates, int mainMt){
     QSqlQuery q;
-    QString s;
-    bool r;
-
-    s = QString("select code,sign,name from MoneyTypes where "
-                            "code != 1");
-    r = q.exec(s);
+    QString s = QString("select * from %1").arg(tbl_moneyType).arg(fld_mt_code);
+    if(!q.exec(s))
+        return false;
+    QString mainSign; //母币符号
     QHash<int,QString> msHash; //货币代码到货币符号的映射
+    int mt; QString mtSign;
     while(q.next()){
-        msHash[q.value(0).toInt()] = q.value(1).toString();
+        mt = q.value(MT_CODE).toInt();
+        mtSign = q.value(MT_SIGN).toString();
+        if(mt != mainMt)
+            msHash[mt] = mtSign;
+        else
+            mainSign = mtSign;
     }
 
     QList<int> mtcs = msHash.keys();
     s = QString("select ");
     for(int i = 0; i<mtcs.count(); ++i){
-        s.append(msHash[mtcs[i]]).append("2rmb,");
+        s.append(msHash.value(mtcs.at(i)));
+        s.append(QString("2%1,").arg(mainSign));
     }
     s.chop(1);
-    s.append(" from ExchangeRates ");
-    s.append(QString("where (year = %1) and (month = %2)").arg(y).arg(m));
-    if(!q.exec(s) || !q.first()){
+    s.append(QString(" from %1 ").arg(tbl_rateTable));
+    s.append(QString("where (%1 = %2) and (%3 = %4)")
+             .arg(fld_rt_year).arg(y).arg(fld_rt_month).arg(m));
+    if(!q.exec(s))
+        return false;
+    if(!q.first()){
         qDebug() << QObject::tr("没有指定汇率！");
-        //QMessageBox::information(0,QObject::tr("提示信息"),
-        //                         QString(QObject::tr("没有设置%1年%2月的汇率")).arg(y).arg(m));
         return false;
     }
-    for(int i = 0;i<mtcs.count();++i){
-        rates[mtcs[i]] = q.value(i).toDouble();
-    }
-    //(*rates)[RMB] = 1.00;
-    return true;
-}
-
-bool BusiUtil::getRates2(int y,int m, QHash<int,Double>& rates){
-    QSqlQuery q;
-    QString s;
-    bool r;
-
-    s = QString("select code,sign,name from MoneyTypes where "
-                            "code != 1");
-    r = q.exec(s);
-    QHash<int,QString> msHash; //货币代码到货币符号的映射
-    while(q.next()){
-        msHash[q.value(0).toInt()] = q.value(1).toString();
-    }
-
-    QList<int> mtcs = msHash.keys();
-    s = QString("select ");
-    for(int i = 0; i<mtcs.count(); ++i){
-        s.append(msHash[mtcs[i]]).append("2rmb,");
-    }
-    s.chop(1);
-    s.append(" from ExchangeRates ");
-    s.append(QString("where (year = %1) and (month = %2)").arg(y).arg(m));
-    if(!q.exec(s) || !q.first()){
-        qDebug() << QObject::tr("没有指定汇率！");
-        //QMessageBox::information(0,QObject::tr("提示信息"),
-        //                         QString(QObject::tr("没有设置%1年%2月的汇率")).arg(y).arg(m));
-        return false;
-    }
-    for(int i = 0;i<mtcs.count();++i){
-        rates[mtcs[i]] = Double(q.value(i).toDouble());
-    }
-    //(*rates)[RMB] = 1.00;
+    for(int i = 0;i<mtcs.count();++i)
+        rates[mtcs.at(i)] = Double(q.value(i).toDouble());
     return true;
 }
 
 /**
+ * @brief BusiUtil::saveRates2
     保存指定年月的汇率
-*/
-bool BusiUtil::saveRates(int y,int m, QHash<int,double>& rates)
+ * @param y
+ * @param m
+ * @param rates     汇率表，键为币种代码
+ * @param mainMt    记账货币（母币）
+ * @return
+ */
+bool BusiUtil::saveRates2(int y, int m, QHash<int, Double> &rates, int mainMt)
 {
     QSqlQuery q;
     QString s,vs;
-    bool r;
 
-    QList<int> mtCodeLst;  //币种代码
-    QList<QString> mtFields; //存放与币种对应汇率的字段名（按序号一一对应）
-    s = QString("select code,sign from MoneyTypes where code!=%1").arg(RMB);
-    r = q.exec(s);
+    QList<int> wbCodes;     //外币币种代码
+    QList<QString> wbSigns; //外币符号列表
+    QList<QString> mtFields; //存放与外币币种对应汇率的字段名（按序号一一对应）
+    s = QString("select %1,%2 from %3").arg(fld_mt_code).arg(fld_mt_sign).arg(tbl_moneyType);
+    if(!q.exec(s))
+        return false;
+    QString mainSign,mtSign;
+    int mt;
     while(q.next()){
-        mtCodeLst << q.value(0).toInt();
-        mtFields << q.value(1).toString() + "2rmb";
+        mt = q.value(0).toInt();
+        mtSign = q.value(1).toString();
+        if(mt == mainMt)
+            mainSign = mtSign;
+        else{
+            wbCodes << mt;
+            wbSigns << mtSign;
+        }
     }
-
-    s = QString("select id from ExchangeRates where (year = %1) and (month = %2)")
-            .arg(y).arg(m);
-    if(q.exec(s) && q.first()){
+    for(int i = 0; i < wbCodes.count(); ++i)
+        mtFields << wbSigns.at(i) + "2" + mainSign;
+    s = QString("select id from %1 where (%2 = %3) and (%4 = %5)")
+            .arg(tbl_rateTable).arg(fld_rt_year).arg(y).arg(fld_rt_month).arg(m);
+    if(!q.exec(s))
+        return false;
+    if(q.first()){
         int id = q.value(0).toInt();
-        s = QString("update ExchangeRates set ");
+        s = QString("update %1 set ").arg(tbl_rateTable);
         for(int i = 0; i < mtFields.count(); ++i){
-            if(rates.contains(mtCodeLst[i])){
-                s.append(mtFields[i]).append("=")
-                        .append(QString::number(rates.value(mtCodeLst[i])))
-                        .append(", ");
-            }
+            if(rates.contains(wbCodes.at(i)))
+                s.append(QString("%1=%2,").arg(mtFields.at(i))
+                         .arg(rates.value(wbCodes.at(i)).toString()));
+
         }
 
-        s.chop(2);
+        s.chop(1);
         s.append(QString(" where id = %1").arg(id));
-        r = q.exec(s);
-        return r;
+        if(!q.exec(s))
+            return false;
     }
     else{
-        s = QString("insert into ExchangeRates(year,month,");
+        s = QString("insert into %1(%2,%3,").arg(tbl_rateTable).arg(fld_rt_year).arg(fld_rt_month);
         vs = QString("values(%1,%2,").arg(y).arg(m);
         for(int i = 0; i < mtFields.count(); ++i){
-            if(rates.contains(mtCodeLst[i])){
-                s.append(mtFields[i]).append(", ");
-                vs.append(QString::number(rates.value(mtCodeLst[i]),'f',2))
-                        .append(", ");
+            if(rates.contains(wbCodes.at(i))){
+                s.append(mtFields.at(i)).append(",");
+                vs.append(rates.value(wbCodes[i]).toString()).append(",");
             }
         }
-        s.chop(2); vs.chop(2);
+        s.chop(1); vs.chop(1);
         s.append(") "); vs.append(")");
         s.append(vs);
-        r = q.exec(s);
-        return r;
+        if(!q.exec(s))
+            return false;
     }
+    return true;
 }
-
-bool BusiUtil::saveRates2(int y, int m, QHash<int, Double> &rates)
-{
-    QSqlQuery q;
-    QString s,vs;
-    bool r;
-
-    QList<int> mtCodeLst;  //币种代码
-    QList<QString> mtFields; //存放与币种对应汇率的字段名（按序号一一对应）
-    s = QString("select code,sign from MoneyTypes where code!=%1").arg(RMB);
-    r = q.exec(s);
-    while(q.next()){
-        mtCodeLst << q.value(0).toInt();
-        mtFields << q.value(1).toString() + "2rmb";
-    }
-
-    s = QString("select id from ExchangeRates where (year = %1) and (month = %2)")
-            .arg(y).arg(m);
-    if(q.exec(s) && q.first()){
-        int id = q.value(0).toInt();
-        s = QString("update ExchangeRates set ");
-        for(int i = 0; i < mtFields.count(); ++i){
-            if(rates.contains(mtCodeLst[i])){
-                s.append(mtFields[i]).append("=")
-                        .append(rates.value(mtCodeLst[i]).toString())
-                        .append(", ");
-            }
-        }
-
-        s.chop(2);
-        s.append(QString(" where id = %1").arg(id));
-        r = q.exec(s);
-        return r;
-    }
-    else{
-        s = QString("insert into ExchangeRates(year,month,");
-        vs = QString("values(%1,%2,").arg(y).arg(m);
-        for(int i = 0; i < mtFields.count(); ++i){
-            if(rates.contains(mtCodeLst[i])){
-                s.append(mtFields[i]).append(", ");
-                vs.append(rates.value(mtCodeLst[i]).toString())
-                        .append(", ");
-            }
-        }
-        s.chop(2); vs.chop(2);
-        s.append(") "); vs.append(")");
-        s.append(vs);
-        r = q.exec(s);
-        return r;
-    }
-}
-
 
 /**
-    获取所有指定类别的损类总账和明细科目的id列表
-    参数，isIncome：true（收入类），false（费用类）
+ * @brief BusiUtil::getMTName
+ *  获取币种代码表
+ * @param names
+ * @return
+ */
+bool BusiUtil::getMTName(QHash<int, QString> &names)
+{
+    QSqlQuery q;
+    QString s;
+
+    s = QString("select %1,%2 from %3").arg(fld_mt_code).arg(fld_mt_name).arg(tbl_moneyType);
+    if(!q.exec(s))
+        return false;
+    while(q.next())
+        names[q.value(0).toInt()] = q.value(1).toString();
+    return true;
+}
+
+/**
+ * @brief BusiUtil::getSubCodeByName
+ *  按科目名称获取科目代码（一级科目）
+ * @param code      科目代码
+ * @param name      科目名称
+ * @param subSys    科目系统代码
+ * @return
+ */
+bool BusiUtil::getSubCodeByName(QString &code, QString name, int subSys)
+{
+        QSqlQuery q;
+        QString s;
+
+        s = QString("select subCode from FirSubjects where subName = '%1' and subSys=%2")
+                .arg(name).arg(subSys);
+        s = QString("select %1 from %2 where %3=%4 and %5='%6'")
+                .arg(fld_fsub_subcode).arg(tbl_fsub).arg(fld_fsub_subSys)
+                .arg(subSys).arg(fld_fsub_name).arg(name);
+        if(!q.exec(s))
+            return false;
+        if(!q.first()){
+            QMessageBox::information(0,QObject::tr("提示信息"),
+                                     QString(QObject::tr("未能找到科目%1")).arg(name));
+            return false;
+        }
+        code = q.value(0).toString();
+        return true;
+}
+
+/**
+ * @brief BusiUtil::getIdByCode
+ *  按科目代码获取该科目在一级科目表中的id值
+ * @param id
+ * @param code
+ * @return
+ */
+bool BusiUtil::getIdByCode(int &id, QString code, int subSys)
+{
+        QSqlQuery q;
+        QString s = QString("select id from %1 where %2 = %3 and %4 = '%5'")
+                .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys)
+                .arg(fld_fsub_subcode).arg(code);
+        if(!q.exec(s))
+            return false;
+        if(!q.first()){
+            QMessageBox::information(0,QObject::tr("提示信息"),
+                                     QString(QObject::tr("未能找到科目代码%1")).arg(code));
+            return false;
+        }
+        id = q.value(0).toInt();
+        return true;
+}
+
+/**
+ * @brief BusiUtil::getSidByName
+ *  按科目名称获取该二级科目id
+ * @param fname     一级科目名称
+ * @param sname     二级科目名称
+ * @param id        明细科目id
+ * @return
+ */
+bool BusiUtil::getSidByName(QString fname, QString sname, int &id, int subSys)
+{
+        QSqlQuery q;
+        QString s;
+        int fid;
+        if(!getIdByName(fid,fname,subSys))
+            return false;
+        s = QString("select %1.id from %1 join %2 where "
+                    "(%1.%3=%2.id) and (%1.%4=%5) "
+                    "and (%2.%6='%7')").arg(tbl_fsa).arg(tbl_ssub).arg(fld_fsa_sid)
+                .arg(fld_fsa_fid).arg(fid).arg(fld_ssub_name).arg(sname);
+        if(!q.exec(s))
+            return false;
+        if(!q.first())
+            return false;
+        id = q.value(0).toInt();
+        return true;
+}
+
+/**
+ * @brief BusiUtil::getIdByName
+ *  按科目名称获取该科目在一级科目表中的id值
+ * @param id
+ * @param name
+ * @return
+ */
+bool BusiUtil::getIdByName(int &id, QString name, int subSys)
+{
+        QSqlQuery q;
+        QString s;
+
+        s = QString("select id from %1 where %2 = %3 and %4 = '%5'").arg(tbl_fsub)
+                .arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_name).arg(name);
+        if(!q.exec(s))
+            return false;
+        if(!q.first()){
+            QMessageBox::information(0,QObject::tr("提示信息"),
+                                     QString(QObject::tr("未能找到科目：%1")).arg(name));
+            return false;
+        }
+        id = q.value(0).toInt();
+        return true;
+}
+
+/**
+ * @brief BusiUtil::getIdsByCls
+ *  获取指定科目类别下的所有一级科目的id
+        参数cls：，isByView：
+ * @param ids       一级科目类别代码
+ * @param cls       科目类别
+ * @param isByView  是否只输出配置为显示的一级科目
+ * @return
+ */
+bool BusiUtil::getIdsByCls(QList<int> &ids, int cls, bool isByView, int subSys)
+{
+    QSqlQuery q;
+    QString s;
+
+    s = QString("select id from %1 where %2=%3 and %4 = %5").arg(tbl_fsub)
+            .arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_class).arg(cls);
+    if(isByView)
+        s.append(QString(" and %1 = 1").arg(fld_fsub_isview));
+    if(!q.exec(s))
+        return false;
+    while(q.next())
+        ids.append(q.value(0).toInt());
+    return true;
+}
+
+/**
+
+    参数，isIncome：
 */
-bool BusiUtil::getAllIdForSy(bool isIncome, QHash<int, QList<int> >& ids)
+/**
+ * @brief BusiUtil::getAllIdForSy
+ *  获取所有指定类别的损类总账和明细科目的id列表
+ * @param isIncome  true（收入类），false（费用类）
+ * @param ids
+ * @return
+ */
+bool BusiUtil::getAllIdForSy(bool isIncome, QHash<int, QList<int> >& ids, int subSys)
 {
     QString s;
     QSqlQuery q;
     bool r;
 
-    int cid = 5; //损益类科目类别代码
-    if(isIncome){
-        s = QString("select id from FirSubjects where (belongTo=%1) and "
-                    "(jdDir=0) and (isView=1)").arg(cid);
-    }
-    else{
-        s = QString("select id from FirSubjects where (belongTo=%1) and "
-                    "(jdDir=1) and (isView=1)").arg(cid);
-    }
-    r = q.exec(s);
+    //获取损益类科目类别代码
+    s = QString("select %1 from %2 where %3=%4 and %5='%6'")
+            .arg(fld_fsc_code).arg(tbl_fsclass).arg(fld_fsc_subSys)
+            .arg(subSys).arg(fld_fsc_name).arg(QObject::tr("损益类"));
+    if(!q.exec(s))
+        return false;
+    if(!q.first())
+        return false;
+    int cid = q.value(0).toInt();
+    s = QString("select id from %1 where (%2=%3) and "
+                "(%4=%5) and (%6=1)").arg(tbl_fsub).arg(fld_fsub_class).arg(cid)
+            .arg(fld_fsub_jddir).arg(isIncome?0:1).arg(fld_fsub_isview);
+    if(!q.exec(s))
+        return false;
     QList<QString> snames;
     while(q.next()){
         int fid = q.value(0).toInt();
@@ -632,8 +738,9 @@ bool BusiUtil::getAllSubSName(QHash<int,QString>& names)
     QSqlQuery q;
     QString s;
 
-    s = QString("select FSAgent.id,SecSubjects.subName from FSAgent "
-                "join SecSubjects where FSAgent.sid = SecSubjects.id");
+    s = QString("select %1.id,%2.%3 from %1 "
+                "join %2 where %1.%4 = %2.id")
+            .arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_name).arg(fld_fsa_sid);
     if(!q.exec(s)){
         QMessageBox::information(0, QObject::tr("提示信息"),
                                  QString(QObject::tr("不能获取所有子科目哈希表")));
@@ -666,8 +773,9 @@ bool BusiUtil::getAllSubSLName(QHash<int,QString>& names)
         QSqlQuery q;
         QString s;
 
-        s = QString("select FSAgent.id,SecSubjects.subLName from FSAgent "
-                    "join SecSubjects where FSAgent.sid = SecSubjects.id");
+        s = QString("select %1.id,%2.%3 from %1 "
+                    "join %2 where %1.%4 = %2.id")
+                .arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_lname).arg(fld_fsa_sid);
         if(!q.exec(s)){
             QMessageBox::information(0, QObject::tr("提示信息"),
                                      QString(QObject::tr("不能获取所有子科目全名的哈希表")));
@@ -697,8 +805,15 @@ bool BusiUtil::getAllFstSub(QList<int>& ids, QList<QString>& names, bool isByVie
     return r;
 }
 
-//获取所有指定总目下的子目（参数ids：子目id，names：子目名）
-bool BusiUtil::getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names)
+/**
+ * @brief BusiUtil::getSndSubInSpecFst
+ *  获取所有指定总目下的子目（参数ids：，names：）
+ * @param pid       主目id
+ * @param ids       子目id
+ * @param names     子目名
+ * @return
+ */
+bool BusiUtil::getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names, int subSys)
 {
     QString s;
     QSqlQuery q;
@@ -707,79 +822,87 @@ bool BusiUtil::getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& name
         ids.clear();
     if(!names.empty())
         names.clear();
-    s = QString("select FSAgent.id, SecSubjects.subName from FSAgent "
-                "join SecSubjects where (FSAgent.sid = SecSubjects.id) "
-                "and (FSAgent.fid = %1)").arg(pid);
-    bool r = q.exec(s);
+    s = QString("select %1.id, %2.%3 from %1 "
+                "join %2 where %1.%4 = %2.id "
+                "and %1.%5 = %6")
+            .arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_name).arg(fld_fsa_sid)
+            .arg(fld_fsa_fid).arg(pid);
+    if(!q.exec(s))
+        return false;
     while(q.next()){
         ids.append(q.value(0).toInt());
         names.append(q.value(1).toString());
     }
-    return r;
+    return true;
+}
+
+/**
+ * @brief BusiUtil::getOwnerSub
+ *  获取指定一级科目下的所有子科目（id到科目名的哈希表）
+ * @param oid
+ * @param names
+ * @return
+ */
+bool BusiUtil::getOwnerSub(int oid, QHash<int, QString> &names)
+{
+    QSqlQuery q;
+    QString s;
+
+//    s = QString("select FSAgent.id,SecSubjects.subName from FSAgent "
+//                "join SecSubjects where (FSAgent.sid = SecSubjects.id) "
+//                "and (fid = %1)").arg(oid);
+    s = QString("select %1.id,%2.%3 from %1 join %2 where %1.%4 = %2.id "
+                "and %1.%5 = %6").arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_name)
+                .arg(fld_fsa_sid).arg(fld_fsa_fid).arg(oid);
+    if(!q.exec(s))
+        return false;
+    while(q.next())
+        names[q.value(0).toInt()] = q.value(1).toString();
+    return true;
 }
 
 //获取指定总目下、指定子目子集的名称（参数sids：指定子目子集id，names：子目名）
-bool BusiUtil::getSubSetNameInSpecFst(int pid, QList<int> sids, QList<QString>& names)
+//bool BusiUtil::getSubSetNameInSpecFst(int pid, QList<int> sids, QList<QString>& names)
+//{
+//    QString s;
+//    QSqlQuery q;
+
+//    if(!names.empty())
+//        names.clear();
+//    s = QString("select FSAgent.id, SecSubjects.subName from FSAgent "
+//                "join SecSubjects where (FSAgent.sid = SecSubjects.id) "
+//                "and (FSAgent.fid = %1)").arg(pid);
+//    bool r = q.exec(s);
+//    int sid;
+//    while(q.next()){
+//        sid = q.value(0).toInt();
+//        if(sids.contains(sid))
+//            names.append(q.value(1).toString());
+//    }
+//    return r;
+//}
+
+/**
+ * @brief BusiUtil::getActionsInPz2
+ *  获取指定凭证内的会计分录
+ * @param pid
+ * @param busiActions
+ * @return
+ */
+bool BusiUtil::getActionsInPz(int pid, QList<BusiActionData2 *> &busiActions)
 {
     QString s;
     QSqlQuery q;
 
-    if(!names.empty())
-        names.clear();
-    s = QString("select FSAgent.id, SecSubjects.subName from FSAgent "
-                "join SecSubjects where (FSAgent.sid = SecSubjects.id) "
-                "and (FSAgent.fid = %1)").arg(pid);
-    bool r = q.exec(s);
-    int sid;
-    while(q.next()){
-        sid = q.value(0).toInt();
-        if(sids.contains(sid))
-            names.append(q.value(1).toString());
-    }
-    return r;
-}
-
-//获取指定凭证id下的所有业务活动列表
-bool BusiUtil::getActionsInPz(int pid, QList<BusiActionData*>& busiActions)
-{
-    QString s;
-    QSqlQuery q;
-
-    if(busiActions.count() > 0)
+    if(busiActions.count() > 0){
+        qDeleteAll(busiActions);
         busiActions.clear();
-
-    s = QString("select * from BusiActions where pid = %1 order by NumInPz").arg(pid);
-    bool r = q.exec(s);
-    while(q.next()){
-        BusiActionData* ba = new BusiActionData;
-        ba->id = q.value(BACTION_ID).toInt();
-        ba->pid = pid;
-        ba->summary = q.value(BACTION_SUMMARY).toString();
-        ba->fid = q.value(BACTION_FID).toInt();
-        ba->sid = q.value(BACTION_SID).toInt();
-        ba->mt  = q.value(BACTION_MTYPE).toInt();
-        ba->dir = q.value(BACTION_DIR).toInt();
-        if(ba->dir == DIR_J)
-            ba->v = q.value(BACTION_JMONEY).toDouble();
-        else
-            ba->v = q.value(BACTION_DMONEY).toDouble();
-        ba->num = q.value(BACTION_NUMINPZ).toInt();
-        ba->state = BusiActionData::INIT;
-        busiActions.append(ba);
     }
-    return r;
-}
 
-bool BusiUtil::getActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions)
-{
-    QString s;
-    QSqlQuery q;
-
-    if(busiActions.count() > 0)
-        busiActions.clear();
-
-    s = QString("select * from BusiActions where pid = %1 order by NumInPz").arg(pid);
-    bool r = q.exec(s);
+    s = QString("select * from %1 where %2 = %3 order by %4")
+            .arg(tbl_ba).arg(fld_ba_pid).arg(pid).arg(fld_ba_number);
+    if(!q.exec(s))
+        return false;
     while(q.next()){
         BusiActionData2* ba = new BusiActionData2;
         ba->id = q.value(BACTION_ID).toInt();
@@ -797,24 +920,34 @@ bool BusiUtil::getActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions)
         ba->state = BusiActionData2::INIT;
         busiActions.append(ba);
     }
-    return r;
+    return true;
 }
 
-//获取所有一级科目下的默认子科目（使用频度最高的子科目）
-bool BusiUtil::getDefaultSndSubs(QHash<int,int>& defSubs)
+/**
+ * @brief BusiUtil::getDefaultSndSubs
+ *  获取所有一级科目下的默认子科目（使用频度最高的子科目）
+ * @param defSubs
+ * @return
+ */
+bool BusiUtil::getDefaultSndSubs(QHash<int,int>& defSubs, int subSys)
 {
     QString s;
     QSqlQuery q1,q2;
-    bool r;
     int fs; //科目被使用的频度值或权重值
     int fid,id;
 
-    r = q1.exec("select id from FirSubjects where isView = 1");
+    s = QString("select id from %1 where %2=%3 and %4=1")
+            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_isview);
+    if(!q1.exec())
+        return false;
     while(q1.next()){
         fid = q1.value(0).toInt();
         s = QString("select id,FrequencyStat from FSAgent where fid = %1")
                 .arg(fid);
-        r = q2.exec(s);
+        s = QString("select id,%1 from %2 where %3=%4").arg(fld_fsa_weight)
+                .arg(tbl_fsa).arg(fld_fsa_fid).arg(fid);
+        if(!q2.exec(s))
+            return false;
         fs=id=0;
         //找出在某个一级科目下的最大使用频度值的明细科目id
         while(q2.next()){
@@ -829,98 +962,35 @@ bool BusiUtil::getDefaultSndSubs(QHash<int,int>& defSubs)
 
 }
 
-//保存指定凭证下的业务活动
-bool BusiUtil::saveActionsInPz(int pid, QList<BusiActionData*>& busiActions,
-                               QList<BusiActionData*> dels)
+/**
+ * @brief BusiUtil::getSidToFid
+ *  获取子目id所属的总目id反向映射表
+ * @param sidToFids
+ * @return
+ */
+bool BusiUtil::getSidToFid(QHash<int, int> &sidToFids, int subSys)
 {
+    QSqlQuery q;
     QString s;
-    QSqlQuery q1,q2,q3,q4;
-    bool r, hasNew = false;
 
-    s = QString("insert into BusiActions(pid,summary,firSubID,secSubID,"
-                "moneyType,jMoney,dMoney,dir,NumInPz) values(:pid,:summary,"
-                ":fid,:sid,:mt,:jv,:dv,:dir,:num)");
-    r = q1.prepare(s);
-    s = QString("update BusiActions set summary=:summary,firSubID=:fid,"
-                "secSubID=:sid,moneyType=:mt,jMoney=:jv,dMoney=:dv,"
-                "dir=:dir,NumInPz=:num where id=:id");
-    r = q2.prepare(s);
-    s = "update BusiActions set NumInPz=:num where id=:id";
-    r = q3.prepare(s);
-    s = "delete from BusiActions where id=:id";
-    r = q4.prepare(s);
-
-    BusiActionData* blankItem;
-    if(!busiActions.isEmpty()){        
-        for(int i = 0; i < busiActions.count(); ++i){
-            busiActions[i]->num = i + 1;  //在保存的同时，重新赋于顺序号
-            switch(busiActions[i]->state){
-            case BusiActionData::INIT:
-                break;
-            case BusiActionData::NEW:
-                hasNew = true;
-                q1.bindValue(":pid",busiActions[i]->pid);
-                q1.bindValue(":summary", busiActions[i]->summary);
-                q1.bindValue(":fid", busiActions[i]->fid);
-                q1.bindValue(":sid", busiActions[i]->sid);
-                q1.bindValue(":mt", busiActions[i]->mt);
-                if(busiActions[i]->dir == DIR_J){
-                    q1.bindValue(":jv", busiActions[i]->v);
-                    q1.bindValue(":dv",0);
-                    q1.bindValue(":dir", DIR_J);
-                }
-                else{
-                    q1.bindValue(":jv",0);
-                    q1.bindValue(":dv", busiActions[i]->v);
-                    q1.bindValue(":dir", DIR_D);
-                }
-                q1.bindValue(":num", busiActions[i]->num);
-                r = q1.exec();
-                if(r)
-                    busiActions[i]->state = BusiActionData::INIT;
-                break;
-            case BusiActionData::EDITED:
-                q2.bindValue(":summary", busiActions[i]->summary);
-                q2.bindValue(":fid", busiActions[i]->fid);
-                q2.bindValue(":sid", busiActions[i]->sid);
-                q2.bindValue(":mt", busiActions[i]->mt);
-                if(busiActions[i]->dir == DIR_J){
-                    q2.bindValue(":jv", busiActions[i]->v);
-                    q2.bindValue(":dv",0);
-                    q2.bindValue(":dir", DIR_J);
-                }
-                else{
-                    q2.bindValue(":jv",0);
-                    q2.bindValue(":dv", busiActions[i]->v);
-                    q2.bindValue(":dir", DIR_D);
-                }
-                q2.bindValue(":num", busiActions[i]->num);
-                q2.bindValue("id", busiActions[i]->id);
-                r = q2.exec();
-                if(r)
-                    busiActions[i]->state = BusiActionData::INIT;
-                break;
-            case BusiActionData::NUMCHANGED:
-                q3.bindValue(":num", busiActions[i]->num);
-                q3.bindValue(":id", busiActions[i]->id);
-                r = q3.exec();
-                if(r)
-                    busiActions[i]->state = BusiActionData::INIT;
-                break;
-            }
-        }
-        //回读新增的业务活动的id(待需要时再使用此代码)
-        if(hasNew){
-            r = getActionsInPz(pid,busiActions);            
+    s = QString("select id from %1 where %2=%3").arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
+    if(!q.exec(s))
+        return false;
+    QList<int> fids;
+    while(q.next())
+        fids<<q.value(0).toInt();
+    s = QString("select id,%1 from %2").arg(fld_fsa_fid).arg(tbl_fsa);
+    if(!q.exec(s))
+        return false;
+    int fid,id;
+    while(q.next()){
+        fid = q.value(1).toInt();
+        if(fids.contains(fid)){
+            id = q.value(0).toInt();
+            sidToFids[id] = fid;
         }
     }
-    if(!dels.isEmpty()){
-        for(int i = 0; i < dels.count(); ++i){
-            q4.bindValue(":id", dels[i]->id);
-            r = q4.exec();
-        }
-    }
-    return r;
+    return true;
 }
 
 bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, QList<BusiActionData2 *> dels)
@@ -1004,7 +1074,7 @@ bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, 
             return false;
         //回读新增的业务活动的id(待需要时再使用此代码)
         if(hasNew){
-            r = getActionsInPz2(pid,busiActions);
+            r = getActionsInPz(pid,busiActions);
         }
     }
     if(!dels.isEmpty()){
@@ -1032,249 +1102,6 @@ bool BusiUtil::delActionsInPz(int pzId)
     return r;
 }
 
-/**
-    生成明细科目日记账数据列表（金额式）
-    参数sid：明细科目id，dlist：日记账数据，preExtra：前期余额，curSum：当期合计
-*/
-bool BusiUtil::getDailyForJe(int y,int m, int fid, int sid,
-                   QList<RowTypeForJe*>& dlist, double& preExtra, int& preExtraDir)
-{
-    QSqlQuery q;
-    QString s;
-
-    //获取汇率
-    QHash<int,double> rates;
-    getRates(y,m,rates);
-    rates[RMB] = 1;
-
-    //读取前期余额
-    int yy,mm;
-    if(m == 12){
-        yy = y - 1;
-        mm = 1;
-    }
-    else{
-        yy = y;
-        mm = m - 1;
-    }
-    QHash<int,double> preExtras;
-    QHash<int,int> preExtraDirs;
-    if(sid == 0)  //读取总账期初科目余额
-        readExtraForSub(yy,mm,fid,preExtras,preExtraDirs);
-    else          //读取明细期初科目余额
-        readExtraForDetSub(yy,mm,sid,preExtras,preExtraDirs);
-    //合计前期余额
-    QHashIterator<int,double> i(preExtras);
-    while(i.hasNext()){
-        i.next();
-        if(preExtraDirs.value(i.key()) == DIR_P)
-            continue;
-        else if(preExtraDirs.value(i.key()) == DIR_J)
-            preExtra += (i.value() * rates.value(i.key()));
-        else
-            preExtra -= (i.value() * rates.value(i.key()));
-    }
-    if(preExtra == 0)
-        preExtraDir = DIR_P;
-    else if(preExtra > 0)
-        preExtraDir = DIR_J;
-    else
-        preExtraDir = DIR_D;
-
-    QString d = QDate(y,m,1).toString(Qt::ISODate);
-    d.chop(3);
-
-    if(sid == 0){
-        s = QString("select PingZhengs.date, PingZhengs.number, PingZhengs.class, "
-                    "BusiActions.summary, BusiActions.jMoney, BusiActions.dMoney, "
-                    "BusiActions.moneyType,BusiActions.dir, BusiActions.toTotal, "
-                    "BusiActions.toDetails, BusiActions.pid, PingZhengs.accBookGroup, BusiActions.id "
-                    "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
-                    "where (BusiActions.firSubID = %1) and (PingZhengs.date like '%2%')"
-                    "order by PingZhengs.date").arg(fid).arg(d);
-    }
-    else{
-        s = QString("select PingZhengs.date, PingZhengs.number, PingZhengs.class, "
-                    "BusiActions.summary, BusiActions.jMoney, BusiActions.dMoney, "
-                    "BusiActions.moneyType,BusiActions.dir, BusiActions.toTotal, "
-                    "BusiActions.toDetails, BusiActions.pid, PingZhengs.accBookGroup, BusiActions.id "
-                    "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
-                    "where (BusiActions.secSubID = %1) and (PingZhengs.date like '%2%')"
-                    "order by PingZhengs.date").arg(sid).arg(d);
-    }
-
-    bool r = q.exec(s);
-    QHash<int,QString> bgCls;  //凭证分册类型哈希表
-    getPzSClass(bgCls);
-    double extra = preExtra; //保存每次发生后的余额，初值等于期初余额
-    while(q.next()){
-        RowTypeForJe* item = new RowTypeForJe;
-        //凭证日期
-        QString date= q.value(0).toString();
-        QDate d = QDate::fromString(q.value(0).toString(), Qt::ISODate);
-        item->y = d.year();
-        item->m = d.month();
-        item->d = d.day();
-
-        //凭证号
-        int num = q.value(1).toInt(); //凭证号
-        int pc = q.value(2).toInt();  //凭证类别
-        item->pzNum = QString("%1%2").arg(bgCls.value(pc)).arg(num);
-        //凭证摘要
-        QString summary = q.value(3).toString();
-        int idx = summary.indexOf("<");
-        if(idx != -1){
-            summary = summary.left(idx);
-        }
-        item->summary = summary;
-        //借、贷方金额
-        int mt = q.value(6).toInt();    //业务发生的币种
-        item->dh = q.value(7).toInt();  //业务发生的借贷方向
-        if(item->dh == DIR_J)
-            item->v = q.value(4).toDouble() * rates.value(mt); //发生在借方
-        else
-            item->v = q.value(5).toDouble() * rates.value(mt); //发生在贷方
-
-        //余额
-        if(item->dh == DIR_J){
-            extra += item->v;
-            item->em = extra;
-        }
-        else{
-            extra -= item->v;
-            item->em = extra;
-        }
-        //余额方向
-        item->pid = q.value(10).toInt();
-        item->sid = q.value(12).toInt();
-        item->dir = getDirSubExa(extra,item->pid);
-
-        dlist.append(item);
-    }
-
-}
-
-/**
-    生成明细科目日记账数据列表（外币金额式）
-    参数sid：明细科目id，dlist：日记账数据，preExtra：前期余额，curSum：当期合计
-*/
-bool BusiUtil::getDailyForWj(int y,int m, int fid, int sid, QList<RowTypeForWj*>& dlist,
-                             QHash<int,double>& preExtra,QHash<int,int>& preExtraDir)
-{
-    QSqlQuery q;
-    QString s;
-
-    //获取汇率
-    QHash<int,double> rates;
-    getRates(y,m,rates);
-    rates[RMB] = 1;
-
-    //读取前期余额
-    int yy,mm;
-    if(m == 12){
-        yy = y - 1;
-        mm = 1;
-    }
-    else{
-        yy = y;
-        mm = m - 1;
-    }
-
-    if(sid == 0) //读取总账科目余额
-        readExtraForSub(yy,mm,fid,preExtra,preExtraDir);
-    else
-        readExtraForDetSub(yy,mm,sid,preExtra,preExtraDir);
-    QHash<int,double> esums = preExtra; //保存每次发生业务活动后的各币种余额，初值就是前期余额
-    //合计前期余额
-    QHashIterator<int,double> i(preExtra);
-    double tsums = 0;  //保存期初总余额及其每次发生后的总余额（各币种合计值）
-    while(i.hasNext()){ //计算期初总余额
-        i.next();
-        if(preExtraDir.value(i.key()) == DIR_P)
-            continue;
-        else if(preExtraDir.value(i.key()) == DIR_J)
-            tsums += (i.value() * rates.value(i.key()));
-        else
-            tsums -= (i.value() * rates.value(i.key()));
-    }
-
-
-    QString d = QDate(y,m,1).toString(Qt::ISODate);
-    d.chop(3);
-    if(sid == 0){  //读取总分类日记账数据
-        s = QString("select PingZhengs.date,PingZhengs.number,BusiActions.summary,"
-                    "BusiActions.id,BusiActions.pid,BusiActions.jMoney,BusiActions.dMoney,"
-                    "BusiActions.moneyType,BusiActions.dir "
-                    "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
-                    "where (BusiActions.firSubID = %1) and (PingZhengs.date like '%2%') "
-                    "order by PingZhengs.date").arg(fid).arg(d);
-    }
-    else{
-        s = QString("select PingZhengs.date,PingZhengs.number,BusiActions.summary,"
-                    "BusiActions.id,BusiActions.pid,BusiActions.jMoney,BusiActions.dMoney,"
-                    "BusiActions.moneyType,BusiActions.dir "
-                    "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
-                    "where (BusiActions.secSubID = %1) and (PingZhengs.date like '%2%') "
-                    "order by PingZhengs.date")
-                    .arg(sid).arg(d);
-    }
-
-    bool r = q.exec(s);
-    while(q.next()){
-        RowTypeForWj* item = new RowTypeForWj;
-        //凭证日期
-        QString date= q.value(0).toString();
-        QDate d = QDate::fromString(q.value(0).toString(), Qt::ISODate);
-        item->y = d.year();
-        item->m = d.month();
-        item->d = d.day();
-        //凭证号
-        int num = q.value(1).toInt(); //凭证号        
-        item->pzNum = QObject::tr("计%1").arg(num);        
-        //凭证摘要
-        QString summary = q.value(2).toString();
-        int idx = summary.indexOf("<");
-        if(idx != -1){
-            summary = summary.left(idx);
-        }
-        item->summary = summary;
-        //借、贷方金额
-        item->mt = q.value(7).toInt();  //业务发生的币种
-        item->dh = q.value(8).toInt();  //业务发生的借贷方向
-        if(item->dh == DIR_J)
-            item->v = q.value(5).toDouble(); //发生在借方
-        else
-            item->v = q.value(6).toDouble(); //发生在贷方
-
-        //余额
-        if(item->dh == DIR_J){
-            tsums += (item->v * rates.value(item->mt));
-            esums[item->mt] += item->v;
-        }
-        else{
-            tsums -= (item->v * rates.value(item->mt));
-            esums[item->mt] -= item->v;
-        }
-        //确定总余额的方向和值（余额值始终用正数表示，而在计算时，借方用正数，贷方用负数）
-        item->em = esums;  //分币种余额
-        if(tsums > 0){
-            item->etm = tsums; //各币种合计余额
-            item->dir = DIR_J;
-        }
-        else if(tsums < 0){
-            item->etm = -tsums;
-            item->dir = DIR_D;
-        }
-        else{
-            item->etm = 0;
-            item->dir = DIR_P;
-        }
-        item->pid = q.value(4).toInt();
-        item->bid = q.value(3).toInt(); //这个？？测试目的
-        dlist.append(item);
-    }
-
-}
 
 //将各币种的余额汇总为用母币计的余额并确定余额方向
 //参数 extra，extraDir：余额及其方向，键为币种代码，rate：汇率
@@ -1301,6 +1128,41 @@ bool BusiUtil::calExtraAndDir(QHash<int,double> extra,QHash<int,int> extraDir,
         mDir = DIR_D;
         mExtra = -mExtra;
     }
+    return true;
+}
+
+/**
+ * @brief BusiUtil::calExtraAndDir2
+ *  将各币种的余额汇总为用母币计的余额并确定余额方向
+ * @param extra     余额，键为币种代码
+ * @param extraDir  余额方向，键为币种代码
+ * @param rate      汇率
+ * @param mExtra    用母币计的余额值
+ * @param mDir      余额方向
+ * @return
+ */\
+bool BusiUtil::calExtraAndDir2(QHash<int, Double> extra, QHash<int, int> extraDir, QHash<int, Double> rate, Double &mExtra, int &mDir)
+{
+    mExtra = 0;
+    QHashIterator<int,Double> i(extra);
+    while(i.hasNext()){ //计算期初总余额
+        i.next();
+        if(extraDir.value(i.key()) == DIR_P)
+            continue;
+        else if(extraDir.value(i.key()) == DIR_J)
+            mExtra += i.value() * rate.value(i.key());
+        else
+            mExtra -= i.value() * rate.value(i.key());
+    }
+    if(mExtra == 0)
+        mDir = DIR_P;
+    else if(mExtra > 0)
+        mDir = DIR_J;
+    else{
+        mDir = DIR_D;
+        mExtra.changeSign();
+    }
+    return true;
 }
 
 //获取指定月份范围，指定科目（或科目范围）的日记账/明细账数据
@@ -1310,223 +1172,223 @@ bool BusiUtil::calExtraAndDir(QHash<int,double> extra,QHash<int,int> extraDir,
 //     rates为每月的汇率，键为月份 * 10 + 币种代码（其中，期初余额是个位数，用币种代码表示）
 //     fids：指定的总账科目代码，sids：所有在fids中指定的总账科目所属的明细科目代码总集合
 //     gv和lv表示要提取的业务活动的值上下界限，inc：是否包含未记账凭证
-bool BusiUtil::getDailyAccount(int y, int sm, int em, int fid, int sid, int mt,
-                               double& prev, int& preDir,
-                               QList<DailyAccountData*>& datas,
-                               QHash<int,double>& preExtra,
-                               QHash<int,int>& preExtraDir,
-                               QHash<int, double>& rates,
-                               QList<int> fids,
-                               QHash<int,QList<int> > sids,
-                               double gv,double lv,bool inc)
-{
-    QSqlQuery q;
-    QString s;
+//bool BusiUtil::getDailyAccount(int y, int sm, int em, int fid, int sid, int mt,
+//                               double& prev, int& preDir,
+//                               QList<DailyAccountData*>& datas,
+//                               QHash<int,double>& preExtra,
+//                               QHash<int,int>& preExtraDir,
+//                               QHash<int, double>& rates,
+//                               QList<int> fids,
+//                               QHash<int,QList<int> > sids,
+//                               double gv,double lv,bool inc)
+//{
+//    QSqlQuery q;
+//    QString s;
 
-    //读取前期余额
-    int yy,mm;
-    if(sm == 1){
-        yy = y - 1;
-        mm = 12;
-    }
-    else{
-        yy = y;
-        mm = sm - 1;
-    }
+//    //读取前期余额
+//    int yy,mm;
+//    if(sm == 1){
+//        yy = y - 1;
+//        mm = 12;
+//    }
+//    else{
+//        yy = y;
+//        mm = sm - 1;
+//    }
 
-    QHash<int,double> ra;
-    QHashIterator<int,double>* it;
-    //获取期初汇率并加入汇率表
-    getRates(yy,mm,ra);
-    ra[RMB] = 1;
-    it = new QHashIterator<int,double>(ra);
-    while(it->hasNext()){
-        it->next();
-        rates[it->key()] = it->value();  //期初汇率的键直接是货币代码
-    }
+//    QHash<int,double> ra;
+//    QHashIterator<int,double>* it;
+//    //获取期初汇率并加入汇率表
+//    getRates(yy,mm,ra);
+//    ra[RMB] = 1;
+//    it = new QHashIterator<int,double>(ra);
+//    while(it->hasNext()){
+//        it->next();
+//        rates[it->key()] = it->value();  //期初汇率的键直接是货币代码
+//    }
 
-    //只有提取指定总账科目的明细发生项的情况下，读取余额才有意义
-    if(fid != 0){
-        //读取总账科目或明细科目的余额
-        if(sid == 0)
-            readExtraForSub(yy,mm,fid,preExtra,preExtraDir);
-        else
-            readExtraForDetSub(yy,mm,sid,preExtra,preExtraDir);
-        //如果还指定了币种，则只保留该币种的余额
-        if(mt != ALLMT){
-            QHashIterator<int,double> it(preExtra);
-            while(it.hasNext()){
-                it.next();
-                if(mt != it.key()){
-                    preExtra.remove(it.key());
-                    preExtraDir.remove(it.key());
-                }
-            }
-        }
-    }
-
-
-    //保存每次发生业务活动后的各币种余额，初值就是前期余额
-    QHash<int,double> esums = preExtra;
-    double tsums = 0;  //保存按母币计的期初总余额及其每次发生后的总余额（将各币种用母币合计）
-    QHashIterator<int,double> i(preExtra);
-    while(i.hasNext()){ //计算期初总余额
-        i.next();
-        if(preExtraDir.value(i.key()) == DIR_P)
-            continue;
-        else if(preExtraDir.value(i.key()) == DIR_J)
-            tsums += (i.value() * ra.value(i.key()));
-        else
-            tsums -= (i.value() * ra.value(i.key()));
-    }
-    if(tsums == 0){
-        prev = 0; preDir = DIR_P;
-    }
-    else if(tsums > 0){
-        prev = tsums; preDir = DIR_J;
-    }
-    else{
-        prev = -tsums; preDir = DIR_D;
-    }
-
-    //获取指定月份范围的汇率
-    ra.clear();
-    for(int i = sm; i <= em; ++i){
-        getRates(y,i,ra);
-        ra[RMB] = 1;
-        it = new QHashIterator<int,double>(ra);
-        while(it->hasNext()){
-            it->next();
-            rates[i*10+it->key()] = it->value();
-        }
-        ra.clear();
-    }
+//    //只有提取指定总账科目的明细发生项的情况下，读取余额才有意义
+//    if(fid != 0){
+//        //读取总账科目或明细科目的余额
+//        if(sid == 0)
+//            readExtraForSub(yy,mm,fid,preExtra,preExtraDir);
+//        else
+//            readExtraForDetSub(yy,mm,sid,preExtra,preExtraDir);
+//        //如果还指定了币种，则只保留该币种的余额
+//        if(mt != ALLMT){
+//            QHashIterator<int,double> it(preExtra);
+//            while(it.hasNext()){
+//                it.next();
+//                if(mt != it.key()){
+//                    preExtra.remove(it.key());
+//                    preExtraDir.remove(it.key());
+//                }
+//            }
+//        }
+//    }
 
 
-    //构造查询语句
-    QString sd = QDate(y,sm,1).toString(Qt::ISODate);
-    QString ed = QDate(y,em,QDate(y,em,1).daysInMonth()).toString(Qt::ISODate);
+//    //保存每次发生业务活动后的各币种余额，初值就是前期余额
+//    QHash<int,double> esums = preExtra;
+//    double tsums = 0;  //保存按母币计的期初总余额及其每次发生后的总余额（将各币种用母币合计）
+//    QHashIterator<int,double> i(preExtra);
+//    while(i.hasNext()){ //计算期初总余额
+//        i.next();
+//        if(preExtraDir.value(i.key()) == DIR_P)
+//            continue;
+//        else if(preExtraDir.value(i.key()) == DIR_J)
+//            tsums += (i.value() * ra.value(i.key()));
+//        else
+//            tsums -= (i.value() * ra.value(i.key()));
+//    }
+//    if(tsums == 0){
+//        prev = 0; preDir = DIR_P;
+//    }
+//    else if(tsums > 0){
+//        prev = tsums; preDir = DIR_J;
+//    }
+//    else{
+//        prev = -tsums; preDir = DIR_D;
+//    }
 
-    s = QString("select PingZhengs.date,PingZhengs.number,BusiActions.summary,"
-                "BusiActions.id,BusiActions.pid,BusiActions.jMoney,BusiActions.dMoney,"
-                "BusiActions.moneyType,BusiActions.dir,BusiActions.firSubID,BusiActions.secSubID "
-                "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
-                "where (PingZhengs.date >= '%1') and (PingZhengs.date <= '%2')")
-                .arg(sd).arg(ed);
-    if(fid != 0)
-        s.append(QString(" and (BusiActions.firSubID = %1)").arg(fid));
-    if(sid != 0)
-        s.append(QString(" and (BusiActions.secSubID = %1)").arg(sid));
-    if(mt != ALLMT)
-        s.append(QString(" and (BusiActions.moneyType = %1)").arg(mt));
-    if(gv != 0)
-        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney > %3)) "
-                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney > %3)))")
-                 .arg(DIR_J).arg(DIR_D).arg(gv));
-    if(lv != 0)
-        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney < %3)) "
-                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney < %3)))")
-                 .arg(DIR_J).arg(DIR_D).arg(lv));
-    if(!inc)
-        s.append(QString(" and (PingZhengs.pzState = %1)").arg(Pzs_Instat));
-    s.append(" order by PingZhengs.date");
+//    //获取指定月份范围的汇率
+//    ra.clear();
+//    for(int i = sm; i <= em; ++i){
+//        getRates(y,i,ra);
+//        ra[RMB] = 1;
+//        it = new QHashIterator<int,double>(ra);
+//        while(it->hasNext()){
+//            it->next();
+//            rates[i*10+it->key()] = it->value();
+//        }
+//        ra.clear();
+//    }
 
-    if(!q.exec(s))
-        return false;
 
-    //if(!datas.empty())
-    //    datas.clear();
+//    //构造查询语句
+//    QString sd = QDate(y,sm,1).toString(Qt::ISODate);
+//    QString ed = QDate(y,em,QDate(y,em,1).daysInMonth()).toString(Qt::ISODate);
 
-    while(q.next()){
-        int id = q.value(9).toInt();
-        //如果要提取所有选定主目，则过滤掉所有未选定主目
-        if(fid == 0){            
-            if(!fids.contains(id))
-                continue;
-        }
-        //如果选择所有子目，则过滤掉所有未选定子目
-        if(sid == 0){
-            int iid = q.value(10).toInt();
-            if(!sids.value(id).contains(iid))
-                continue;
-        }
-        DailyAccountData* item = new DailyAccountData;
-        //凭证日期
-        QDate d = QDate::fromString(q.value(0).toString(), Qt::ISODate);
-        item->y = d.year();
-        item->m = d.month();
-        item->d = d.day();
-        //凭证号
-        int num = q.value(1).toInt(); //凭证号
-        item->pzNum = QObject::tr("计%1").arg(num);
-        //凭证摘要
-        QString summary = q.value(2).toString();
-        //如果是现金、银行科目
-        //结算号
-        //item->jsNum =
-        //对方科目
-        //item->oppoSub =
-        int idx = summary.indexOf("<");
-        if(idx != -1){
-            summary = summary.left(idx);
-        }
-        item->summary = summary;
-        //借、贷方金额
-        item->mt = q.value(7).toInt();  //业务发生的币种
-        item->dh = q.value(8).toInt();  //业务发生的借贷方向
-        if(item->dh == DIR_J)
-            item->v = q.value(5).toDouble(); //发生在借方
-        else
-            item->v = q.value(6).toDouble(); //发生在贷方
+//    s = QString("select PingZhengs.date,PingZhengs.number,BusiActions.summary,"
+//                "BusiActions.id,BusiActions.pid,BusiActions.jMoney,BusiActions.dMoney,"
+//                "BusiActions.moneyType,BusiActions.dir,BusiActions.firSubID,BusiActions.secSubID "
+//                "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
+//                "where (PingZhengs.date >= '%1') and (PingZhengs.date <= '%2')")
+//                .arg(sd).arg(ed);
+//    if(fid != 0)
+//        s.append(QString(" and (BusiActions.firSubID = %1)").arg(fid));
+//    if(sid != 0)
+//        s.append(QString(" and (BusiActions.secSubID = %1)").arg(sid));
+//    if(mt != ALLMT)
+//        s.append(QString(" and (BusiActions.moneyType = %1)").arg(mt));
+//    if(gv != 0)
+//        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney > %3)) "
+//                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney > %3)))")
+//                 .arg(DIR_J).arg(DIR_D).arg(gv));
+//    if(lv != 0)
+//        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney < %3)) "
+//                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney < %3)))")
+//                 .arg(DIR_J).arg(DIR_D).arg(lv));
+//    if(!inc)
+//        s.append(QString(" and (PingZhengs.pzState = %1)").arg(Pzs_Instat));
+//    s.append(" order by PingZhengs.date");
 
-        //余额
-        if(item->dh == DIR_J){
-            tsums += (item->v * rates.value(item->m*10+item->mt));
-            esums[item->mt] += item->v;
-        }
-        else{
-            tsums -= (item->v * rates.value(item->m*10+item->mt));
-            esums[item->mt] -= item->v;
-        }
+//    if(!q.exec(s))
+//        return false;
 
-        //保存分币种的余额及其方向
-        //item->em = esums;  //分币种余额
-        it = new QHashIterator<int,double>(esums);
-        while(it->hasNext()){
-            it->next();
-            if(it->value()>0){
-                item->em[it->key()] = it->value();
-                item->dirs[it->key()] = DIR_J;
-            }
-            else if(it->value() < 0){
-                item->em[it->key()] = -it->value();
-                item->dirs[it->key()] = DIR_D;
-            }
-            else{
-                item->em[it->key()] = 0;
-                item->dirs[it->key()] = DIR_P;
-            }
-        }
+//    //if(!datas.empty())
+//    //    datas.clear();
 
-        //确定总余额的方向和值（余额值始终用正数表示，而在计算时，借方用正数，贷方用负数）
-        if(tsums > 0){
-            item->etm = tsums; //各币种合计余额
-            item->dir = DIR_J;
-        }
-        else if(tsums < 0){
-            item->etm = -tsums;
-            item->dir = DIR_D;
-        }
-        else{
-            item->etm = 0;
-            item->dir = DIR_P;
-        }
-        item->pid = q.value(4).toInt();
-        item->bid = q.value(3).toInt(); //这个？？测试目的
-        datas.append(item);
-    }
-    return true;
-}
+//    while(q.next()){
+//        int id = q.value(9).toInt();
+//        //如果要提取所有选定主目，则过滤掉所有未选定主目
+//        if(fid == 0){
+//            if(!fids.contains(id))
+//                continue;
+//        }
+//        //如果选择所有子目，则过滤掉所有未选定子目
+//        if(sid == 0){
+//            int iid = q.value(10).toInt();
+//            if(!sids.value(id).contains(iid))
+//                continue;
+//        }
+//        DailyAccountData* item = new DailyAccountData;
+//        //凭证日期
+//        QDate d = QDate::fromString(q.value(0).toString(), Qt::ISODate);
+//        item->y = d.year();
+//        item->m = d.month();
+//        item->d = d.day();
+//        //凭证号
+//        int num = q.value(1).toInt(); //凭证号
+//        item->pzNum = QObject::tr("计%1").arg(num);
+//        //凭证摘要
+//        QString summary = q.value(2).toString();
+//        //如果是现金、银行科目
+//        //结算号
+//        //item->jsNum =
+//        //对方科目
+//        //item->oppoSub =
+//        int idx = summary.indexOf("<");
+//        if(idx != -1){
+//            summary = summary.left(idx);
+//        }
+//        item->summary = summary;
+//        //借、贷方金额
+//        item->mt = q.value(7).toInt();  //业务发生的币种
+//        item->dh = q.value(8).toInt();  //业务发生的借贷方向
+//        if(item->dh == DIR_J)
+//            item->v = q.value(5).toDouble(); //发生在借方
+//        else
+//            item->v = q.value(6).toDouble(); //发生在贷方
+
+//        //余额
+//        if(item->dh == DIR_J){
+//            tsums += (item->v * rates.value(item->m*10+item->mt));
+//            esums[item->mt] += item->v;
+//        }
+//        else{
+//            tsums -= (item->v * rates.value(item->m*10+item->mt));
+//            esums[item->mt] -= item->v;
+//        }
+
+//        //保存分币种的余额及其方向
+//        //item->em = esums;  //分币种余额
+//        it = new QHashIterator<int,double>(esums);
+//        while(it->hasNext()){
+//            it->next();
+//            if(it->value()>0){
+//                item->em[it->key()] = it->value();
+//                item->dirs[it->key()] = DIR_J;
+//            }
+//            else if(it->value() < 0){
+//                item->em[it->key()] = -it->value();
+//                item->dirs[it->key()] = DIR_D;
+//            }
+//            else{
+//                item->em[it->key()] = 0;
+//                item->dirs[it->key()] = DIR_P;
+//            }
+//        }
+
+//        //确定总余额的方向和值（余额值始终用正数表示，而在计算时，借方用正数，贷方用负数）
+//        if(tsums > 0){
+//            item->etm = tsums; //各币种合计余额
+//            item->dir = DIR_J;
+//        }
+//        else if(tsums < 0){
+//            item->etm = -tsums;
+//            item->dir = DIR_D;
+//        }
+//        else{
+//            item->etm = 0;
+//            item->dir = DIR_P;
+//        }
+//        item->pid = q.value(4).toInt();
+//        item->bid = q.value(3).toInt(); //这个？？测试目的
+//        datas.append(item);
+//    }
+//    return true;
+//}
 
 //获取指定月份范围，指定科目（或科目范围）的日记账/明细账数据
 //参数--y：年份，sm、em：开始和结束月份，fid、sid：一二级科目id，mt：币种
@@ -1811,10 +1673,10 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
 //rate：每月的汇率，键为月份 * 10 + 币种代码（期初汇率的月份代码为0，因此它的键为币种代码-个位数）
 //注意：返回的数据列表的第一条记录是上年或上月结转的余额
 bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
-                            QList<TotalAccountData*>& datas,
-                            QHash<int,double>& preExtra,
+                            QList<TotalAccountData2*>& datas,
+                            QHash<int,Double>& preExtra,
                             QHash<int,int>& preExtraDir,
-                            QHash<int, double>& rates)
+                            QHash<int, Double>& rates)
 {
     QSqlQuery q;
     QString s;
@@ -1830,22 +1692,22 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
         mm = sm - 1;
     }
 
-    QHash<int,double> ra,preRa; //期初汇率
-    QHashIterator<int,double>* it;
+    QHash<int,Double> ra,preRa; //期初汇率
+    QHashIterator<int,Double>* it;
 
     //获取期初汇率
-    getRates(yy,mm,preRa);
+    getRates2(yy,mm,preRa);
     preRa[RMB] = 1;
-    it = new QHashIterator<int,double>(preRa);
+    it = new QHashIterator<int,Double>(preRa);
     while(it->hasNext()){
         it->next();
         rates[it->key()] = it->value();
     }
     //获取指定月份范围的汇率
     for(int i = sm; i <= em; ++i){
-        getRates(y,i,ra);
+        getRates2(y,i,ra);
         ra[RMB] = 1;
-        it = new QHashIterator<int,double>(ra);
+        it = new QHashIterator<int,Double>(ra);
         while(it->hasNext()){
             it->next();
             rates[i*10+it->key()] = it->value();
@@ -1854,19 +1716,20 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
     }
 
     //读取总账科目余额
-    readExtraForSub(yy,mm,fid,preExtra,preExtraDir);    
-    double extra;  //期初余额（用母币计），兼做每月期末余额
+    QHash<int,Double> wv;
+    readExtraForSub2(yy,mm,fid,preExtra,wv,preExtraDir);
+    Double extra;  //期初余额（用母币计），兼做每月期末余额
     int edir;      //前期余额方向（用母币计），兼做每月期末余额方向
-    QHash<int,double> extras; //期初余额（依币种分开计），兼做每月期末余额（这个哈希表用正数表示借方，负数表示贷方）
+    QHash<int,Double> extras; //期初余额（依币种分开计），兼做每月期末余额（这个哈希表用正数表示借方，负数表示贷方）
     //计算用母币计的期初余额与方向
-    calExtraAndDir(preExtra,preExtraDir,preRa,extra,edir);
+    calExtraAndDir2(preExtra,preExtraDir,preRa,extra,edir);
 
     //调整数值，正数表示借方，负数表示贷方
-    it = new QHashIterator<int,double>(preExtra);
+    it = new QHashIterator<int,Double>(preExtra);
     while(it->hasNext()){
         it->next();
         if(preExtraDir.value(it->key()) == DIR_D) //如果余额是贷方，则用负数表示，以便后续累加
-            extras[it->key()] = -it->value();
+            extras[it->key()].changeSign();
         else
             extras[it->key()] = it->value();
     }
@@ -1882,10 +1745,10 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
     if(!q.exec(s))
         return false;
 
-    TotalAccountData* item;
+    TotalAccountData2* item;
 
     //这个项目对应于上年结转或上月结转
-    item = new TotalAccountData;
+    item = new TotalAccountData2;
     item->y = yy;
     item->m = mm;
     item->evh = preExtra;
@@ -1896,11 +1759,9 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
     int om = 0,cm; //前期和当期月份
     QString date;
     int dir,mt;    //业务活动发生的方向和币种
-    double sumjm = 0,sumdm = 0;    //本月借贷合计（用母币计）
-    //double sumjy = 0,sumdy = 0;    //本年借贷合计（用母币计）
-    QHash<int,double> sumjmh,sumdmh; //本月借贷合计
-    //QHash<int,double> sumjyh,sumdyh; //本年借贷合计
-    double v;
+    Double sumjm = 0.0,sumdm = 0.0;    //本月借贷合计（用母币计）
+    QHash<int,Double> sumjmh,sumdmh; //本月借贷合计
+    Double v;
     while(q.next()){
         date = q.value(0).toString();
         cm = date.mid(5,2).toInt();
@@ -1913,7 +1774,7 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
             item->dv = sumdm;
             //item->evh = extras;
             //各币种的余额及其方向
-            it = new QHashIterator<int,double>(extras);
+            it = new QHashIterator<int,Double>(extras);
             while(it->hasNext()){
                 it->next();
                 if(it->value() == 0){
@@ -1925,7 +1786,8 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
                     item->dirs[it->key()] = DIR_J;
                 }
                 else{
-                    item->evh[it->key()] = -it->value();
+                    item->evh[it->key()] = it->value();
+                    item->evh[it->key()].changeSign();
                     item->dirs[it->key()] = DIR_D;
                 }
             }
@@ -1935,7 +1797,8 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
                 item->dir = DIR_P;
             }
             if(extra < 0){
-                item->ev = -extra;
+                item->ev = extra;
+                item->ev.changeSign();
                 item->dir = DIR_D;
             }
             else{
@@ -1949,13 +1812,13 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
             sumdm = 0;
         }
         if(om!=cm){
-            item = new TotalAccountData;
+            item = new TotalAccountData2;
             om = cm;
         }
         dir = q.value(4).toInt();
         mt = q.value(3).toInt();        
         if(dir == DIR_J){
-            v = q.value(1).toDouble();
+            v = Double(q.value(1).toDouble());
             sumjmh[mt] += v;
             sumjm += v*rates.value(cm*10+mt);
             extras[mt] += v;
@@ -1978,7 +1841,7 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
     item->dvh = sumdmh;
     item->dv = sumdm;
     //各币种的余额及其方向
-    it = new QHashIterator<int,double>(extras);
+    it = new QHashIterator<int,Double>(extras);
     while(it->hasNext()){
         it->next();
         if(it->value() == 0){
@@ -1990,7 +1853,8 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
             item->dirs[it->key()] = DIR_J;
         }
         else{
-            item->evh[it->key()] = -it->value();
+            item->evh[it->key()] = it->value();
+            item->evh[it->key()].changeSign();
             item->dirs[it->key()] = DIR_D;
         }
     }
@@ -2000,7 +1864,8 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
         item->dir = DIR_P;
     }
     if(extra < 0){
-        item->ev = -extra;
+        item->ev = extra;
+        item->ev.changeSign();
         item->dir = DIR_D;
     }
     else{
@@ -2009,106 +1874,6 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
     }
     datas<<item;
     return true;
-}
-
-/**
-    生成欲打印凭证的数据集合
-    参数：y、m 凭证所属年月
-         datas 生成的凭证数据集
-         pznSet 要打印的凭证号集合
-*/
-bool BusiUtil::genPzPrintDatas(int y, int m, QList<PzPrintData*> &datas, QSet<int> pznSet)
-{
-    QSqlQuery q,q2;
-    QString s;
-
-    //获取所有一级、二级科目的名称表和用户名称表
-    QHash<int,QString> fsub,ssub,slsub,users;
-    getAllSubFName(fsub);    //一级科目名
-    getAllSubSLName(slsub); //二级科目全名
-    getAllSubSName(ssub);   //二级科目简名
-    getAllUser(users);      //用户名
-    QHash<int,double> rates;
-    getRates(y,m,rates);    //汇率
-    rates[RMB] = 1;
-
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    s = QString("select * from PingZhengs where date like '%1%' "
-                "order by number").arg(ds);
-    bool r = q.exec(s);
-    while(q.next()){
-        int pzNum = q.value(PZ_NUMBER).toInt();   //凭证号
-        if((pznSet.count() == 0) || pznSet.contains(pzNum)){
-            //获取该凭证的业务活动数
-            int pid = q.value(PZ_ID).toInt();
-            s = QString("select count() from BusiActions where pid = %1").arg(pid);
-            r = q2.exec(s);
-            r = q2.first();
-            int bac = q2.value(0).toInt(); //该凭证包含的业务活动数
-            //计算将此凭证完全打印出来需要几张凭证
-            int pzc;
-            if((bac % MAXROWS) == 0)
-                pzc = bac / MAXROWS;
-            else
-                pzc = bac / MAXROWS + 1;
-
-            //获取业务活动
-            s = QString("select * from BusiActions where pid = %1").arg(pid);
-            r = q2.exec(s);
-
-            double jsum = 0; double dsum = 0; //借贷合计值
-            for(int i = 0; i < pzc; ++i){
-                PzPrintData* pd = new PzPrintData;
-                pd->date = q.value(PZ_DATE).toDate();     //凭证日期
-                pd->attNums = q.value(PZ_ENCNUM).toInt(); //附件数
-                if(pzc == 1)
-                    pd->pzNum = QString::number(pzNum);
-                else{
-                    pd->pzNum = QString::number(pzNum) + '-' + QString("%1/%2").arg(i+1).arg(pzc);
-                }
-                QList<BaData*> baList;
-                int num = 0; //已提取的业务活动数
-
-                while((num < MAXROWS) && (q2.next())){
-                    num++;
-                    BaData* bd = new BaData;
-                    QString summary = q2.value(BACTION_SUMMARY).toString();
-                    int idx = summary.indexOf('<');
-                    if(idx != -1)
-                        summary.chop(summary.count()- idx);
-                    bd->summary = summary;
-                    bd->dir = q2.value(BACTION_DIR).toInt();
-                    bd->mt = q2.value(BACTION_MTYPE).toInt();
-                    if(bd->dir == DIR_J){
-                        bd->v = q2.value(BACTION_JMONEY).toDouble();
-                        jsum += bd->v * rates.value(bd->mt);
-                    }
-                    else{
-                        bd->v = q2.value(BACTION_DMONEY).toDouble();
-                        dsum += bd->v * rates.value(bd->mt);
-                    }
-                    int fid = q2.value(BACTION_FID).toInt();
-                    int sid = q2.value(BACTION_SID).toInt();
-                    if(slsub.value(sid) == "") //如果二级科目没有全名，则用简名代替
-                        bd->subject = fsub.value(fid) + QObject::tr("——") + ssub.value(sid);
-                    else
-                        bd->subject = fsub.value(fid) + QObject::tr("——") + slsub.value(sid);
-                    baList.append(bd);
-                }
-                pd->baLst = baList;
-                pd->jsum = jsum;
-                pd->dsum = dsum;
-                pd->producer = q.value(PZ_RUSER).toInt();    //制单者
-                pd->verify = q.value(PZ_VUSER).toInt();      //审核者
-                pd->bookKeeper = q.value(PZ_BUSER).toInt();  //记账者
-                //pd->producer = allUsers.value(q2.value(PZ_RUSER).toInt())->getName();  //制单者
-                //pd->verify = allUsers.value(q2.value(PZ_VUSER).toInt())->getName();    //审核者
-                //pd->bookKeeper = allUsers.value(q2.value(PZ_BUSER).toInt())->getName();//记账者
-                datas.append(pd);
-            }
-        }
-    }
 }
 
 bool BusiUtil::genPzPrintDatas2(int y, int m, QList<PzPrintData2 *> &datas, QSet<int> pznSet)
@@ -2872,10 +2637,16 @@ bool BusiUtil::readExtraForSub(int y,int m, int fid, QHash<int,double>& v, QHash
 }
 
 /**
-    读取指定月份指定总账科目的余额（参数fid：总账科目id，v是余额值，dir是方向，key为币种代码，
-    wv是以本币形式表示的外币余额（仅对于需要保存外币余额的科目而言））
-    v和wv的键为币种代码
-*/
+ * @brief BusiUtil::readExtraForSub2
+ *  读取指定月份指定总账科目的余额
+ * @param y
+ * @param m
+ * @param fid   总账科目id
+ * @param v     以原币形式表示的外币余额
+ * @param wv    以本币形式表示的外币余额（仅对于需要保存外币余额的科目而言）
+ * @param dir   方向（币种代码）
+ * @return
+ */
 bool BusiUtil::readExtraForSub2(int y, int m, int fid, QHash<int, Double> &v,
                                 QHash<int,Double>& wv, QHash<int, int> &dir)
 {
@@ -5371,84 +5142,84 @@ bool BusiUtil::reqGenDtfyPz(int y,int m, bool& req)
     return true;
 }
 
-//判断是否需要结转汇兑损益，进行汇兑损益的结转必须有两个前提
-//1、当前月与下一月份之间的汇率差不为0，2、相关科目存在外币余额，且凭证集内无对应凭证）
-bool BusiUtil::reqGenJzHdsyPz(int y, int m, bool& req)
-{
-    QSqlQuery q;
-    QHash<int,double> r1,r2;
-    QString s;
-    //bool req2 = false;
-    bool exsit = true;   //3个科目中存在外币余额的科目是否在凭证集内存在相应结转汇兑损益凭证
-                         //只要有一个科目有外币余额，且不存在结转凭证，即为false。
-    bool rateDiff = false;  //汇率差是否为0标记，默认为0。
+////判断是否需要结转汇兑损益，进行汇兑损益的结转必须有两个前提
+////1、当前月与下一月份之间的汇率差不为0，2、相关科目存在外币余额，且凭证集内无对应凭证）
+//bool BusiUtil::reqGenJzHdsyPz(int y, int m, bool& req)
+//{
+//    QSqlQuery q;
+//    QHash<int,double> r1,r2;
+//    QString s;
+//    //bool req2 = false;
+//    bool exsit = true;   //3个科目中存在外币余额的科目是否在凭证集内存在相应结转汇兑损益凭证
+//                         //只要有一个科目有外币余额，且不存在结转凭证，即为false。
+//    bool rateDiff = false;  //汇率差是否为0标记，默认为0。
 
-    //结转汇兑损益有3种类型的凭证（银行、应收/应付）缺一不可（当然，还要考虑是否存在外币余额，）
-    //只有余额不为0，才有必要执行结转汇兑损益操作
-    int i = 0;
-    QList<int> ids;
-    ids<<0<<0<<0;
-    getIdByCode(ids[0],"1002");//银行存款
-    getIdByCode(ids[1],"1131");//应收账款
-    getIdByCode(ids[2],"2121");//应付账款
-    QHash<int,double> extras;
-    QHash<int,int> dirs;
-    int pzCls = 0;
-    while((i<3) && exsit){
-        readExtraForSub(y,m,ids[i],extras,dirs);
-        if(extras.empty())
-            i++;
-        else if((extras.count() == 1) && extras.keys()[0] == RMB) //如果只有人民币余额
-            i++;
-        else{
-            i++;
-            if(i==0)
-                pzCls = Pzc_Jzhd_Bank;
-            else if(i == 1)
-                pzCls = Pzc_Jzhd_Ys;
-            else
-                pzCls = Pzc_Jzhd_Yf;
-            s = QString("select id from PingZhengs where isForward = %1").arg(pzCls);
-            bool r = q.exec(s);
-            if(r && !q.first()){
-                exsit = false;
-                break;
-            }
-        }
-    }
+//    //结转汇兑损益有3种类型的凭证（银行、应收/应付）缺一不可（当然，还要考虑是否存在外币余额，）
+//    //只有余额不为0，才有必要执行结转汇兑损益操作
+//    int i = 0;
+//    QList<int> ids;
+//    ids<<0<<0<<0;
+//    getIdByCode(ids[0],"1002");//银行存款
+//    getIdByCode(ids[1],"1131");//应收账款
+//    getIdByCode(ids[2],"2121");//应付账款
+//    QHash<int,double> extras;
+//    QHash<int,int> dirs;
+//    int pzCls = 0;
+//    while((i<3) && exsit){
+//        readExtraForSub(y,m,ids[i],extras,dirs);
+//        if(extras.empty())
+//            i++;
+//        else if((extras.count() == 1) && extras.keys()[0] == RMB) //如果只有人民币余额
+//            i++;
+//        else{
+//            i++;
+//            if(i==0)
+//                pzCls = Pzc_Jzhd_Bank;
+//            else if(i == 1)
+//                pzCls = Pzc_Jzhd_Ys;
+//            else
+//                pzCls = Pzc_Jzhd_Yf;
+//            s = QString("select id from PingZhengs where isForward = %1").arg(pzCls);
+//            bool r = q.exec(s);
+//            if(r && !q.first()){
+//                exsit = false;
+//                break;
+//            }
+//        }
+//    }
 
-    int yy,mm;
-    if(m == 12){
-        yy = y + 1;
-        mm = 1;
-    }
-    else{
-        yy = y;
-        mm = m + 1;
-    }
-    //如果汇率读取错误，则返回假
-    if(!getRates(y,m,r1) || (!getRates(yy,mm,r2)))
-        return false;
-    //如果汇率设置不完整，则有可能需要进行结转
-    if(r1.count() != r2.count()){
-        rateDiff = true;
-    }
-    QHashIterator<int,double> it(r1);
-    while(it.hasNext()){
-        it.next();
-        //如果汇率设置不完整，则有可能需要进行结转
-        if(!r2.contains(it.key())){
-            rateDiff = true;
-        }
-        //如果有汇率差，就必须进行结转
-        else if(it.value() != r2.value(it.key())){
-            rateDiff = true;
-        }
-    }
+//    int yy,mm;
+//    if(m == 12){
+//        yy = y + 1;
+//        mm = 1;
+//    }
+//    else{
+//        yy = y;
+//        mm = m + 1;
+//    }
+//    //如果汇率读取错误，则返回假
+//    if(!getRates(y,m,r1) || (!getRates(yy,mm,r2)))
+//        return false;
+//    //如果汇率设置不完整，则有可能需要进行结转
+//    if(r1.count() != r2.count()){
+//        rateDiff = true;
+//    }
+//    QHashIterator<int,double> it(r1);
+//    while(it.hasNext()){
+//        it.next();
+//        //如果汇率设置不完整，则有可能需要进行结转
+//        if(!r2.contains(it.key())){
+//            rateDiff = true;
+//        }
+//        //如果有汇率差，就必须进行结转
+//        else if(it.value() != r2.value(it.key())){
+//            rateDiff = true;
+//        }
+//    }
 
-    req = rateDiff && !exsit;
-    return true;
-}
+//    req = rateDiff && !exsit;
+//    return true;
+//}
 
 
 //获取指定范围的科目id列表

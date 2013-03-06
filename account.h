@@ -131,8 +131,9 @@ public:
     static bool setVersion(int mv, int sv);
     static bool perfectVersion(){return true;}  //归集到初始版本，在此只是占位函数
     static bool updateTo1_3();
-    static bool updateTo1_4(){return true;}
-    static bool updateTo1_5(){return true;}
+    static bool updateTo1_4();
+    static bool updateTo1_5();
+    static bool updateTo1_6(){return true;}
 
 private:
     QString assembleSuiteNames();

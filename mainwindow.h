@@ -120,7 +120,6 @@ private slots:
     bool impBasicDatas();
     void setupBase();
     void setupBankInfos();
-    bool impTestDatas();
     void showSqlTool();
 
     //选项菜单
@@ -261,6 +260,8 @@ private slots:
 
     void on_actForceDelPz_triggered();
 
+
+    bool impTestDatas();
 private:
     void allPzToRecording(int year, int month);
     void initActions();
@@ -299,10 +300,10 @@ private:
 
     //各个子窗体内的中心部件指针
 
-    DetailsViewDialog2* dlgCashDaily;   //现金日记账窗口
-    DetailsViewDialog2* dlgBankDaily;   //银行日记账窗口
-    DetailsViewDialog2* dlgDetailDaily; //明细账窗口
-    DetailsViewDialog2* dlgTotalDaily;  //总分类账窗口
+//    DetailsViewDialog2* dlgCashDaily;   //现金日记账窗口
+//    DetailsViewDialog2* dlgBankDaily;   //银行日记账窗口
+//    DetailsViewDialog2* dlgDetailDaily; //明细账窗口
+//    DetailsViewDialog2* dlgTotalDaily;  //总分类账窗口
 
     //QSignalMapper* BasicDataTabMapper; //将组中的每个菜单项映射到同一个槽中
     CustomRelationTableModel* curPzModel; //当前打开的凭证集

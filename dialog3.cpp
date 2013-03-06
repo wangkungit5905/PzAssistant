@@ -2596,10 +2596,10 @@ void ShowTZDialog::genThForThreeRail()
 //生成三栏明细式格式表格数据
 void ShowTZDialog::genDataForCommon()
 {
-    QList<TotalAccountData*> datas;
-    QHash<int,double> preExtra;
+    QList<TotalAccountData2*> datas;
+    QHash<int,Double> preExtra;
     QHash<int,int> preExtraDir;
-    QHash<int, double> rates;
+    QHash<int, Double> rates;
 
     if(!BusiUtil::getTotalAccount(y,sm,em,fid,datas,preExtra,preExtraDir,rates))
         return;
@@ -2619,7 +2619,7 @@ void ShowTZDialog::genDataForCommon()
     dataModel->appendRow(l);
     l.clear();
 
-    double sumjy = 0, sumdy = 0;
+    Double sumjy = 0.0, sumdy = 0.0;
     for(int i = 1; i < datas.count(); ++i){
         //添加本月合计行
         item = new ApStandardItem(datas[i]->m);           //index：0  月份
@@ -2671,10 +2671,10 @@ void ShowTZDialog::genDataForThreeRail()
 //    dataModel->appendRow(l);
 //    l.clear();
 
-    QList<TotalAccountData*> datas;
-    QHash<int,double> preExtra;
+    QList<TotalAccountData2*> datas;
+    QHash<int,Double> preExtra;
     QHash<int,int> preExtraDir;
-    QHash<int, double> rates;
+    QHash<int, Double> rates;
 
     if(!BusiUtil::getTotalAccount(y,sm,em,fid,datas,preExtra,preExtraDir,rates))
         return;
@@ -2704,9 +2704,9 @@ void ShowTZDialog::genDataForThreeRail()
     dataModel->appendRow(l);
     l.clear();
 
-    QHash<int,double> sumjyh,sumdyh; //外币部分年累计
-    double sumjy = 0, sumdy = 0;     //金额部分年累计
-    double v;
+    QHash<int,Double> sumjyh,sumdyh; //外币部分年累计
+    Double sumjy = 0.0, sumdy = 0.0;     //金额部分年累计
+    Double v;
     for(int i = 1; i < datas.count(); ++i){
         //添加本月合计行
         item = new ApStandardItem(datas[i]->m);           //index：0  月份
@@ -5537,7 +5537,7 @@ void HistoryPzDialog::updateContent()
 
     bm->clear();
     SubjectManager* sm = curAccount->getSubjectManager();
-    QList<BusiActionData*> datas;
+    QList<BusiActionData2*> datas;
     BusiUtil::getActionsInPz(pzId,datas);
     QList<QStandardItem*> l;
     ApStandardItem* item;

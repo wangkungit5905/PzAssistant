@@ -109,17 +109,7 @@ public:
     //类的初始化函数
     static void init();
 
-    /**
-        获取指定凭证的所有业务活动
-    */
-    static bool getActionsInPz(int pid, QList<BusiActionData*>& busiActions);
-    static bool getActionsInPz2(int pid, QList<BusiActionData2*>& busiActions);
-
-    /**
-        保存指定凭证下的业务活动
-    */
-    static bool saveActionsInPz(int pid, QList<BusiActionData*>& busiActions,
-                                QList<BusiActionData*> dels = QList<BusiActionData*>());
+    static bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
 
     static bool saveActionsInPz2(int pid, QList<BusiActionData2*>& busiActions,
                                 QList<BusiActionData2*> dels = QList<BusiActionData2*>());
@@ -216,112 +206,18 @@ public:
         //
     }
 
-    /**
-        获取公司名称
-    */
-    static bool getCompanyName(QString& sname, QString& lname)
-    {
-        QSqlQuery q;
-        q.exec("select sname,lname from AccountInfos");
-        if(!q.first()){
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能账户名称信息")));
-            return false;
-        }
-        sname = q.value(0).toString();
-        lname = q.value(1).toString();
-        return true;
-    }
-
-    /**
-        获取凭证类别哈希表
-    */
-    static bool getPzClass(QHash<int,QString>& pzCls)
-    {
-        QSqlQuery q;
-        QString s;
-
-        s = "select code,name from PzClasses";
-        if(q.exec(s) && q.first()){
-            q.seek(-1);
-            while(q.next())
-                pzCls[q.value(0).toInt()] = q.value(1).toString();
-            return true;
-        }
-        else{
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取凭证类别")));
-            return false;
-        }
-    }
-
-    /**
-        获取凭证类别简称哈希表
-    */
-    static bool getPzSClass(QHash<int,QString>& pzCls)
-    {
-        QSqlQuery q;
-        QString s;
-
-        s = "select code,sname from PzClasses";
-        if(q.exec(s) && q.first()){
-            q.seek(-1);
-            while(q.next())
-                pzCls[q.value(0).toInt()] = q.value(1).toString();
-            return true;
-        }
-        else{
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取凭证类别简称")));
-            return false;
-        }
-    }
-
-
-    /**
-        获取凭证分册类型哈希表
-    */
-    static bool getPzBgClass(QHash<int,QString>& bgCls)
-    {
-        QSqlQuery q;
-        QString s;
-        bool r;
-
-        s = "select code,name from AccountBookGroups";
-        if(q.exec(s) && q.first()){
-            q.seek(-1);
-            while(q.next())
-                bgCls[q.value(0).toInt()] = q.value(1).toString();
-            return true;
-        }
-        else{
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取凭证分册类型")));
-            return false;
-        }
-    }
-
-    /**
-        读取指定年月的汇率
-    */
-    static bool getRates(int y,int m, QHash<int,double>& rates);
-
-    static bool getRates2(int y,int m, QHash<int,Double>& rates);
-
-    /**
-        保存指定年月的汇率
-    */
-    static bool saveRates(int y,int m, QHash<int,double>& rates);
-    static bool saveRates2(int y,int m, QHash<int,Double>& rates);
+    static bool getRates2(int y,int m, QHash<int,Double>& rates, int mainMt = RMB);
+    static bool saveRates2(int y,int m, QHash<int,Double>& rates, int mainMt = RMB);
 
 
     /**
         获取一级科目类别代码
+        此功能将并入科目管理器对象中
     */
-    static bool getFstSubCls(QHash<int,QString>& clsNames)
+    static bool getFstSubCls(QHash<int,QString>& clsNames,int subSys = 1)
     {
         QSqlQuery q;
-        QString s = QString("select code,name from FstSubClasses");
+        QString s = QString("select code,name from FstSubClasses where subSys=%1").arg(subSys);
         if(!(q.exec(s) && q.first())){
             QMessageBox::information(0,QObject::tr("提示信息"),
                                      QString(QObject::tr("未能一级科目类别")));
@@ -333,221 +229,69 @@ public:
     }
 
 
-    /**
-        获取指定的一级科目类别代码
-    */
-    static bool getSubClsCode(int& code, QString name)
-    {
-        QSqlQuery q;
-        QString s;
+    //    /**
+    //        获取指定的一级科目类别代码
+    //        此功能将并入科目管理器对象中
+    //    */
+    //    static bool getSubClsCode(int& code, QString name)
+    //    {
+    //        QSqlQuery q;
+    //        QString s;
 
-        s = QString("select code from FstSubClasses where name = '%1'")
-                .arg(name);
-        if(!q.exec() || !q.first()){
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("未能找到%1的类别代码")).arg(name));
-            return false;
-        }
-        code = q.value(0).toInt();
-        return true;
-    }
+    //        s = QString("select code from FstSubClasses where name = '%1'")
+    //                .arg(name);
+    //        if(!q.exec() || !q.first()){
+    //            QMessageBox::information(0,QObject::tr("提示信息"),
+    //                                     QString(QObject::tr("未能找到%1的类别代码")).arg(name));
+    //            return false;
+    //        }
+    //        code = q.value(0).toInt();
+    //        return true;
+    //    }
 
-    /**
-        获取币种代码表
-    */
-    static bool getMTName(QHash<int,QString>& names){
-        QSqlQuery q;
-        QString s;
-        bool r;
 
-        s = "select code,name from MoneyTypes";
-        r = q.exec(s);
-        while(q.next()){
-            names[q.value(0).toInt()] = q.value(1).toString();
-        }
-        if(r)
-            return true;
-        else
-            return false;
-    }
+    static bool getMTName(QHash<int,QString>& names);
 
-    /**
-        获取指定币种的代码
-    */
-    static bool getMtCode(int& code, QString name)
-    {
-        QSqlQuery q;
-        QString s;
 
-        s = QString("select code from MoneyTypes where name = '%1'").arg(name);
-        if(q.exec(s) && q.first()){
-            code = q.value(0).toInt();
-            return true;
-        }
-        else{
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("未能找到%1的代码")).arg(name));
-            return false;
-        }
-    }
+//    /**
+//        获取指定币种的代码
+//    */
+//    static bool getMtCode(int& code, QString name)
+//    {
+//        QSqlQuery q;
+//        QString s;
 
-    /**
-        按科目名称获取科目代码（一级科目）
-    */
-    static bool getSubCodeByName(QString& code, QString name){
-        QSqlQuery q;
-        QString s;
+//        s = QString("select code from MoneyTypes where name = '%1'").arg(name);
+//        if(q.exec(s) && q.first()){
+//            code = q.value(0).toInt();
+//            return true;
+//        }
+//        else{
+//            QMessageBox::information(0,QObject::tr("提示信息"),
+//                                     QString(QObject::tr("未能找到%1的代码")).arg(name));
+//            return false;
+//        }
+//    }
 
-        s = QString("select subCode from FirSubjects where subName = '%1'")
-                .arg(name);
-        if(!q.exec(s) || !q.first()){
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("未能找到科目%1")).arg(name));
-            return false;
-        }
-        code = q.value(0).toString();
-        return true;
-    }
-
-    /**
-        按科目代码获取该科目在一级科目表中的id值
-    */
-    static bool getIdByCode(int& id, QString code){
-        QSqlQuery q;
-        QString s;
-
-        s = QString("select id from FirSubjects where subCode = '%1'")
-                .arg(code);
-        if(!q.exec(s) || !q.first()){
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("未能找到科目代码%1")).arg(code));
-            return false;
-        }
-        id = q.value(0).toInt();
-        return true;
-    }
-
-    /**
-        按科目名称获取该二级科目id
-        参数 fname：一级科目名称，sname：二级科目名称，id：明细科目id
-    */
-    static bool getSidByName(QString fname, QString sname, int& id){
-        QSqlQuery q;
-        QString s;
-        bool r;
-
-        int fid;
-        if(!getIdByName(fid,fname))
-            return false;
-        s = QString("select FSAgent.id from FSAgent join SecSubjects where "
-                    "(FSAgent.sid=SecSubjects.id) and (FSAgent.fid=%1) "
-                    "and (SecSubjects.subName='%2')").arg(fid).arg(sname);
-        if(q.exec(s) && q.first()){
-            id = q.value(0).toInt();
-            return true;
-        }
-        else
-            return false;
-
-    }
-
-    /**
-        按科目名称获取该科目在一级科目表中的id值
-    */
-    static bool getIdByName(int& id, QString name){
-        QSqlQuery q;
-        QString s;
-
-        s = QString("select id from FirSubjects where subName = '%1'")
-                .arg(name);
-        if(!q.exec(s) || !q.first()){
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("未能找到科目：%1")).arg(name));
-            return false;
-        }
-        id = q.value(0).toInt();
-        return true;
-    }
-
-    /**
-        获取指定科目类别下的所有一级科目的id
-        参数cls：一级科目类别代码，isByView：是否只输出配置为显示的一级科目
-    */
-    static bool getIdsByCls(QList<int>& ids, int cls, bool isByView)
-    {
-        QSqlQuery q;
-        QString s;
-        bool r;
-
-        s = QString("select id from FirSubjects where (belongTo = %1)")
-                .arg(cls);
-        if(isByView)
-            s.append(" and (isView = 1)");
-        if(!q.exec(s)){
-            QMessageBox::information(0, QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取此类别的科目id列表")));
-            return false;
-        }
-        while(q.next())
-            ids.append(q.value(0).toInt());
-
-        return true;
-    }
-
-    //获取所有指定总目下的子目（参数ids：子目id，names：子目名）
-    static bool getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names);
+    static bool getSubCodeByName(QString& code, QString name, int subSys = 1);
+    static bool getIdByCode(int& id, QString code, int subSys = 1);
+    static bool getSidByName(QString fname, QString sname, int& id, int subSys = 1);
+    static bool getIdByName(int& id, QString name, int subSys = 1);
+    static bool getIdsByCls(QList<int>& ids, int cls, bool isByView, int subSys = 1);
+    static bool getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names, int subSys = 1);
 
     //获取指定总目下、指定子目子集的名称（参数sids：指定子目子集id，names：子目名）
-    static bool getSubSetNameInSpecFst(int pid, QList<int> sids, QList<QString>& names);
+    //static bool getSubSetNameInSpecFst(int pid, QList<int> sids, QList<QString>& names);
 
-    /**
-        获取指定一级科目下的所有子科目（id到科目名的哈希表）
-    */
-    static bool getOwnerSub(int oid, QHash<int,QString>& names)
-    {
-        QSqlQuery q;
-        QString s;
+    static bool getOwnerSub(int oid, QHash<int,QString>& names);
+    static bool getDefaultSndSubs(QHash<int,int>& defSubs, int subSys = 1);
+    static bool getSidToFid(QHash<int,int>& sidToFids, int subSys = 1);
 
-        s = QString("select FSAgent.id,SecSubjects.subName from FSAgent "
-                    "join SecSubjects where (FSAgent.sid = SecSubjects.id) "
-                    "and (fid = %1)").arg(oid);
-        if(!q.exec(s)){
-            QMessageBox::information(0, QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取科目id=%1的子科目id列表"))
-                                     .arg(oid));
-            return false;
-        }
-        while(q.next())
-            names[q.value(0).toInt()] = q.value(1).toString();
-        return true;
-    }
-
-    /**
-        获取所有一级科目下的默认子科目（使用频度最高的子科目）
-    */
-    static bool getDefaultSndSubs(QHash<int,int>& defSubs);
-
-
-    /**
-        获取子目id所属的总目id反向映射表
-    */
-    static bool getSidToFid(QHash<int,int>& sidToFids)
-    {
-        QSqlQuery q;
-        QString s;
-
-        s = "select id,fid from FSAgent";
-        bool r = q.exec(s);
-        while(q.next()){
-            sidToFids[q.value(0).toInt()] = q.value(1).toInt();
-        }
-        return true;
-    }
 
     /**
         获取所有指定类别的损益类总账和明细科目的id列表
     */
-    static bool getAllIdForSy(bool isIncome, QHash<int, QList<int> >& ids);
+    static bool getAllIdForSy(bool isIncome, QHash<int, QList<int> >& ids, int subSys = 1);
 
     /**
         获取所有总目id到总目名的哈希表
@@ -772,31 +516,24 @@ public:
     static bool savePeriodEndValues(int y, int m, QHash<int, Double> newF, QHash<int, Double> newS);
 
 
-    //生成明细科目日记账数据列表（金额式）
-    static bool getDailyForJe(int y,int m, int fid, int sid,
-                              QList<RowTypeForJe*>& dlist, double& preExtra, int& preExtraDir);
-    //生成明细科目日记账数据列表（外币金额式）
-    static bool getDailyForWj(int y,int m, int fid, int sid,
-                              QList<RowTypeForWj*>& dlist,
-                              QHash<int,double>& preExtra,
-                              QHash<int,int>& preExtraDir);
-
-    //将各币种的余额汇总为用母币计的余额并确定余额方向
+    //
     static bool calExtraAndDir(QHash<int,double> extra,QHash<int,int> extraDir,
                                QHash<int,double> rate,double& mExtra,int& mDir);
+    static bool calExtraAndDir2(QHash<int,Double> extra,QHash<int,int> extraDir,
+                               QHash<int,Double> rate,Double& mExtra,int& mDir);
 
     //获取指定月份范围，指定科目的日记账/明细账数据
-    static bool getDailyAccount(int y, int sm, int em, int fid, int sid, int mt,
-                                double& prev, int& preDir,
-                                QList<DailyAccountData*>& datas,
-                                QHash<int,double>& preExtra,
-                                QHash<int,int>& preExtraDir,
-                                QHash<int, double>& rates,
-                                QList<int> fids = QList<int>(),
-                                QHash<int,QList<int> > sids = QHash<int,QList<int> >(),
-                                double gv = 0,
-                                double lv = 0,
-                                bool inc = false);
+//    static bool getDailyAccount(int y, int sm, int em, int fid, int sid, int mt,
+//                                double& prev, int& preDir,
+//                                QList<DailyAccountData*>& datas,
+//                                QHash<int,double>& preExtra,
+//                                QHash<int,int>& preExtraDir,
+//                                QHash<int, double>& rates,
+//                                QList<int> fids = QList<int>(),
+//                                QHash<int,QList<int> > sids = QHash<int,QList<int> >(),
+//                                double gv = 0,
+//                                double lv = 0,
+//                                bool inc = false);
     //获取指定月份范围，指定科目的日记账/明细账数据
     static bool getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
                                 Double& prev, int& preDir,
@@ -814,13 +551,12 @@ public:
 
     //获取指定月份范围，指定总账科目的总账数据
     static bool getTotalAccount(int y, int sm, int em, int fid,
-                                QList<TotalAccountData*>& datas,
-                                QHash<int,double>& preExtra,
+                                QList<TotalAccountData2 *> &datas,
+                                QHash<int, Double> &preExtra,
                                 QHash<int,int>& preExtraDir,
-                                QHash<int, double>& rates);
+                                QHash<int, Double> &rates);
 
     //生成欲打印凭证的数据集合
-    static bool genPzPrintDatas(int y, int m, QList<PzPrintData*> &datas, QSet<int> pznSet = QSet<int>());
     static bool genPzPrintDatas2(int y, int m, QList<PzPrintData2*> &datas, QSet<int> pznSet = QSet<int>());
 
 
@@ -885,7 +621,7 @@ public:
     //创建结转汇兑损益凭证
     static bool genForwordEx2(int y, int m, User* user, int state = Pzs_Recording);
     //是否需要结转汇兑损益
-    static bool reqGenJzHdsyPz(int y, int m, bool& req);
+    //static bool reqGenJzHdsyPz(int y, int m, bool& req);
 
     //创建结转损益类科目到本年利润的凭证
     static bool genForwordPl2(int y, int m, User *user);

@@ -249,11 +249,7 @@ MainWindow::MainWindow(QWidget *parent) :
     dlgAcc = NULL;
     dlgBank = NULL;
     dlgData = NULL;
-    dlgBase = NULL;    
-    dlgCashDaily = NULL;
-    dlgBankDaily = NULL;
-    dlgDetailDaily = NULL;
-    dlgTotalDaily = NULL;    
+    dlgBase = NULL;
 
     curPzn = 0;
 
@@ -267,25 +263,6 @@ MainWindow::MainWindow(QWidget *parent) :
     windowMapper = new QSignalMapper(this);
     connect(windowMapper, SIGNAL(mapped(QWidget*)),
             this, SLOT(setActiveSubWindow(QWidget*)));
-
-    //初始化状态条
-    //起止日期
-    //l1 = new QLabel;
-    //ui->statusbar->addPermanentWidget(l1);
-    //lblPzsDate = new QLabel;
-    //ui->statusbar->addPermanentWidget(lblPzsDate);
-
-    //凭证集状态
-    //l2 = new QLabel(tr("凭证集状态："));
-    //ui->statusbar->addPermanentWidget(l2);
-    //lblPzSetState = new QLabel(pzsStates.value(curPzSetState));
-    //ui->statusbar->addPermanentWidget(lblPzSetState);
-
-    //登录用户
-   // l3 = new QLabel(tr("当前登录用户："));
-    //ui->statusbar->addPermanentWidget(l3);
-    //lblCurUser = new QLabel(tr("未登录"));
-    //ui->statusbar->addPermanentWidget(lblCurUser);
 
     on_actLogin_triggered(); //显示登录窗口
 
@@ -325,9 +302,7 @@ MainWindow::MainWindow(QWidget *parent) :
         //curUsedSubSys = curAccInfo->usedSubSys;
         //usedRptType = curAccInfo->usedSubSys;
         accountInit();
-        QString accSName, accLName;
-        BusiUtil::getCompanyName(accSName, accLName);
-        setWindowTitle(QString("%1---%2").arg(appTitle).arg(accLName));
+        setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
         sfm->attachDb(&adb);
     }
     else {//禁用只有在账户打开的情况下才可以的部件
@@ -352,15 +327,6 @@ MainWindow::~MainWindow()
         delete dlgData;
     if(dlgBase != NULL)
         delete dlgBase;
-    if(dlgCashDaily != NULL)
-        delete dlgCashDaily;
-    if(dlgBankDaily != NULL)
-        delete dlgBankDaily;
-    if(dlgDetailDaily != NULL)
-        delete dlgDetailDaily;
-    if(dlgTotalDaily != NULL)
-        delete dlgTotalDaily;
-
 }
 
 //获取主窗口的Mdi区域的大小（必须在主窗口显示后调用）
@@ -462,8 +428,6 @@ void MainWindow::accountInit()
     allMts[curAccount->getMasterMt()] = MTS.value(curAccount->getMasterMt());
     foreach(int mt, curAccount->getWaiMt())
         allMts[mt] = MTS.value(mt);
-    //BusiUtil::getAllSubFName(allFstSubs);//初始化一二级科目名表
-    //BusiUtil::getAllSubFCode(allFSCodes);
     BusiUtil::getAllSubSName(allSndSubs);
     BusiUtil::getAllSubSLName(allSndSubLNames);
     BusiUtil::getDefaultSndSubs(defaultSndSubs);
@@ -734,8 +698,6 @@ void MainWindow::exit()
 //打开凭证集
 void MainWindow::openPzs()
 {
-    QString sname,lname; //帐户名
-    BusiUtil::getCompanyName(sname,lname);
     OpenPzDialog* dlg = new OpenPzDialog(curAccount);
     if(dlg->exec() == QDialog::Accepted){       
        isOpenPzSet = true;
@@ -761,10 +723,8 @@ void MainWindow::openPzs()
 
        if(!BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount))
            sqlWarning();
-       BusiUtil::getRates(cursy,cursm,curRates); //初始化全局汇率表
        isExtraVolid = BusiUtil::getExtraState(cursy,cursm);
        refreshShowPzsState();
-       curRates[RMB] = 1.00;
        refreshTbrVisble();
        refreshActEnanble();
     }
@@ -979,11 +939,6 @@ void MainWindow::setupBankInfos()
     showSubWindow(SETUPBANK);
 }
 
-bool MainWindow::impTestDatas()
-{
-
-
-}
 
 
 ///////////////////////选项菜单处理槽部分//////////////////////////////////////////
@@ -2027,8 +1982,7 @@ void MainWindow::on_actPrint_triggered()
         int mode = psDlg->getPrintMode();        //获取打印模式
         QHash<int,Double> rates;
         BusiUtil::getRates2(cursy,cursm,rates);        //获取汇率
-        QString sname,lname;
-        BusiUtil::getCompanyName(sname,lname);   //获取账户名
+        QString lname = curAccount->getLName();
 
         QPrinter printer;
         QPrintDialog* dlg = new QPrintDialog(&printer); //获取所选的打印机
@@ -2110,36 +2064,6 @@ void MainWindow::subWindowClosed(QMdiSubWindow* subWin)
         sinfo = dlg->getState();
         delete dlg;
     }
-    ///////////////////////////这些处理在将来可能不需要了，因为由其他的对话框来代替/////////////////////////////////
-    else if(subWin == subWindows.value(CASHDAILY)){
-        winEnum = CASHDAILY;
-        delete dlgCashDaily;
-        dlgCashDaily = NULL;
-        //DetailsViewDialog2* dlg = static_cast<DetailsViewDialog2*>(subWin->widget());
-        //delete dlg;
-    }
-    else if(subWin == subWindows.value(BANKDAILY)){
-        winEnum = BANKDAILY;
-        delete dlgBankDaily;
-        dlgBankDaily = NULL;
-        //DetailsViewDialog2* dlg = static_cast<DetailsViewDialog2*>(subWin->widget());
-        //delete dlg;
-    }
-    else if(subWin == subWindows.value(DETAILSDAILY)){
-        winEnum = DETAILSDAILY;
-        delete dlgDetailDaily;
-        dlgDetailDaily = NULL;
-        //DetailsViewDialog2* dlg = static_cast<DetailsViewDialog2*>(subWin->widget());
-        //delete dlg;
-    }
-    else if(subWin == subWindows.value(TOTALDAILY)){
-        winEnum = TOTALDAILY;
-        delete dlgTotalDaily;
-        dlgTotalDaily = NULL;
-        //DetailsViewDialog2* dlg = static_cast<DetailsViewDialog2*>(subWin->widget());
-        //delete dlg;
-    }
-    ////////////////////////////////////////////////////////////////////
     else if(subWin == subWindows.value(SETUPBASE)){
         winEnum = SETUPBASE;
         SetupBaseDialog2* dlg = static_cast<SetupBaseDialog2*>(subWin->widget());
@@ -3262,4 +3186,12 @@ void MainWindow::allPzToRecording(int year, int month)
     if(!q.exec(s))
         return;
     //BusiUtil::setPzsState(y,m,Ps_JzhdV);
+}
+
+
+bool MainWindow::impTestDatas()
+{
+    QHash<int,QString> ssNames; //子目id到名称的映射
+    BusiUtil::getOwnerSub(2,ssNames); //某总目下所有子目的id列表
+    int i = 0;
 }

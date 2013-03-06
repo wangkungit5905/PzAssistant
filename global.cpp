@@ -40,7 +40,6 @@ QHash<int,QString> allSndSubs;
 QHash<int,QString> allSndSubLNames;
 QHash<int,QString> MTS;
 QHash<int,QString> allMts;
-QHash<int,double> curRates;
 QHash<int,int>  defaultSndSubs;
 
 QHash<int,GdzcType*> allGdzcProductCls;

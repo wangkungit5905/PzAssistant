@@ -214,63 +214,63 @@ Q_DECLARE_METATYPE(ViewExtraDialog::StateInfo)
 
 ///////////////////////显示日记账、明细账的对话框///////////////////////////////////////
 
-class DetailsViewDialog2 : public QDialog
-{
-    Q_OBJECT
+//class DetailsViewDialog2 : public QDialog
+//{
+//    Q_OBJECT
 
-public:
-    explicit DetailsViewDialog2(int witch = 1, QWidget *parent = 0);
-    ~DetailsViewDialog2();
-    void refresh();
+//public:
+//    explicit DetailsViewDialog2(int witch = 1, QWidget *parent = 0);
+//    ~DetailsViewDialog2();
+//    void refresh();
 
-public slots:
-    //void viewDetials();
-    void saveExtra();
-    void toExcelFile();
-    void moveTo();
-    void curSndSubChanged(const QString &text);
-    void curSndSubChanged(int index);
-    void selFstSub(int index);
-    void setDateLimit(int sy,int sm,int ey,int em);
-    void tableModeChanged();
-    void toPdf();
-    void printPreview();
-    void print();
+//public slots:
+//    //void viewDetials();
+//    void saveExtra();
+//    void toExcelFile();
+//    void moveTo();
+//    void curSndSubChanged(const QString &text);
+//    void curSndSubChanged(int index);
+//    void selFstSub(int index);
+//    void setDateLimit(int sy,int sm,int ey,int em);
+//    void tableModeChanged();
+//    void toPdf();
+//    void printPreview();
+//    void print();
 
-signals:
-    void openSpecPz(int pid, int bid);  //打开包含此会计分录的凭证
+//signals:
+//    void openSpecPz(int pid, int bid);  //打开包含此会计分录的凭证
 
 
 
-private slots:
-    void on_btnRefresh_clicked();
+//private slots:
+//    void on_btnRefresh_clicked();
 
-private:
-    void initModel();
-    void genDetails();
-    void genTableHead();
-    void getHappenMt();
+//private:
+//    void initModel();
+//    void genDetails();
+//    void genTableHead();
+//    void getHappenMt();
 
-    Ui::DetailsViewDialog2 *ui;
-    int witch;  //1：现金日记账，2：银行日记账，3：明细账，4：总分类账    
-    SubjectComplete *fcom,*scom;   //由一二级科目选择框使用的完成器
+//    Ui::DetailsViewDialog2 *ui;
+//    int witch;  //1：现金日记账，2：银行日记账，3：明细账，4：总分类账
+//    SubjectComplete *fcom,*scom;   //由一二级科目选择框使用的完成器
 
-    QAction* actMoveTo;  //转到该凭证的QAction
+//    QAction* actMoveTo;  //转到该凭证的QAction
 
-    QHash<int,QString> jmt,dmt,emt; //借、贷和余额所发生的外币代码列表
-    QList<int> jmtl,dmtl,emtl; //为确保外币显示顺序的一致性，用这些排序后的列表保存币种代码
+//    QHash<int,QString> jmt,dmt,emt; //借、贷和余额所发生的外币代码列表
+//    QList<int> jmtl,dmtl,emtl; //为确保外币显示顺序的一致性，用这些排序后的列表保存币种代码
 
-    HierarchicalHeaderView* hv;
-    ProxyModelWithHeaderModels* imodel; //与表格视图相连的包含了表头数据模型的代理模型
-    QStandardItemModel* headerModel;    //表头数据模型
-    QStandardItemModel* dataModel;      //表格内容数据模型
+//    HierarchicalHeaderView* hv;
+//    ProxyModelWithHeaderModels* imodel; //与表格视图相连的包含了表头数据模型的代理模型
+//    QStandardItemModel* headerModel;    //表头数据模型
+//    QStandardItemModel* dataModel;      //表格内容数据模型
 
-    int fid;      //当前选择的总账科目id;
-    int sid;      //当前选择的明细科目id;
-    int curPzId;  //当前选择业务活动所属凭证ID
-    int curPzBgId; //当前选择业务活动所属凭证所属的凭证分册类型ID
-    int viewCols;  //表格的总可见列数
-};
+//    int fid;      //当前选择的总账科目id;
+//    int sid;      //当前选择的明细科目id;
+//    int curPzId;  //当前选择业务活动所属凭证ID
+//    int curPzBgId; //当前选择业务活动所属凭证所属的凭证分册类型ID
+//    int viewCols;  //表格的总可见列数
+//};
 
 
 //////////////////选择打印的凭证的对话框///////////////////////////////

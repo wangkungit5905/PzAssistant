@@ -69,7 +69,7 @@ bool SubjectManager::init()
 
     //初始化一级科目表
     s = QString("select id,%1,%2,%3 from %4").arg(fld_fsub_name)
-            .arg(fld_fsub_succode).arg(fld_fsub_class).arg(tbl_fsub);
+            .arg(fld_fsub_subcode).arg(fld_fsub_class).arg(tbl_fsub);
     if(!q.exec(s))
         return false;
 

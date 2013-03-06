@@ -309,7 +309,7 @@ bool Account::versionMaintain(bool &cancel)
 {
     VersionManager* vm = new VersionManager(VersionManager::MT_ACC);
     //每当有新的可用升级函数时，就在此添加
-    //vm->appendVersion(1,3,&Account::updateTo1_3);
+    vm->appendVersion(1,3,&Account::updateTo1_3);
     //vm->appendVersion(1,4,&Account::updateTo1_4);
     //vm->appendVersion(1,5,&Account::updateTo1_5);
     bool r = vm->versionMaintain(cancel);
@@ -367,7 +367,338 @@ bool Account::setVersion(int mv, int sv)
     return true;
 }
 
+/**
+ * @brief Account::updateTo1_3
+ *  升级任务：
+ *  1、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
+ *  2、修改FSAgent表，添加创建（启用）时间列、创建者、禁用时间列
+ *  3、修改FirSubjects表，添加科目系统（subSys）
+ *  4、修改一级科目类别表结构，增加科目系统类型字段“subSys”
+ * @return
+ */
 bool Account::updateTo1_3()
+{
+    QSqlQuery q(*db);
+    QString s;
+    bool r,ok;
+
+    //1、修改SecSubjects表，添加创建时间列
+    s = "alter table SecSubjects rename to old_SecSubjects";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“SecSubjects”表名时发生错误！"));
+        return false;
+    }
+    s = "CREATE TABLE nameItems(id INTEGER PRIMARY KEY, sName text, lName text, remCode text, classId integer, createdTime TimeStamp NOT NULL DEFAULT (datetime('now','localtime')), creator integer)";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“SecSubjects”表时发生错误！"));
+        return false;
+    }
+    if(!db->transaction()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，启动事务失败！"));
+        return false;
+    }
+    s = "insert into nameItems(id,sName,lName,remCode,classId,creator) "
+            "select id,subName,subLName,remCode,classId,1 as user from old_SecSubjects";
+    q.exec(s);
+    if(!db->commit()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，提交事务失败！"));
+        if(!db->rollback())
+            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，事务回滚失败！"));
+        return false;
+    }
+
+    //进行校对
+    QSqlQuery q2(*db);
+    int id;
+    QString name,newname;
+    s = "select id, subName from old_SecSubjects";
+    r = q.exec(s);
+    r = q2.prepare("select sName from nameItems where id = :id");
+    while(q.next()){
+        ok = true;
+        id = q.value(0).toInt();
+        name = q.value(1).toString();
+        q2.bindValue(":id",id);
+        if(!q2.exec())
+            ok = false;
+        if(!q2.first())
+            ok = false;
+        newname = q2.value(0).toString();
+        if(QString::compare(name,newname) != 0)
+            ok = false;
+        if(!ok){
+            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“SecSubjects”的数据时，发现数据的不一致！"));
+            break;
+        }
+    }
+    //在这里删除表，会出错，不知为啥？ 所有必须在第二次打开时删除
+    s = "delete from old_SecSubjects";
+    r = q.exec(s);
+    s = "drop table old_SecSubjects";
+    if(!q.exec(s))
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_SecSubjects”表时发生错误，请先退出应用，使用专门工具删除它！"));
+
+     //2、修改FSAgent表，添加创建（启用）时间列、禁用时间列、创建者
+    s = "alter table FSAgent rename to old_FSAgent";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“FSAgent”表名时发生错误！"));
+        return false;
+    }
+    s = "CREATE TABLE FSAgent(id INTEGER PRIMARY KEY, fid INTEGER, sid INTEGER, subCode varchar(5), weight INTEGER, isEnabled INTEGER,disabledTime TimeStamp, createdTime NOT NULL DEFAULT (datetime('now','localtime')),creator integer)";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“FSAgent”表时发生错误！"));
+        return false;
+    }
+    if(!db->transaction()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FSAgent”的数据时，启动事务失败！"));
+        return false;
+    }
+    s = "insert into FSAgent(id,fid,sid,subCode,weight,isEnabled,creator) select id,fid,sid,subCode,FrequencyStat,isEnabled,1 as user from old_FSAgent";
+    r = q.exec(s);
+    s = "update FSAgent set isEnabled=1,weight=1";
+    r = q.exec(s);
+    if(!db->commit()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FSAgent”的数据时，提交事务失败！"));
+        if(!db->rollback())
+            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FSAgent”的数据时，事务回滚失败！"));
+        return false;
+    }
+
+    //进行校对
+    int fid,nfid,sid,nsid;
+    s = "select id,fid,sid from old_FSAgent";
+    r = q.exec(s);
+    s = "select fid,sid from FSAgent where id=:id";
+    r = q2.prepare(s);
+    while(q.next()){
+        ok = true;
+        id = q.value(0).toInt();
+        fid = q.value(1).toInt();
+        sid = q.value(2).toInt();
+        q2.bindValue(":id",id);
+        if(!q2.exec())
+            ok = false;
+        if(!q2.first())
+            ok = false;
+        nfid = q2.value(0).toInt();
+        nsid = q2.value(1).toInt();
+        if(fid != nfid || sid != nsid)
+            ok = false;
+        if(!ok){
+            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“FSAgent”的数据时，发现数据的不一致！"));
+            break;
+        }
+    }
+    s = "delete from old_FSAgent";
+    r = q.exec(s);
+    s = "drop table old_FSAgent";
+    if(!q.exec(s))
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_FSAgent”表时发生错误，请先退出应用，使用专门工具删除它！"));
+
+    //3、修改FirSubjects表，添加科目系统（subSys）、科目是否启用（enabled）字段
+    s = "alter table FirSubjects rename to old_FirSubjects";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“FirSubjects”表名时发生错误！"));
+        return false;
+    }
+    s = "CREATE TABLE FirSubjects(id INTEGER PRIMARY KEY, subSys INTEGER, subCode varchar(4), remCode varchar(10), belongTo integer, jdDir integer, isView integer, isUseWb INTEGER, weight integer, subName varchar(10))";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“FirSubjects”表时发生错误！"));
+        return false;
+    }
+    if(!db->transaction()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FirSubjects”的数据时，启动事务失败！"));
+        return false;
+    }
+    s = "insert into FirSubjects(id,subCode,remCode,belongTo,jdDir,isView,isUseWb,weight,subName) select id,subCode,remCode,belongTo,jdDir,isView,isReqDet,weight,subName from old_FirSubjects";
+    q.exec(s);
+    s = "update FirSubjects set subSys=1,isView=1";
+    q.exec(s);
+    if(!db->commit()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FirSubjects”的数据时，提交事务失败！"));
+        if(!db->rollback())
+            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FirSubjects”的数据时，事务回滚失败！"));
+        return false;
+    }
+
+    //校对
+    QString code,ncode;
+    s = "select id,subCode from old_FirSubjects";
+    r = q.exec(s);
+    s = "select subCode from FirSubjects where id=:id";
+    r = q2.prepare(s);
+    while(q.next()){
+        ok = true;
+        id = q.value(0).toInt();
+        code = q.value(1).toString();
+        q2.bindValue(":id",id);
+        if(!q2.exec())
+            ok = false;
+        if(!q2.first())
+            ok = false;
+        ncode = q2.value(0).toString();
+        if(QString::compare(code,ncode) != 0)
+            ok = false;
+        if(!ok){
+            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“FirSubjects”的数据时，发现数据的不一致！"));
+            break;
+        }
+    }
+    //设置哪些科目要使用外币
+    QStringList codes;
+    codes<<"1002"<<"1131"<<"2121"<<"1151"<<"2131";
+    s = "update FirSubjects set isUseWb=1 where subCode=:code";
+    r = q.prepare(s);
+    for(int i = 0; i < codes.count(); ++i){
+        q.bindValue(":code", codes.at(i));
+        if(!q.exec())
+            return false;
+    }
+    s = "update FirSubjects set isUseWb=0 where subCode!='1002' and subCode!='1131' "
+            "and subCode!='2121' and subCode!='1151' and subCode!='2131'";
+    r = q.exec(s);
+    s = "update FirSubjects set weight=1";
+    r = q.exec(s);
+
+    //删除表
+    s = "delete from old_FirSubjects";
+    r = q.exec(s);
+    s = "drop table old_FirSubjects";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_FirSubjects”表时发生错误，请先退出应用，使用专门工具删除它！"));
+    }
+
+    //4、修改一级科目类别表结构，增加科目系统类型字段“subSys”
+    s = "alter table FstSubClasses rename to old_FstSubClasses";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在重命名表“FstSubClasses”时发生错误！"));
+        return false;
+    }
+    s = "create table FstSubClasses(id integer primary key, subSys integer, code integer, name text)";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建表“FstSubClasses”时发生错误！"));
+        return false;
+    }
+    s = "insert into FstSubClasses(subSys,code,name) select 1 as subSys,code,name from old_FstSubClasses";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FstSubClasses”的数据时发生错误！"));
+        return false;
+    }
+    s = "delete from old_FstSubClasses";
+    r = q.exec(s);
+    s = "drop table old_FstSubClasses";
+    if(!q.exec(s))
+        QMessageBox::critical(0,QObject::tr("更新错误"),
+                              QObject::tr("在删除表“old_FstSubClasses”表时发生错误，请先退出应用，使用专门工具删除它！"));
+
+    QMessageBox::information(0,QObject::tr("更新成功"),
+                                 QObject::tr("账户文件格式成功更新到1.3版本！"));
+    return setVersion(1,3);
+}
+
+/**
+ * @brief Account::updateTo1_4
+ *  任务描述：
+ *  1、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+ *  2、导入新科目系统的科目
+ * @return
+ */
+bool Account::updateTo1_4()
+{
+    QSqlQuery q(*db);
+    QString s;
+
+    //1、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+    s = "create table accountSuites(id integer primary key, year integer, subSys integer, isCurrent integer, name text)";
+    if(!q.exec(s)){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("创建帐套表accountSuites时发生错误！"));
+        return false;
+    }
+    //读取帐套
+    s = "select value from AccountInfo where code=12";
+    if(!q.exec(s))
+        return false;
+    if(!q.first())
+        return false;
+    QStringList sl = q.value(0).toString().split(",");
+    //每2个元素代表一个帐套年份与帐套名
+    QList<int> sYears; QList<QString> sNames;
+    for(int i = 0; i < sl.count(); i+=2){
+        sYears<<sl.at(i).toInt();
+        sNames<<sl.at(i+1);
+    }
+    s = "insert into accountSuites(year,subSys,isCurrent,name) values(:year,1,0,:name)";
+    bool r = q.prepare(s);
+    for(int i = 0; i < sYears.count(); ++i){
+        q.bindValue("year",sYears.at(i));
+        q.bindValue("name",sNames.at(i));
+        r = q.exec();
+    }
+    s = "select value from AccountInfo where code=11";
+    r = q.exec(s);
+    r = q.first();
+    int curY = q.value(0).toInt();
+    s = QString("update accountSuites set isCurrent=1 where year=%1").arg(curY);
+    r = q.exec(s);
+    s = QString("delete from AccountInfo where code=11 or code=12");
+    r = q.exec(s);
+    s = "drop table AccountInfos";
+    r = q.exec(s);
+
+    //2、导入新科目系统的科目
+    QSqlDatabase ndb = QSqlDatabase::addDatabase("QSQLITE","importNewSub");
+    ndb.setDatabaseName("./datas/basicdatas/firstSubjects_2.dat");
+    if(!ndb.open()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("不能打开新科目系统2的数据源表！，请检查文件夹下“datas/basicdatas/”下是否存在“firstSubjects_2.dat”文件"));
+        return false;
+    }
+    QSqlQuery qm(ndb);
+    if(!qm.exec("select * from FirstSubs")){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统的数据时出错"));
+        return false;
+    }
+    //(id,subCode,remCode,belongTo,jdDir,isView,isReqDet,weight,subName)
+    s = "insert into FirSubjects(subSys,subCode,remCode,belongTo,jdDir,isView,isUseWb,weight,subName) "
+            "values(2,:code,:remCode,:belongTo,:jdDir,:isView,:isUseWb,:weight,:name)";
+    r = db->transaction();
+    r = q.prepare(s);
+    while(qm.next()){
+        q.bindValue(":code",qm.value(2).toString());
+        q.bindValue("remCode",qm.value(3).toString());
+        q.bindValue(":belongTo",qm.value(4).toInt());
+        q.bindValue(":jdDir",qm.value(5).toInt());
+        q.bindValue(":isView",qm.value(6).toInt());
+        q.bindValue(":isUseWb",qm.value(7).toInt());
+        q.bindValue(":weight",qm.value(8).toInt());
+        q.bindValue(":name",qm.value(9).toString());
+        q.exec();
+    }
+    if(!db->commit()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目时，提交事务失败！"));
+        return false;
+    }
+    if(!qm.exec("select * from FirstSubCls where subCls=2")){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统科目类别的数据时出错"));
+        return false;
+    }
+    s = "insert into FstSubClasses(subSys,code,name) values(2,:code,:name)";
+    db->transaction();
+    r = q.prepare(s);
+    while(qm.next()){
+        q.bindValue(":code",qm.value(2).toInt());
+        q.bindValue(":name",qm.value(3).toString());
+        q.exec();
+    }
+    if(!db->commit()){
+        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目类别时，提交事务失败！"));
+        return false;
+    }
+
+    QMessageBox::information(0,QObject::tr("更新成功"),QObject::tr("账户文件格式成功更新到1.5版本！"));
+    return setVersion(1,4);
+}
+
+bool Account::updateTo1_5()
 {
     //1、创建转移记录表，转移记录描述表
     //2、为了使账户可以编辑，初始化一条转移记录（在系统当前时间，由本机转出并转入的转移记录）
@@ -395,7 +726,7 @@ bool Account::updateTo1_3()
     if(!q.exec(s))
         return false;
 
-    return setVersion(1,3);
+    return setVersion(1,5);
 }
 
 //将帐套名哈希表装配成一个字符串形式

@@ -291,7 +291,7 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
             case Qt::Key_Return:  //回车键
             case Qt::Key_Enter:
                 index = listview->currentIndex().row();
-                subId = model->data(model->index(index, FSTSUB_ID)).toInt();
+                subId = model->data(model->index(index, 0)).toInt();
                 setCurrentIndex(findData(subId));
                 listview->hide();
                 keys->clear();
@@ -400,7 +400,7 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
             case Qt::Key_Return:  //回车键
             case Qt::Key_Enter:
                 index = listview->currentIndex().row();
-                sid = smodel->data(smodel->index(index, SNDSUB_ID)).toInt();
+                sid = smodel->data(smodel->index(index, 0)).toInt();
 
                 //在当前一级科目下没有任何二级科目的映射，或者如果在当前的smodel中
                 //找不到此sid值，说明当前一级科目和选择的二级科目没有对应的映射条目

@@ -289,12 +289,12 @@ void OpenPzDialog::on_btnOk_clicked()
     if(ui.chkRate->isChecked()){
         //int year = account->getEndTime().year();
         //int month = account->getEndTime().month();
-        QHash<int,double> rates;
+        QHash<int,Double> rates;
         if(m == 1)
-            BusiUtil::getRates(y-1,12,rates);
+            BusiUtil::getRates2(y-1,12,rates);
         else
-            BusiUtil::getRates(y,m-1,rates);
-        BusiUtil::saveRates(y,m,rates);
+            BusiUtil::getRates2(y,m-1,rates);
+        BusiUtil::saveRates2(y,m,rates);
     }
     account->setCurSuite(y);
     accept();
@@ -2028,31 +2028,27 @@ void BasicDataDialog::saveFstToBase()
         QString remCode = q.value(FSTSUB_REMCODE).toString();
         int belongTo = q.value(FSTSUB_BELONGTO).toInt();
         int isView = q.value(FSTSUB_ISVIEW).toInt();
-        int isReqDet = q.value(FSTSUB_ISREQDET).toInt();
+        int isUseWb = q.value(FSTSUB_ISUSEWB).toInt();
         int weight = q.value(FSTSUB_WEIGHT).toInt();
         QString subName = q.value(FSTSUB_SUBNAME).toString();
-        QString description  = q.value(FSTSUB_DESC).toString();
-        QString utils = q.value(FSTSUB_UTILS).toString();
+        //QString description  = q.value(FSTSUB_DESC).toString();
+        //QString utils = q.value(FSTSUB_UTILS).toString();
 
         if(codes.contains(code)){
             //更新
             s = QString("update basic.FirstSubs set remCode = '%1', "
                         "belongTo = %2, isView = %3, isReqDet = %4, "
-                        "weight = %5, subName = '%6', description = '%7', "
-                        "utils = '%8' "
-                        "where (subCls = %9) and (subCode = '%10')")
-                    .arg(remCode).arg(belongTo).arg(isView).arg(isReqDet)
-                    .arg(weight).arg(subName).arg(description).arg(utils)
-                    .arg(usedSubCls).arg(code);
+                        "weight = %5, subName = '%6' where (subCls = %7) and (subCode = '%8')")
+                    .arg(remCode).arg(belongTo).arg(isView).arg(isUseWb)
+                    .arg(weight).arg(subName).arg(usedSubCls).arg(code);
             r = q2.exec(s);
         }
         else{
             s = QString("insert into basic.FirstSubs(subCls,subCode,"
-                        "remCode,belongTo,isView,isReqDet,weight,subName,description,"
-                        "utils) values(%1,'%2','%3',%4,%5,%6,%7,'%8','%9','%10')")
+                        "remCode,belongTo,isView,isReqDet,weight,subName) "
+                        "values(%1,'%2','%3',%4,%5,%6,%7,'%8')")
                     .arg(usedSubCls).arg(code).arg(remCode).arg(belongTo)
-                    .arg(isView).arg(isReqDet).arg(weight).arg(subName)
-                    .arg(description).arg(utils);
+                    .arg(isView).arg(isUseWb).arg(weight).arg(subName);
             r = q2.exec(s);
         }
         num++;
@@ -2343,18 +2339,18 @@ void SubjectExtraDialog::viewSubExtra(QString code, const QPoint& pos)
 
 void SubjectExtraDialog::viewExtra()
 {
-    QHash<int,double> rates;
-    if(!BusiUtil::getRates(y,m,rates))
+    QHash<int,Double> rates;
+    if(!BusiUtil::getRates2(y,m,rates))
         return;
     rates[RMB] = 1;
-    QHash<int,double> pExtra,sExtra; //主、子科目余额值表(还未使用)
+    QHash<int,Double> pExtra,sExtra; //主、子科目余额值表(还未使用)
     QHash<int,int> pExtDir,sExtDir;  //主、子科目余额方向表
-    if(!BusiUtil::readExtraByMonth(y,m,pExtra,pExtDir,sExtra,sExtDir))
+    if(!BusiUtil::readExtraByMonth2(y,m,pExtra,pExtDir,sExtra,sExtDir))
         return;
 
     //计算主科目各币种的合计值
-    QHash<int,double> psums;
-    QHashIterator<int,double>* ip = new QHashIterator<int,double>(pExtra);
+    QHash<int,Double> psums;
+    QHashIterator<int,Double>* ip = new QHashIterator<int,Double>(pExtra);
     int id,mt;
     while(ip->hasNext()){
         ip->next();
@@ -2364,10 +2360,10 @@ void SubjectExtraDialog::viewExtra()
     }
 
     //将数据输出到部件中显示
-    ip = new QHashIterator<int,double>(psums);
+    ip = new QHashIterator<int,Double>(psums);
     while(ip->hasNext()){
         ip->next();
-        idHash.value(ip->key())->setText(QString::number(ip->value(),'f',2));
+        idHash.value(ip->key())->setText(ip->value().toString());
     }
 //    int year = ui.dateEdit->date().year();
 //    int month = ui.dateEdit->date().month();

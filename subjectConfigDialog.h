@@ -37,19 +37,19 @@ public slots:
     void selSubClass(int cls);
 
 private:
-    QGroupBox* groupBox;
-    QRadioButton *subClass1,*subClass2,*subClass3,*subClass4,*subClass5,*subClass6,*subClassAll;
-    QSignalMapper* sigMapper;
+    QGroupBox groupBox;
+    QRadioButton /**subClass1,*subClass2,*subClass3,*subClass4,*subClass5,*subClass6,**/subClassAll;
+    QSignalMapper sigMapper;
 
-    QHBoxLayout* mainLayout;
+    QHBoxLayout mainLayout;
 
     QLineEdit *edtName, *edtCode, *edtRem, *edtWeight;
     QTextEdit *details, *utils;
     QCheckBox *chkIsReqDet; //是否需要明细支持
     QCheckBox* chkIsView;   //是否显示（是否是在记账时要使用的科目）
     QPushButton *btnFirst, *btnNext, *btnPrev, *btnLast, *btnSave;
-    QDataWidgetMapper* mapper;
-    QSqlTableModel* model;
+    QDataWidgetMapper mapper;
+    QSqlTableModel model;
 
 };
 
@@ -182,7 +182,7 @@ private:
     SndSubConForm* sndTabPage;
     QTabWidget* tab;
 
-    QVBoxLayout* main;
+    QVBoxLayout main;
 };
 
 

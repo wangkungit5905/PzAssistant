@@ -1870,166 +1870,163 @@ void ViewExtraDialog::initHashs()
 }
 
 ////////////////////////////////////////////////////////////////////////
-DetailsViewDialog2::DetailsViewDialog2(int witch, QWidget *parent) : QDialog(parent),
-    ui(new Ui::DetailsViewDialog2)
-{
-    ui->setupUi(this);    
-    setLayout(ui->mLayout);
-    ui->dateEdit->setDate(QDate::currentDate());
-    ui->tview->setSelectionMode(QAbstractItemView::SingleSelection);
-    actMoveTo = new QAction(tr("转到该凭证"), ui->tview);
-    ui->tview->addAction(actMoveTo);
-    connect(actMoveTo, SIGNAL(triggered()), this, SLOT(moveTo()));
+//DetailsViewDialog2::DetailsViewDialog2(int witch, QWidget *parent) : QDialog(parent),
+//    ui(new Ui::DetailsViewDialog2)
+//{
+//    ui->setupUi(this);
+//    setLayout(ui->mLayout);
+//    ui->dateEdit->setDate(QDate::currentDate());
+//    ui->tview->setSelectionMode(QAbstractItemView::SingleSelection);
+//    actMoveTo = new QAction(tr("转到该凭证"), ui->tview);
+//    ui->tview->addAction(actMoveTo);
+//    connect(actMoveTo, SIGNAL(triggered()), this, SLOT(moveTo()));
 
-    headerModel = NULL;
-    dataModel = NULL;
-    imodel = NULL;    
-    hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
-    hv->setHighlightSections(true);
-    hv->setClickable(true);
-    ui->tview->setHorizontalHeader(hv);
+//    headerModel = NULL;
+//    dataModel = NULL;
+//    imodel = NULL;
+//    hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
+//    hv->setHighlightSections(true);
+//    hv->setClickable(true);
+//    ui->tview->setHorizontalHeader(hv);
 
-    this->witch = witch;
-    switch(witch){
-    case 1:   //现金日记账
-        ui->lblBank->setVisible(false);
-        ui->lblAccNum->setVisible(false);
-        ui->edtAccNum->setVisible(false);
-        ui->edtBank->setVisible(false);
-        ui->cmbFstSub->setVisible(false);
-        //将币种加入到组合框
-        initModel();
-        break;
-    case 2:   //银行日记账
-        ui->lblTitle->setText(tr("银行日记账"));
-        ui->cmbFstSub->setVisible(false);
-        connect(ui->cmbSndSub, SIGNAL(currentIndexChanged(QString)),
-                this, SLOT(curSndSubChanged(QString)));
-        //将币种加入到组合框
-        initModel();
-        break;
-    case 3:   //明细账
-        ui->lblTitle->setText(tr("明细账"));
-        ui->lblSub->setText(tr("科目"));
-        ui->lblBank->setVisible(false);
-        ui->lblAccNum->setVisible(false);
-        ui->edtAccNum->setVisible(false);
-        ui->edtBank->setVisible(false);
-        fcom = new SubjectComplete;
-        fcom->setFilter("(isReqDet = 1) and (subCode != '1001') "
-                        "and (subCode != 1002)");
-        scom = new SubjectComplete(SndSubject);
-        ui->cmbFstSub->setCompleter(fcom);
-        ui->cmbSndSub->setCompleter(scom);
-        //将需要进行明细登记功能的一级和二级科目分别加入到对应组合框中
-        initModel();
-        break;
-    case 4:    //总分类帐
-        ui->lblTitle->setText(tr("总分类帐"));
-        ui->lblSub->setVisible(false);
-        ui->lblBank->setVisible(false);
-        ui->lblAccNum->setVisible(false);
-        ui->edtAccNum->setVisible(false);
-        ui->edtBank->setVisible(false);
-        ui->cmbSndSub->setVisible(false);
-        fcom = new SubjectComplete;
-        ui->cmbFstSub->setCompleter(fcom);
-        initModel();
-        break;
-    }
-}
+//    this->witch = witch;
+//    switch(witch){
+//    case 1:   //现金日记账
+//        ui->lblBank->setVisible(false);
+//        ui->lblAccNum->setVisible(false);
+//        ui->edtAccNum->setVisible(false);
+//        ui->edtBank->setVisible(false);
+//        ui->cmbFstSub->setVisible(false);
+//        //将币种加入到组合框
+//        initModel();
+//        break;
+//    case 2:   //银行日记账
+//        ui->lblTitle->setText(tr("银行日记账"));
+//        ui->cmbFstSub->setVisible(false);
+//        connect(ui->cmbSndSub, SIGNAL(currentIndexChanged(QString)),
+//                this, SLOT(curSndSubChanged(QString)));
+//        //将币种加入到组合框
+//        initModel();
+//        break;
+//    case 3:   //明细账
+//        ui->lblTitle->setText(tr("明细账"));
+//        ui->lblSub->setText(tr("科目"));
+//        ui->lblBank->setVisible(false);
+//        ui->lblAccNum->setVisible(false);
+//        ui->edtAccNum->setVisible(false);
+//        ui->edtBank->setVisible(false);
+//        fcom = new SubjectComplete;
+//        fcom->setFilter("(isReqDet = 1) and (subCode != '1001') "
+//                        "and (subCode != 1002)");
+//        scom = new SubjectComplete(SndSubject);
+//        ui->cmbFstSub->setCompleter(fcom);
+//        ui->cmbSndSub->setCompleter(scom);
+//        //将需要进行明细登记功能的一级和二级科目分别加入到对应组合框中
+//        initModel();
+//        break;
+//    case 4:    //总分类帐
+//        ui->lblTitle->setText(tr("总分类帐"));
+//        ui->lblSub->setVisible(false);
+//        ui->lblBank->setVisible(false);
+//        ui->lblAccNum->setVisible(false);
+//        ui->edtAccNum->setVisible(false);
+//        ui->edtBank->setVisible(false);
+//        ui->cmbSndSub->setVisible(false);
+//        fcom = new SubjectComplete;
+//        ui->cmbFstSub->setCompleter(fcom);
+//        initModel();
+//        break;
+//    }
+//}
 
-DetailsViewDialog2::~DetailsViewDialog2()
-{
-    //在此删除，会导致在关闭对话框时程序的崩溃，不知何因
-    //delete headerModel;
-    //delete dataModel;
-    //delete imodel;
-    //delete hv;
-    delete ui;
-}
+//DetailsViewDialog2::~DetailsViewDialog2()
+//{
+//    //在此删除，会导致在关闭对话框时程序的崩溃，不知何因
+//    //delete headerModel;
+//    //delete dataModel;
+//    //delete imodel;
+//    //delete hv;
+//    delete ui;
+//}
 
-void DetailsViewDialog2::refresh()
-{
-    int idx = ui->cmbSndSub->currentIndex();
-    curSndSubChanged(idx);
-}
+//void DetailsViewDialog2::refresh()
+//{
+//    int idx = ui->cmbSndSub->currentIndex();
+//    curSndSubChanged(idx);
+//}
 
 //初始化数据模型
-void DetailsViewDialog2::initModel()
-{
-    QString s;
-    QSqlQuery q;
-//    headerModel = new QStandardItemModel;
-//    dataModel = new QStandardItemModel;
-//    imodel = new ProxyModelWithHeaderModels;
+//void DetailsViewDialog2::initModel()
+//{
+//    QString s;
+//    QSqlQuery q;
 
-    switch(witch){
-    case 1:  //获取一级科目库存现金的ID号
-        BusiUtil::getIdByCode(fid, "1001");
-        break;
-    case 2:  //获取一级科目银行存款的ID号
-        BusiUtil::getIdByCode(fid, "1002");
-        break;
-    case 3:
-        //获取需要明细支持的第一个一级科目的Id值
-        s = QString("select id, subName from FirSubjects where (isview=1) and "
-                    "(isReqDet = 1) and (subCode != '1001') "
-                    "and (subCode != 1002)");
-        q.exec(s);
-        while(q.next())
-            ui->cmbFstSub->addItem(q.value(1).toString(),q.value(0).toInt());
-        fid = ui->cmbFstSub->itemData(0).toInt();
-        break;
-    case 4:
-        //获取需要在总分类帐中登记的一级科目的ID值
-        s = QString("select id, subName from FirSubjects where "
-                    "isView = 1");
-        q.exec(s);
-        while(q.next())
-            ui->cmbFstSub->addItem(q.value(1).toString(),q.value(0).toInt());
-        fid = ui->cmbFstSub->itemData(0).toInt();
-        break;
-    }
+//    switch(witch){
+//    case 1:  //获取一级科目库存现金的ID号
+//        BusiUtil::getIdByCode(fid, "1001");
+//        break;
+//    case 2:  //获取一级科目银行存款的ID号
+//        BusiUtil::getIdByCode(fid, "1002");
+//        break;
+//    case 3:
+//        //获取需要明细支持的第一个一级科目的Id值
+//        s = QString("select id, subName from FirSubjects where (isview=1) and "
+//                    "(isReqDet = 1) and (subCode != '1001') "
+//                    "and (subCode != 1002)");
+//        q.exec(s);
+//        while(q.next())
+//            ui->cmbFstSub->addItem(q.value(1).toString(),q.value(0).toInt());
+//        fid = ui->cmbFstSub->itemData(0).toInt();
+//        break;
+//    case 4:
+//        //获取需要在总分类帐中登记的一级科目的ID值
+//        s = QString("select id, subName from FirSubjects where "
+//                    "isView = 1");
+//        q.exec(s);
+//        while(q.next())
+//            ui->cmbFstSub->addItem(q.value(1).toString(),q.value(0).toInt());
+//        fid = ui->cmbFstSub->itemData(0).toInt();
+//        break;
+//    }
 
-    //对于明细账和总分类账则由selFstSub槽来完成
-    if((witch == 1) || (witch == 2)){
-        s = QString("select FSAgent.id, SecSubjects.subName from FSAgent "
-                    "join SecSubjects on FSAgent.sid = SecSubjects.id "
-                                  "where fid = %1").arg(fid);
-        q.exec(s);
-        while(q.next())
-            ui->cmbSndSub->addItem(q.value(1).toString(),q.value(0).toInt());
-    }
+//    //对于明细账和总分类账则由selFstSub槽来完成
+//    if((witch == 1) || (witch == 2)){
+//        s = QString("select FSAgent.id, SecSubjects.subName from FSAgent "
+//                    "join SecSubjects on FSAgent.sid = SecSubjects.id "
+//                                  "where fid = %1").arg(fid);
+//        q.exec(s);
+//        while(q.next())
+//            ui->cmbSndSub->addItem(q.value(1).toString(),q.value(0).toInt());
+//    }
 
-    //在初始化模型后，连接信号，可以防止无谓的多次调用生成数据的函数
-    connect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),
-            this, SLOT(curSndSubChanged(int)));
+//    //在初始化模型后，连接信号，可以防止无谓的多次调用生成数据的函数
+//    connect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),
+//            this, SLOT(curSndSubChanged(int)));
 
-}
+//}
 
 //在显示明细账或总分类账的情况下，当用户选择了一个一级科目时，必须更新可选择的二级明细科目列表
-void DetailsViewDialog2::selFstSub(int index)
-{
-    if((witch == 3) || (witch == 4)){
-        QSqlQuery q;
-        fid = ui->cmbFstSub->itemData(ui->cmbFstSub->currentIndex()).toInt();
-        QString s = QString("select FSAgent.id, SecSubjects.subName from FSAgent "
-                            "join SecSubjects on FSAgent.sid = SecSubjects.id "
-                                          "where fid = %1").arg(fid);
-        if(witch == 3){
-            scom->setPid(fid);
-            ui->cmbSndSub->clear();
-            q.exec(s);
-            while(q.next())
-                ui->cmbSndSub->addItem(q.value(1).toString(),q.value(0).toInt());
-        }
-    }
-}
+//void DetailsViewDialog2::selFstSub(int index)
+//{
+//    if((witch == 3) || (witch == 4)){
+//        QSqlQuery q;
+//        fid = ui->cmbFstSub->itemData(ui->cmbFstSub->currentIndex()).toInt();
+//        QString s = QString("select FSAgent.id, SecSubjects.subName from FSAgent "
+//                            "join SecSubjects on FSAgent.sid = SecSubjects.id "
+//                                          "where fid = %1").arg(fid);
+//        if(witch == 3){
+//            scom->setPid(fid);
+//            ui->cmbSndSub->clear();
+//            q.exec(s);
+//            while(q.next())
+//                ui->cmbSndSub->addItem(q.value(1).toString(),q.value(0).toInt());
+//        }
+//    }
+//}
 
 //将日记账/明细账数据保存到对应表中
-void DetailsViewDialog2::saveExtra()
-{
+//void DetailsViewDialog2::saveExtra()
+//{
     /*//在保存余额之后，是否要考虑更新在此之后的余额值。
     //比如，保存了2011-3月的余额，如果表中还存在4、5月的余额，则应相应更新4、5月的余额值
 
@@ -2093,13 +2090,13 @@ void DetailsViewDialog2::saveExtra()
     }*/
 
 
-}
+//}
 
 
 
 //将明细账输出到Excel文件中
-void DetailsViewDialog2::toExcelFile()
-{
+//void DetailsViewDialog2::toExcelFile()
+//{
 //    QFileDialog* dlg = new QFileDialog(this);
 //    //dlg->setConfirmOverwrite(false);
 //    dlg->setAcceptMode(QFileDialog::AcceptSave);
@@ -2231,667 +2228,656 @@ void DetailsViewDialog2::toExcelFile()
 //    range->dynamicCall( "SetValue(const QVariant&)", QVariant(5) ); //将该range对象的值设为5
 
 //#endif
-}
+//}
 
 //打印到PDF文件
-void DetailsViewDialog2::toPdf()
-{
-    QPrinter printer;
-    QPrintDialog printDialog(&printer, this);
-    if(printDialog.exec() == QDialog::Accepted){
-        printer.setOrientation(QPrinter::Landscape);
-        printer.setOutputFormat(QPrinter::PdfFormat);
-        QString fname = QFileDialog::getSaveFileName(this,tr("请输入文件名"),"./outPdfs","*.pdf");
-        if(fname != ""){
-            printer.setOutputFileName(fname);
-            PrintUtils view(&printer);
-            view.setHTNums(2);
-            view.setVTNums(0);
-            view.setTable(ui->tview);
-            view.print(&printer);
-        }
-    }
-}
+//void DetailsViewDialog2::toPdf()
+//{
+//    QPrinter printer;
+//    QPrintDialog printDialog(&printer, this);
+//    if(printDialog.exec() == QDialog::Accepted){
+//        printer.setOrientation(QPrinter::Landscape);
+//        printer.setOutputFormat(QPrinter::PdfFormat);
+//        QString fname = QFileDialog::getSaveFileName(this,tr("请输入文件名"),"./outPdfs","*.pdf");
+//        if(fname != ""){
+//            printer.setOutputFileName(fname);
+//            PrintUtils view(&printer);
+//            view.setHTNums(2);
+//            view.setVTNums(0);
+//            view.setTable(ui->tview);
+//            view.print(&printer);
+//        }
+//    }
+//}
 
 //打印预览（默认用屏幕分辨率）
-void DetailsViewDialog2::printPreview()
-{
-    QPrinter printer;
-    QPrintDialog printDialog(&printer, this);
-    if(printDialog.exec() == QDialog::Accepted){
-        printer.setOrientation(QPrinter::Landscape);
-        printer.setPageMargins(15,20,15,20,QPrinter::Millimeter);
-        QPrintPreviewDialog dlg(&printer);
-        PrintUtils view(&printer);
-        view.setHTNums(2);
-        view.setVTNums(0);
-        view.setTable(ui->tview);
-        connect(&dlg, SIGNAL(paintRequested(QPrinter*)),
-                &view, SLOT(print(QPrinter*)));
-        dlg.exec();
-    }
-}
-
-
-//打印输出（采用打印设备的分辨率）
-void DetailsViewDialog2::print()
-{
-    //QPrinter printer(QPrinter::HighResolution);
+//void DetailsViewDialog2::printPreview()
+//{
 //    QPrinter printer;
 //    QPrintDialog printDialog(&printer, this);
 //    if(printDialog.exec() == QDialog::Accepted){
 //        printer.setOrientation(QPrinter::Landscape);
 //        printer.setPageMargins(15,20,15,20,QPrinter::Millimeter);
+//        QPrintPreviewDialog dlg(&printer);
 //        PrintUtils view(&printer);
 //        view.setHTNums(2);
 //        view.setVTNums(0);
 //        view.setTable(ui->tview);
-//        view.print(&printer);
+//        connect(&dlg, SIGNAL(paintRequested(QPrinter*)),
+//                &view, SLOT(print(QPrinter*)));
+//        dlg.exec();
 //    }
-    QPrinter* printer= new QPrinter(QPrinter::HighResolution);
-    TDPreviewDialog* dlg = new TDPreviewDialog(ui->tview,printer);
-    dlg->exec();
-    delete printer;
-    delete dlg;
-}
+//}
+
+
+//打印输出（采用打印设备的分辨率）
+//void DetailsViewDialog2::print()
+//{
+
+//    QPrinter* printer= new QPrinter(QPrinter::HighResolution);
+//    TDPreviewDialog* dlg = new TDPreviewDialog(ui->tview,printer);
+//    dlg->exec();
+//    delete printer;
+//    delete dlg;
+//}
 
 
 //获取借、贷和余额发生的外币币种列表
-void DetailsViewDialog2::getHappenMt()
-{
-    //较合理的方法通过在指定时间区间内扫描业务活动来确定，而余额要通过扫描生成的日记账数据列表来确定
-    //这里简单起见，直接从币种表中读取
-    //QHash<int,QString> mts;
-    jmt.clear();
-    jmtl.clear();
-    dmt.clear();
-    dmtl.clear();
-    emt.clear();
-    emtl.clear();
+//void DetailsViewDialog2::getHappenMt()
+//{
+//    //较合理的方法通过在指定时间区间内扫描业务活动来确定，而余额要通过扫描生成的日记账数据列表来确定
+//    //这里简单起见，直接从币种表中读取
+//    //QHash<int,QString> mts;
+//    jmt.clear();
+//    jmtl.clear();
+//    dmt.clear();
+//    dmtl.clear();
+//    emt.clear();
+//    emtl.clear();
 
-    BusiUtil::getMTName(jmt);
-    jmt.remove(RMB);
-    dmt = jmt;
-    emt = jmt;
+//    BusiUtil::getMTName(jmt);
+//    jmt.remove(RMB);
+//    dmt = jmt;
+//    emt = jmt;
 
-    jmtl = jmt.keys();
-    dmtl = dmt.keys();
-    emtl = emt.keys();
-    qSort(jmtl.begin(), jmtl.end());
-    qSort(dmtl.begin(),dmtl.end());
-    qSort(emtl.begin(),emtl.end());
+//    jmtl = jmt.keys();
+//    dmtl = dmt.keys();
+//    emtl = emt.keys();
+//    qSort(jmtl.begin(), jmtl.end());
+//    qSort(dmtl.begin(),dmtl.end());
+//    qSort(emtl.begin(),emtl.end());
 
-}
+//}
 
 //生成表头信息
-void DetailsViewDialog2::genTableHead()
-{
-    QStandardItem* mitem;
-    QStandardItem* item;
-    QList<QStandardItem*> l1,l2;//l1用于存放表头第一级，l2存放表头第二级
+//void DetailsViewDialog2::genTableHead()
+//{
+//    QStandardItem* mitem;
+//    QStandardItem* item;
+//    QList<QStandardItem*> l1,l2;//l1用于存放表头第一级，l2存放表头第二级
 
-    //headerModel->clear();
-    if(headerModel)
-        delete headerModel;
-    headerModel = new QStandardItemModel;
-    viewCols = 0;
+//    //headerModel->clear();
+//    if(headerModel)
+//        delete headerModel;
+//    headerModel = new QStandardItemModel;
+//    viewCols = 0;
 
-    //外币金额式
-    if(ui->chkViewModel->isChecked()){
+//    //外币金额式
+//    if(ui->chkViewModel->isChecked()){
 
-        getHappenMt();
+//        getHappenMt();
 
-        int y = ui->dateEdit->date().year();
-        mitem = new QStandardItem(QString(tr("%1年")).arg(y));
-        l1<<mitem;
-        item = new QStandardItem(tr("月"));
-        l2<<item;
-        mitem->appendColumn(l2);
-        l2.clear();
-        item = new QStandardItem(tr("日"));
-        l2<<item;
-        mitem->appendColumn(l2);
-        l2.clear();
+//        int y = ui->dateEdit->date().year();
+//        mitem = new QStandardItem(QString(tr("%1年")).arg(y));
+//        l1<<mitem;
+//        item = new QStandardItem(tr("月"));
+//        l2<<item;
+//        mitem->appendColumn(l2);
+//        l2.clear();
+//        item = new QStandardItem(tr("日"));
+//        l2<<item;
+//        mitem->appendColumn(l2);
+//        l2.clear();
 
-        mitem = new QStandardItem(tr("凭证号"));
-        l1<<mitem;
-        mitem = new QStandardItem(tr("摘要"));
-        l1<<mitem;
-        viewCols = 4;//前面4列必定有
+//        mitem = new QStandardItem(tr("凭证号"));
+//        l1<<mitem;
+//        mitem = new QStandardItem(tr("摘要"));
+//        l1<<mitem;
+//        viewCols = 4;//前面4列必定有
 
-        //借方
-        mitem = new QStandardItem(tr("借方金额"));
-        l1<<mitem;
-        for(int i = 0; i < jmtl.count(); ++i){
-            item = new QStandardItem(jmt.value(jmtl[i]));
-            l2<<item;
-            mitem->appendColumn(l2);
-            l2.clear();
-            viewCols++;
-        }
-        item = new QStandardItem(tr("金额"));
-        l2<<item;
-        mitem->appendColumn(l2);
-        l2.clear();
-        viewCols++;
+//        //借方
+//        mitem = new QStandardItem(tr("借方金额"));
+//        l1<<mitem;
+//        for(int i = 0; i < jmtl.count(); ++i){
+//            item = new QStandardItem(jmt.value(jmtl[i]));
+//            l2<<item;
+//            mitem->appendColumn(l2);
+//            l2.clear();
+//            viewCols++;
+//        }
+//        item = new QStandardItem(tr("金额"));
+//        l2<<item;
+//        mitem->appendColumn(l2);
+//        l2.clear();
+//        viewCols++;
 
-        //贷方
-        mitem = new QStandardItem(tr("贷方金额"));
-        l1<<mitem;
-        for(int i = 0; i < dmtl.count(); ++i){
-            item = new QStandardItem(dmt.value(dmtl[i]));
-            l2<<item;
-            mitem->appendColumn(l2);
-            l2.clear();
-            viewCols++;
-        }
-        item = new QStandardItem(tr("金额"));
-        l2<<item;
-        mitem->appendColumn(l2);
-        l2.clear();
-        viewCols++;
+//        //贷方
+//        mitem = new QStandardItem(tr("贷方金额"));
+//        l1<<mitem;
+//        for(int i = 0; i < dmtl.count(); ++i){
+//            item = new QStandardItem(dmt.value(dmtl[i]));
+//            l2<<item;
+//            mitem->appendColumn(l2);
+//            l2.clear();
+//            viewCols++;
+//        }
+//        item = new QStandardItem(tr("金额"));
+//        l2<<item;
+//        mitem->appendColumn(l2);
+//        l2.clear();
+//        viewCols++;
 
-        //余额方向
-        mitem = new QStandardItem(tr("余额方向"));
-        l1<<mitem;
-        viewCols++;
+//        //余额方向
+//        mitem = new QStandardItem(tr("余额方向"));
+//        l1<<mitem;
+//        viewCols++;
 
-        //余额
-        mitem = new QStandardItem(tr("余额"));
-        l1<<mitem;
-        for(int i = 0; i < emtl.count(); ++i){
-            item = new QStandardItem(emt.value(emtl[i]));
-            l2<<item;
-            mitem->appendColumn(l2);
-            l2.clear();
-            viewCols++;
-        }
-        item = new QStandardItem(tr("金额"));
-        l2<<item;
-        mitem->appendColumn(l2);
-        l2.clear();
-        viewCols++;
+//        //余额
+//        mitem = new QStandardItem(tr("余额"));
+//        l1<<mitem;
+//        for(int i = 0; i < emtl.count(); ++i){
+//            item = new QStandardItem(emt.value(emtl[i]));
+//            l2<<item;
+//            mitem->appendColumn(l2);
+//            l2.clear();
+//            viewCols++;
+//        }
+//        item = new QStandardItem(tr("金额"));
+//        l2<<item;
+//        mitem->appendColumn(l2);
+//        l2.clear();
+//        viewCols++;
 
-        item = new QStandardItem(tr("PID"));
-        l1<<item;
-        item = new QStandardItem(tr("SID"));
-        l1<<item;
+//        item = new QStandardItem(tr("PID"));
+//        l1<<item;
+//        item = new QStandardItem(tr("SID"));
+//        l1<<item;
 
-        //viewCols = l1.count()-2;
-        headerModel->appendRow(l1);
-        l1.clear();
-    }
-    else{ //金额式
-        item = new QStandardItem(tr("年"));
-        l1<<item;
-        item = new QStandardItem(tr("月"));
-        l1<<item;
-        item = new QStandardItem(tr("日"));
-        l1<<item;
-        item = new QStandardItem(tr("凭证号"));
-        l1<<item;
-        item = new QStandardItem(tr("摘要"));
-        l1<<item;
-        item = new QStandardItem(tr("借方金额"));
-        l1<<item;
-        item = new QStandardItem(tr("贷方金额"));
-        l1<<item;
-        item = new QStandardItem(tr("余额方向"));
-        l1<<item;
-        item = new QStandardItem(tr("余额"));
-        l1<<item;
-        viewCols = 9;
-        item = new QStandardItem(tr("PID"));
-        l1<<item;
-        item = new QStandardItem(tr("SID"));
-        l1<<item;
-        //viewCols = l1.count()-2;
-        headerModel->appendRow(l1);
-    }
+//        //viewCols = l1.count()-2;
+//        headerModel->appendRow(l1);
+//        l1.clear();
+//    }
+//    else{ //金额式
+//        item = new QStandardItem(tr("年"));
+//        l1<<item;
+//        item = new QStandardItem(tr("月"));
+//        l1<<item;
+//        item = new QStandardItem(tr("日"));
+//        l1<<item;
+//        item = new QStandardItem(tr("凭证号"));
+//        l1<<item;
+//        item = new QStandardItem(tr("摘要"));
+//        l1<<item;
+//        item = new QStandardItem(tr("借方金额"));
+//        l1<<item;
+//        item = new QStandardItem(tr("贷方金额"));
+//        l1<<item;
+//        item = new QStandardItem(tr("余额方向"));
+//        l1<<item;
+//        item = new QStandardItem(tr("余额"));
+//        l1<<item;
+//        viewCols = 9;
+//        item = new QStandardItem(tr("PID"));
+//        l1<<item;
+//        item = new QStandardItem(tr("SID"));
+//        l1<<item;
+//        //viewCols = l1.count()-2;
+//        headerModel->appendRow(l1);
+//    }
 
-}
+//}
 
-void DetailsViewDialog2::tableModeChanged()
-{
-    genDetails();
-}
+//void DetailsViewDialog2::tableModeChanged()
+//{
+//    genDetails();
+//}
 
 //生成现金/银行/明细账列表
-void DetailsViewDialog2::genDetails()
-{
-    QStandardItem* item;
-    QList<QStandardItem*> items;
+//void DetailsViewDialog2::genDetails()
+//{
+//    QStandardItem* item;
+//    QList<QStandardItem*> items;
 
-    int y = ui->dateEdit->date().year();
-    int m = ui->dateEdit->date().month();
-    QString d = ui->dateEdit->date().toString(Qt::ISODate);
-    d.chop(3);  //截去日期部分
-
-
-    //当前选中的明细科目的id
-    int sndSubId;
-    if(witch == 4) //总分类账
-        sndSubId = 0;
-    else
-        //sndSubId= smodel->data(smodel->index(ui->cmbSndSub->currentIndex(), 0)).toInt();
-        sndSubId = sid;
-
-    genTableHead();
-
-    if(dataModel)
-        delete dataModel;
-    dataModel = new QStandardItemModel;
-    if(imodel)
-        delete imodel;
-    imodel = new ProxyModelWithHeaderModels;
-    //dataModel->clear();
-
-    //以外币金额式显示表格
-    double v;
-    if(ui->chkViewModel->isChecked()){
-        QList<RowTypeForWj*> datas;
-        QHash<int,double> preExtra; //前期余额
-        QHash<int,int>    preExtraDir; //前期余额方向
-        BusiUtil::getDailyForWj(y,m,fid,sndSubId,datas,preExtra,preExtraDir);
-        QHash<int,double> rates; //汇率表
-        BusiUtil::getRates(y,m,rates);
-        rates[RMB] = 1;
-
-        //（1）添加前期余额
-        item = new QStandardItem(tr("期初余额"));
-        items<<NULL<<NULL<<NULL<<item;
-        for(int i = 0; i <= jmtl.count(); ++i)
-            items<<NULL;
-        for(int i = 0; i <= dmtl.count(); ++i)
-            items<<NULL;
-        //计算期初余额总额
-        QHashIterator<int,double> i(preExtra);
-        double preSum = 0;
-        while(i.hasNext()){
-            i.next();
-            if(preExtraDir.value(i.key()) == DIR_P)
-                continue;
-            else if(preExtraDir.value(i.key()) == DIR_J)
-                preSum += i.value() * rates.value(i.key());
-            else
-                preSum -= i.value() * rates.value(i.key());
-        }
-        //期初余额方向
-        item = new QStandardItem(dirVStr(preSum));
-        items<<item;
-        //余额（外币）
-        for(int i = 0; i < emtl.count(); ++i){
-            v = preExtra.value(emtl[i]);
-            if(v != 0)
-                item = new QStandardItem(QString::number(v,'f',2));
-            else
-                item = NULL;
-            items<<item;
-        }
-        //余额（总额）
-        if(preSum == 0)
-            item = NULL;
-        else if(preSum > 0)
-            item = new QStandardItem(QString::number(preSum,'f',2));
-        else
-            item = new QStandardItem(QString::number(-preSum,'f',2));
-        items<<item;
-
-        //设置文本排列方向
-        for(int i = 0; i < items.count(); ++i){
-            if(items[i] != NULL){
-                if(i == 3)
-                    items[i]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-                else
-                    items[i]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            }
-        }
-        dataModel->appendRow(items);
-        items.clear();
-
-        //（2）添加当前发生过的日记账数据行
-        QHash<int,double> jwsums; double jsums = 0; //借方外币及总额合计值
-        QHash<int,double> dwsums; double dsums = 0; //贷方外币及总额合计值
-        for(int i = 0; i < datas.count(); ++i){
-            item = new QStandardItem(QString::number(datas[i]->m));
-            items<<item;
-            item = new QStandardItem(QString::number(datas[i]->d));
-            items<<item;
-            item = new QStandardItem(datas[i]->pzNum);
-            items<<item;
-            item = new QStandardItem(datas[i]->summary);
-            items<<item;
-            //借方金额
-            if(datas[i]->dh == DIR_J){
-                //借方外币部分
-                for(int j = 0; j < jmtl.count(); ++j){
-                    if((datas[i]->mt == jmtl[j]) && (datas[i]->v != 0)){
-                        item = new QStandardItem(QString::number(datas[i]->v,'f',2));
-                        jwsums[datas[i]->mt] += datas[i]->v;
-                    }
-                    else
-                        item = NULL;
-                    items<<item;
-                }
-                //借方总额部分
-                v = datas[i]->v * rates.value(datas[i]->mt);
-                jsums += v;
-                if(v == 0)
-                    item = NULL;
-                else
-                    item = new QStandardItem(QString::number(v,'f',2));
-                items<<item;                
-                for(int j = 0; j <= dmtl.count(); ++j)
-                    items<<NULL;
-            }
-            //贷方金额
-            else{
-                for(int j = 0; j <= jmtl.count(); ++j)
-                    items<<NULL;
-                //贷方外币部分
-                for(int j = 0; j < dmtl.count(); ++j){
-                    if((datas[i]->mt == dmtl[j]) && (datas[i]->v != 0)){
-                        item = new QStandardItem(QString::number(datas[i]->v,'f',2));
-                        dwsums[datas[i]->mt] += datas[i]->v;
-                    }
-                    else
-                        item = NULL;                    
-                    items<<item;
-                }
-                //贷方总额部分
-                v = datas[i]->v * rates.value(datas[i]->mt);
-                dsums += v;
-                if(v != 0)
-                    item = new QStandardItem(QString::number(v,'f',2));
-                else
-                    item = NULL;
-                items<<item;
-            }
-            //余额方向
-            item = new QStandardItem(dirStr(datas[i]->dir));
-            items<<item;
-            //余额（外币）
-            for(int j = 0; j < emtl.count(); ++j){
-                v = datas[i]->em.value(emtl[j]);
-                if(v != 0)
-                    item = new QStandardItem(QString::number(v,'f',2));
-                else
-                    item = NULL;
-                items<<item;
-            }
-            //余额（总额）
-            item = new QStandardItem(QString::number(datas[i]->etm,'f',2));
-            items<<item;
-
-            //添加两个隐藏列（业务活动所属凭证id和业务活动本身的id）
-            item = new QStandardItem(QString::number(datas[i]->pid));
-            items<<item;
-            item = new QStandardItem(QString::number(datas[i]->bid));
-            items<<item;
-
-            //设置文本排列方向
-            for(int j = 0; j < items.count(); ++j){
-                if(items[j] != NULL){
-                    if(j == 3)
-                        items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-                    else
-                        items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-                }
-            }
-            dataModel->appendRow(items);
-            items.clear();
-
-        }
-        //（3）添加合计行
-        item = new QStandardItem(QString::number(m));
-        items<<item<<NULL<<NULL;
-        item = new QStandardItem(tr("当前合计"));
-        items<<item;
-        //借方（外币）
-        for(int i = 0; i < jmtl.count(); ++i){
-            item = new QStandardItem(QString::number(jwsums.value(jmtl[i]),'f',2));
-            items<<item;
-        }
-        //借方（总额）
-        item = new QStandardItem(QString::number(jsums,'f',2));
-        items<<item;
-
-        //贷方（外币）
-        for(int i = 0; i < dmtl.count(); ++i){
-            item = new QStandardItem(QString::number(dwsums.value(jmtl[i]),'f',2));
-            items<<item;
-        }
-        //贷方（总额）
-        item = new QStandardItem(QString::number(dsums,'f',2));
-        items<<item<<NULL<<NULL;
-
-        //设置文本排列方向
-        for(int j = 0; j < items.count(); ++j){
-            if(items[j] != NULL){
-                if(j == 4)
-                    items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-                else
-                    items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            }
-        }
-        dataModel->appendRow(items);
-        items.clear();
-
-    }
-    else{ //以金额式显示表格
-        QList<RowTypeForJe*> datas;
-        double preExtra = 0; //前期余额
-        int    preExtraDir;  //前期余额方向
-        BusiUtil::getDailyForJe(y,m,fid,sndSubId,datas,preExtra,preExtraDir);
-
-        //（1）添加前期余额
-        int year = y;
-        if(m == 12)
-            year--;
-        item = new QStandardItem(QString::number(year));
-        items<<item;
-        items<<NULL<<NULL<<NULL;
-        item = new QStandardItem(tr("期初余额"));
-        items<<item<<NULL<<NULL;
-        //item = new QStandardItem(BusiUtil::getSubExaDir(preExtra,fid));
-        item = new QStandardItem(dirStr(preExtraDir)); //期初余额方向
-        items<<item;
-        item = new QStandardItem(QString::number(preExtra, 'f', 2)); //期初余额
-        items<<item;
-        //设置文本布局方向
-        for(int i = 0; i < items.count(); ++i){
-            if(items[i] != NULL){
-                if(i == 4)
-                    items[i]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-                else
-                    items[i]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            }
-        }
-        dataModel->appendRow(items);
-        items.clear();
-
-        //（2）添加当前发生过的日记账数据行
-        double jsums = 0; double dsums = 0;  //当期借、贷方合计值
-        for(int i = 0; i < datas.count(); ++i){
-            item = new QStandardItem(QString::number(datas[i]->y));
-            items<<item;
-            item = new QStandardItem(QString::number(datas[i]->m));
-            items<<item;
-            item = new QStandardItem(QString::number(datas[i]->d));
-            items<<item;
-            item = new QStandardItem(datas[i]->pzNum);
-            items<<item;
-            item = new QStandardItem(datas[i]->summary);
-            items<<item;
-            //借贷金额
-            item = new QStandardItem(QString::number(datas[i]->v,'f',2));
-            if(datas[i]->dh == DIR_J){  //发生在借方
-                items<<item<<NULL;
-                jsums += datas[i]->v;
-            }
-            else{
-                items<<NULL<<item;
-                dsums += datas[i]->v;
-            }
-
-            //余额方向
-            item = new QStandardItem(dirStr(datas[i]->dir));
-            items<<item;
-            //余额
-            item = new QStandardItem(QString::number(datas[i]->em,'f',2));
-            items<<item;
-
-            //添加两个隐藏列（业务活动所属凭证id和业务活动本身的id）
-            item = new QStandardItem(QString::number(datas[i]->pid));
-            items<<item;
-            item = new QStandardItem(QString::number(datas[i]->sid));
-            items<<item;
-
-            //设置文本排列方向
-            for(int j = 0; j < items.count(); ++j){
-                if(items[j] != NULL){
-                    if(j == 4)
-                        items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-                    else
-                        items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-                }
-            }
-            dataModel->appendRow(items);
-            items.clear();
-
-        }
-
-        //（3）添加合计行
-        item = new QStandardItem(QString::number(y));
-        items<<item;
-        item = new QStandardItem(QString::number(m));
-        items<<item<<NULL<<NULL;
-        item = new QStandardItem(tr("当前合计"));
-        items<<item;
-        item = new QStandardItem(QString::number(jsums,'f',2));
-        items<<item;
-        item = new QStandardItem(QString::number(dsums,'f',2));
-        items<<item<<NULL<<NULL;
-        //设置文本排列方向
-        for(int j = 0; j < items.count(); ++j){
-            if(items[j] != NULL){
-                if(j == 4)
-                    items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
-                else
-                    items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-            }
-        }
-        dataModel->appendRow(items);
-        items.clear();
-    }
-
-    imodel->setModel(dataModel);
-    imodel->setHorizontalHeaderModel(headerModel);
-    ui->tview->setModel(imodel);
-
-//    if(hv)
-//        delete hv;
-//    hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
-//    hv->setHighlightSections(true);
-//    hv->setClickable(true);
-//    ui->tview->setHorizontalHeader(hv);
+//    int y = ui->dateEdit->date().year();
+//    int m = ui->dateEdit->date().month();
+//    QString d = ui->dateEdit->date().toString(Qt::ISODate);
+//    d.chop(3);  //截去日期部分
 
 
-    //调整列宽
-    if(ui->chkViewModel->isChecked()){
-        ui->tview->setColumnWidth(0,50);
-        ui->tview->setColumnWidth(1,50);
-        ui->tview->setColumnWidth(2,80);
-        ui->tview->setColumnWidth(3,400);
-        this->resize(1300,600);
-    }
-    else{
-        ui->tview->setColumnWidth(0,80);
-        ui->tview->setColumnWidth(1,50);
-        ui->tview->setColumnWidth(2,50);
-        ui->tview->setColumnWidth(3,80);
-        ui->tview->setColumnWidth(4,500);
-        ui->tview->setColumnWidth(5,100);
-        ui->tview->setColumnWidth(6,100);
-        ui->tview->setColumnWidth(7,100);
-        ui->tview->setColumnWidth(8,100);
-    }
+//    //当前选中的明细科目的id
+//    int sndSubId;
+//    if(witch == 4) //总分类账
+//        sndSubId = 0;
+//    else
+//        //sndSubId= smodel->data(smodel->index(ui->cmbSndSub->currentIndex(), 0)).toInt();
+//        sndSubId = sid;
 
-    //隐藏列
-    int cm = ui->tview->model()->columnCount();
-    ui->tview->hideColumn(viewCols);
-    ui->tview->hideColumn(viewCols+1);
-}
+//    genTableHead();
+
+//    if(dataModel)
+//        delete dataModel;
+//    dataModel = new QStandardItemModel;
+//    if(imodel)
+//        delete imodel;
+//    imodel = new ProxyModelWithHeaderModels;
+//    //dataModel->clear();
+
+//    //以外币金额式显示表格
+//    double v;
+//    if(ui->chkViewModel->isChecked()){
+//        QList<RowTypeForWj*> datas;
+//        QHash<int,double> preExtra; //前期余额
+//        QHash<int,int>    preExtraDir; //前期余额方向
+//        BusiUtil::getDailyForWj(y,m,fid,sndSubId,datas,preExtra,preExtraDir);
+//        QHash<int,double> rates; //汇率表
+//        BusiUtil::getRates(y,m,rates);
+//        rates[RMB] = 1;
+
+//        //（1）添加前期余额
+//        item = new QStandardItem(tr("期初余额"));
+//        items<<NULL<<NULL<<NULL<<item;
+//        for(int i = 0; i <= jmtl.count(); ++i)
+//            items<<NULL;
+//        for(int i = 0; i <= dmtl.count(); ++i)
+//            items<<NULL;
+//        //计算期初余额总额
+//        QHashIterator<int,double> i(preExtra);
+//        double preSum = 0;
+//        while(i.hasNext()){
+//            i.next();
+//            if(preExtraDir.value(i.key()) == DIR_P)
+//                continue;
+//            else if(preExtraDir.value(i.key()) == DIR_J)
+//                preSum += i.value() * rates.value(i.key());
+//            else
+//                preSum -= i.value() * rates.value(i.key());
+//        }
+//        //期初余额方向
+//        item = new QStandardItem(dirVStr(preSum));
+//        items<<item;
+//        //余额（外币）
+//        for(int i = 0; i < emtl.count(); ++i){
+//            v = preExtra.value(emtl[i]);
+//            if(v != 0)
+//                item = new QStandardItem(QString::number(v,'f',2));
+//            else
+//                item = NULL;
+//            items<<item;
+//        }
+//        //余额（总额）
+//        if(preSum == 0)
+//            item = NULL;
+//        else if(preSum > 0)
+//            item = new QStandardItem(QString::number(preSum,'f',2));
+//        else
+//            item = new QStandardItem(QString::number(-preSum,'f',2));
+//        items<<item;
+
+//        //设置文本排列方向
+//        for(int i = 0; i < items.count(); ++i){
+//            if(items[i] != NULL){
+//                if(i == 3)
+//                    items[i]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+//                else
+//                    items[i]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+//            }
+//        }
+//        dataModel->appendRow(items);
+//        items.clear();
+
+//        //（2）添加当前发生过的日记账数据行
+//        QHash<int,double> jwsums; double jsums = 0; //借方外币及总额合计值
+//        QHash<int,double> dwsums; double dsums = 0; //贷方外币及总额合计值
+//        for(int i = 0; i < datas.count(); ++i){
+//            item = new QStandardItem(QString::number(datas[i]->m));
+//            items<<item;
+//            item = new QStandardItem(QString::number(datas[i]->d));
+//            items<<item;
+//            item = new QStandardItem(datas[i]->pzNum);
+//            items<<item;
+//            item = new QStandardItem(datas[i]->summary);
+//            items<<item;
+//            //借方金额
+//            if(datas[i]->dh == DIR_J){
+//                //借方外币部分
+//                for(int j = 0; j < jmtl.count(); ++j){
+//                    if((datas[i]->mt == jmtl[j]) && (datas[i]->v != 0)){
+//                        item = new QStandardItem(QString::number(datas[i]->v,'f',2));
+//                        jwsums[datas[i]->mt] += datas[i]->v;
+//                    }
+//                    else
+//                        item = NULL;
+//                    items<<item;
+//                }
+//                //借方总额部分
+//                v = datas[i]->v * rates.value(datas[i]->mt);
+//                jsums += v;
+//                if(v == 0)
+//                    item = NULL;
+//                else
+//                    item = new QStandardItem(QString::number(v,'f',2));
+//                items<<item;
+//                for(int j = 0; j <= dmtl.count(); ++j)
+//                    items<<NULL;
+//            }
+//            //贷方金额
+//            else{
+//                for(int j = 0; j <= jmtl.count(); ++j)
+//                    items<<NULL;
+//                //贷方外币部分
+//                for(int j = 0; j < dmtl.count(); ++j){
+//                    if((datas[i]->mt == dmtl[j]) && (datas[i]->v != 0)){
+//                        item = new QStandardItem(QString::number(datas[i]->v,'f',2));
+//                        dwsums[datas[i]->mt] += datas[i]->v;
+//                    }
+//                    else
+//                        item = NULL;
+//                    items<<item;
+//                }
+//                //贷方总额部分
+//                v = datas[i]->v * rates.value(datas[i]->mt);
+//                dsums += v;
+//                if(v != 0)
+//                    item = new QStandardItem(QString::number(v,'f',2));
+//                else
+//                    item = NULL;
+//                items<<item;
+//            }
+//            //余额方向
+//            item = new QStandardItem(dirStr(datas[i]->dir));
+//            items<<item;
+//            //余额（外币）
+//            for(int j = 0; j < emtl.count(); ++j){
+//                v = datas[i]->em.value(emtl[j]);
+//                if(v != 0)
+//                    item = new QStandardItem(QString::number(v,'f',2));
+//                else
+//                    item = NULL;
+//                items<<item;
+//            }
+//            //余额（总额）
+//            item = new QStandardItem(QString::number(datas[i]->etm,'f',2));
+//            items<<item;
+
+//            //添加两个隐藏列（业务活动所属凭证id和业务活动本身的id）
+//            item = new QStandardItem(QString::number(datas[i]->pid));
+//            items<<item;
+//            item = new QStandardItem(QString::number(datas[i]->bid));
+//            items<<item;
+
+//            //设置文本排列方向
+//            for(int j = 0; j < items.count(); ++j){
+//                if(items[j] != NULL){
+//                    if(j == 3)
+//                        items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+//                    else
+//                        items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+//                }
+//            }
+//            dataModel->appendRow(items);
+//            items.clear();
+
+//        }
+//        //（3）添加合计行
+//        item = new QStandardItem(QString::number(m));
+//        items<<item<<NULL<<NULL;
+//        item = new QStandardItem(tr("当前合计"));
+//        items<<item;
+//        //借方（外币）
+//        for(int i = 0; i < jmtl.count(); ++i){
+//            item = new QStandardItem(QString::number(jwsums.value(jmtl[i]),'f',2));
+//            items<<item;
+//        }
+//        //借方（总额）
+//        item = new QStandardItem(QString::number(jsums,'f',2));
+//        items<<item;
+
+//        //贷方（外币）
+//        for(int i = 0; i < dmtl.count(); ++i){
+//            item = new QStandardItem(QString::number(dwsums.value(jmtl[i]),'f',2));
+//            items<<item;
+//        }
+//        //贷方（总额）
+//        item = new QStandardItem(QString::number(dsums,'f',2));
+//        items<<item<<NULL<<NULL;
+
+//        //设置文本排列方向
+//        for(int j = 0; j < items.count(); ++j){
+//            if(items[j] != NULL){
+//                if(j == 4)
+//                    items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+//                else
+//                    items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+//            }
+//        }
+//        dataModel->appendRow(items);
+//        items.clear();
+
+//    }
+//    else{ //以金额式显示表格
+//        QList<RowTypeForJe*> datas;
+//        double preExtra = 0; //前期余额
+//        int    preExtraDir;  //前期余额方向
+//        BusiUtil::getDailyForJe(y,m,fid,sndSubId,datas,preExtra,preExtraDir);
+
+//        //（1）添加前期余额
+//        int year = y;
+//        if(m == 12)
+//            year--;
+//        item = new QStandardItem(QString::number(year));
+//        items<<item;
+//        items<<NULL<<NULL<<NULL;
+//        item = new QStandardItem(tr("期初余额"));
+//        items<<item<<NULL<<NULL;
+//        //item = new QStandardItem(BusiUtil::getSubExaDir(preExtra,fid));
+//        item = new QStandardItem(dirStr(preExtraDir)); //期初余额方向
+//        items<<item;
+//        item = new QStandardItem(QString::number(preExtra, 'f', 2)); //期初余额
+//        items<<item;
+//        //设置文本布局方向
+//        for(int i = 0; i < items.count(); ++i){
+//            if(items[i] != NULL){
+//                if(i == 4)
+//                    items[i]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+//                else
+//                    items[i]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+//            }
+//        }
+//        dataModel->appendRow(items);
+//        items.clear();
+
+//        //（2）添加当前发生过的日记账数据行
+//        double jsums = 0; double dsums = 0;  //当期借、贷方合计值
+//        for(int i = 0; i < datas.count(); ++i){
+//            item = new QStandardItem(QString::number(datas[i]->y));
+//            items<<item;
+//            item = new QStandardItem(QString::number(datas[i]->m));
+//            items<<item;
+//            item = new QStandardItem(QString::number(datas[i]->d));
+//            items<<item;
+//            item = new QStandardItem(datas[i]->pzNum);
+//            items<<item;
+//            item = new QStandardItem(datas[i]->summary);
+//            items<<item;
+//            //借贷金额
+//            item = new QStandardItem(QString::number(datas[i]->v,'f',2));
+//            if(datas[i]->dh == DIR_J){  //发生在借方
+//                items<<item<<NULL;
+//                jsums += datas[i]->v;
+//            }
+//            else{
+//                items<<NULL<<item;
+//                dsums += datas[i]->v;
+//            }
+
+//            //余额方向
+//            item = new QStandardItem(dirStr(datas[i]->dir));
+//            items<<item;
+//            //余额
+//            item = new QStandardItem(QString::number(datas[i]->em,'f',2));
+//            items<<item;
+
+//            //添加两个隐藏列（业务活动所属凭证id和业务活动本身的id）
+//            item = new QStandardItem(QString::number(datas[i]->pid));
+//            items<<item;
+//            item = new QStandardItem(QString::number(datas[i]->sid));
+//            items<<item;
+
+//            //设置文本排列方向
+//            for(int j = 0; j < items.count(); ++j){
+//                if(items[j] != NULL){
+//                    if(j == 4)
+//                        items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+//                    else
+//                        items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+//                }
+//            }
+//            dataModel->appendRow(items);
+//            items.clear();
+
+//        }
+
+//        //（3）添加合计行
+//        item = new QStandardItem(QString::number(y));
+//        items<<item;
+//        item = new QStandardItem(QString::number(m));
+//        items<<item<<NULL<<NULL;
+//        item = new QStandardItem(tr("当前合计"));
+//        items<<item;
+//        item = new QStandardItem(QString::number(jsums,'f',2));
+//        items<<item;
+//        item = new QStandardItem(QString::number(dsums,'f',2));
+//        items<<item<<NULL<<NULL;
+//        //设置文本排列方向
+//        for(int j = 0; j < items.count(); ++j){
+//            if(items[j] != NULL){
+//                if(j == 4)
+//                    items[j]->setTextAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+//                else
+//                    items[j]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
+//            }
+//        }
+//        dataModel->appendRow(items);
+//        items.clear();
+//    }
+
+//    imodel->setModel(dataModel);
+//    imodel->setHorizontalHeaderModel(headerModel);
+//    ui->tview->setModel(imodel);
+
+////    if(hv)
+////        delete hv;
+////    hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
+////    hv->setHighlightSections(true);
+////    hv->setClickable(true);
+////    ui->tview->setHorizontalHeader(hv);
+
+
+//    //调整列宽
+//    if(ui->chkViewModel->isChecked()){
+//        ui->tview->setColumnWidth(0,50);
+//        ui->tview->setColumnWidth(1,50);
+//        ui->tview->setColumnWidth(2,80);
+//        ui->tview->setColumnWidth(3,400);
+//        this->resize(1300,600);
+//    }
+//    else{
+//        ui->tview->setColumnWidth(0,80);
+//        ui->tview->setColumnWidth(1,50);
+//        ui->tview->setColumnWidth(2,50);
+//        ui->tview->setColumnWidth(3,80);
+//        ui->tview->setColumnWidth(4,500);
+//        ui->tview->setColumnWidth(5,100);
+//        ui->tview->setColumnWidth(6,100);
+//        ui->tview->setColumnWidth(7,100);
+//        ui->tview->setColumnWidth(8,100);
+//    }
+
+//    //隐藏列
+//    int cm = ui->tview->model()->columnCount();
+//    ui->tview->hideColumn(viewCols);
+//    ui->tview->hideColumn(viewCols+1);
+//}
 
 //打开当前选择的业务活动所属的凭证
-void DetailsViewDialog2::moveTo()
-{
-    QItemSelectionModel* selModel = ui->tview->selectionModel();
-    if(selModel->hasSelection()){
-        int row = selModel->currentIndex().row();
-        if((ui->chkViewModel->isChecked() && (row > 0)) ||
-           (!ui->chkViewModel->isChecked() && (row > 0))){
-            int pid = imodel->data(imodel->index(row, viewCols)).toInt();
-            int bid = imodel->data(imodel->index(row, viewCols+1)).toInt();;
-            emit  openSpecPz(pid, bid);
-        }
-    }
-}
+//void DetailsViewDialog2::moveTo()
+//{
+//    QItemSelectionModel* selModel = ui->tview->selectionModel();
+//    if(selModel->hasSelection()){
+//        int row = selModel->currentIndex().row();
+//        if((ui->chkViewModel->isChecked() && (row > 0)) ||
+//           (!ui->chkViewModel->isChecked() && (row > 0))){
+//            int pid = imodel->data(imodel->index(row, viewCols)).toInt();
+//            int bid = imodel->data(imodel->index(row, viewCols+1)).toInt();;
+//            emit  openSpecPz(pid, bid);
+//        }
+//    }
+//}
 
 //当前的明细科目选择改变时，处理更新银行帐号等信息
-void DetailsViewDialog2::curSndSubChanged(const QString &text)
-{
-    if(witch == 2){
-        int idx = text.indexOf('-');
-        if(idx != -1){
-            QString mtype = text.mid(idx+1, text.count()-idx-1);
-            QSqlQuery q;
-            //获取币种代码
-            int mt;//当前选择的账户币种代码
-            BusiUtil::getMtCode(mt, mtype);
+//void DetailsViewDialog2::curSndSubChanged(const QString &text)
+//{
+//    if(witch == 2){
+//        int idx = text.indexOf('-');
+//        if(idx != -1){
+//            QString mtype = text.mid(idx+1, text.count()-idx-1);
+//            QSqlQuery q;
+//            //获取币种代码
+//            int mt;//当前选择的账户币种代码
+//            BusiUtil::getMtCode(mt, mtype);
 
-            QString s = QString("select Banks.lname,BankAccounts.accNum from BankAccounts join Banks "
-                                "where (BankAccounts.bankID = Banks.id) and (BankAccounts.mtID = %1)")
-                    .arg(mt);
-            bool r = q.exec(s);
-            r = q.first();
+//            QString s = QString("select Banks.lname,BankAccounts.accNum from BankAccounts join Banks "
+//                                "where (BankAccounts.bankID = Banks.id) and (BankAccounts.mtID = %1)")
+//                    .arg(mt);
+//            bool r = q.exec(s);
+//            r = q.first();
 
-            QString lname = q.value(0).toString();//银行全称
-            QString accNum = q.value(1).toString(); //银行帐号
-            ui->edtBank->setText(lname);
-            ui->edtAccNum->setText(accNum);
-        }
-    }
-}
+//            QString lname = q.value(0).toString();//银行全称
+//            QString accNum = q.value(1).toString(); //银行帐号
+//            ui->edtBank->setText(lname);
+//            ui->edtAccNum->setText(accNum);
+//        }
+//    }
+//}
 
 //当明细科目的选择改变时
-void DetailsViewDialog2::curSndSubChanged(int index)
-{
-    //显示该明细科目的日记账
-    //sid = smodel->data(smodel->index(index, 0)).toInt();
-    sid = ui->cmbSndSub->itemData(ui->cmbSndSub->currentIndex()).toInt();
-    genDetails();
-}
+//void DetailsViewDialog2::curSndSubChanged(int index)
+//{
+//    //显示该明细科目的日记账
+//    //sid = smodel->data(smodel->index(index, 0)).toInt();
+//    sid = ui->cmbSndSub->itemData(ui->cmbSndSub->currentIndex()).toInt();
+//    genDetails();
+//}
 
-//刷新显示明细账或总分类账
-void DetailsViewDialog2::on_btnRefresh_clicked()
-{
-    refresh();
-}
+////刷新显示明细账或总分类账
+//void DetailsViewDialog2::on_btnRefresh_clicked()
+//{
+//    refresh();
+//}
 
 //设置日期选择部件的日期选择范围
-void DetailsViewDialog2::setDateLimit(int sy,int sm,int ey,int em)
-{
-    QDate sd(sy,sm,1);
-    QDate ed(ey,em,1);
-    ed.setDate(ey,em,ed.daysInMonth());
-    ui->dateEdit->setDateRange(sd, ed);
-    //sid = smodel->data(smodel->index(ui->cmbSndSub->currentIndex(), 0)).toInt();
-    sid = ui->cmbSndSub->itemData(ui->cmbSndSub->currentIndex()).toInt();
+//void DetailsViewDialog2::setDateLimit(int sy,int sm,int ey,int em)
+//{
+//    QDate sd(sy,sm,1);
+//    QDate ed(ey,em,1);
+//    ed.setDate(ey,em,ed.daysInMonth());
+//    ui->dateEdit->setDateRange(sd, ed);
+//    //sid = smodel->data(smodel->index(ui->cmbSndSub->currentIndex(), 0)).toInt();
+//    sid = ui->cmbSndSub->itemData(ui->cmbSndSub->currentIndex()).toInt();
 
-    //显示该明细科目的日记账
-    genDetails();
-}
+//    //显示该明细科目的日记账
+//    genDetails();
+//}
 
 
 ////////////////////////PrintSelectDialog////////////////////////////////////

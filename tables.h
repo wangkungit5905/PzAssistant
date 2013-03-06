@@ -3,47 +3,70 @@
 
 #include <QString>
 
-//class TableManager{
-//public:
+//*************************币种表*************************//
+//CREATE TABLE MoneyTypes(id INTEGER PRIMARY KEY, code INTEGER, sign TEXT, name TEXT)
+//字段名
+#define tbl_moneyType " MoneyTypes"
+#define fld_mt_code "code"  //币种代码
+#define fld_mt_sign "sign"  //币种符号
+#define fld_mt_name "name"  //币种名称
+//字段索引
+#define MT_CODE 1
+#define MT_SIGN 2
+#define MT_NAME 3
 
-//};
+
+//*************************汇率表***********************************//
+//CREATE TABLE ExchangeRates(id INTEGER PRIMARY KEY, year INTEGER, month INTEGER, usd2rmb REAL)
+//字段名
+#define tbl_rateTable   "ExchangeRates"
+#define fld_rt_year     "year"
+#define fld_rt_month    "month"
+//字段索引
+#define RT_YEAR     1
+#define RT_MONTH    2
+
 
 //*************************一级科目类别表*************************//
-#define tbl_fsclass "FstSubClasses"
+//create table FstSubClasses(id integer primary key, subSys integer, code integer, name text)
 //字段名
-#define fld_fsc_code "code"
-#define fld_fsc_name "name"
+#define tbl_fsclass "FstSubClasses"
+#define fld_fsc_subSys  "subSys"
+#define fld_fsc_code    "code"      //类别代码(INTEGER)
+#define fld_fsc_name    "name"      //类别名称(TEXT)
 //字段索引
-#define FSCLS_CODE 1 //类别代码(code INTEGER)
-#define FSCLS_NAME 2 //类别名称(name TEXT)
+#define FSCLS_SUBSYS    1
+#define FSCLS_CODE      2
+#define FSCLS_NAME      3
 
 //*************************一级科目表*********************************//
-#define tbl_fsub "FirSubjects"
+//CREATE TABLE FirSubjects(id INTEGER PRIMARY KEY, subSys INTEGER, subCode varchar(4),
+//remCode varchar(10), belongTo integer, jdDir integer, isView integer,
+//isUseWb INTEGER, weight integer, subName varchar(10))
 //字段名
-#define fld_fsub_succode "subCode"
-#define fld_fsub_remcode "remCode"
-#define fld_fsub_class   "belongTo"
-#define fld_fsub_jddir   "jdDir"
-#define fld_fsub_isview  "isView"
-#define fld_fsub_isreqdet "isReqDet"
-#define fld_fsub_weight  "weight"
-#define fld_fsub_name    "subName"
-#define fld_fsub_desc    "description"
-#define fld_fsub_util    "utils"
+#define tbl_fsub "FirSubjects"
+#define fld_fsub_subSys  "subSys"       //科目系统代码
+#define fld_fsub_subcode "subCode"      //一级科目代码（国标）(subCode varchar(4))
+#define fld_fsub_remcode "remCode"      //科目助记符(remCode varchar(10))
+#define fld_fsub_class   "belongTo"     //所属类别（目前是6大类别）(belongTo integer)
+#define fld_fsub_jddir   "jdDir"        //科目的借贷方向判定方法（jdDir integer）
+                                        //（1：增加在借方，减少在贷方；0：增加在贷方，减少在借方）
+#define fld_fsub_isview  "isView"       //是否启用该科目(isView integer)(1：启用，0：不启用)
+#define fld_fsub_isUseWb "isUseWb"      //是否需要使用外币
+#define fld_fsub_weight  "weight"       //科目使用的权重值(weight integer)
+#define fld_fsub_name    "subName"      //科目名(subName varchar(10))
 //字段索引
-#define FSTSUB_ID 0            //(id INTEGER PRIMARY KEY)
-#define FSTSUB_SUBCODE 1       //一级科目代码（国标）(subCode varchar(4))
-#define FSTSUB_REMCODE 2       //科目助记符(remCode varchar(10))
-#define FSTSUB_BELONGTO 3      //所属类别（目前是6大类别）(belongTo integer)
-#define FSTSUB_DIR      4      //科目的借贷方向判定方法（jdDir integer）（1：增加在借方，减少在贷方；0：增加在贷方，减少在借方）
-#define FSTSUB_ISVIEW   5      //是否启用该科目(isView integer)(1：启用，0：不启用)
-#define FSTSUB_ISREQDET 6      //是否需要在余额表中显示该科目的余额或是否需要明细统计支持(isReqDet INTEGER)
-#define FSTSUB_WEIGHT    7     //科目使用的权重值(weight integer)
-#define FSTSUB_SUBNAME 8       //科目名(subName varchar(10))
-#define FSTSUB_DESC 9          //对科目的描述(description TEXT)
-#define FSTSUB_UTILS 10        //科目的使用范围和例子用法等(utils TEXT)
+#define FSTSUB_SUBSYS       1
+#define FSTSUB_SUBCODE      2
+#define FSTSUB_REMCODE      3
+#define FSTSUB_BELONGTO     4
+#define FSTSUB_DIR          5
+#define FSTSUB_ISVIEW       6
+#define FSTSUB_ISUSEWB      7
+#define FSTSUB_WEIGHT       8
+#define FSTSUB_SUBNAME      9
 
-//*************************二级科目类别表*************************//
+//*************************名称条目类别表*************************//
 //二级科目类别表
 #define tbl_ssclass "SndSubClass"
 //字段名
@@ -56,42 +79,51 @@
 #define SNDSUBCLASS_NAME 2      //名称 (name TEXT )
 #define SNDSUBCLASS_EXPLAIN 3   //简要说明 (explain TEXT)
 
-//*************************二级科目名称表*************************//
-//二级科目信息表
-//同一个二级科目名称可能会属于多个一级科目，比如在应收账款和应付账款科目下可能按客户名分列二级科目
-//为了是客户信息不至于在二级科目表中造成很多重复，我只在此表中保存科目名称等不变的信息，而科目代码
-//等特定于二级科目的信息保存在FSAGENT表中
-#define tbl_ssub "SecSubjects"
+//*************************名称条目表*************************//
+//名称条目表
+//CREATE TABLE nameItems(id INTEGER PRIMARY KEY, sName VERCHAR(10), lName TEXT,
+//  remCode varchar(10), classId INTEGER, createdTime TimeStamp NOT NULL
+//  DEFAULT (datetime('now','localtime')), creator integer)
 //字段名
-#define fld_ssub_name "subName"
-#define fld_ssub_lname "subLName"
-#define fld_ssub_remcode "remCode"
-#define fld_ssub_class "classId"
+#define tbl_ssub "nameItems"
+#define fld_ssub_name       "sName"         //简称
+#define fld_ssub_lname      "lName"         //全称
+#define fld_ssub_remcode    "remCode"       //助记符
+#define fld_ssub_class      "classId"       //名称类别代码
+#define fld_ssub_crtTime     "createdTime"  //创建时间
+#define fld_ssub_creator    "creator"       //创建者
 //字段索引
-#define SNDSUB_ID 0            //(id INTEGER PRIMARY KEY)
-#define SNDSUB_SUBNAME 1       //二级科目名(subName VERCHAR(10))
-#define SNDSUB_SUBLONGNAME 2   //二级科目详名(subLName TEXT)
-#define SNDSUB_REMCODE 3       //科目助记符(remCode varchar(10))
-#define SNDSUB_CALSS 4         //科目所属类别(classId INTEGER)
+#define SNDSUB_SUBNAME      1
+#define SNDSUB_SUBLONGNAME  2
+#define SNDSUB_REMCODE      3
+#define SNDSUB_CALSS        4
+#define SNDSUB_CREATERTIME  5
+#define SNDSUB_CREATOR      6
 
 //*************************二级科目映射表*************************//
 //一级科目到二级科目的代理映射
-#define tbl_fsa  "FSAgent"
+//CREATE TABLE FSAgent(id INTEGER PRIMARY KEY, fid INTEGER, sid INTEGER,
+//subCode varchar(5), weight INTEGER, isEnabled INTEGER,disabledTime TimeStamp,
+//createdTime NOT NULL DEFAULT (datetime('now','localtime')),creator integer)
 //字段名
-#define fld_fsa_fid "fid"
-#define fld_fsa_sid "sid"
-#define fld_fsa_code "subCode"
-#define fld_fsa_fs "FrequencyStat"
-#define fld_fsa_isdetbymt "isDetByMt"
-#define fld_fsa_enable "isEnabled"
+#define tbl_fsa  "FSAgent"
+#define fld_fsa_fid     "fid"           //所属的一级科目ID
+#define fld_fsa_sid     "sid"           //对应的名称条目中的ID
+#define fld_fsa_code    "subCode"       //科目代码（用户根据行业特点自定义的）
+#define fld_fsa_weight  "weight"        //科目的使用权重
+#define fld_fsa_enable  "isEnabled"     //是否在账户中启用
+#define fld_fsa_disTime "disabledTime"  //禁用时间
+#define fld_fsa_crtTime "createdTime"   //创建时间
+#define fld_fsa_creator "creator"       //创建者
 //字段索引
-#define FSAGENT_ID 0        //（id INTEGER PRIMARY KEY）
-#define FSAGENT_FID 1       //所属的一级科目ID（fid INTEGER）
-#define FSAGENT_SID 2       //对应的二级科目信息表中的ID（sid INTEGER）
-#define FSAGENT_SUBCODE 3   //科目代码（用户根据行业特点自定义的）(subCode VARCHAR(10))
-#define FSAGENT_FS 4        //科目的使用频度统计值(FrequencyStat INTEGER)
-#define FSAGENT_ISDETBYMT 5 //是否需要按币种建立明细账（isDetByMt INTEGER）
-#define FSAGENT_ENABLED   6 //是否在账户中启用(isEnabled INTEGER)
+#define FSA_FID         1
+#define FSA_SID         2
+#define FSA_SUBCODE     3
+#define FSA_WEIGHT      4
+#define FSA_ENABLED     5
+#define FSA_DISABLETIME 6
+#define FSA_CREATETIME  7
+#define FSA_CREATOR     8
 
 //******************凭证表*********************************//
 //字段名

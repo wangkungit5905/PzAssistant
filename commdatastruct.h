@@ -129,6 +129,19 @@ struct TotalAccountData{
 
 };
 
+struct TotalAccountData2{
+    int y,m;  //帐套年份、月份
+    QHash<int,Double> jvh; //本月借方合计（键均为币种代码）
+    Double jv;             //本月借方合计（用母币计）
+    QHash<int,Double> dvh; //本月贷方合计金额
+    Double dv;             //本月贷方合计（用母币计）
+    QHash<int,Double> evh; //余额
+    Double ev;             //余额（用母币计）
+    QHash<int,int> dirs;   //余额方向
+    int dir;               //余额方向（用母币计）
+
+};
+
 
 //表示凭证中的单项业务活动的数据结构
 struct BaData{

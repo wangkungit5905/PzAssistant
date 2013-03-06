@@ -43,7 +43,6 @@ extern QHash<int,QString> allSndSubs;  //所有二级科目id到科目名称的�
 extern QHash<int,QString> allSndSubLNames; //所有二级科目id到科目全称的映射表
 extern QHash<int,QString> MTS;         //所有币种代码到名称的映射表（包括账户内未使用的外币）
 extern QHash<int,QString> allMts;      //当前打开账户所用的所有币种代码到名称的映射表
-extern QHash<int,double> curRates;     //当前当看凭证集对应月份的汇率表
 extern QHash<int,int>  defaultSndSubs; //所有一级科目下的默认二级科目
 
 //固定资产相关变量

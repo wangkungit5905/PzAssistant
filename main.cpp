@@ -15,6 +15,7 @@
 #include "config.h"
 #include "mainwindow.h"
 #include "connection.h"
+#include "logs/FileAppender.h"
 
 /**
  * @brief showErrorInfo
@@ -68,54 +69,6 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-//    QStringList str;
-//    str.append("./plugins");
-//    app.setLibraryPaths(str);
-//    app.addLibraryPath("./plugins/sqldrivers"); //private folder
-//    qDebug()<<"my library path : "<<app.libraryPaths();
-//    QLibrary sqlib("qsqlite4.dll");
-//    sqlib.load();
-//    qDebug()<<"my library loaded"<<sqlib.isLoaded();
-
-//    QPluginLoader loader("./plugins/sqldrivers/qsqlite4.dll");
-//    if(!loader.load())
-//        qDebug() << app.tr("加载Sqlite驱动出错")<< loader.errorString();
-
-    //app.removeLibraryPath("D:/Qt/4.7.3/plugins");
-
-
-    QString curPath = QDir::currentPath();
-    QString appPath = qApp->applicationDirPath();
-    //app.addLibraryPath(QString("%1/plugins").arg(QDir::currentPath()));
-
-    QString prePath = QLibraryInfo::location(QLibraryInfo::PrefixPath);
-    QString plubinsPath = QLibraryInfo::location(QLibraryInfo::PluginsPath);
-
-
-
-    QFile logFile("./logs/app.log");
-    logFile.open(QIODevice::WriteOnly | QIODevice::Append);
-    QTextStream out(&logFile);
-    //out<<QString("12345678");
-    QStringList deviceLst = QSqlDatabase::drivers();
-    if(deviceLst.count() == 0){
-        out << app.tr("Don't load Sql driver!")<<endl;
-        return 1;
-    }
-    else{
-        out << app.tr("Has loaded sql driver:")<<endl;
-        for(int i = 0; i < deviceLst.count(); ++i)
-            out << deviceLst[i] << endl;
-    }
-    out.flush();
-
-//    foreach (const QString &path, app.libraryPaths())
-//        out << path << endl;
-//    out.flush();
-
-    out << "Prefix path: "<<prePath << endl;
-    out << "Plugins path: " << plubinsPath << endl;
-
     QTextCodec::setCodecForTr(QTextCodec::codecForName("utf-8"));
     appTitle = QObject::tr("凭证辅助处理系统");
     QTranslator translator; //汉化标准对话框、标准上下文菜单等
@@ -127,11 +80,27 @@ int main(int argc, char *argv[])
     if(errNum != 0){
         showErrorInfo(errNum);
         return errNum;
-    }    
+    }
+
+    FileAppender* logFile = new FileAppender("./logs/app.log");
+    Logger::registerAppender(logFile);
+
+    Logger::write(Logger::Must,"",0,"","");
+    Logger::write(Logger::Must,"",0,"",
+                  "************************************************************");
+    Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
+                  QObject::tr("PzAssistant is starting......"));
+    qDebug()<<"qDebug export info!";
+    logLevel = AppConfig::getInstance()->getLogLevel();
+    logFile->setDetailsLevel(logLevel);
 
     MainWindow mainWin;
     mainWin.showMaximized();
     mainWin.hideDockWindows();
     mainWin.getMdiAreaSize(mdiAreaWidth, mdiAreaHeight);
-    return app.exec();
+    int exitCode = app.exec();
+
+    Logger::write(QDateTime::currentDateTime(),Logger::Must,"",0,"", QObject::tr("Quit PzAssistant!"));
+        AppConfig::getInstance()->setLogLevel(logLevel);
+    return exitCode;
 }

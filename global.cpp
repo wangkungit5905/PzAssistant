@@ -3,19 +3,17 @@
 #include <QDir>
 
 #include "global.h"
-//#include "utils.h"
 
 
 QString orgName = "SSC";
 QString appName = "Accounts Assistant Process System";
-//QString appTitle = QObject::tr("凭证辅助处理系统");
 QString appTitle;
 QString versionStr;
 QString aboutStr;
+Logger::LogLevel logLevel;
 
 int curAccountId = 0;
 Account* curAccount = NULL;
-//AccountBriefInfo* curAccInfo = NULL;
 int screenWidth;
 int screenHeight;
 
@@ -110,8 +108,10 @@ int appInit()
     aboutStr = qApp->tr("凭证助手，版权属于小灵猫工作室所有。\n版本号：%1.%2").arg(master).arg(second);
 
     //初始化路径信息
-    DatabasePath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/databases/"));
-    BaseDataPath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/basicdatas/"));
+    //DatabasePath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/databases/"));
+    //BaseDataPath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/basicdatas/"));
+    DatabasePath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
+    BaseDataPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
 
     //获取可用屏幕尺寸
     QDesktopWidget desktop;

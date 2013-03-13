@@ -175,6 +175,7 @@
       <string>开发者工具</string>
      </property>
      <addaction name="actImpTestDatas"/>
+     <addaction name="actViewLog"/>
      <addaction name="actSqlTool"/>
      <addaction name="actBasicDB"/>
     </widget>
@@ -1325,6 +1326,14 @@
    </property>
    <property name="toolTip">
     <string>升级账户数据库的内部格式，以适应新功能</string>
+   </property>
+  </action>
+  <action name="actViewLog">
+   <property name="text">
+    <string>查看日志</string>
+   </property>
+   <property name="toolTip">
+    <string>查看日志</string>
    </property>
   </action>
  </widget>

@@ -49,7 +49,14 @@ SOURCES += main.cpp\
     viewpzseterrorform.cpp \
     aboutform.cpp \
     jzhdsyinfoinputdlg.cpp \
-    pzdsform.cpp
+    pzdsform.cpp \
+    dbutil.cpp \
+    logs/logview.cpp \
+    logs/Logger.cpp \
+    logs/FileAppender.cpp \
+    logs/ConsoleAppender.cpp \
+    logs/AbstractStringAppender.cpp \
+    logs/AbstractAppender.cpp
 
 HEADERS  += \
     connection.h \
@@ -92,7 +99,15 @@ HEADERS  += \
     viewpzseterrorform.h \
     aboutform.h \
     jzhdsyinfoinputdlg.h \
-    pzdsform.h
+    pzdsform.h \
+    dbutil.h \
+    logs/logview.h \
+    logs/LogStruct.h \
+    logs/Logger.h \
+    logs/FileAppender.h \
+    logs/ConsoleAppender.h \
+    logs/AbstractStringAppender.h \
+    logs/AbstractAppender.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -144,7 +159,8 @@ FORMS    += \
     forms/viewpzseterrorform.ui \
     forms/aboutform.ui \
     forms/jzhdsyinfoinputdlg.ui \
-    forms/pzdsform.ui
+    forms/pzdsform.ui \
+    forms/logview.ui
 
 RESOURCES += \
     imgers.qrc \

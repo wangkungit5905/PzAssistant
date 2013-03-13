@@ -211,7 +211,7 @@
 #define BACTION_NUMINPZ   9   //该业务活动在凭证业务活动表中的序号（NumInPz INTEGER）
                               //（序号决定了在表中的具体位置，基于1）
 
-//**************************主目余额表（以原币计）*****************************/
+//**************************老主目余额表（以原币计）*****************************/
 //（各科目的字段名由代表科目类别的字母代码加上科目国标代码组成）
 //A（资产类）B（负债类）C（共同类）D（所有者权益类）E（成本类）F（损益类）
 //CREATE TABLE SubjectExtras(id INTEGER PRIMARY KEY, year INTEGER, month INTEGER,
@@ -285,6 +285,36 @@
 #define PZSS_YEAR 1
 #define PZSS_MONTH 2
 #define PZSS_STATE 3
+
+////////////////////////////新余额表系列//////////////////////////////////////////////
+//余额指针表
+//字段名
+const QString tbl_nse_point   = "SE_Point";
+const QString fld_sep_year    = "year";
+const QString fld_sep_month   = "month";
+const QString fld_sep_mt      = "mt";
+//字段索引
+const int NSE_POINT_YEAR  =1;
+const int NSE_POINT_MONTH =2;
+const int NSE_POINT_MT    =3;
+
+//新余额表
+const QString tbl_nse_p_f = "SE_PM_F";   //一级科目原币余额
+const QString tbl_nse_m_f = "SE_MM_F";   //一级科目本币余额
+const QString tbl_nse_p_s = "SE_PM_S";   //二级科目原币余额
+const QString tbl_nse_m_s = "SE_MM_S";   //二级科目本币余额
+//字段名
+const QString fld_nse_pid =    "pid";   //余额指针
+const QString fld_nse_sid =    "sid";   //科目id
+const QString fld_nse_dir =    "dir" ;  //余额方向
+const QString fld_nse_value =  "value"; //余额值
+//字段索引
+const int NSE_E_PID   =1;
+const int NSE_E_SID   =2;
+const int NSE_E_DIR   =3;
+const int NSE_E_VALUE =4;
+
+
 
 
 

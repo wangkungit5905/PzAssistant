@@ -34,7 +34,7 @@ bool AppConfig::versionMaintain(bool& cancel)
     VersionManager* vm = new VersionManager(VersionManager::MT_CONF);
     //每当有新的可用升级函数时，就在此添加
     vm->appendVersion(1,1,&AppConfig::updateTo1_1);
-    //vm->appendVersion(1,2,&AppConfig::updateTo1_2);
+    vm->appendVersion(1,2,&AppConfig::updateTo1_2);
     //vm->appendVersion(2,0,&AppConfig::updateTo2_0);
     bool r = vm->versionMaintain(cancel);
     delete vm;
@@ -62,6 +62,25 @@ AppConfig *AppConfig::getInstance()
     instance = new AppConfig;
     return instance;
 }
+
+//读取应用程序的日志级别
+Logger::LogLevel AppConfig::getLogLevel()
+{
+    appIni->beginGroup("Debug");
+    Logger::LogLevel l = Logger::levelFromString(appIni->
+                       value("loglevel", Logger::Error).toString());
+    appIni->endGroup();
+    return l;
+}
+
+//设置应用程序的日志级别
+void AppConfig::setLogLevel(Logger::LogLevel level)
+{
+    appIni->beginGroup("Debug");
+    appIni->setValue("loglevel", Logger::levelToString(level));
+    appIni->endGroup();
+}
+
 
 /**
  * @brief AppConfig::getBaseDbConnect
@@ -396,7 +415,20 @@ bool AppConfig::updateTo1_1()
 
 }
 
+/**
+ * @brief AppConfig::updateTo1_2
+ *  添加日志级别的设置字段
+ * @return
+ */
 bool AppConfig::updateTo1_2()
+{
+    appIni->beginGroup("Debug");
+    appIni->setValue("loglevel", Logger::levelToString(Logger::Debug));
+    appIni->endGroup();
+    return setVersion(1,2);
+}
+
+bool AppConfig::updateTo1_3()
 {
     //1、在基本库中添加machines表，并初始化4个默认主机
     //2、根据用户的选择设置isLacal字段（配置本机是哪个主机标识）
@@ -440,7 +472,7 @@ bool AppConfig::updateTo1_2()
     s = QString("update machines set isLocal=1 where mid=%1").arg(mid);
     if(!q.exec(s))
         return false;
-    return setVersion(1,2);
+    return setVersion(1,3);
 }
 
 bool AppConfig::updateTo2_0()

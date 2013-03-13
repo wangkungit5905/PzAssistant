@@ -7,6 +7,7 @@
 
 #include "commdatastruct.h"
 #include "common.h"
+#include "logs/Logger.h"
 
 
 class VersionManager;
@@ -28,6 +29,8 @@ public:
     static AppConfig* getInstance();
     static QSqlDatabase getBaseDbConnect();
 
+    Logger::LogLevel getLogLevel();
+    void setLogLevel(Logger::LogLevel level);
     bool readPingzhenClass(QHash<PzClass,QString>& pzClasses);
     bool readPzStates(QHash<PzState, QString> &names);
     bool readPzSetStates(QHash<PzsState,QString>& snames, QHash<PzsState,QString>& lnames);
@@ -66,6 +69,7 @@ public:
 
     static bool updateTo1_1();
     static bool updateTo1_2();
+    static bool updateTo1_3();
     static bool updateTo2_0();
 
 private:

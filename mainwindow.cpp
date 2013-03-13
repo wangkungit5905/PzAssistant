@@ -27,6 +27,8 @@
 #include "commdatastruct.h"
 #include "viewpzseterrorform.h"
 #include "aboutform.h"
+#include "dbutil.h"
+#include "logs/logview.h"
 
 #include "completsubinfodialog.h"
 
@@ -3194,6 +3196,16 @@ void MainWindow::allPzToRecording(int year, int month)
 
 bool MainWindow::impTestDatas()
 {
-    QList<int> ids,mts;
-    BusiUtil::getOutMtInBank(ids,mts);
+    DbUtil du;
+    //bool r = du.setFilename(tr("宁波苏航.dat"));
+    int i = 0;
+}
+
+void MainWindow::on_actViewLog_triggered()
+{
+    LogView* lv = new LogView(this);
+    QMdiSubWindow* sw = ui->mdiArea->addSubWindow(lv);
+    sw->setAttribute(Qt::WA_DeleteOnClose);
+    connect(lv,SIGNAL(onClose()),sw,SLOT(close()));
+    sw->show();
 }

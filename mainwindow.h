@@ -262,6 +262,8 @@ private slots:
 
 
     bool impTestDatas();
+    void on_actViewLog_triggered();
+
 private:
     void allPzToRecording(int year, int month);
     void initActions();

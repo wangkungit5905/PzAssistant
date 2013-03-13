@@ -218,7 +218,8 @@ signals:
 
 private slots:
     void newSndSubMapping(int pid, int sid, int row, int col, bool reqConfirm = true);
-    void newSndSubAndMapping(int fid, QString name, int row, int col);    
+    void newSndSubAndMapping(int fid, QString name, int row, int col);
+    void sndSubjectDisabeld(int id);
     //void cellClicked(int row, int column);
     void currentCellChanged(int currentRow, int curCol, int previousRow, int previousColumn);
 

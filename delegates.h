@@ -123,58 +123,7 @@ private:
     int curFid;      //与当前二级科目同处一行的左边的一级科目的ID
 };
 
-//在主表上显示子表内容的代理类(主要用于在业务活动列表中显示科目的名称而不是代码)
-class RelationMappingDelegate : public QItemDelegate{
-    Q_OBJECT
-public:
-    RelationMappingDelegate(QSqlQueryModel* model, int witch, int idCol, int dispCol, int itemClassCol = -1, QObject *parent = 0);
 
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
-                               const QModelIndex &index) const;
-
-    void setEditorData(QWidget *editor, const QModelIndex &index) const;
-    void setModelData(QWidget *editor, QAbstractItemModel *model,
-                   const QModelIndex &index) const;
-
-    void updateEditorGeometry(QWidget *editor,
-        const QStyleOptionViewItem &option, const QModelIndex &index) const;
-
-    void paint ( QPainter * painter, const QStyleOptionViewItem & option,
-                 const QModelIndex & index ) const;
-
-    void setItemClassIcon(QMap<int, QIcon> map, int col);
-
-    void setCurFstId(int id);
-    void setCurCellIndex(int row, int col);
-
-public slots:
-    void newMappingItem(int fid, int sid);
-    void newSndSubject(int fid, QString name);
-
-signals:
-    void updateCell(int row, int col);
-    void updateSndSub();   //这个信号用在设置账户基点窗口中每次新增一个新的明细科目时触发此信号
-
-private:
-    void refreshModel(int fid, int sid);
-
-
-    QSqlQueryModel* model;  //如果显示一级科目（FstSujects），二级科目（Fsagent和SecSujects表的连接查询）
-
-    int idCol, dispCol;
-    QMap<int, QString> map; //保存科目ID与科目名称之间的对应关系，在显示项目而不是编辑时使用
-
-    //对项目进行分类,整数表示分类，图标用于可视化的区别
-    int itemClassCol;
-    QMap<int, QIcon> iconMap;
-
-    int witch;  //显示的是一级科目（1）还是二级科目（2）
-    int curFid; //当前的一级科目ID（当当前的一级科目下没有对应的二级科目时可用）
-
-    //QModelIndex curMIndex;  //当前代理类所代理的模型索引，在刷新显示新加入的一二级科目映射条目时使用
-    int curRow;
-    int curCol;
-};
 
 //以自定义的方式显示浮点数
 class ViewDoubleDelegate : public QItemDelegate

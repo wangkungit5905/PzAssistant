@@ -5,6 +5,7 @@
 #include "ui_completsubinfodialog.h"
 
 #include "utils.h"
+#include "tables.h"
 
 CompletSubInfoDialog::CompletSubInfoDialog(int fid,QWidget *parent) : QDialog(parent),
     ui(new Ui::CompletSubInfoDialog)
@@ -25,7 +26,8 @@ CompletSubInfoDialog::CompletSubInfoDialog(int fid,QWidget *parent) : QDialog(pa
     else
         defClsName = tr("业务客户");
 
-    s = "select clsCode, name from SndSubClass";
+    s = QString("select %1, %2 from %3").arg(fld_ssc_clscode)
+            .arg(fld_ssc_name).arg(tbl_ssclass);
     bool r = q.exec(s);
     int idx,i = 0 ;
     if(r){

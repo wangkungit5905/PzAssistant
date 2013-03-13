@@ -25,7 +25,6 @@
 #include "printUtils.h"
 #include "securitys.h"
 #include "commdatastruct.h"
-#include "pzdialog3.h"
 #include "viewpzseterrorform.h"
 #include "aboutform.h"
 
@@ -246,7 +245,7 @@ MainWindow::MainWindow(QWidget *parent) :
     pzRepeal=0;pzRecording=0;pzVerify=0;pzInstat=0;pzAmount=0;
 
     //初始化对话框窗口指针为NULL
-    dlgAcc = NULL;
+    //dlgAcc = NULL;
     dlgBank = NULL;
     dlgData = NULL;
     dlgBase = NULL;
@@ -319,8 +318,8 @@ MainWindow::~MainWindow()
 {
     delete ui;
     //初始化对话框窗口指针为NULL
-    if(dlgAcc != NULL)
-        delete dlgAcc;
+    //if(dlgAcc != NULL)
+    //    delete dlgAcc;
     if(dlgBank != NULL)
         delete dlgBank;
     if(dlgData != NULL)
@@ -442,7 +441,9 @@ void MainWindow::accountInit()
     //BusiUtil::getSidByName(allFstSubs.value(subCashId), tr("人民币"), subCashRmbId);
     //BusiUtil::getGdzcSubClass(allGdzcSubjectCls);
     Gdzc::getSubClasses(allGdzcSubjectCls);
-    BusiUtil::init();
+    if(!BusiUtil::init())
+        QMessageBox::critical(this,tr("错误信息"),tr("BusiUtil对象初始化阶段发生错误！"));
+
 }
 
 //动态更新窗口菜单
@@ -725,6 +726,7 @@ void MainWindow::openPzs()
            sqlWarning();
        isExtraVolid = BusiUtil::getExtraState(cursy,cursm);
        refreshShowPzsState();
+	   ui->statusbar->setPzSetDate(cursy,cursm);
        refreshTbrVisble();
        refreshActEnanble();
     }
@@ -911,20 +913,19 @@ void MainWindow::generateBalanceSheet()
 //设置账户信息
 void MainWindow::setupAccInfos()
 {
-    CreateAccountDialog* dlg = new CreateAccountDialog(false, this);
-    dlg->setWindowTitle(tr("设置账户信息"));
-    ui->mdiArea->addSubWindow(dlg);
-    //dlg->exec();
-    dlg->show();
+//    CreateAccountDialog* dlg = new CreateAccountDialog(false, this);
+//    dlg->setWindowTitle(tr("设置账户信息"));
+//    ui->mdiArea->addSubWindow(dlg);
+//    dlg->show();
 }
 
 //导入基本数据
 bool MainWindow::impBasicDatas()
 {
-    BasicDataDialog* dlg = new BasicDataDialog(false);
-    dlg->setWindowTitle(tr("导入基础数据"));
-    ui->mdiArea->addSubWindow(dlg);
-    dlg->exec();
+//    BasicDataDialog* dlg = new BasicDataDialog(false);
+//    dlg->setWindowTitle(tr("导入基础数据"));
+//    ui->mdiArea->addSubWindow(dlg);
+//    dlg->exec();
 }
 
 //设置记账基点
@@ -1606,6 +1607,7 @@ void MainWindow::on_actDelPz_triggered()
         }
         pzAmount--;
         pzEdit->delPz();
+        pzEdit->save();
         isExtraVolid = false; //删除包含有会计分录（且金额非零）的凭证将导致余额的失效。这里不做过于细致的检测
         refreshShowPzsState();
         refreshActEnanble();
@@ -1667,6 +1669,7 @@ void MainWindow::on_actSavePz_triggered()
     pzEdit->save();
     //保存凭证集相关的状态
     refreshShowPzsState();
+    refreshActEnanble();
     ui->actSavePz->setEnabled(false);
 
 }
@@ -3191,7 +3194,6 @@ void MainWindow::allPzToRecording(int year, int month)
 
 bool MainWindow::impTestDatas()
 {
-    QHash<int,QString> ssNames; //子目id到名称的映射
-    BusiUtil::getOwnerSub(2,ssNames); //某总目下所有子目的id列表
-    int i = 0;
+    QList<int> ids,mts;
+    BusiUtil::getOutMtInBank(ids,mts);
 }

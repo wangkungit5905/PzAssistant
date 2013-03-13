@@ -1984,7 +1984,8 @@ HappenSubSelDialog::HappenSubSelDialog(int y, int m, QWidget *parent) :
     int id; QString name;
 
     //初始化一级科目组合框
-    q.exec("select id,subName from FirSubjects");    
+    q.exec(QString("select id,%1 from %2 where %3=1")
+           .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview));
     ui->cmbSF->addItem(tr("所有"),0);
     ui->cmbEF->addItem(tr("所有"),0);
     while(q.next()){
@@ -1995,7 +1996,8 @@ HappenSubSelDialog::HappenSubSelDialog(int y, int m, QWidget *parent) :
     }
 
     //初始化科目类型组合框
-    q.exec("select code,name from FstSubClasses");
+    q.exec(QString("select %1,%2 from %3").arg(fld_fsc_code).
+           arg(fld_fsc_name).arg(tbl_fsclass));
     ui->cmbSubCls->addItem(tr("所有"),0);
     while(q.next()){
         id = q.value(0).toInt();
@@ -2258,7 +2260,8 @@ ShowTZDialog::ShowTZDialog(int y, int m, QByteArray* sinfo, QWidget *parent) : Q
     hv = NULL;
 
     //初始化一级科目组合框
-    q.exec("select id,subName from FirSubjects where isView=1");
+    q.exec(QString("select id,%1 from %2 where %3=1")
+           .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview));
     while(q.next())
         ui->cmbSub->addItem(q.value(1).toString(),q.value(0).toInt());
     fcom = new SubjectComplete;
@@ -2934,10 +2937,12 @@ void ShowDZDialog::setSubRange(int witch, QList<int> fids,
     //如果选择所有主目或某类别主目，则要加载主目的id和名称到fids，及其主目所属的子目的id和名称
     if((witch == 1) || (witch == 2)){
         if(witch == 1)
-            s = "select id,subName from FirSubjects where isView = 1";
+            s = QString("select id,%1 from %2 where %3 = 1")
+                    .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview);
         else
-            s = QString("select id,subName from FirSubjects where (isView = 1) and "
-                        "(belongTo = %1)").arg(fids[0]);
+            s = QString("select id,%1 from %2 where %3=1 and %4= %5)")
+                        .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview)
+                        .arg(fld_fsub_class).arg(fids[0]);
         q.exec(s);
         this->fids.clear(); this->sids.clear();
         while(q.next()){
@@ -2950,7 +2955,8 @@ void ShowDZDialog::setSubRange(int witch, QList<int> fids,
         }
     }
     else{
-        s = "select id,subName from FirSubjects where isView = 1";
+        s = QString("select id,%1 from %2 where %3=1")
+                .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview);
         q.exec(s);        
         while(q.next()){
             fid = q.value(0).toInt();
@@ -5602,7 +5608,7 @@ LookupSubjectExtraDialog::LookupSubjectExtraDialog(Account* account, QWidget *pa
     int id; QString name;
 
     //初始化一级科目组合框
-    q.exec("select id,subName from FirSubjects");
+    q.exec(QString("select id,%1 from %2").arg(fld_fsub_name).arg(tbl_fsub));
     ui->cmbFstSub->addItem(tr("所有"),0);
     while(q.next()){
         id = q.value(0).toInt();

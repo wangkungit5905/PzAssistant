@@ -107,7 +107,7 @@ public:
     static QSet<int> feiSIds; //损益类科目中的费用类子目id集合
 
     //类的初始化函数
-    static void init();
+    static bool init();
 
     static bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
 
@@ -210,23 +210,8 @@ public:
     static bool saveRates2(int y,int m, QHash<int,Double>& rates, int mainMt = RMB);
 
 
-    /**
-        获取一级科目类别代码
-        此功能将并入科目管理器对象中
-    */
-    static bool getFstSubCls(QHash<int,QString>& clsNames,int subSys = 1)
-    {
-        QSqlQuery q;
-        QString s = QString("select code,name from FstSubClasses where subSys=%1").arg(subSys);
-        if(!(q.exec(s) && q.first())){
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("未能一级科目类别")));
-            return false;
-        }
-        q.seek(-1);
-        while(q.next())
-            clsNames[q.value(0).toInt()] = q.value(1).toString();
-    }
+    static bool getFstSubCls(QHash<int,QString>& clsNames,int subSys = 1);
+
 
 
     //    /**
@@ -278,10 +263,9 @@ public:
     static bool getSidByName(QString fname, QString sname, int& id, int subSys = 1);
     static bool getIdByName(int& id, QString name, int subSys = 1);
     static bool getIdsByCls(QList<int>& ids, int cls, bool isByView, int subSys = 1);
-    static bool getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names, int subSys = 1);
+    static bool getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names, bool isAll = true, int subSys = 1);
 
-    //获取指定总目下、指定子目子集的名称（参数sids：指定子目子集id，names：子目名）
-    //static bool getSubSetNameInSpecFst(int pid, QList<int> sids, QList<QString>& names);
+
 
     static bool getOwnerSub(int oid, QHash<int,QString>& names);
     static bool getDefaultSndSubs(QHash<int,int>& defSubs, int subSys = 1);
@@ -306,21 +290,8 @@ public:
 
     static  bool getAllFstSub(QList<int>& ids, QList<QString>& names, bool isByView = true);
 
-    /**
-        获取所有总目id到总目代码的哈希表
-    */
-    static bool getAllSubCode(QHash<int,QString>& codes, bool isByView = true)
-    {
-        QString s;
-        QSqlQuery q;
+    static bool getAllSubCode(QHash<int,QString>& codes, bool isByView = true);
 
-        s = "select id,subCode from FirSubjects";
-        if(isByView)
-            s.append(" where isView = 1");
-        bool r = q.exec(s);
-        while(q.next())
-            codes[q.value(0).toInt()] = q.value(1).toString();
-    }
 
     /**
         获取所有子目id到子目名的哈希表
@@ -338,45 +309,10 @@ public:
     */
     static bool getAllSndSubNameList(QStringList& names);
 
+    static bool getAllSubSCode(QHash<int,QString>& codes);
 
-    /**
-        获取所有子目id到子目代码的哈希表
-    */
-    static bool getAllSubSCode(QHash<int,QString>& codes)
-    {
-        QSqlQuery q;
-        QString s;
 
-        s = QString("select FSAgent.id,FSAgent.subCode from FSAgent "
-                    "join SecSubjects where FSAgent.sid = SecSubjects.id");
-        if(!q.exec(s)){
-            QMessageBox::information(0, QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取所有子科目哈希表")));
-            return false;
-        }
-        while(q.next())
-            codes[q.value(0).toInt()] = q.value(1).toString();
-        return true;
-    }
-
-    /**
-        获取需要进行明细核算的id列表
-    */
-    static bool getReqDetSubs(QList<int>& ids)
-    {
-        QSqlQuery q;
-        QString s;
-
-        s = "select id from FirSubjects where isReqDet = 1";
-        if(!q.exec(s)){
-            QMessageBox::information(0, QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取需要明细支持的一级科目id列表")));
-            return false;
-        }
-        while(q.next())
-            ids.append(q.value(0).toInt());
-        return true;
-    }
+    static bool getReqDetSubs(QList<int>& ids);
 
     static bool calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
                                  QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
@@ -431,28 +367,8 @@ public:
                            QHash<int,Double>& sums, QHash<int,int>& dirs,
                            QHash<int,Double> rates);
 
-    /**
-        获取所有一级科目id到保存科目余额的字段名称的映射
-    */
-    static bool getFidToFldName(QHash<int,QString>& names)
-    {
-        QSqlQuery q;
-        QString s;
+    static bool getFidToFldName(QHash<int,QString>& names);
 
-        s = "select id,subCode from FirSubjects";
-        char c;
-        if(!q.exec(s)){
-            QMessageBox::information(0, QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取一级科目id到保存余额字段名称的映射")));
-            return false;
-        }
-        while(q.next()){
-            int id = q.value(0).toInt();
-            QString code = q.value(1).toString();
-            c = 'A' + code.left(1).toInt() -1;
-            names[id] = QString(c).append(code);
-        }
-    }
 
     /**
         获取所有需要按币种分开核算的一级科目id到保存该科目余额的字段名称的映射
@@ -488,25 +404,9 @@ public:
     static bool readExtraByMonth4(int y,int m, QHash<int,Double>& sumsR,
            QHash<int,Double>& ssumsR, bool &exist);
 
-    /**
-        读取指定月份-指定总账科目的余额（参数fid：总账科目id，v是余额值，dir是方向，key为币种代码）
-    */
-    static bool readExtraForSub(int y,int m, int fid, QHash<int,double>& v, QHash<int,int>& dir);
-
     static bool readExtraForSub2(int y,int m, int fid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,int>& dir);
 
-    /**
-        读取指定月份-指定明细科目的余额（参数sid：明细科目id，v是余额值，dir是方向，key为币种代码）
-    */
-    static bool readExtraForDetSub(int y,int m, int sid, QHash<int,double>& v, QHash<int,int>& dir);
-
     static bool readExtraForDetSub2(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,int>& dir);
-
-
-    /**
-        读取指定月份-指定明细科目-指定币种的余额（参数sid：明细科目id，mt：币种代码，v是余额值，dir是方向）
-    */
-    static bool readDetExtraForMt(int y,int m, int sid, int mt, double& v, int& dir);
 
     static bool readDetExtraForMt2(int y,int m, int sid, int mt, Double& v, int& dir);
 
@@ -576,8 +476,8 @@ public:
     */
     static bool newSndSubAndMapping(int fid, int& id, QString name, QString lname, QString remCode, int clsCode);
 
-    //读取指定一级科目到指定二级科目的映射条目的id
     static bool getFstToSnd(int fid, int sid, int& id);
+    static bool isSndSubDisabled(int id, bool& enabled);
 
     //获取指定id（FSAgent表的id字段）的二级科目名称
     static bool getSndSubNameForId(int id, QString& name, QString& lname);
@@ -599,7 +499,6 @@ public:
     //按凭证日期，重新设置凭证集内的凭证号
     static bool assignPzNum(int y, int m);
 
-    //按二级科目id获取二级科目名（这里的sid是SecSubjects表的id）
     static bool getSNameForId(int sid, QString& name, QString& lname);
 
     //保存账户信息到账户文件（中的AccountInfos表中）

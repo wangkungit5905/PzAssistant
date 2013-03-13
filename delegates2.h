@@ -91,12 +91,14 @@ private slots:
     void commitAndCloseEditor(int colIndex, bool isMove);
     void newMappingItem(int pid, int sid, int row, int col);
     void newSndSubject(int fid, QString name, int row, int col);
+    void sndSubDisabled(int id);
     void nextRow(int row);
     void catchCopyPrevShortcut(int row, int col);
 
 signals:
     void newSndSubMapping(int pid, int sid, int row, int col, bool reqConfirm = true);
     void newSndSubAndMapping(int fid, QString name, int row, int col);
+    void sndSubjectDisabled(int id);
     void moveNextRow(int row);
     void reqCopyPrevAction(int row, int col);
 
@@ -183,8 +185,9 @@ protected:
     void keyPressEvent(QKeyEvent* e );
 
 signals:
-    void newMappingItem(int fid, int sid, int row, int col);
-    void newSndSubject(int fid, QString name, int row, int col);
+    void newMappingItem(int fid, int sid, int row, int col);        //新的二级科目
+    void newSndSubject(int fid, QString name, int row, int col);    //新的名称条目并采用此名称创建二级科目
+    void sndSubDisabled(int id);
     void dataEditCompleted(int col, bool isMove);
     void editNextItem(int row, int col);   //这一信号仅用于设置明细科目余额值的表中
 
@@ -195,8 +198,8 @@ private:
     int pid;   //所属的总账科目id
     int row,col; //编辑器所处的行列位置
     QListView* listview;   //智能提示列表框，用来供用户选择科目
-    QSqlQueryModel* model; //提取科目的数据模型（Fsagent和SecSubjects的连接查询）
-    QSqlTableModel* smodel; //从SecSubjects表提取，方便后续添加新科目（作为Listview的数据模型）
+    QSqlQueryModel* model; //提取二级科目的数据模型（Fsagent和SecSubjects的连接查询）
+    QSqlTableModel* smodel; //从名称条目表提取，方便后续添加新科目（作为Listview的数据模型）
     int rows;   //用以保存smodel的行数，因为smodel.rowCount()方法不一定返回正确的行数，因为模型类的实现一次不会返回所有行
     QString* keys;   //接收到的字母或数字键（数字表示科目代码，字母表示科目助记符）
     QStringList snames;//二级科目名称列表，用于输入二级科目名称时，提供一个输入完成器

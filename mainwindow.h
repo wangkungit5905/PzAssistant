@@ -291,7 +291,7 @@ private:
     QToolBar *fileToolBar;
 
     //创建新账户的4个步骤的对话框
-    CreateAccountDialog* dlgAcc;
+    //CreateAccountDialog* dlgAcc;
     SetupBankDialog* dlgBank;
     BasicDataDialog* dlgData;
     SetupBaseDialog* dlgBase;

@@ -100,7 +100,8 @@ void SetupBaseDialog::crtExtraPage()
     int col = 0;
 
     //根据当前使用的科目系统的类别初始化布局容器映射表
-    s = "select code, name from FstSubClasses";
+    s = QString("select %1, %2 from %3").arg(fld_fsc_code)
+            .arg(fld_fsc_name).arg(tbl_fsclass);
     r = q.exec(s);
     if(r){
         int c = 0;
@@ -133,8 +134,10 @@ void SetupBaseDialog::crtExtraPage()
     QSqlRecord rec = q.record();
 
     //创建显示科目余额的部件
-    s = QString("select subCode, subName,belongTo,isReqDet from "
-                "FirSubjects where isView = 1 order by subCode");
+    s = QString("select %1,%2,%3,%4 from %5 where %6=1 order by %7")
+            .arg(fld_fsub_subcode).arg(fld_fsub_name).arg(fld_fsub_class)
+            .arg(fld_fsub_isUseWb).arg(tbl_fsub).arg(fld_fsub_isview)
+            .arg(fld_fsub_subcode);
     bool result = q.exec(s);
     if(result){
         while(q.next()){

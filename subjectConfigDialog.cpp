@@ -147,12 +147,12 @@ SndSubConWin::SndSubConWin(QWidget* parent) : QWidget(parent)
     curRowIndex = -1;
 
     fstModel = new QSqlTableModel;
-    fstModel->setTable("FirSubjects");
+    fstModel->setTable(tbl_fsub);
     fstModel->select();
 
     sndModel = new QSqlRelationalTableModel;
-    sndModel->setTable("fsagent");
-    sndModel->setRelation(FSA_SID, QSqlRelation("SecSubjects", "id", "subName"));
+    sndModel->setTable(tbl_fsa);
+    sndModel->setRelation(FSA_SID, QSqlRelation(tbl_ssub, "id", fld_ssub_name));
 
     //sndModel->select();
 
@@ -345,12 +345,12 @@ SubInfoConWin::SubInfoConWin(QWidget* parent) : QWidget(parent)
     sndInfoModel->select();
 
     sndModel = new QSqlTableModel;
-    sndModel->setTable("fsagent");
+    sndModel->setTable(tbl_fsa);
     //sndModel->setRelation(SUNSUB_CALSS, QSqlRelation("SndSubClass", "id", "name"));
     //secModel->select();
 
     fstModel = new QSqlTableModel;
-    fstModel->setTable("FirSubjects");
+    fstModel->setTable(tbl_fsub);
     fstModel->select();
 
     //创建二级科目类别选择框（其中的类别来自配置信息）
@@ -700,9 +700,9 @@ SndSubConForm::SndSubConForm(QWidget* parent) : QWidget(parent)
 //    }
 
     fstModel = new QSqlQueryModel;
-    fstModel->setQuery("select id, subName from FirSubjects order by subCode");
-//    if(fstModel->lastError().isValid())
-//         qDebug() << fstModel->lastError();
+    QString s = QString("select id, %1 from %2 order by %3")
+            .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_subcode);
+    fstModel->setQuery(s);
 
 
 
@@ -711,7 +711,7 @@ SndSubConForm::SndSubConForm(QWidget* parent) : QWidget(parent)
 
     //装载二级科目类别
     ui.cmbSnd->addItem(tr("全部"), 0);
-    if(q.exec("select * from SndSubClass")){
+    if(q.exec(QString("select * from %1").arg(tbl_ssclass))){
         while(q.next()){
             ui.cmbSnd->addItem(q.value(SNDSUBCLASS_NAME).toString(),
                                q.value(SNDSUBCLASS_CODE));
@@ -720,16 +720,9 @@ SndSubConForm::SndSubConForm(QWidget* parent) : QWidget(parent)
 
     //装载二级科目
     sndModel = new QSqlRelationalTableModel;
-    sndModel->setTable("SecSubjects");
-    sndModel->setRelation(SNDSUB_CALSS, QSqlRelation("SndSubClass", "clsCode", "name"));
+    sndModel->setTable(tbl_ssub);
+    sndModel->setRelation(SNDSUB_CALSS, QSqlRelation(tbl_ssclass, fld_ssc_clscode, fld_ssc_name));
     sndModel->select();
-
-//    QSqlRecord recInfo = sndModel->record();
-//    QString s;
-//    for(int i = 0; i < recInfo.count(); ++i){
-//        s += recInfo.fieldName(i);
-//        s += "  ";
-//    }
 
     mapper2 = new QDataWidgetMapper;
     mapper2->setModel(sndModel);
@@ -767,7 +760,9 @@ SndSubConForm::SndSubConForm(QWidget* parent) : QWidget(parent)
     //装载二级科目(注意：如果二级科目的类别Id值在SndSubClass表中不存在，则此方式
     //装载的二级科目与sndModel的数据会不一致)
     //QSqlQuery q;
-    bool r = q.exec("select id, subName, classId from SecSubjects");
+    s = QString("select id, %1, %2 from %3")
+            .arg(fld_ssub_name).arg(fld_ssub_class).arg(tbl_ssub);
+    bool r = q.exec(s);
     if(r){
         while(q.next()){
             int sid = q.value(0).toInt();
@@ -814,9 +809,10 @@ void SndSubConForm::fstSubClassChanged(int index)
     QString s;
     int cls = ui.cmbFst->itemData(index).toInt();
     if(cls == 0)
-        s = QString("select id, subName from FirSubjects");
+        s = QString("select id, %2 from %1").arg(fld_fsub_name).arg(tbl_fsub);
     else
-        s =  QString("select id, subName from FirSubjects where belongTo = %1").arg(cls);
+        s = QString("select id, %1 from %2 where %3 = %4")
+                .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_class).arg(cls);
     fstModel->setQuery(s);
 }
 
@@ -881,19 +877,18 @@ void SndSubConForm::mapLstItemClicked(const QModelIndex &index)
 //将当前选中的二级科目加入到当前选中的一级科目下
 void SndSubConForm::btnAddToClicked()
 {
-    QSqlQuery query;
-    QString s = QString("insert into FSAgent(fid, sid) values(%1, %2)")
-                .arg(fid).arg(sid);
-    query.exec(s);
+    QSqlQuery q;
+    QString s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,1,1)")
+            .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_weight)
+            .arg(fld_fsa_enable).arg(fid).arg(sid);
+    q.exec(s);
     //回读此新的二级科目的id，并添加到全局变量中allSndSubs和allSndSubLNames
-    s = QString("select FSAgent.id,SecSubjects.subName,SecSubjects.subLName "
-                "from FSAgent join  SecSubjects on FSAgent.sid = SecSubjects.id "
-                "where (FSAgent.fid=%1) and (FSAgent.sid=%2)").arg(fid).arg(sid);
-    bool r = query.exec(s);
-    r = query.first();
-    int id = query.value(0).toInt();
-    allSndSubs[id] = query.value(1).toString();
-    allSndSubLNames[id] = query.value(2).toString();
+    s = QString("select last_insert_rowid()");
+    bool r = q.exec(s);
+    r = q.first();
+    int id = q.value(0).toInt();
+    allSndSubs[id] = q.value(1).toString();
+    allSndSubLNames[id] = q.value(2).toString();
     ui.btnAddTo->setEnabled(false);
 
     //刷新
@@ -912,15 +907,13 @@ void SndSubConForm::btnAddToClicked()
 void SndSubConForm::btnRemoveToClicked()
 {
     QSqlQuery q;
-    QString s;
-    s = QString("select id from FSAgent where (fid = %1) and (sid = %2)")
-               .arg(fid).arg(sid);
+    QString s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_fsa)
+            .arg(fld_fsa_fid).arg(fid).arg(fld_fsa_sid).arg(sid);
     q.exec(s); q.first();
     int id = q.value(0).toInt();
     allSndSubs.remove(id);
     allSndSubLNames.remove(id);
-    s = QString("delete from FSAgent where (fid = %1) and (sid = %2)")
-                .arg(fid).arg(sid);
+    s = QString("delete from %1 where id=%2").arg(tbl_fsa).arg(id);
     q.exec(s);
     ui.btnRomveTo->setEnabled(false);
     refreshMapList();
@@ -994,19 +987,21 @@ void SndSubConForm::btnSaveClicked()
     int isDetByMt;
 
     //首先检查在FSAgent表中是否已存在指定的一二级科目的对应关系条目
-    s = QString("select id from FSAgent where (fid = %1) and "
-                "(sid = %2)").arg(fid).arg(sid);
+    s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_fsa)
+            .arg(fld_fsa_fid).arg(fid).arg(fld_fsa_sid).arg(sid);
     if(q.exec(s) && q.first()){
         int id = q.value(0).toInt();
-        s = QString("update FSAgent set subCode = '%1', "
-                     "FrequencyStat = %2, isDetByMt = %3 where id = %4")
-                .arg(subCode).arg(weight).arg(isDetByMt).arg(id);
+        //这里还没有考虑保存启用状态等信息
+        s = QString("update %1 set %2='%3',%4=%5 where id=%6")
+                .arg(tbl_fsa).arg(fld_fsa_code).arg(subCode)
+                .arg(fld_fsa_weight).arg(weight).arg(id);
         r = q.exec(s);
     }
     else{
-        s = QString("insert into FSAgent(fid,sid,subCode,FrequencyStat) "
-                    "values(%1,%2,%3,%4)").arg(fid).arg(sid).arg(subCode)
-                .arg(weight);
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,%9,'%10',%11,1,%12)")
+                .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_code)
+                .arg(fld_fsa_weight).arg(fld_fsa_enable).arg(fld_fsa_creator)
+                .arg(fid).arg(sid).arg(subCode).arg(weight).arg(curUser->getUserId());
         r = q.exec(s);
     }
 
@@ -1017,11 +1012,15 @@ void SndSubConForm::btnSaveClicked()
 //刷新一二级科目映射关系列表
 void SndSubConForm::refreshMapList()
 {
-    QString s = QString("select FSAgent.fid, FSAgent.sid, FSAgent.subCode, "
-                        "FSAgent.FrequencyStat, SecSubjects.subName, "
-                        "FSAgent.isDetByMt from FSAgent join SecSubjects "
-                        "where (FSAgent.sid = SecSubjects.id) and "
-                        "(FSAgent.fid = %1)").arg(fid);
+//    QString s = QString("select FSAgent.fid, FSAgent.sid, FSAgent.subCode, "
+//                        "FSAgent.FrequencyStat, SecSubjects.subName, "
+//                        "FSAgent.isDetByMt from FSAgent join SecSubjects "
+//                        "where (FSAgent.sid = SecSubjects.id) and "
+//                        "(FSAgent.fid = %1)").arg(fid);
+    QString s = QString("select %1.%2,%1.%3,%1.%4,%1.%5, %6.%7 from %1 join %6 "
+                        "where %1.%3 = %6.id and %1.%2 = %8")
+            .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_code)
+            .arg(fld_fsa_weight).arg(tbl_ssub).arg(fld_ssub_name).arg(fid);
     //刷新所属关系列表
     mapModel->setQuery(s);
     int c = mapModel->rowCount();

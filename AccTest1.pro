@@ -40,7 +40,6 @@ SOURCES += main.cpp\
     otherModule.cpp \
     commdatastruct.cpp \
     dialog3.cpp \
-    pzdialog3.cpp \
     pz.cpp \
     subjectmanager.cpp \
     tables.cpp \
@@ -84,7 +83,6 @@ HEADERS  += \
     previewdialog.h \
     account.h \
     otherModule.h \
-    pzdialog3.h \
     pz.h \
     subjectmanager.h \
     tables.h \

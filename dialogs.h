@@ -24,33 +24,6 @@
 #include "common.h"
 #include "account.h"
 
-class CreateAccountDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    CreateAccountDialog(bool isWizarded = true, QWidget* parent = 0);
-    //    CreateAccountDialog(QString sname, QString lname,
-    //                        QString filename, QWidget* parent);
-
-    QString getCode();
-    QString getSName();
-    QString getLName();
-    QString getFileName();
-    int getReportType();
-
-signals:
-    void toNextStep(int curStep, int nextStep);
-
-public slots:
-    void nextStep();
-
-private:
-    Ui::Dialog ui;
-    bool isWizared;
-    QSqlTableModel* model;
-    QDataWidgetMapper* mapper;
-};
 
 
 class OpenAccountDialog : public QDialog
@@ -230,39 +203,7 @@ private:
     bool isWizard;   //是否在向导中打开此对话框
 };
 
-/**
-    该类的设计目标是显示指定月份的总子科目的余额，月份可以选择，但余额数据不能编辑。
-    它提供了与本月统计类似的功能，但它能任意选择某个时间点来显示，而本月统计一般用
-    来显示当月余额数。
-*/
-class SubjectExtraDialog : public QDialog
-{
-    Q_OBJECT
 
-public:
-    SubjectExtraDialog(QWidget* parent = 0);
-    void setDate(int y,int m);
-
-public slots:
-    void viewExtra();
-    void btnEditClicked();
-    void btnSaveClicked();
-    void viewSubExtra(QString code, const QPoint& pos);
-    void dateChanged(const QDate &date);
-
-
-private:
-    Ui::subjectExtraDialog ui;
-    //QSqlTableModel* model;
-    //QSqlQueryModel* model;
-    //QDataWidgetMapper* mapper;
-    QHash<QString, QLineEdit*> edtHash;  //对象名与部件指针的对应表
-    QHash<int,QLineEdit*> idHash;        //科目id到显示该科目的余额值的部件指针的对应表
-    QHash<int, QGridLayout*> lytHash;    //科目类别代码到布局容器对象指针的映射
-
-    int y,m;
-
-};
 
 
 class ReportDialog : public QDialog

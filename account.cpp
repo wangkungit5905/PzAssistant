@@ -939,78 +939,78 @@ void Account::delLogs(QDateTime start, QDateTime end)
 //临时，创建账户信息表
 void Account::crtAccountTable()
 {
-    QSqlQuery q(*db),q1(*db);
-    bool r;
-    QString s;
+//    QSqlQuery q(*db),q1(*db);
+//    bool r;
+//    QString s;
 
-    //创建新的账户信息表，将老的账户信息表内的数据转入新表
-    r = q.exec("CREATE TABLE AccountInfo(id INTEGER PRIMARY KEY, code int, name TEXT, value TEXT)");
-    //转储老的账户信息表
-    r = q.exec("select * from AccountInfos");
-    r = q.first();
-    //账户代码
-    QString ts = q.value(ACCOUNT_CODE).toString();
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::ACODE).arg("accountCode").arg(ts);
-    r = q1.exec(s);
-    //账户开始记账时间
-    ts = q.value(ACCOUNT_BASETIME).toString().append("-01");
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::STIME).arg("startTime").arg(ts);
-    r = q1.exec(s);
-    //账户终止记账时间
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::ETIME).arg("endTime").arg("2011-11-30");
-    r = q1.exec(s);
-    //账户简称
-    ts = q.value(ACCOUNT_SNAME).toString();
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::SNAME).arg("shortName").arg(ts);
-    r = q1.exec(s);
-    //账户全称
-    ts = q.value(ACCOUNT_LNAME).toString();
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::LNAME).arg("longName").arg(ts);
-    r = q1.exec(s);
-    //账户所用科目类型
-    int v = q.value(ACCOUNT_USEDSUB).toInt();
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::SUBTYPE).arg("subType").arg(QString::number(v));
-    r = q1.exec(s);
-    //所用报表类型
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::RPTTYPE).arg("reportType").arg(QString::number(v));
-    r = q1.exec(s);
-    //本币
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::MASTERMT).arg("masterMt").arg("1");
-    r = q1.exec(s);
-    //外币
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::WAIMT).arg("WaiBiList").arg("2");
-    r = q1.exec(s);
+//    //创建新的账户信息表，将老的账户信息表内的数据转入新表
+//    r = q.exec("CREATE TABLE AccountInfo(id INTEGER PRIMARY KEY, code int, name TEXT, value TEXT)");
+//    //转储老的账户信息表
+//    r = q.exec("select * from AccountInfos");
+//    r = q.first();
+//    //账户代码
+//    QString ts = q.value(ACCOUNT_CODE).toString();
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::ACODE).arg("accountCode").arg(ts);
+//    r = q1.exec(s);
+//    //账户开始记账时间
+//    ts = q.value(ACCOUNT_BASETIME).toString().append("-01");
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::STIME).arg("startTime").arg(ts);
+//    r = q1.exec(s);
+//    //账户终止记账时间
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::ETIME).arg("endTime").arg("2011-11-30");
+//    r = q1.exec(s);
+//    //账户简称
+//    ts = q.value(ACCOUNT_SNAME).toString();
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::SNAME).arg("shortName").arg(ts);
+//    r = q1.exec(s);
+//    //账户全称
+//    ts = q.value(ACCOUNT_LNAME).toString();
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::LNAME).arg("longName").arg(ts);
+//    r = q1.exec(s);
+//    //账户所用科目类型
+//    int v = q.value(ACCOUNT_USEDSUB).toInt();
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::SUBTYPE).arg("subType").arg(QString::number(v));
+//    r = q1.exec(s);
+//    //所用报表类型
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::RPTTYPE).arg("reportType").arg(QString::number(v));
+//    r = q1.exec(s);
+//    //本币
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::MASTERMT).arg("masterMt").arg("1");
+//    r = q1.exec(s);
+//    //外币
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::WAIMT).arg("WaiBiList").arg("2");
+//    r = q1.exec(s);
 
-    //当前帐套
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::CSUITE).arg("currentSuite").arg("2011");
-    r = q1.exec(s);
-    //帐套名列表
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::SUITENAME).arg("suiteNames").arg(QObject::tr("2011,2011年"));
-    r = q1.exec(s);
-    //账户最后访问时间
-    ts = q.value(ACCOUNT_LASTTIME).toString();
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::LASTACCESS).arg("lastAccessTime").arg(ts);
-    r = q1.exec(s);
-    //日志文件名
-    //ts = curAccount->getFileName();
-    ts = fileName;
-    //ts.replace(".dat",".log");
-    ts.append(".log");
-    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
-            .arg(Account::LOGFILE).arg("logFileName").arg(ts);
-    r = q1.exec(s);
+//    //当前帐套
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::CSUITE).arg("currentSuite").arg("2011");
+//    r = q1.exec(s);
+//    //帐套名列表
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::SUITENAME).arg("suiteNames").arg(QObject::tr("2011,2011年"));
+//    r = q1.exec(s);
+//    //账户最后访问时间
+//    ts = q.value(ACCOUNT_LASTTIME).toString();
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::LASTACCESS).arg("lastAccessTime").arg(ts);
+//    r = q1.exec(s);
+//    //日志文件名
+//    //ts = curAccount->getFileName();
+//    ts = fileName;
+//    //ts.replace(".dat",".log");
+//    ts.append(".log");
+//    s = QString("insert into AccountInfo(code,name,value) values(%1,'%2','%3')")
+//            .arg(Account::LOGFILE).arg("logFileName").arg(ts);
+//    r = q1.exec(s);
 
 
 }

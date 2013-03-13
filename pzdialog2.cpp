@@ -200,6 +200,8 @@ void PzDialog2::init()
             ui->twActions, SLOT(newSndSubMapping(int,int,int,int,bool)));
     connect(delegate, SIGNAL(newSndSubAndMapping(int,QString,int,int)),
             ui->twActions, SLOT(newSndSubAndMapping(int,QString,int,int)));
+    connect(delegate,SIGNAL(sndSubjectDisabled(int)),
+            ui->twActions,SLOT(sndSubjectDisabeld(int)));
     connect(delegate, SIGNAL(moveNextRow(int)),
             this, SLOT(demandAppendNewAction(int)));
     connect(delegate, SIGNAL(reqCopyPrevAction(int,int)),

@@ -3,6 +3,17 @@
 
 #include <QString>
 
+//账户信息表(AccountInfo) 该表的每行代表一个账户的信息
+//CREATE TABLE AccountInfo(id INTEGER PRIMARY KEY, code INTEGER, name TEXT, value TEXT)
+#define tbl_accInfo     "AccountInfo"
+#define fld_acci_code   "code"          //账户信息字段的枚举编号（code INTEGER）
+#define fld_acci_name   "name"          //账户信息字段名（name TEXT）
+#define fld_acci_value  "value"         //账户信息字段值（value TEXT）
+#define ACCINFO_CODE     1
+#define ACCINFO_NAME     2
+#define ACCINFO_VALUE    3
+
+
 //*************************币种表*************************//
 //CREATE TABLE MoneyTypes(id INTEGER PRIMARY KEY, code INTEGER, sign TEXT, name TEXT)
 //字段名
@@ -19,12 +30,35 @@
 //*************************汇率表***********************************//
 //CREATE TABLE ExchangeRates(id INTEGER PRIMARY KEY, year INTEGER, month INTEGER, usd2rmb REAL)
 //字段名
+//注意：汇率字段的命名规则：币种符号 + “2” + 本币符号（rmb）
 #define tbl_rateTable   "ExchangeRates"
 #define fld_rt_year     "year"
 #define fld_rt_month    "month"
 //字段索引
 #define RT_YEAR     1
 #define RT_MONTH    2
+
+//银行表(Banks)
+//字段名
+#define tbl_bank            "Banks"
+#define fld_bank_isMain     "IsMain"    //是否基本户(bool)
+#define fld_bank_name       "name"      //开户行简称(TEXT)
+#define fld_bank_lname      "lname"     //全称(TEXT)
+//字段索引
+#define BANK_ISMAIN 1
+#define BANK_NAME   2
+#define BANK_LNAME  3
+
+//银行账户表--在银行下开设的与币种相关的银行账户
+//字段名
+#define tbl_bankAcc     "BankAccounts"
+#define fld_bankAcc_bankId  "bankID"    //账户所属的银行ID（INTEGER）
+#define fld_bankAcc_mt      "mtID"      //账户币种ID INTEGER）
+#define fld_bankAcc_accNum  "accNum"    //帐号（TEXT）
+//字段索引
+#define BA_BANKID 1
+#define BA_MT  2
+#define BA_ACCNUM  3
 
 
 //*************************一级科目类别表*************************//
@@ -90,7 +124,7 @@
 #define fld_ssub_lname      "lName"         //全称
 #define fld_ssub_remcode    "remCode"       //助记符
 #define fld_ssub_class      "classId"       //名称类别代码
-#define fld_ssub_crtTime     "createdTime"  //创建时间
+#define fld_ssub_crtTime    "createdTime"   //创建时间
 #define fld_ssub_creator    "creator"       //创建者
 //字段索引
 #define SNDSUB_SUBNAME      1
@@ -166,16 +200,16 @@
 #define fld_ba_dir "dir"
 #define fld_ba_number "NumInPz"
 //字段索引
-//#define BACTION_PID 1         //所属的凭证ID（pid INTEGER）
-//#define BACTION_SUMMARY 2     //业务活动摘要（summary TEXT）
-//#define BACTION_FID 3         //一级科目（firSubID INTEGER）
-//#define BACTION_SID 4         //二级科目（secSubID INTEGER）
-//#define BACTION_MTYPE 5       //货币类型（moneyType INTEGER）
-//#define BACTION_JMONEY 6      //借方金额（jMoney REAL）
-//#define BACTION_DMONEY 7      //贷方金额（dMoney REAL）
-//#define BACTION_DIR   8       //借贷方向（1：借，0：贷）（dir INTEGER）
-//#define BACTION_NUMINPZ   9   //该业务活动在凭证业务活动表中的序号（NumInPz INTEGER）
-//                              //（序号决定了在表中的具体位置，基于1）
+#define BACTION_PID 1         //所属的凭证ID（pid INTEGER）
+#define BACTION_SUMMARY 2     //业务活动摘要（summary TEXT）
+#define BACTION_FID 3         //一级科目（firSubID INTEGER）
+#define BACTION_SID 4         //二级科目（secSubID INTEGER）
+#define BACTION_MTYPE 5       //货币类型（moneyType INTEGER）
+#define BACTION_JMONEY 6      //借方金额（jMoney REAL）
+#define BACTION_DMONEY 7      //贷方金额（dMoney REAL）
+#define BACTION_DIR   8       //借贷方向（1：借，0：贷）（dir INTEGER）
+#define BACTION_NUMINPZ   9   //该业务活动在凭证业务活动表中的序号（NumInPz INTEGER）
+                              //（序号决定了在表中的具体位置，基于1）
 
 //**************************主目余额表（以原币计）*****************************/
 //（各科目的字段名由代表科目类别的字母代码加上科目国标代码组成）

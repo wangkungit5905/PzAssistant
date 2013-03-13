@@ -3,6 +3,7 @@
 
 #include "subjectsearchform.h"
 #include "ui_subjectsearchform.h"
+#include "tables.h"
 
 SubjectSearchForm::SubjectSearchForm(QWidget *parent) :
     QWidget(parent),ui(new Ui::SubjectSearchForm),db(NULL),model(NULL)
@@ -24,7 +25,8 @@ void SubjectSearchForm::attachDb(QSqlDatabase *db)
     ui->edtKeyWord->setReadOnly(false);
     ui->cmbClass->clear();
     QSqlQuery q(*db);
-    QString s = "select clsCode,name from SndSubClass";
+    QString s = QString("select %1,%2 from %3")
+            .arg(fld_fsc_code).arg(fld_fsc_name).arg(tbl_fsclass);
     if(!q.exec(s)){
         qDebug()<<tr("在提取二级科目类别时发生错误！");
         return;
@@ -41,8 +43,9 @@ void SubjectSearchForm::attachDb(QSqlDatabase *db)
             this,SLOT(classChanged(int)));
     connect(ui->edtKeyWord,SIGNAL(editingFinished()),
             this,SLOT(keyWordEditingFinished()));
-
-    model->setQuery("select id,subName,subLName,remCode from SecSubjects",*db);
+    s = QString("select id,%1,%2,%3 from %4").arg(fld_ssub_name)
+            .arg(fld_ssub_lname).arg(fld_ssub_remcode).arg(tbl_ssub);
+    model->setQuery(s,*db);
     ui->tview->setModel(model);
 }
 
@@ -76,19 +79,20 @@ void SubjectSearchForm::refresh()
 {
     QString fKey,fCode,keyWord,s;
     QSqlQuery q(*db);
-    s = "select id,subName,subLName,remCode from SecSubjects ";
+    s = QString("select id,%1,%2,%3 from %4").arg(fld_ssub_name)
+            .arg(fld_ssub_lname).arg(fld_ssub_remcode).arg(tbl_ssub);
     keyWord = ui->edtKeyWord->text();
     int code = ui->cmbClass->itemData(ui->cmbClass->currentIndex()).toInt();
     if(!keyWord.isEmpty())
-        fKey = QString("subName like '%%1%'").arg(keyWord);
+        fKey = QString("%1 like '%%2%'").arg(fld_ssub_name).arg(keyWord);
     if(code != 0)
-        fCode = QString("classId = %1").arg(code);
+        fCode = QString("%1 = %2").arg(fld_ssub_class).arg(code);
     if(!fKey.isEmpty() && code == 0)
-        s.append("where ").append(fKey);
+        s.append(" where ").append(fKey);
     else if(fKey.isEmpty() && code != 0)
-        s.append("where ").append(fCode);
+        s.append(" where ").append(fCode);
     else if(!fKey.isEmpty() && code != 0)
-        s.append("where ").append(fKey).append(" and ").append(fCode);
+        s.append(" where ").append(fKey).append(" and ").append(fCode);
 
     if(!s.isEmpty())
         model->setQuery(s,*db);

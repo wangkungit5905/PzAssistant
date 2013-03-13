@@ -32,77 +32,7 @@
 //#define	FW_NORMAL	400
 //#define	FW_BOLD		700
 
-CreateAccountDialog::CreateAccountDialog(bool isWizarded, QWidget* parent) : QDialog(parent)
-{
-    ui.setupUi(this);
-    this->isWizared = isWizarded;
 
-    //如果不是在向导中而是单独打开设置账户信息对话框
-    if(!isWizarded){
-        ui.lblFileName->setVisible(false);
-        ui.filename->setVisible(false);
-        ui.lblStep->setVisible(false);
-        ui.btnNext->setText(tr("保存"));
-        model = new QSqlTableModel;
-        model->setTable("AccountInfos");
-        mapper = new QDataWidgetMapper;
-        mapper->setModel(model);
-        model->select();
-
-        mapper->addMapping(ui.edtAccCode, ACCOUNT_CODE);
-        mapper->addMapping(ui.sname, ACCOUNT_SNAME);
-        mapper->addMapping(ui.lname, ACCOUNT_LNAME);
-        mapper->toFirst();
-    }
-}
-
-//CreateAccountDialog::CreateAccountDialog(QString sname, QString lname,
-//                    QString filename, QWidget* parent)  : QDialog(parent)
-//{
-//    ui.setupUi(this);
-//    ui.sname->setText(sname);
-//    ui.lname->setText(lname);
-//    ui.filename->setText(filename);
-//}
-
-QString CreateAccountDialog::getCode()
-{
-    return ui.edtAccCode->text();
-}
-
-QString CreateAccountDialog::getSName()
-{
-    return ui.sname->text();
-}
-
-QString CreateAccountDialog::getLName()
-{
-    return ui.lname->text();
-}
-
-QString CreateAccountDialog::getFileName()
-{
-    return ui.filename->text();
-}
-
-int CreateAccountDialog::getReportType()
-{
-    if(ui.rdoOld->isChecked())
-        return Account::RPT_OLD;
-    else
-        return Account::RPT_NEW;
-}
-
-void CreateAccountDialog::nextStep()
-{
-    if(isWizared){
-        emit toNextStep(1, 2);  //到第二步（设置开户行）
-    }
-    else{
-       mapper->submit();
-       close();
-   }
-}
 
 /////////////////////////////////////////////////////////////////////////////////
 
@@ -1864,142 +1794,142 @@ void BasicDataDialog::demandAttachDatabase(bool isAttach)
 //参数subCls表示所采用的科目系统类别（1：老式，2：新式）
 void BasicDataDialog::impFstSubFromBasic(int subCls)
 {
-    bool r;
-    QString s;
-    QSqlQuery q;
-    int c;  //tem
+    //因账户数据库格式已被修改，这个函数已不适合
+//    bool r;
+//    QSqlQuery q;
+//    int c;  //tem
 
-    demandAttachDatabase(true);//附加基础数据库到当前连接上
+//    demandAttachDatabase(true);//附加基础数据库到当前连接上
 
-    //删除原来表中的数据
-    s = "delete from FstSubClasses";
-    r = q.exec(s);
-    s = "delete from FirSubjects";
-    r = q.exec(s);
+//    //删除原来表中的数据
+//    QString s = QString("delete from %1").arg(tbl_fsclass);
+//    r = q.exec(s);
+//    s = QString("delete from %1").arg(tbl_fsub);
+//    r = q.exec(s);
 
-    //从基础数据库中导入一级科目类别表
-    s = QString("insert into FstSubClasses(code,name) select code,name "
-                "from basic.FirstSubCls where subCls = %1").arg(subCls);
-    r = q.exec(s);
-    c = q.numRowsAffected();
+//    //从基础数据库中导入一级科目类别表
+//    s = QString("insert into FstSubClasses(code,name) select code,name "
+//                "from basic.FirstSubCls where subCls = %1").arg(subCls);
+//    r = q.exec(s);
+//    c = q.numRowsAffected();
 
-    //从基础数据库中导入一级科目表
-    s = QString("insert into FirSubjects(subCode,remCode,belongTo,isView,isReqDet,weight,"
-                "subName,description,utils) select subCode,remCode,belongTo,isView,"
-                "isReqDet,weight,subName,description,utils from basic.FirstSubs "
-                "where subCls = %1").arg(subCls);
-    r = q.exec(s);
-    c = q.numRowsAffected();
+//    //从基础数据库中导入一级科目表
+//    s = QString("insert into FirSubjects(subCode,remCode,belongTo,isView,isReqDet,weight,"
+//                "subName,description,utils) select subCode,remCode,belongTo,isView,"
+//                "isReqDet,weight,subName,description,utils from basic.FirstSubs "
+//                "where subCls = %1").arg(subCls);
+//    r = q.exec(s);
+//    c = q.numRowsAffected();
 
-    demandAttachDatabase(false);
+//    demandAttachDatabase(false);
 }
 
 //从基础数据库中导入二级科目及其类别到相应表中，
 //对于二级科目暂不做考虑新旧科目系统的区别
 void BasicDataDialog::impSndSubFromBasic()
 {
-    bool r;
-    QString s;
-    QSqlQuery q,q2;
-    int c;  //tem
+//    bool r;
+//    QString s;
+//    QSqlQuery q,q2;
+//    int c;  //tem
 
-    demandAttachDatabase(true);//附加基础数据库到当前连接上
+//    demandAttachDatabase(true);//附加基础数据库到当前连接上
 
-    //删除原来表中的数据
-    s = "delete from SndSubClass";
-    r = q.exec(s);
-    s = "delete from SecSubjects";
-    r = q.exec(s);
+//    //删除原来表中的数据
+//    s = QString("delete from %1").arg(tbl_ssclass);
+//    r = q.exec(s);
+//    s = QString("delete from %1").arg(tbl_ssub);
+//    r = q.exec(s);
 
-//    //在FSAgent表中删除除了银行存款和现金以外的所有一级科目下的二级科目的所属关系
-    s = QString("select id from FirSubjects where subCode = '1002'");
-    r = q.exec(s);
-    r = q.first();
-    int bankId = q.value(0).toInt();
-    s = QString("select id from FirSubjects where subCode = '1001'");
-    r = q.exec(s);
-    r = q.first();
-    int cashId = q.value(0).toInt();
-    s = QString("delete from FSAgent where (fid != %1) and "
-                "(fid != %2)").arg(cashId).arg(bankId);
-    r = q.exec(s);
+////    //在FSAgent表中删除除了银行存款和现金以外的所有一级科目下的二级科目的所属关系
+//    s = QString("select id from FirSubjects where subCode = '1002'");
+//    r = q.exec(s);
+//    r = q.first();
+//    int bankId = q.value(0).toInt();
+//    s = QString("select id from FirSubjects where subCode = '1001'");
+//    r = q.exec(s);
+//    r = q.first();
+//    int cashId = q.value(0).toInt();
+//    s = QString("delete from FSAgent where (fid != %1) and "
+//                "(fid != %2)").arg(cashId).arg(bankId);
+//    r = q.exec(s);
 
 
-    //从基础数据库中导入二级科目类别表
-    s = QString("insert into SndSubClass(clsCode,name,explain) select clsCode,name,explain "
-                "from basic.SecondSubCls");
-    r = q.exec(s);
-    //c = q.numRowsAffected();
+//    //从基础数据库中导入二级科目类别表
+//    s = QString("insert into SndSubClass(clsCode,name,explain) select clsCode,name,explain "
+//                "from basic.SecondSubCls");
+//    r = q.exec(s);
+//    //c = q.numRowsAffected();
 
-    //从基础数据库中导入二级科目表
-    s = QString("insert into SecSubjects(subName,subLName,remCode,classId) "
-                "select subName,subLName,remCode,classId "
-                "from basic.SecondSubs");
-    r = q.exec(s);
-    //c = q.numRowsAffected();
+//    //从基础数据库中导入二级科目表
+//    s = QString("insert into SecSubjects(subName,subLName,remCode,classId) "
+//                "select subName,subLName,remCode,classId "
+//                "from basic.SecondSubs");
+//    r = q.exec(s);
+//    //c = q.numRowsAffected();
 
-    //建立一二级科目的所属关系
-    s = QString("select subName,belongTo,subCode from basic.SecondSubs "
-                "where subCls = %1").arg(usedSubCls);
-    r = q.exec(s);
-    while(q.next()){
-        QString ownerStr = q.value(1).toString();
-        if(ownerStr != ""){
-            QString subName = q.value(0).toString();
-            QStringList ownerLst = ownerStr.split(",");
-            QStringList codeLst = q.value(2).toString().split(",");
-            s = QString("select id from SecSubjects where subName = '%1'")
-                .arg(subName);
-            r = q2.exec(s);
-            r = q2.first();
-            int sid = q2.value(0).toInt();
-            for(int i = 0; i < ownerLst.count(); ++i){
-                s = QString("select id from FirSubjects where "
-                            "subCode = %1").arg(ownerLst[i]);
-                r = q2.exec(s);
-                r = q2.first();
-                int fid = q2.value(0).toInt();
+//    //建立一二级科目的所属关系
+//    s = QString("select subName,belongTo,subCode from basic.SecondSubs "
+//                "where subCls = %1").arg(usedSubCls);
+//    r = q.exec(s);
+//    while(q.next()){
+//        QString ownerStr = q.value(1).toString();
+//        if(ownerStr != ""){
+//            QString subName = q.value(0).toString();
+//            QStringList ownerLst = ownerStr.split(",");
+//            QStringList codeLst = q.value(2).toString().split(",");
+//            s = QString("select id from SecSubjects where subName = '%1'")
+//                .arg(subName);
+//            r = q2.exec(s);
+//            r = q2.first();
+//            int sid = q2.value(0).toInt();
+//            for(int i = 0; i < ownerLst.count(); ++i){
+//                s = QString("select id from FirSubjects where "
+//                            "subCode = %1").arg(ownerLst[i]);
+//                r = q2.exec(s);
+//                r = q2.first();
+//                int fid = q2.value(0).toInt();
 
-                //插入到FSAgent表中
-                s = QString("insert into FSAgent(fid,sid,subCode) "
-                            "values(%1,%2,'%3')").arg(fid).arg(sid)
-                        .arg(codeLst[i]);
-                r = q2.exec(s);
-            }
-        }
-    }
+//                //插入到FSAgent表中
+//                s = QString("insert into FSAgent(fid,sid,subCode) "
+//                            "values(%1,%2,'%3')").arg(fid).arg(sid)
+//                        .arg(codeLst[i]);
+//                r = q2.exec(s);
+//            }
+//        }
+//    }
 
-    demandAttachDatabase(false);
+//    demandAttachDatabase(false);
 }
 
 //从基础数据库中导入客户数据到SecSubjects表中
 void BasicDataDialog::impCliFromBasic()
 {
-    bool r;
-    QString s;
-    QSqlQuery q;
-    int c;  //tem
+//    bool r;
+//    QString s;
+//    QSqlQuery q;
+//    int c;  //tem
 
-    //获取业务客户类别的ID值
-    s = QString("select clsCode from SndSubClass where name = '%1'").arg(tr("业务客户"));
-    r = q.exec(s);
-    r = q.first();
-    int clsId = q.value(0).toInt();
+//    //获取业务客户类别的ID值
+//    s = QString("select clsCode from SndSubClass where name = '%1'").arg(tr("业务客户"));
+//    r = q.exec(s);
+//    r = q.first();
+//    int clsId = q.value(0).toInt();
 
-    //删除所有原先已有的业务客户
-    s = QString("delete from SecSubjects where classId = %1").arg(clsId);
-    r = q.exec(s);
-    r = q.first();
-    c = q.numRowsAffected();
+//    //删除所有原先已有的业务客户
+//    s = QString("delete from SecSubjects where classId = %1").arg(clsId);
+//    r = q.exec(s);
+//    r = q.first();
+//    c = q.numRowsAffected();
 
-    demandAttachDatabase(true);//附加基础数据库到当前连接上
+//    demandAttachDatabase(true);//附加基础数据库到当前连接上
 
-    s = QString("insert into SecSubjects(subName,subLName,remCode,classId) "
-                "select subName,subLName,remCode,%1 from basic.Clients").arg(clsId);
-    r = q.exec(s);
-    c = q.numRowsAffected();
+//    s = QString("insert into SecSubjects(subName,subLName,remCode,classId) "
+//                "select subName,subLName,remCode,%1 from basic.Clients").arg(clsId);
+//    r = q.exec(s);
+//    c = q.numRowsAffected();
 
-    demandAttachDatabase(false);
+//    demandAttachDatabase(false);
 }
 
 //将当前的一级科目配置保存到基础数据库中
@@ -2085,329 +2015,76 @@ void BasicDataDialog::saveSndToBase()
     //代目前还没有在用户界面上进行添加、删除科目类别的功能，因此无需考虑
 
     //金融机构类的二级科目不需要保存，客户类二级科目另作处理
-    s = QString("select clsCode from SndSubClass where name = '%1'")
-        .arg(tr("金融机构"));
-    int bcode;
-    if(q.exec(s) && q.first())
-        bcode = q.value(0).toInt();
-    else{
-        qDebug() << tr("没有金融机构二级科目类别");
-        return;
-    }
-
-    int ccode;
-    s = QString("select clsCode from SndSubClass where name = '%1'")
-        .arg(tr("业务客户"));
-    if(q.exec(s) && q.first())
-        ccode = q.value(0).toInt();
-    else{
-        qDebug() << tr("没有业务客户二级科目类别");
-        return;
-    }
-
-
-    s = QString("select * from SecSubjects where (classId != %1) "
-                "and (classId != %2)").arg(bcode).arg(ccode);
-    r = q.exec(s);
-    int num = 0; //完成的记录数
-    while(q.next()){
-        QString subName = q.value(SNDSUB_SUBNAME).toString();
-        QString subLName = q.value(SNDSUB_SUBLONGNAME).toString();
-        QString remCode = q.value(SNDSUB_REMCODE).toString();
-        int clsId = q.value(SNDSUB_CALSS).toInt();
-        int sid = q.value(0).toInt();
-        //获取此二级科目被哪些一级科目包含了
-        s = QString("select FirSubjects.subCode, FSAgent.subCode from "
-                    "FSAgent join FirSubjects where "
-            "(FSAgent.fid = FirSubjects.id) and (FSAgent.sid = %1)")
-                .arg(sid);
-        QStringList fclst,sclst;
-        r = q2.exec(s);
-        while(q2.next()){
-            fclst.append(q2.value(0).toString());//一级科目代码列表
-            sclst.append(q2.value(1).toString());//二级科目代码列表
-        }
-        QString fcodes = fclst.join(","); //包含此二级科目的一级科目代码
-        QString scodes = sclst.join(",");
-
-        //更新
-        if(names.contains(subName)){
-            s = QString("update basic.SecondSubs set subName = '%1',"
-                        "subLName = '%2', remCode = '%3', classId = %4, "
-                        "belongTo = '%5', subCode = '%6' where (subCls = %7) "
-                        "and (subName = '%8')")
-                    .arg(subName).arg(subLName).arg(remCode).arg(clsId)
-                    .arg(fcodes).arg(scodes).arg(usedSubCls).arg(subName);
-            r = q2.exec(s);
-        }
-        else{ //插入
-            s = QString("insert into basic.SecondSubs(subCls, subName, "
-                        "subLName, remCode, classId,belongTo,subCode) "
-                        "values(%1,'%2','%3','%4',%5,'%6','%7')")
-                    .arg(usedSubCls).arg(subName).arg(subLName).arg(remCode)
-                    .arg(clsId).arg(fcodes).arg(scodes);
-            r = q2.exec(s);
-        }
-        num++;
-        ui.progressBar->setValue(num);
-    }
-    ui.progressBar->setValue(0);
-    demandAttachDatabase(false);
-}
-
-////////////////////////////////////////////////////////////////
-SubjectExtraDialog::SubjectExtraDialog(QWidget* parent) : QDialog(parent)
-{
-    ui.setupUi(this);
-
-    QSqlQuery q;
-    QString name,code, oname;
-    QString s;
-    bool r;
-    int pt = 1;  //因为查询必须严格按科目类别的顺序，当此二者不同时，
-    int t;       //程序知道遇到了新的科目类别，必须重置row和col变量
-    int row = 0;
-    int col = 0;    
-
-    s = "select code, name from FstSubClasses";
-    r = q.exec(s);
-    if(r){
-        int c = 0;
-        while(q.next()){
-            int code = q.value(0).toInt();
-            QString name = q.value(1).toString();
-            ui.tabWidget->setTabText(c, name);
-            QGridLayout* lyt = new QGridLayout;
-            lytHash[code] = lyt;
-            ui.tabWidget->widget(c++)->setLayout(lyt);
-        }
-        if(c == 5)  //界面上预设了6个页面，但老科目系统只需要5个
-            ui.tabWidget->removeTab(c);
-    }
-
-    //创建显示科目余额的部件
-    s = QString("select id, subCode, subName,belongTo ,isReqDet from "
-                "FirSubjects where isView = 1 order by subCode");
-    bool result = q.exec(s);
-    if(result){
-        int id;
-        while(q.next()){
-            id = q.value(0).toInt();
-            QString oname;
-            name = q.value(2).toString();  //科目名称
-            code = q.value(1).toString();  //科目代码
-            t = q.value(3).toInt();        //科目类别
-            bool isReqDet = q.value(4).toBool(); //是否需要子目的余额支持
-
-            QChar strCode;   //用大写字符（A-F）表示的科目类别代码
-            switch(t){
-            case 1:
-                strCode = 'A';
-                break;
-            case 2:
-                strCode = 'B';
-                break;
-            case 3:
-                strCode = 'C';
-                break;
-            case 4:
-                strCode = 'D';
-                break;
-            case 5:
-                strCode = 'E';
-                break;
-            case 6:
-                strCode = 'F';
-                break;
-            }
-
-            if(pt != t){
-                row = 0;
-                col = 0;
-                pt = t;
-            }
-            QLabel* label;
-            QLineEdit* edt = new QLineEdit;
-            idHash[id] = edt;
-
-            oname = QString("%1%2").arg(strCode).arg(code);  //对象名（类别代码字母+科目代码）
-            edt->setObjectName(oname);
-            if(isReqDet){
-                label = new ClickAbleLabel(name,code);
-                ClickAbleLabel* lp = (ClickAbleLabel*)label;
-                connect(lp, SIGNAL(viewSubExtra(QString,QPoint))
-                        , this, SLOT(viewSubExtra(QString,QPoint)));
-            }
-            else{
-                label = new QLabel(name);
-            }
-            lytHash[t]->addWidget(label, row/3, col++ % 6);
-            lytHash[t]->addWidget(edt, row/3, col++ % 6);
-            edtHash[oname] = edt;
-            row++;
-        }
-    }
-
-
-
-    //model = new QSqlTableModel;
-    //model->setTable("SubjectExtras");
-    //mapper = new QDataWidgetMapper;
-    //mapper->setModel(model);
-    connect(ui.btnView, SIGNAL(clicked()), this, SLOT(viewExtra()));
-    connect(ui.btnEdit, SIGNAL(clicked()), this, SLOT(btnEditClicked()));
-    connect(ui.btnSave, SIGNAL(clicked()), this, SLOT(btnSaveClicked()));
-    ui.dateEdit->setDate(QDate::currentDate());
-    y = ui.dateEdit->date().year();
-    m = ui.dateEdit->date().month();
-
-//    //建立表字段与显示部件的关联对应
-//    int fi = SE_SUBSTART;
-//    int cls;
-//    QString fname;
-
-//    r = q.exec("select subCode, belongTo from FirSubjects where isView = 1");
-//    if(r){
-//        while(q.next()){
-//            code = q.value(0).toString(); //科目代码
-//            cls = q.value(1).toInt();     //科目类别代码
-//            switch ( cls ){
-//            case 1:
-//                fname = QString("A%1").arg(code);
-//                break;
-//            case 2:
-//                fname = QString("B%1").arg(code);
-//                break;
-//            case 3:
-//                fname = QString("C%1").arg(code);
-//                break;
-//            case 4:
-//                fname = QString("D%1").arg(code);
-//                break;
-//            case 5:
-//                fname = QString("E%1").arg(code);
-//                break;
-//            case 6:
-//                fname = QString("F%1").arg(code);
-//                break;
-//            }
-//            //QLineEdit* edt = this->findChild<QLineEdit* >(fname);
-//            QLineEdit* edt = edtHash.value(fname);
-//            mapper->addMapping(edt, fi++);
-//        }
-//    }
-
-}
-
-void SubjectExtraDialog::dateChanged(const QDate &date)
-{
-    y = date.year();
-    m = date.month();
-}
-
-void SubjectExtraDialog::setDate(int y, int m)
-{
-    QDate d(y,m,1);
-    ui.dateEdit->setDate(d);
-    this->y = y;
-    this->m = m;
-    viewExtra();
-}
-
-//显示明细科目的余额
-void SubjectExtraDialog::viewSubExtra(QString code, const QPoint& pos)
-{
-//    int year = ui.dateEdit->date().year();
-//    int month = ui.dateEdit->date().month();
-
-//    QSqlQuery q;
-//    QString s = QString("select id from SubjectExtras where (year = %1) "
-//                        "and (month = %2)").arg(year).arg(month);
-//    if(q.exec(s) && q.first()){
-//        DetailExtraDialog* view = new DetailExtraDialog(code, year, month);
-//        view->setOnlyView();
-//        view->move(pos);
-//        view->exec();
-//    }
+//    s = QString("select clsCode from SndSubClass where name = '%1'")
+//        .arg(tr("金融机构"));
+//    int bcode;
+//    if(q.exec(s) && q.first())
+//        bcode = q.value(0).toInt();
 //    else{
-//        QString info = QString(tr("数据库中没有%1年&2月的余额值！"))
-//                       .arg(year).arg(month);
-//        QMessageBox::information(this, tr("提醒信息"),info);
+//        qDebug() << tr("没有金融机构二级科目类别");
+//        return;
 //    }
 
-}
+//    int ccode;
+//    s = QString("select clsCode from SndSubClass where name = '%1'")
+//        .arg(tr("业务客户"));
+//    if(q.exec(s) && q.first())
+//        ccode = q.value(0).toInt();
+//    else{
+//        qDebug() << tr("没有业务客户二级科目类别");
+//        return;
+//    }
 
-void SubjectExtraDialog::viewExtra()
-{
-    QHash<int,Double> rates;
-    if(!BusiUtil::getRates2(y,m,rates))
-        return;
-    rates[RMB] = 1;
-    QHash<int,Double> pExtra,sExtra; //主、子科目余额值表(还未使用)
-    QHash<int,int> pExtDir,sExtDir;  //主、子科目余额方向表
-    if(!BusiUtil::readExtraByMonth2(y,m,pExtra,pExtDir,sExtra,sExtDir))
-        return;
 
-    //计算主科目各币种的合计值
-    QHash<int,Double> psums;
-    QHashIterator<int,Double>* ip = new QHashIterator<int,Double>(pExtra);
-    int id,mt;
-    while(ip->hasNext()){
-        ip->next();
-        id = ip->key() / 10;
-        mt = ip->key() % 10;
-        psums[id] += (ip->value() * rates.value(mt));
-    }
-
-    //将数据输出到部件中显示
-    ip = new QHashIterator<int,Double>(psums);
-    while(ip->hasNext()){
-        ip->next();
-        idHash.value(ip->key())->setText(ip->value().toString());
-    }
-//    int year = ui.dateEdit->date().year();
-//    int month = ui.dateEdit->date().month();
-//    QString s = QString("(year = %1) and (month = %2)").arg(year).arg(month);
-//    //QString s = QString("select * from SubjectExtras where "
-//    //                    "(year = %1) and (month = %2)").arg(year).arg(month);
-//    model->setFilter(s);
-//    //model->setQuery(s);
-//    //mapper->setModel(model);
-//    model->select();
-//    //int r = model->rowCount();
-//    //double v = model->data(model->index(0,SE_SUBSTART)).toDouble();
-//    //如果没有对应记录，亚清空显示余额的编辑框（不知道为什么QDataWidgetMapper不能自动在空记录时清空）
-//    if(model->rowCount() == 0){
-//        QHashIterator<QString, QLineEdit*> i(edtHash);
-//        while (i.hasNext()){
-//             i.next();
-//             i.value()->setText("");
+//    s = QString("select * from SecSubjects where (classId != %1) "
+//                "and (classId != %2)").arg(bcode).arg(ccode);
+//    r = q.exec(s);
+//    int num = 0; //完成的记录数
+//    while(q.next()){
+//        QString subName = q.value(SNDSUB_SUBNAME).toString();
+//        QString subLName = q.value(SNDSUB_SUBLONGNAME).toString();
+//        QString remCode = q.value(SNDSUB_REMCODE).toString();
+//        int clsId = q.value(SNDSUB_CALSS).toInt();
+//        int sid = q.value(0).toInt();
+//        //获取此二级科目被哪些一级科目包含了
+//        s = QString("select FirSubjects.subCode, FSAgent.subCode from "
+//                    "FSAgent join FirSubjects where "
+//            "(FSAgent.fid = FirSubjects.id) and (FSAgent.sid = %1)")
+//                .arg(sid);
+//        QStringList fclst,sclst;
+//        r = q2.exec(s);
+//        while(q2.next()){
+//            fclst.append(q2.value(0).toString());//一级科目代码列表
+//            sclst.append(q2.value(1).toString());//二级科目代码列表
 //        }
+//        QString fcodes = fclst.join(","); //包含此二级科目的一级科目代码
+//        QString scodes = sclst.join(",");
+
+//        //更新
+//        if(names.contains(subName)){
+//            s = QString("update basic.SecondSubs set subName = '%1',"
+//                        "subLName = '%2', remCode = '%3', classId = %4, "
+//                        "belongTo = '%5', subCode = '%6' where (subCls = %7) "
+//                        "and (subName = '%8')")
+//                    .arg(subName).arg(subLName).arg(remCode).arg(clsId)
+//                    .arg(fcodes).arg(scodes).arg(usedSubCls).arg(subName);
+//            r = q2.exec(s);
+//        }
+//        else{ //插入
+//            s = QString("insert into basic.SecondSubs(subCls, subName, "
+//                        "subLName, remCode, classId,belongTo,subCode) "
+//                        "values(%1,'%2','%3','%4',%5,'%6','%7')")
+//                    .arg(usedSubCls).arg(subName).arg(subLName).arg(remCode)
+//                    .arg(clsId).arg(fcodes).arg(scodes);
+//            r = q2.exec(s);
+//        }
+//        num++;
+//        ui.progressBar->setValue(num);
 //    }
-//    else
-//        mapper->toFirst();
+//    ui.progressBar->setValue(0);
+//    demandAttachDatabase(false);
 }
 
-void SubjectExtraDialog::btnEditClicked()
-{
-//    bool state = ui.btnSave->isEnabled();
-//    ui.btnSave->setEnabled(!state);
-//    if(state)
-//        ui.btnEdit->setText(tr("编辑模式"));
-//    else
-//        ui.btnEdit->setText(tr("显示模式"));
-
-//    QHashIterator<QString, QLineEdit*> i(edtHash);
-//    while (i.hasNext()){
-//         i.next();
-//         i.value()->setReadOnly(state);
-//    }
-}
-
-void SubjectExtraDialog::btnSaveClicked()
-{
-    //mapper->submit();
-}
 
 /////////////////////////////////////////////////////////////////
 
@@ -3035,13 +2712,12 @@ void SetupBankDialog::selBankAccNum(const QModelIndex &index)
 void SetupBankDialog::crtSndSubject()
 {
     QSqlQuery q, q2;
-    QString s;
     bool r;
     int cid;
 
     //获取金融机构类客户类别的代码
-    s = QString("select clsCode from SndSubClass where name = '%1'")
-        .arg(tr("金融机构"));
+    QString s = QString("select %1 from %2 where %3='%1'")
+            .arg(fld_ssc_clscode).arg(tbl_ssclass).arg(fld_ssc_name).arg(tr("金融机构"));
     if(q.exec(s) && q.first())
         cid = q.value(0).toInt();
     else{
@@ -3075,18 +2751,18 @@ void SetupBankDialog::crtSndSubject()
             slname.append(q.value(0).toString());
 
             //在插入前首先检测是否已存在
-            s = QString("select id from SecSubjects where "
-                         "subName = '%1'").arg(sname);
+            s = QString("select id from %1 where %2='%3'")
+                    .arg(tbl_ssub).arg(fld_ssub_name).arg(sname);
 
             //如果不存在，才可以进行后续的二次插入操作
             if(q2.exec(s) && !q2.first()){
-                s = QString("insert into SecSubjects(subName,subLName,"
-                            "classId) values('%1','%2',%3)")
-                            .arg(sname).arg(slname).arg(cid);
+                s = QString("insert into %1(%2,%3,%4,%5) values('%6','%7',%8,%9)")
+                        .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_lname)
+                        .arg(fld_ssub_class).arg(fld_ssub_creator).arg(sname)
+                        .arg(slname).arg(cid).arg(curUser->getUserId());
                 r = q2.exec(s);
                 //回读刚插入的记录的id
-                s = QString("select id from SecSubjects where "
-                            "subName = '%1'").arg(sname);
+                s = QString("select last_insert_rowid()");
                 r = q2.exec(s);
                 r = q2.first();
                 int sid = q2.value(0).toInt();
@@ -3094,6 +2770,10 @@ void SetupBankDialog::crtSndSubject()
                 //建立一二级科目的对应关系
                 s = QString("insert into FSAgent(fid,sid) "
                             "values(%1,%2)").arg(fid).arg(sid);
+                s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,1,1,%9)")
+                        .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_weight)
+                        .arg(fld_fsa_enable).arg(fld_fsa_creator).arg(fid).arg(sid)
+                        .arg(curUser->getUserId());
                 r = q2.exec(s);
             }
         }

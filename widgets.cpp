@@ -9,6 +9,7 @@
 #include "global.h"
 #include "completsubinfodialog.h"
 #include "delegates2.h"
+#include "tables.h"
 
 ActionEditTableView::ActionEditTableView(QWidget* parent):QTableView(parent)
 {
@@ -647,6 +648,16 @@ void ActionEditTableWidget::newSndSubAndMapping(int fid, QString name, int row, 
     }
 }
 
+/**
+ * @brief ActionEditTableWidget::sndSubjectDisabeld
+ *  二级科目已被禁用
+ * @param id
+ */
+void ActionEditTableWidget::sndSubjectDisabeld(int id)
+{
+    QMessageBox::warning(0,tr("警告信息"),tr("二级科目（%1）已被禁用！").arg(allSndSubs.value(id)));
+}
+
 void ActionEditTableWidget::currentCellChanged (int currentRow, int currentColumn, int previousRow, int previousColumn)
 {
     //如果是从前一行的末列转到下一行的第一列（这个动作一般是由在贷方列按回车键后发生）
@@ -831,10 +842,11 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
             if(keyBuf.count() == 0){
                 keyBuf.append(key);
                 if(witch == 1){
-                    QString s = "select subName,subCode,id from FirSubjects where (isView = 1)";
+                    QString s = QString("select %1,%2,id from %3 where (%4=1) ")
+                            .arg(fld_fsub_name).arg(fld_fsub_subcode).arg(tbl_fsub).arg(fld_fsub_isview);
                     if(filter.count()!=0)
                         s.append(" and ").append(filter);
-                    s.append(" order by subCode");
+                    s.append(QString(" order by %1").arg(fld_fsub_subcode));
                     m.setQuery(s);
                 }
                 else
@@ -855,21 +867,30 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
                 QString s;
                 keyBuf.append(key);
                 if(witch == 1){
-                    s = "select subName,remCode,id,subCode from FirSubjects where (isView = 1)";
+                    s = QString("select %1,%2,id,%3 from %4 where (%5=1)")
+                            .arg(fld_fsub_name).arg(fld_fsub_remcode).arg(fld_fsub_subcode)
+                            .arg(tbl_fsub).arg(fld_fsub_isview);
                     if(filter.count()!=0)
                         s.append(" and ").append(filter);
-                    s.append(" order by remCode");
+                    s.append(QString(" order by %1").arg(fld_fsub_remcode));
                     m.setQuery(s);
                 }
                 else{
                     if(pid != 0)
-                        s = QString("select SecSubjects.subName,SecSubjects.remCode,"
-                                "FSAgent.id from SecSubjects join FSAgent on "
-                                "SecSubjects.id = FSAgent.sid where fid = %1").arg(pid);
+                        //s = QString("select SecSubjects.subName,SecSubjects.remCode,"
+                        //        "FSAgent.id from SecSubjects join FSAgent on "
+                        //        "SecSubjects.id = FSAgent.sid where fid = %1").arg(pid);
+                        s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on "
+                                "%1.id = %4.%5 where %6=%7")
+                                .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_remcode)
+                                .arg(tbl_fsa).arg(fld_fsa_sid).arg(fld_fsa_fid).arg(pid);
                     else
-                        s = "select SecSubjects.subName,SecSubjects.remCode,"
-                                "FSAgent.id from SecSubjects join FSAgent on "
-                                "SecSubjects.id = FSAgent.sid";
+                        //s = "select SecSubjects.subName,SecSubjects.remCode,"
+                        //        "FSAgent.id from SecSubjects join FSAgent on "
+                        //        "SecSubjects.id = FSAgent.sid";
+                        s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on %1.id = %4.%5")
+                                .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_remcode)
+                                .arg(tbl_fsa).arg(fld_fsa_fid);
 
                     m.setQuery(s);
                 }

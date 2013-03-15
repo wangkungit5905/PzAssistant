@@ -814,27 +814,27 @@ bool BusiUtil::getAllSubSCode(QHash<int, QString> &codes)
     return true;
 }
 
-/**
- * @brief BusiUtil::getReqDetSubs
- *  获取需要进行明细核算的id列表
- *  此函数应该为获取需要按币种进行核算的主目id列表，因为当前系统规定所有的科目都有二级科目
- * @param ids
- * @return
- */
-bool BusiUtil::getReqDetSubs(QList<int> &ids)
-{
-    QSqlQuery q;
-    QString s = QString("select id from %1 where %2 = 1")
-            .arg(tbl_fsub).arg(fld_fsub_isUseWb);
-    if(!q.exec(s)){
-        QMessageBox::information(0, QObject::tr("提示信息"),
-                                 QString(QObject::tr("不能获取需要明细支持的一级科目id列表")));
-        return false;
-    }
-    while(q.next())
-        ids.append(q.value(0).toInt());
-    return true;
-}
+///**
+// * @brief BusiUtil::getReqDetSubs
+// *  获取需要进行明细核算的id列表
+// *  此函数应该为获取需要按币种进行核算的主目id列表，因为当前系统规定所有的科目都有二级科目
+// * @param ids
+// * @return
+// */
+//bool BusiUtil::getReqDetSubs(QList<int> &ids)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select id from %1 where %2 = 1")
+//            .arg(tbl_fsub).arg(fld_fsub_isUseWb);
+//    if(!q.exec(s)){
+//        QMessageBox::information(0, QObject::tr("提示信息"),
+//                                QString(QObject::tr("不能获取需要明细支持的一级科目id列表")));
+//        return false;
+//    }
+//    while(q.next())
+//        ids.append(q.value(0).toInt());
+//    return true;
+//}
 
 
 //获取所有子目id到子目全名的哈希表
@@ -1974,7 +1974,7 @@ bool BusiUtil::genPzPrintDatas2(int y, int m, QList<PzPrintData2 *> &datas, QSet
         int pzNum = q.value(PZ_NUMBER).toInt();   //凭证号
         if((pznSet.count() == 0) || pznSet.contains(pzNum)){
             //获取该凭证的业务活动数
-            int pid = q.value(PZ_ID).toInt();
+            int pid = q.value(0).toInt();
             s = QString("select count() from BusiActions where pid = %1").arg(pid);
             if(!q2.exec(s))
                 return false;
@@ -3758,6 +3758,7 @@ bool BusiUtil::setExtraState(int y, int m, bool isVolid)
             .arg(fld_se_mt).arg(RMB);
     if(!q.exec(s))
         return false;
+    bool isCrt = false;
     if(q.first()){
         int id = q.value(0).toInt();
         s = QString("update %1 set %2=%3 where id=%4")
@@ -3768,7 +3769,24 @@ bool BusiUtil::setExtraState(int y, int m, bool isVolid)
                 .arg(tbl_se).arg(fld_se_year).arg(fld_se_month).arg(fld_se_state)
                 .arg(fld_se_mt).arg(y).arg(m).arg(isVolid?1:0).arg(RMB);
     }
-    return q.exec(s);
+    if(!q.exec(s))
+        return false;
+    //因为在余额表SubjectExtras中插入一条记录（保存人民币的那条记录），
+    //一定要同步在余额方向表（SubjectExtraDirs）中创建一条对应的记录，
+    //要不然在保存余额时会遗失余额方向信息，导致余额保存信息不完整
+    if(isCrt){
+        s = QString("select id from SubjectExtraDirs where year=%1 and month=%2 and mt=%3")
+                .arg(y).arg(m).arg(RMB);
+        if(!q.exec(s))
+            return false;
+        if(!q.first()){
+            s = QString("insert into SubjectExtraDirs(year,month,mt) values(%1,%2,%3)")
+                    .arg(y).arg(m).arg(RMB);
+            if(!q.exec(s))
+                return false;
+        }
+    }
+    return true;
 }
 
 /**
@@ -3909,9 +3927,9 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
         return false;
 
     //初始化需要进行明细核算的一级科目的id列表
-    QList<int> detSubs;
-    if(!getReqDetSubs(detSubs))
-        return false;
+    //QList<int> detSubs;
+    //if(!getReqDetSubs(detSubs))
+    //    return false;
 
     //生成查询语句
     if(!genStatSql2(y,m,s))
@@ -3963,24 +3981,24 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
                 jSums[fid*10+mtype] += jv;
                 if(!dSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
                     dSums[fid*10+mtype] = Double(0.00);
-                if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
-                    key = sid*10+mtype;
-                    sjSums[key] += jv;
-                    if(!sdSums.contains(key))
-                        sdSums[key] = Double(0.00);
-                }
+                //if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
+                key = sid*10+mtype;
+                sjSums[key] += jv;
+                if(!sdSums.contains(key))
+                    sdSums[key] = Double(0.00);
+                //}
             }
             else{
                 dv = Double(q2.value(BACTION_DMONEY).toDouble());
                 dSums[fid*10+mtype] += dv;
                 if(!jSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
                     jSums[fid*10+mtype] = Double(0.00);
-                if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
-                    key = sid*10+mtype;
-                    sdSums[key] += dv;
-                    if(!sjSums.contains(key))
-                        sjSums[key] = Double(0.00);
-                }
+                //if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
+                key = sid*10+mtype;
+                sdSums[key] += dv;
+                if(!sjSums.contains(key))
+                    sjSums[key] = Double(0.00);
+                //}
             }
 
         }
@@ -4463,9 +4481,9 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
     rates[RMB] = Double(1.00);
 
     //初始化需要进行明细核算的一级科目的id列表
-    QList<int> detSubs;
-    if(!getReqDetSubs(detSubs))
-        return false;
+    //QList<int> detSubs;
+    //if(!getReqDetSubs(detSubs))
+    //    return false;
 
     //生成查询语句
     if(!genStatSql2(y,m,s))
@@ -4551,12 +4569,12 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
                     jSums[fid*10+mtype] += jv;
                     if(!dSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
                         dSums[fid*10+mtype] = Double(0.00);
-                    if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
-                        key = sid*10+mtype;
-                        sjSums[key] += jv;
-                        if(!sdSums.contains(key))
-                            sdSums[key] = Double(0.00);
-                    }
+                    //if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
+                    key = sid*10+mtype;
+                    sjSums[key] += jv;
+                    if(!sdSums.contains(key))
+                        sdSums[key] = Double(0.00);
+                    //}
                 }
                 else{
                     dv = Double(q2.value(BACTION_DMONEY).toDouble());
@@ -4565,12 +4583,12 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
                     dSums[fid*10+mtype] += dv;
                     if(!jSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
                         jSums[fid*10+mtype] = Double(0.00);
-                    if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
-                        key = sid*10+mtype;
-                        sdSums[key] += dv;
-                        if(!sjSums.contains(key))
-                            sjSums[key] = Double(0.00);
-                    }
+                    //if(detSubs.contains(fid)){ //仅对需要进行明细核算的科目进行明细科目的合计计算
+                	key = sid*10+mtype;
+                    sdSums[key] += dv;
+                    if(!sjSums.contains(key))
+                        sjSums[key] = Double(0.00);
+                    //}
                 }
             }
         }

@@ -801,7 +801,7 @@ void CollectPzDialog::calBtnClicked()
 
         //遍历所有凭证
         for(int i = 0; i < c; ++i){
-            pid = model->data(model->index(i, PZ_ID)).toInt();
+            pid = model->data(model->index(i, 0)).toInt();
             s = QString("select * from BusiActions where pid = %1").arg(pid);
             model2->setQuery(s);
             ac = model2->rowCount(); //业务活动总数

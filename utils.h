@@ -312,7 +312,7 @@ public:
     static bool getAllSubSCode(QHash<int,QString>& codes);
 
 
-    static bool getReqDetSubs(QList<int>& ids);
+    //static bool getReqDetSubs(QList<int>& ids);
 
     static bool calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
                                  QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
@@ -375,9 +375,7 @@ public:
     */
     static bool getFidToFldName2(QHash<int,QString>& names)
     {
-        QSqlQuery q;
-        QString s;
-
+        //这只能作为临时性的解决方法，最终的解决方法是用新的保存余额机制。
         int id;
         getIdByCode(id,"1002");
         names[id] = "A1002";
@@ -385,6 +383,10 @@ public:
         names[id] = "A1131";
         getIdByCode(id,"2121");
         names[id] = "B2121";
+        getIdByCode(id,"1151");
+        names[id] = "A1151";
+        getIdByCode(id,"2131");
+        names[id] = "B2131";
         return true;
     }
 

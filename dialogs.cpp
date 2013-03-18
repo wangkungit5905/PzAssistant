@@ -44,7 +44,7 @@ OpenAccountDialog::OpenAccountDialog(QWidget* parent) : QDialog(parent)
     QStringList accountLst;
     AppConfig::getInstance()->readAccountInfos(accInfoLst);
     for(int i = 0; i < accInfoLst.count(); ++i)
-        accountLst << accInfoLst[i]->accName;
+        accountLst << accInfoLst[i]->sname;
     model = new QStringListModel(accountLst);
     ui.accountList->setModel(model);
     connect(ui.accountList, SIGNAL(clicked(QModelIndex)),
@@ -55,25 +55,25 @@ OpenAccountDialog::OpenAccountDialog(QWidget* parent) : QDialog(parent)
 
 QString OpenAccountDialog::getSName()
 {
-    return accInfoLst[selAcc]->accName;
+    return accInfoLst[selAcc]->sname;
 }
 
 QString OpenAccountDialog::getLName()
 {
-    return accInfoLst[selAcc]->accLName;
+    return accInfoLst[selAcc]->lname;
 }
 
 QString OpenAccountDialog::getFileName()
 {
-    return accInfoLst[selAcc]->fileName;
+    return accInfoLst[selAcc]->fname;
 }
 
 void OpenAccountDialog::itemClicked(const QModelIndex &index)
 {
     selAcc = index.row();
-    ui.lblFName->setText(accInfoLst[selAcc]->fileName);
+    ui.lblFName->setText(accInfoLst[selAcc]->fname);
     ui.lblCode->setText(accInfoLst[selAcc]->code);
-    ui.lname->setText(accInfoLst[selAcc]->accLName);
+    ui.lname->setText(accInfoLst[selAcc]->lname);
     //ui.lblLastTime->setText(accInfoLst[selAcc]->lastTime);
     //ui.lblDesc->setText(accInfoLst[selAcc]->desc);
     //ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);
@@ -109,19 +109,20 @@ OpenPzDialog::OpenPzDialog(Account *account, QWidget* parent) :
 
     foreach(int y,account->getSuites())
         ui.cmbSuites->addItem(account->getSuiteName(y),y);
-    y = account->getCurSuite();
-    int idx = ui.cmbSuites->findData(y);
-    ui.cmbSuites->setCurrentIndex(idx);
-    int sm,em;
-    if(!account->getSuiteMonthRange(y,sm,em)){
-        ui.btnOk->setEnabled(false);
-        return;
+    if(account->getCurSuite()){
+        y = account->getCurSuite()->year;
+        int idx = ui.cmbSuites->findData(y);
+        ui.cmbSuites->setCurrentIndex(idx);
+        int sm,em;
+        if(!account->getSuiteMonthRange(y,sm,em)){
+            ui.btnOk->setEnabled(false);
+            return;
+        }
+        ui.spnMonth->setMinimum(sm);
+        ui.spnMonth->setMaximum(em);
+        ui.spnMonth->setValue(em);
+        m = em;
     }
-    ui.spnMonth->setMinimum(sm);
-    ui.spnMonth->setMaximum(em);
-    ui.spnMonth->setValue(em);
-    m = em;
-
     connect(ui.cmbSuites,SIGNAL(currentIndexChanged(int)),
                this,SLOT(suiteChanged(int)));
     connect(ui.spnMonth,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
@@ -190,7 +191,7 @@ void OpenPzDialog::on_chkNew_clicked(bool checked)
         ui.cmbSuites->clear();
         foreach(int y, account->getSuites())
             ui.cmbSuites->addItem(account->getSuiteName(y),y);
-        year = account->getCurSuite();
+        year = account->getCurSuite()->year;
         ui.cmbSuites->setCurrentIndex(ui.cmbSuites->findData(year));
         int sm,em;
         account->getSuiteMonthRange(year,sm,em);

@@ -92,6 +92,7 @@ public:
     ~MainWindow();
     void getMdiAreaSize(int &mdiAreaWidth, int &mdiAreaHeight);
     void hideDockWindows();
+    bool AccountVersionMaintain(QString fname);
 protected:
     void closeEvent(QCloseEvent *event);
 

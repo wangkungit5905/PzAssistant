@@ -13,6 +13,22 @@ const int ACCINFO_CODE  = 1;
 const int ACCINFO_NAME  = 2;
 const int ACCINFO_VALUE = 3;
 
+//帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+//字段名
+const QString tbl_accSuites      = "accountSuites";
+const QString fld_accs_year      = "year";         //帐套所属年份（integer）
+const QString fld_accs_subSys    = "subSys";       //帐套所用的科目系统代码（integer）
+const QString fld_accs_isCur     = "isCurrent";    //是否是当前帐套（integer）
+const QString fld_accs_lastMonth = "lastMonth";    //最后打开月份
+const QString fld_accs_name      = "name";         //帐套名（text）
+//字段索引
+const int ACCS_YEAR      = 1;
+const int ACCS_SUBSYS    = 2;
+const int ACCS_ISCUR     = 3;
+const int ACCS_LASTMONTH = 4;
+const int ACCS_NAME      = 5;
+
+
 
 //*************************币种表*************************//
 //CREATE TABLE MoneyTypes(id INTEGER PRIMARY KEY, code INTEGER, sign TEXT, name TEXT)
@@ -267,14 +283,14 @@ const int SDEM_VALUE = 3;
 //账户信息表(AccountInfo) 该表的每行代表一个账户的信息
 //CREATE TABLE AccountInfo(id INTEGER PRIMARY KEY, code INTEGER, name TEXT, value TEXT)
 //字段名
-const QString tbl_account   = "AccountInfo";
-const QString fld_acc_code  = "code";   //账户信息字段的枚举编号（INTEGER）
-const QString fld_acc_name  = "name";   //账户信息字段名（TEXT）
-const QString fld_acc_value = "value";  //账户信息字段值（TEXT）
-//字段索引
-const int ACCOUNT_CODE    = 1;
-const int ACCOUNT_NAME    = 2;
-const int ACCOUNT_VALUE   = 3;
+//const QString tbl_account   = "AccountInfo";
+//const QString fld_acc_code  = "code";   //账户信息字段的枚举编号（INTEGER）
+//const QString fld_acc_name  = "name";   //账户信息字段名（TEXT）
+//const QString fld_acc_value = "value";  //账户信息字段值（TEXT）
+////字段索引
+//const int ACCOUNT_CODE    = 1;
+//const int ACCOUNT_NAME    = 2;
+//const int ACCOUNT_VALUE   = 3;
 
 
 //凭证集状态表
@@ -309,14 +325,13 @@ const QString tbl_nse_m_s = "SE_MM_S";   //二级科目本币余额
 //字段名
 const QString fld_nse_pid =    "pid";   //余额指针
 const QString fld_nse_sid =    "sid";   //科目id
-const QString fld_nse_dir =    "dir" ;  //余额方向
 const QString fld_nse_value =  "value"; //余额值
+const QString fld_nse_dir =    "dir" ;  //余额方向（保存本币余额的表不包含本字段）
 //字段索引
-const int NSE_E_PID   =1;
-const int NSE_E_SID   =2;
-const int NSE_E_DIR   =3;
-const int NSE_E_VALUE =4;
-
+const int NSE_E_PID   = 1;
+const int NSE_E_SID   = 2;
+const int NSE_E_VALUE = 3;
+const int NSE_E_DIR   = 4;
 
 
 

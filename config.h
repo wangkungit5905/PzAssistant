@@ -25,7 +25,6 @@ public:
 
     ~AppConfig();
 
-    static bool versionMaintain(bool &cancel);
     static AppConfig* getInstance();
     static QSqlDatabase getBaseDbConnect();
 
@@ -54,23 +53,14 @@ public:
     //保存或读取账户信息
     bool clear();
     bool isExist(QString code);
-    bool saveAccInfo(AccountBriefInfo* accInfo);
-    bool getAccInfo(int id, AccountBriefInfo* accInfo);
-    bool getAccInfo(QString code, AccountBriefInfo* accInfo);
+    bool saveAccInfo(AccountBriefInfo accInfo);
+    bool getAccInfo(int id, AccountBriefInfo &accInfo);
+    bool getAccInfo(QString code, AccountBriefInfo accInfo);
     bool readAccountInfos(QList<AccountBriefInfo*>& accs);
 
     //读取或设置最近打开的账户id
     bool setRecentOpenAccount(int id);
     bool getRecentOpenAccount(int& curAccId);
-
-    static bool perfectVersion();
-    static bool getVersion(int& mv, int &sv);
-    static bool setVersion(int mv, int sv);
-
-    static bool updateTo1_1();
-    static bool updateTo1_2();
-    static bool updateTo1_3();
-    static bool updateTo2_0();
 
 private:
     AppConfig();
@@ -86,44 +76,6 @@ private:
     static QSettings *appIni;
 };
 
-/**
- * @brief The VersionManager class
- *  执行版本管理任务
- */
-
-typedef bool (*UpdateVersionFun)();
-typedef bool (*PerfectVersionFun)();
-typedef bool (*GetVersionFun)(int& mv, int &sv);
-typedef bool (*SetVersionFun)(int mv, int sv);
-
-
-class VersionManager{
-public:
-    //待管理的模块类型
-    enum ModuleType{
-        MT_CONF = 1,    //配置模块
-        MT_ACC = 2      //账户模块
-    };
-    VersionManager(ModuleType moduleType);
-    bool versionMaintain(bool &cancel);
-    void appendVersion(int mv, int sv, UpdateVersionFun fun);
-
-private:
-    void initConf();
-    void initAcc();
-
-    bool inspectVerBeforeUpdate(int mv, int sv);
-    bool updateVersion(int startMv, int startSv);
-
-    ModuleType mt;
-    QStringList versionHistorys;  //历史版本号（按约定：由主版本号和次版本号组成，中间用下划线隔开）
-    QHash<QString,UpdateVersionFun> updateFuns; //更新函数指针表（键为版本号，值为更新到由键指定的版本所使用的更新函数指针）
-    PerfectVersionFun pvFun;  //归集到初始版本的函数
-    GetVersionFun gvFun;      //获取当前版本号的函数
-    SetVersionFun svFun;      //设置当前版本号的函数
-
-    QString moduleName;       //
-};
 
 
 #endif // CONFIG_H

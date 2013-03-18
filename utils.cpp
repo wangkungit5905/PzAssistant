@@ -4912,14 +4912,14 @@ bool BusiUtil::saveAccInfo(AccountBriefInfo* accInfo)
         int id = q.value(0).toInt();
         s = QString("update AccountInfos set code='%1',"
                     "sname='%2',lname='%3' where id=%4")
-                .arg(accInfo->code).arg(accInfo->accName)
-                .arg(accInfo->accLName).arg(id);
+                .arg(accInfo->code).arg(accInfo->sname)
+                .arg(accInfo->lname).arg(id);
     }
     else{
         s = QString("insert into AccountInfos(code,sname,lname) "
                     "values('%1','%2','%3')")
-                .arg(accInfo->code).arg(accInfo->accName)
-                .arg(accInfo->accLName);
+                .arg(accInfo->code).arg(accInfo->sname)
+                .arg(accInfo->lname);
     }
     bool r = q.exec(s);
     return r;

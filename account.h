@@ -7,7 +7,7 @@
 #include <QHash>
 #include <QSqlQuery>
 
-
+//#include "dbutil.h"
 #include "commdatastruct.h"
 #include "securitys.h"
 #include "appmodel.h"
@@ -16,8 +16,8 @@
 //#include "global.h"
 
 class PzSetMgr;
+class DbUtil;
 
-typedef bool (*UpdateAccVerFun)();
 
 class Account
 {
@@ -26,8 +26,8 @@ public:
         ACODE     = 1,           //账户代码
         SNAME     = 2,           //账户简称
         LNAME     = 3,           //账户全称
-        FNAME     = 4,           //账户工作数据库文件名
-        SUBTYPE   = 5,           //账户所采用的科目类型
+        FNAME     = 4,           //账户工作数据库文件名（废弃）
+        SUBTYPE   = 5,           //账户所采用的科目类型（废弃）
         RPTTYPE   = 6,           //报表类型
         MASTERMT  = 7,           //本币代码
         WAIMT     = 8,           //外币代码列表
@@ -53,62 +53,89 @@ public:
         ATS_TranInOther = 3
     };
 
-    Account(QString fname/*, QSqlDatabase db = QSqlDatabase::database()*/);
+    /**
+     * @brief The AccountSuite struct
+     *  描述帐套的数据结构
+     */
+    struct AccountSuite{
+        int id;
+        int year,lastMonth; //帐套所属年份、最后打开月份
+        int startMonth,endMonth; //开始月份和结束月份
+        int subSys;         //帐套采用的科目系统代码
+        QString name;       //帐套名
+        bool isCur;         //是否当前打开帐套
+
+        bool operator !=(const AccountSuite& other);
+    };
+
+    /**
+     * @brief The AccountInfo struct
+     *  账户信息结构
+     */
+    struct AccountInfo{
+        QString code,sname,lname;           //账户代码、简称和全称
+        int masterMt;                       //本币代码
+        QList<int> waiMts;                  //外币代码表
+        QString startDate,endDate;          //记账起止时间
+        QList<AccountSuite*> suites;        //帐套列表
+        QString lastAccessTime;             //账户最后访问时间
+        QString dbVersion;                  //账户文件版本号
+        QString logFileName;                //账户日志文件
+        QString fileName;                   //账户文件名
+    };
+
+
+    Account(QString fname);
     ~Account();
-    //void saveAll();
-    void savePiece(InfoField f, QString v);
     bool isValid();
-    //QString getVersion(){return db_version;}
-    //void setVersion(QString vs){db_version = vs;}
-    QString getSName(){return sname;}
-    void setSName(QString name){sname = name;savePiece(SNAME,name);}
-    QString getLName(){return lname;}
-    void setLName(QString name){lname = name;savePiece(LNAME,name);}
-    QString getCode(){return accCode;}
-    void setCode(QString code){accCode = code;savePiece(ACODE,code);}
-    QString getFileName(){return fileName;}
-    void setFileName(QString fname){fileName = fname;savePiece(FNAME,fname);}
+    void close();
+    QString getSName(){return accInfos.sname;}
+    void setSName(QString name){accInfos.sname = name;}
+    QString getLName(){return accInfos.lname;}
+    void setLName(QString name){accInfos.lname = name;}
+    QString getCode(){return accInfos.code;}
+    void setCode(QString code){accInfos.code = code;}
+    QString getFileName(){return accInfos.fileName;}
+    void setFileName(QString fname){accInfos.fileName = fname;}
     SubjectManager::SubjectSysType getSubType(){return subType;}
-    void setSubType(SubjectManager::SubjectSysType type){subType = type;savePiece(SUBTYPE,QString::number(type));}
-    ReportType getReportType(){return reportType;}
-    void setReportType(ReportType type){reportType = type; savePiece(RPTTYPE,QString::number(type));}
-    int getMasterMt(){return masterMt;}
-    void setMasterMt(int mt){masterMt = mt;savePiece(MASTERMT,QString::number(mt));}
-    QList<int> getWaiMt(){return waiMt;}
-    void setWaiMt(QList<int> mts);
+    void setSubType(SubjectManager::SubjectSysType type){subType = type;}
+    //ReportType getReportType(){return reportType;}
+    //void setReportType(ReportType type){reportType = type; savePiece(RPTTYPE,QString::number(type));}
+    int getMasterMt(){return accInfos.masterMt;}
+    void setMasterMt(int mt){accInfos.masterMt = mt;}
+    QList<int> getWaiMt(){return accInfos.waiMts;}
+    void setWaiMt(QList<int> mts){accInfos.waiMts = mts;}
     void addWaiMt(int mt);
     void delWaiMt(int mt);
     QString getWaiMtStr();
-    QDate getStartTime(){return QDate::fromString(startTime,Qt::ISODate);}
-    void setStartTime(QDate date){startTime = date.toString(Qt::ISODate);
-                                  savePiece(STIME,startTime);
-                                 }
-    QDate getEndTime(){return QDate::fromString(endTime,Qt::ISODate);}
-    void setEndTime(QDate date){endTime = date.toString(Qt::ISODate);
-                               savePiece(ETIME,endTime);}
+    QDate getStartTime(){return QDate::fromString(accInfos.startDate,Qt::ISODate);}
+    void setStartTime(QDate date){accInfos.startDate = date.toString(Qt::ISODate);}
+    QDate getEndTime(){return QDate::fromString(accInfos.endDate,Qt::ISODate);}
+    void setEndTime(QDate date){accInfos.endDate = date.toString(Qt::ISODate);}
 
+    //日志相关
     QString getAllLogs();
     QString getLog(QDateTime time);
     void appendLog(QDateTime time, QString log);
     void delAllLogs();
     void delLogs(QDateTime start, QDateTime end);
 
-    void appendSuite(int y, QString name);
+    //帐套相关
+    void appendSuite(int y, QString name, int curMonth = 1, int subSys = 1);
     void delSuite(int y);
-    QString getSuiteName(int y){return suiteNames.value(y);}
+    QString getSuiteName(int y);
     void setSuiteName(int y, QString name);
-    QList<int> getSuites(){return suiteNames.keys();}
-    int getStartSuite(){return startSuite;}
-    int getEndSuite(){return endSuite;}
-    int getCurSuite(){return curSuite;}
-    void setCurSuite(int y){curSuite = y;
-                            savePiece(CSUITE,QString::number(curSuite));}
+    QList<int> getSuites();
+    AccountSuite* getStartSuite(){return accInfos.suites.first();}
+    AccountSuite* getEndSuite(){return accInfos.suites.last();}
+    AccountSuite* getCurSuite();
+    void setCurSuite(int y);
     bool getSuiteMonthRange(int y, int& sm,int& em);
-    bool containSuite(int y){return suiteNames.contains(y);}
+    bool containSuite(int y);
     int getSuiteFirstMonth(int y);
     int getSuiteLastMonth(int y);
-    void setCurMonth(int m){curMonth=m;}
-    int getCurMonth(){return curMonth;}
+    void setCurMonth(int m);
+    int getCurMonth();
 
     int getBaseYear();
     int getBaseMonth();
@@ -117,57 +144,32 @@ public:
     void colsePzSet();
     SubjectManager* getSubjectManager(){return subMng;}
 
-    QDateTime getLastAccessTime(){return QDateTime::fromString(lastAccessTime,Qt::ISODate);}
-    void setLastAccessTime(QDateTime time){lastAccessTime = time.toString(Qt::ISODate);
-                                          savePiece(LASTACCESS,lastAccessTime);}
+    QDateTime getLastAccessTime(){return QDateTime::fromString(accInfos.lastAccessTime,Qt::ISODate);}
+    void setLastAccessTime(QDateTime time){accInfos.lastAccessTime = time.toString(Qt::ISODate);}
 
 	void setReadOnly(bool readOnly){isReadOnly=readOnly;}
 	bool getReadOnly(){return isReadOnly;}
-	static void setDatabase(QSqlDatabase* db);
-	static bool versionMaintain(bool &cancel);
-	
-	//账户库版本维护相关函数
-    static bool getVersion(int& mv, int &sv);
-    static bool setVersion(int mv, int sv);
-    static bool perfectVersion(){return true;}  //归集到初始版本，在此只是占位函数
-    static bool updateTo1_3();
-    static bool updateTo1_4();
-    static bool updateTo1_5();
-    static bool updateTo1_6(){return true;}
+    static void setDatabase(QSqlDatabase* db);
 
 private:
-    QString assembleSuiteNames();
-    void crtAccountTable();
-    void crtGdzcTable();
-    //void insertVersion();
+    bool init();
+
 
 	static QSqlDatabase* db;
     User* user;            //操作此账户的用户
-    QString db_version;    //账户文件版本号
-    QString sname,lname;   //账户简称和全称
-    QString accCode;       //账户代码
-    QString fileName;      //账户文件名
-    SubjectManager::SubjectSysType subType; //账户所用的科目类型
-    ReportType reportType; //账户所用的报表类型
-    int masterMt;          //本币代码
-    QList<int> waiMt;      //外币代码列表
-    QString startTime,endTime;      //记账开始日期与结束日期
-    QString logFileName;   //账户的日志文件名（默认同工作数据库文件名，后缀为“.log”）
-    QStringList logs;      //账户的日志信息（共2列，时间和信息）
-    int startSuite,endSuite,curSuite; //起始、结束和当前帐套年份
-    int curMonth;                     //当前操作的凭证集月份
-    QHash<int,QString> suiteNames;    //帐套名
-    QString lastAccessTime;  //账户最后访问时间
+    SubjectManager::SubjectSysType subType; //账户所用的科目类型（科目系统由帐套来定）
+    //ReportType reportType; //账户所用的报表类型
 
     QList<BankAccount*> bankAccounts;
     PzSetMgr* curPzSet;      //当前凭证集
     SubjectManager* subMng;  //科目管理对象
 	bool isReadOnly;         //是否只读模式
 
-	QList<QString> versionHistorys;  //账户库历史版本号
-    QHash<QString,UpdateAccVerFun> updateFuns; //账户库更新函数列表
+    DbUtil* dbUtil; //直接访问账户文件的数据库访问对象
+    AccountInfo accInfos;   //账户信息
 };
 
-
+//帐套结构比较函数
+bool byAccountSuiteThan(Account::AccountSuite *as1, Account::AccountSuite *as2);
 
 #endif // ACCOUNT_H

@@ -3,6 +3,7 @@
 #include <QDir>
 
 #include "global.h"
+#include "version.h"
 
 
 QString orgName = "SSC";
@@ -89,13 +90,26 @@ VersionManager* confVM;
  */
 int appInit()
 {
+    //初始化路径信息
+    //DatabasePath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/databases/"));
+    //BaseDataPath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/basicdatas/"));
+    DatabasePath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
+    BaseDataPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
     bool cancel;
-    if(!AppConfig::versionMaintain(cancel)){
+    VersionManager vm(VersionManager::MT_CONF);
+    if(!vm.versionMaintain(cancel)){
         if(cancel)
             return 2;
         else
             return 1;
     }
+
+//    if(!AppConfig::versionMaintain(cancel)){
+//        if(cancel)
+//            return 2;
+//        else
+//            return 1;
+//    }
     AppConfig* appCfg = AppConfig::getInstance();
     if(!appCfg)
         return 3;
@@ -107,11 +121,7 @@ int appInit()
     int second = 98;
     aboutStr = qApp->tr("凭证助手，版权属于小灵猫工作室所有。\n版本号：%1.%2").arg(master).arg(second);
 
-    //初始化路径信息
-    //DatabasePath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/databases/"));
-    //BaseDataPath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/basicdatas/"));
-    DatabasePath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
-    BaseDataPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
+
 
     //获取可用屏幕尺寸
     QDesktopWidget desktop;
@@ -164,8 +174,8 @@ int appInit()
  */
 void initVMs()
 {
-    accVM = new VersionManager(VersionManager::MT_ACC);
-    confVM = new VersionManager(VersionManager::MT_CONF);
+    //accVM = new VersionManager(VersionManager::MT_ACC);
+    //confVM = new VersionManager(VersionManager::MT_CONF);
     //baseVM = new VersionManager(VersionManager::MT_BASE);
 }
 

@@ -29,6 +29,7 @@
 #include "aboutform.h"
 #include "dbutil.h"
 #include "logs/logview.h"
+#include "version.h"
 
 #include "completsubinfodialog.h"
 
@@ -269,33 +270,17 @@ MainWindow::MainWindow(QWidget *parent) :
 
     AppConfig* appCfg = AppConfig::getInstance();
     if(appCfg->getRecentOpenAccount(curAccountId) && (curAccountId != 0)){
-        AccountBriefInfo* curAccInfo = new AccountBriefInfo;
-        //QString fname = appSetting.readAccountFileName(curAccount);//获取账户数据库文本名
+        AccountBriefInfo curAccInfo;
         appCfg->getAccInfo(curAccountId, curAccInfo);
-        ConnectionManager::openConnection(curAccInfo->fileName);
-        adb = ConnectionManager::getConnect();
-        curAccount = new Account(curAccInfo->fileName);
-        curAccount->setDatabase(&adb);
-        bool cancel = false;
-        if(!Account::versionMaintain(cancel)){
-            if(cancel){
-                QMessageBox::warning(this,tr("出错信息"),
-                                     tr("该账户数据库版本过低，必须先升级！"));
-            }
-            else
-            {
-                QMessageBox::critical(this,tr("出错信息"),
-                                      tr("数据库版本升级过程出错！"));
-            }
+
+        if(!AccountVersionMaintain(curAccInfo.fname))
             return;
-        }
-        //这个主要用于过度阶段（从老账户信息表过度到新账户信息表时）
-        if(curAccount->getFileName().isEmpty()){
-            curAccount->setFileName(curAccInfo->fileName);
-            curAccount->setSName(curAccInfo->accName);
-            curAccount->setLName(curAccInfo->accLName);
-            curAccount->setCode(curAccInfo->code);
-        }
+
+        QString fn = curAccInfo.fname; fn.chop(4);
+        ConnectionManager::openConnection(fn);
+        adb = ConnectionManager::getConnect();
+        curAccount = new Account(curAccInfo.fname);
+        curAccount->setDatabase(&adb);
         if(!curAccount->isValid()){
             showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
             return;
@@ -341,6 +326,31 @@ void MainWindow::hideDockWindows()
 {
     QAction* act = subjectSearchDock->toggleViewAction();
     act->trigger();
+}
+
+/**
+ * @brief MainWindow::AccountVersionMaintain
+ *  执行账户的文件版本升级服务
+ * @param fname 账户文件名
+ * @return
+ */
+bool MainWindow::AccountVersionMaintain(QString fname)
+{
+    bool cancel = false;
+    VersionManager vm(VersionManager::MT_ACC,fname);
+    if(!vm.versionMaintain(cancel)){
+        if(cancel){
+            QMessageBox::warning(this,tr("出错信息"),
+                                 tr("该账户数据库版本过低，必须先升级！"));
+        }
+        else
+        {
+            QMessageBox::critical(this,tr("出错信息"),
+                                  tr("数据库版本升级过程出错！"));
+        }
+        return false;
+    }
+    return true;
 }
 
 void MainWindow::initActions()
@@ -515,49 +525,33 @@ void MainWindow::openAccount()
 {
     OpenAccountDialog* dlg = new OpenAccountDialog;
     if(dlg->exec() == QDialog::Accepted){
-         ui->tbrPzs->setVisible(true);
+        ui->tbrPzs->setVisible(true);
         curAccountId = dlg->getAccountId();
         //if(curAccInfo)
         //    delete curAccInfo;
 
         AppConfig* appCfg = AppConfig::getInstance();
-        AccountBriefInfo* curAccInfo = new AccountBriefInfo;
+        AccountBriefInfo curAccInfo;
         appCfg->getAccInfo(curAccountId,curAccInfo);
+
+        if(!AccountVersionMaintain(curAccInfo.fname))
+            return;
+
         //showTemInfo(curAccInfo->desc);
         //curUsedSubSys = curAccInfo->usedSubSys;  //读取打开的账户所使用的科目系统
         //usedRptType = curAccInfo->usedRptType;   //读取打开的账户所使用的报表类型
-        ConnectionManager::openConnection(dlg->getFileName());
+        QString fn = dlg->getFileName(); fn.chop(4);
+        ConnectionManager::openConnection(fn);
         adb = ConnectionManager::getConnect();
         if(curAccount){
             delete curAccount;
             curAccount = NULL;
         }
-        bool cancel;
-        if(!Account::versionMaintain(cancel)){
-            if(cancel){
-                QMessageBox::warning(this,tr("出错信息"),
-                                     tr("该账户数据库版本过低，必须先升级！"));
-            }
-            else
-            {
-                QMessageBox::critical(this,tr("出错信息"),
-                                      tr("数据库版本升级过程出错！"));
-            }
-            return;
-        }
-        curAccount = new Account(curAccInfo->fileName/*,adb*/);
-        //这个主要用于过度阶段（从老账户信息表过度到新账户信息表时）
-        if(curAccount->getFileName().isEmpty()){
-            curAccount->setFileName(curAccInfo->fileName);
-            curAccount->setSName(curAccInfo->accName);
-            curAccount->setLName(curAccInfo->accLName);
-            curAccount->setCode(curAccInfo->code);
-        }
+        curAccount = new Account(curAccInfo.fname);
         if(!curAccount->isValid()){
             showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
             return;
         }
-        //setWindowTitle(tr("会计凭证处理系统---") + dlg->getLName());
         setWindowTitle(tr("会计凭证处理系统---") + curAccount->getLName());
         appCfg->setRecentOpenAccount(curAccountId);
         refreshTbrVisble();
@@ -619,46 +613,27 @@ void MainWindow::refreshActInfo()
         closeAccount();
 
     //清除已有的账户信息
-    AppConfig::getInstance()->clear();
-
-    //在应用程序的账户目录下扫描所有文件，判断是否是有效的账户数据库文件，如是，则读取
-    //账户信息并导入到应用程序中，将账户信息写入到配置中
-
-    QDir dir("./datas/databases");
+    AppConfig* appCfg = AppConfig::getInstance();
+    QDir dir(DatabasePath /*"./datas/databases"*/);
     QStringList filters, filelist;
     filters << "*.dat";
     dir.setNameFilters(filters);
     filelist = dir.entryList(filters, QDir::Files);
-
-    bool r;
     int fondCount = 0;
-    int c;
-
-    AppConfig* appCfg = AppConfig::getInstance();
     if(filelist.count() == 0)
         QMessageBox::information(this, tr("一般信息"),
                                  tr("当前没有可用的帐户数据库文件"));
     else{
         appCfg->clear();
-        for(int i = 0; i < filelist.count(); ++i){
-            filelist[i].chop(4);
-            QString fname = filelist[i];
-            if(ConnectionManager::openConnection(fname)){ //成功打开数据库文件
-                Account* acc = new Account(fname/*,ConnectionManager::getConnect()*/);//读取数据库文件中的账户信息
-                if(acc->getFileName().isEmpty())
-                    acc->setFileName(fname);
-                if(acc->isValid()){
-                    AccountBriefInfo* accInfo = new AccountBriefInfo;
-                    accInfo->code = acc->getCode();
-                    accInfo->fileName = fname;
-                    accInfo->accName = acc->getSName();
-                    accInfo->accLName = acc->getLName();
-                    appCfg->saveAccInfo(accInfo);
-
-                    fondCount++;
-                    ConnectionManager::closeConnection(); //关闭刚刚打开的数据库
-                }
-            }
+        foreach(QString fname, filelist){
+            DbUtil du;
+            if(!du.setFilename(fname))
+                continue;
+            AccountBriefInfo accInfo;
+            if(!du.readAccBriefInfo(accInfo))
+                continue;
+            appCfg->saveAccInfo(accInfo);
+            fondCount++;
         }
         //报告查找结果
         if(fondCount == 0)
@@ -3193,14 +3168,6 @@ void MainWindow::allPzToRecording(int year, int month)
     //BusiUtil::setPzsState(y,m,Ps_JzhdV);
 }
 
-
-bool MainWindow::impTestDatas()
-{
-    DbUtil du;
-    //bool r = du.setFilename(tr("宁波苏航.dat"));
-    int i = 0;
-}
-
 void MainWindow::on_actViewLog_triggered()
 {
     LogView* lv = new LogView(this);
@@ -3208,4 +3175,16 @@ void MainWindow::on_actViewLog_triggered()
     sw->setAttribute(Qt::WA_DeleteOnClose);
     connect(lv,SIGNAL(onClose()),sw,SLOT(close()));
     sw->show();
+}
+
+
+bool MainWindow::impTestDatas()
+{
+    Account acc(tr("宁波苏航.dat"));
+    //acc.appendSuite(2014,tr("2014年测试帐套"));
+    //acc.setSuiteName(2013,tr("2013测试帐套"));
+    acc.addWaiMt(3);
+    acc.close();
+    //bool r = du.setFilename(tr("宁波苏航.dat"));
+    int i = 0;
 }

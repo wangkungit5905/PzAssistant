@@ -305,18 +305,32 @@ struct SubWindowDim{
     int w,h;  //子窗口大小
 };
 
+//本地账户缓存表（LocalAccountCaches)
+//字段名
+//#define tbl_localAccountCache "LocalAccountCaches"
+//#define fld_lac_code "code"                 //账户编码
+//#define fld_lac_name "name"                 //账户简称
+//#define fld_lac_lname "lname"               //账户全称
+//#define fld_lac_filename "fname"            //账户文件名
+//#define fld_lac_isLastOpen "isLastOpen"     //
+//#define fld_lac_tranState "tstate"          //
+//#define fld_lac_tranInTime "tranInTime"     //
+//#define fld_lac_tranOutMid "tranOutMid"     //
+//#define fld_lac_tranOutTime "tranOutTime"   //
+////#define fld_lac_hash "hashValue"            //
 //账户简要信息，此信息来自于基本数据库的AccountInfos表
 struct AccountBriefInfo{
-    int id;            //账户id
-    QString code;      //账户代码
-    //int usedSubSys;    //--账户所使用的科目系统（1：老式，2：新式）
-    //int usedRptType;   //--账户所使用的报表类型（未来考虑）
-    //QString baseTime;  //--账户开始记账年月
-    QString fileName;  //账户数据库文件名
-    QString accName;   //账户简称
-    QString accLName;  //账户全称
-    //QString lastTime;  //--账户最后修改时间
-    //QString desc;      //--说明账户最后修改状态的说明性信息
+    int id;                     //账户id
+    QString code;               //账户代码
+    QString fname;              //账户数据库文件名
+    QString sname;              //账户简称
+    QString lname;              //账户全称
+    bool isRecent;              //是否是最近打开的账户
+    //AccountTransferState tstate        //转移状态（待转移功能加入后使用）
+    //QDateTime tinTime;          //转入时间
+    //int tOutMid;                //转出主机的MID
+    //QDateTime tOutTime;         //转出时间
+    //QString hashValue;          //账户文件的Hash值
 };
 
 //凭证错误级别

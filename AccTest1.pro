@@ -56,7 +56,8 @@ SOURCES += main.cpp\
     logs/FileAppender.cpp \
     logs/ConsoleAppender.cpp \
     logs/AbstractStringAppender.cpp \
-    logs/AbstractAppender.cpp
+    logs/AbstractAppender.cpp \
+    version.cpp
 
 HEADERS  += \
     connection.h \
@@ -107,7 +108,8 @@ HEADERS  += \
     logs/FileAppender.h \
     logs/ConsoleAppender.h \
     logs/AbstractStringAppender.h \
-    logs/AbstractAppender.h
+    logs/AbstractAppender.h \
+    version.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

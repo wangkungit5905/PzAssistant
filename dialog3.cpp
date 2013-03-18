@@ -882,10 +882,10 @@ void GdzcAdminDialog::on_actViewList_triggered()
 {
     //打开选择对话框，由用户在当前帐套内选择要显示的月份
     bool ok;
-    int y = curAccount->getCurSuite();
+    int y = curAccount->getCurSuite()->year;
     QString t = curAccount->getSuiteName(y);
     int im,m;
-    if(curAccount->getCurSuite() == curAccount->getEndSuite())
+    if(curAccount->getCurSuite()->year == curAccount->getEndSuite()->year)
         im = curAccount->getEndTime().month();
     else
         im = 12;
@@ -1774,10 +1774,10 @@ void DtfyAdminDialog::on_actView_triggered()
 {
     //打开选择对话框，由用户在当前帐套内选择要显示的月份
     bool ok;
-    int y = curAccount->getCurSuite();
+    int y = curAccount->getCurSuite()->year;
     QString t = curAccount->getSuiteName(y);
     int im,m;
-    if(curAccount->getCurSuite() == curAccount->getEndSuite())
+    if(curAccount->getCurSuite()->year == curAccount->getEndSuite()->year)
         im = curAccount->getEndTime().month();
     else
         im = 12;
@@ -5599,8 +5599,8 @@ LookupSubjectExtraDialog::LookupSubjectExtraDialog(Account* account, QWidget *pa
     ui->cmbFstSub->setCompleter(fCom);
     ui->cmbSndSub->setCompleter(sCom);
     ui->spnYear->setMinimum(account->getBaseYear());
-    ui->spnYear->setMaximum(account->getEndSuite());
-    y = account->getCurSuite();
+    ui->spnYear->setMaximum(account->getEndSuite()->year);
+    y = account->getCurSuite()->year;
     ui->spnYear->setValue(y);
     on_spnYear_valueChanged(y);
 
@@ -5640,7 +5640,7 @@ void LookupSubjectExtraDialog::on_spnYear_valueChanged(int year)
 
     int by = account->getBaseYear();
     int bm = account->getBaseMonth();
-    int sy = account->getStartSuite();
+    int sy = account->getStartSuite()->year;
     int sm = account->getSuiteFirstMonth(y);
     int em = account->getSuiteLastMonth(y);
 
@@ -5859,7 +5859,7 @@ AccountPropertyDialog::AccountPropertyDialog(Account *account, QWidget *parent) 
         item->setData(Qt::UserRole,y);
         ui->lstSuites->addItem(item);
     }
-    ui->edtCurSuite->setText(account->getSuiteName(account->getCurSuite()));
+    ui->edtCurSuite->setText(account->getSuiteName(account->getCurSuite()->year));
     ui->edtMMt->setText(allMts.value(account->getMasterMt()));
     ui->edtWaiMt->setText(account->getWaiMtStr());
     ui->btnAddMt->setEnabled(MTS.count() > account->getWaiMt().count()+1);
@@ -5953,9 +5953,9 @@ void AccountPropertyDialog::save(bool confirm)
                         itemData(ui->cmbSubType->currentIndex()).toInt();
                 account->setSubType(subType);
             }
-            if(bRptType)
-                account->setReportType((Account::ReportType)ui->cmbRptType->
-                                       itemData(ui->cmbRptType->currentIndex()).toInt());
+            //if(bRptType)
+            //    account->setReportType((Account::ReportType)ui->cmbRptType->
+            //                           itemData(ui->cmbRptType->currentIndex()).toInt());
             if(bSTime){
                 QDate date = ui->datStart->date();
                 account->setStartTime(date);

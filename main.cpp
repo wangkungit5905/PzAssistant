@@ -90,7 +90,7 @@ int main(int argc, char *argv[])
                   "************************************************************");
     Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                   QObject::tr("PzAssistant is starting......"));
-    qDebug()<<"qDebug export info!";
+    //qDebug()<<"qDebug export info!";
     logLevel = AppConfig::getInstance()->getLogLevel();
     logFile->setDetailsLevel(logLevel);
 

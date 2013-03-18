@@ -87,8 +87,8 @@ extern QList<BusiActionData2*> clbBaList;     //存放要粘贴的业务活动�
 //账户状态变量
 extern QString lastModifyTime;   //账户最后修改时间
 
-extern VersionManager* accVM;    //管理账户数据库版本
-extern VersionManager* confVM;   //管理配置模块版本
+//extern VersionManager* accVM;    //管理账户数据库版本
+//extern VersionManager* confVM;   //管理配置模块版本
 //extern VersionManager* baseVM;   //管理基本库版本
 
 //全局函数

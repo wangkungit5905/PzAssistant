@@ -37,10 +37,11 @@ SetupBaseDialog::SetupBaseDialog(bool isWizard, QWidget *parent) : QDialog(paren
 
     crtExtraPage();
 
+    //报表功能未来再议
     //创建输入资产负债表的页面
-    crtReportPage(RPT_BALANCE, curAccount->getReportType());
+    //crtReportPage(RPT_BALANCE, curAccount->getReportType());
     //创建输入利润表数据的页面
-    crtReportPage(RPT_PROFIT, curAccount->getReportType());
+    //crtReportPage(RPT_PROFIT, curAccount->getReportType());
 
 
 

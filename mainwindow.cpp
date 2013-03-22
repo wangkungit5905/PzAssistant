@@ -338,17 +338,32 @@ bool MainWindow::AccountVersionMaintain(QString fname)
 {
     bool cancel = false;
     VersionManager vm(VersionManager::MT_ACC,fname);
-    if(!vm.versionMaintain(cancel)){
-        if(cancel){
-            QMessageBox::warning(this,tr("出错信息"),
-                                 tr("该账户数据库版本过低，必须先升级！"));
-        }
-        else
-        {
-            QMessageBox::critical(this,tr("出错信息"),
-                                  tr("数据库版本升级过程出错！"));
-        }
+    VersionUpgradeInspectResult result = vm.isMustUpgrade();
+    bool exec = false;
+    switch(result){
+    case VUIR_CANT:
+        QMessageBox::warning(this,tr("出错信息"),
+                             tr("该账户数据库版本不能归集到初始版本！"));
         return false;
+    case VUIR_DONT:
+        exec = false;
+        break;
+    case VUIR_LOW:
+        QMessageBox::warning(this,tr("出错信息"),
+                             tr("当前程序版本太低，必须要用更新版本的程序打开此账户！"));
+        return false;
+    case VUIR_MUST:
+        exec = true;
+        break;
+    }
+    if(exec){
+        if(vm.exec() == QDialog::Rejected){
+            QMessageBox::warning(this,tr("出错信息"),
+                                      tr("该账户数据库版本过低，必须先升级！"));
+            return false;
+        }
+        else if(!vm.getUpgradeResult())
+            return false;
     }
     return true;
 }
@@ -3180,11 +3195,37 @@ void MainWindow::on_actViewLog_triggered()
 
 bool MainWindow::impTestDatas()
 {
+    //curAccount = new Account(tr("宁波苏航.dat"));
     Account acc(tr("宁波苏航.dat"));
     //acc.appendSuite(2014,tr("2014年测试帐套"));
     //acc.setSuiteName(2013,tr("2013测试帐套"));
-    acc.addWaiMt(3);
-    acc.close();
-    //bool r = du.setFilename(tr("宁波苏航.dat"));
+    //acc.addWaiMt(3);
+    //acc.close();
+//    QHash<int, Double> fsums,ssums;
+//    QHash<int, int> fdirs,sdirs;
+//    QHash<int, MoneyDirection> nfdirs,nsdirs;
+//    BusiUtil::readExtraByMonth2(2012,12,fsums,fdirs,ssums,sdirs);
+//    transferDirection(fdirs,nfdirs);
+//    transferDirection(sdirs,nsdirs);
+
+    //fsums[21] = 2000; //人民币
+    //fsums[22] = 0;  //美金
+    //nfdirs[21] = MDIR_J;
+    //nfdirs[22] = MDIR_J;
+    //ssums[891] = 2000;  //工行-人民币
+    //ssums[902] = 0;   //工行-美金
+    //nsdirs[891] = MDIR_J;
+    //nsdirs[902] = MDIR_J;
+    //adb.close();
+//    acc.getDbUtil()->saveExtraForPm(2012,12,fsums,nfdirs,ssums,nsdirs);
+    //curAccount->getDbUtil()->saveExtraForMm(2012,12,fsums,ssums);
+
+    //VMAccount::backup(tr("宁波苏航.dat"));
+    //bool r = VMAccount::restore(tr("宁波苏航.dat"));
+
+
     int i = 0;
+
+    //1、在空白表上保存余额通过
+    //2、将人民币余额改变，
 }

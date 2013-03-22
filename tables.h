@@ -309,9 +309,9 @@ const int PZSS_STATE = 3;
 //余额指针表
 //字段名
 const QString tbl_nse_point   = "SE_Point";
-const QString fld_sep_year    = "year";
-const QString fld_sep_month   = "month";
-const QString fld_sep_mt      = "mt";
+const QString fld_nse_year    = "year";
+const QString fld_nse_month   = "month";
+const QString fld_nse_mt      = "mt";
 //字段索引
 const int NSE_POINT_YEAR  =1;
 const int NSE_POINT_MONTH =2;

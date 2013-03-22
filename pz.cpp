@@ -498,7 +498,7 @@ bool PzSetMgr::readPreExtra()
         yy = y;
         mm = m - 1;
     }
-    return BusiUtil::readExtraByMonth(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
+    return BusiUtil::readExtraByMonth2(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
 }
 
 //添加空白凭证

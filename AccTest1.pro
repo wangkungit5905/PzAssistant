@@ -162,7 +162,8 @@ FORMS    += \
     forms/aboutform.ui \
     forms/jzhdsyinfoinputdlg.ui \
     forms/pzdsform.ui \
-    forms/logview.ui
+    forms/logview.ui \
+    forms/versionmanager.ui
 
 RESOURCES += \
     imgers.qrc \
@@ -178,7 +179,8 @@ OTHER_FILES += \
     PrjExplain/操作指南.txt \
     PrjExplain/revisionHistorys \
     账户文本版本说明.txt \
-    ini/revisionHistorys.ini
+    ini/revisionHistorys.ini \
+    PrjExplain/任务需求分析.txt
 
 win32{
     RC_FILE = exeico.rc

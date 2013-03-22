@@ -5,6 +5,7 @@
 #include "global.h"
 #include "tables.h"
 #include "account.h"
+#include "logs/Logger.h"
 
 DbUtil::DbUtil()
 {
@@ -246,6 +247,90 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
 }
 
 /**
+ * @brief DbUtil::readExtraForPm
+ *  读取指定年月的余额值（原币形式）
+ * @param y     年
+ * @param m     月
+ * @param fsums 一级科目余额值（注意：hash表的键是 “科目代码 * 10 + 币种代码”）
+ * @param fdirs 一级科目余额方向
+ * @param ssums 二级科目余额值
+ * @param sdirs 二级科目方向
+ * @return
+ */
+bool DbUtil::readExtraForPm(int y, int m, QHash<int, Double> &fsums, QHash<int, MoneyDirection> &fdirs,
+                            QHash<int, Double> &ssums, QHash<int, MoneyDirection> &sdirs)
+{
+    if(!_readExtraForPm(y,m,fsums,fdirs))
+        return false;
+    if(!_readExtraForPm(y,m,ssums,sdirs,false))
+        return false;
+    return true;
+}
+
+/**
+ * @brief DbUtil::readExtraForMm
+ *  读取指定年月的余额值（本币形式）
+ * @param y     年
+ * @param m     月
+ * @param fsums 一级科目余额值（注意：hash表的键是 “科目代码 * 10 + 币种代码”）
+ * @param fdirs 一级科目余额方向
+ * @param ssums 二级科目余额值
+ * @param sdirs 二级科目方向
+ * @param m
+ * @param fsums
+ * @param fdirs
+ * @param ssums
+ * @param sdirs
+ * @return
+ */
+bool DbUtil::readExtraForMm(int y, int m, QHash<int, Double> &fsums, QHash<int, Double> &ssums)
+{
+    if(!_readExtraForMm(y,m,fsums))
+        return false;
+    if(!_readExtraForMm(y,m,ssums,false))
+        return false;
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveExtraForPm
+ *  保存指定年月的期末余额（原币形式）
+ * @param y     年
+ * @param m     月
+ * @param fsums 一级科目余额表（注意：键为“科目id * 10 + 币种代码”）
+ * @param fdirs 一级科目余额方向
+ * @param ssums 二级科目余额表
+ * @param sdirs 二级科目余额方向
+ * @return
+ */
+bool DbUtil::saveExtraForPm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, MoneyDirection> &fdirs, const QHash<int, Double> &ssums, const QHash<int, MoneyDirection> &sdirs)
+{
+    if(!_saveExtrasForPm(y,m,fsums,fdirs))
+        return false;
+    if(!_saveExtrasForPm(y,m,ssums,sdirs,false))
+        return false;
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveExtraForMm
+ *  保存指定年月的期末余额（本币形式）
+ * @param y
+ * @param m
+ * @param fsums 一级科目余额表（注意：键为“科目id * 10 + 币种代码”）
+ * @param ssums 二级科目余额表
+ * @return
+ */
+bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, Double> &ssums)
+{
+    if(!_saveExtrasForMm(y,m,fsums))
+        return false;
+    if(!_saveExtrasForMm(y,m,ssums,false))
+        return false;
+    return true;
+}
+
+/**
  * @brief DbUtil::saveAccInfoPiece
  *  保存账户信息片段
  * @param code
@@ -339,6 +424,344 @@ bool DbUtil::saveAccountSuites(QList<Account::AccountSuite *> suites)
 
     if(!db.commit()){
         Logger::write(QDateTime::currentDateTime(),Logger::Error,"",0,"", QObject::tr("Transaction commit failed!"));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::readExtraPoint
+ *  读取指定年月的余额指针Pid
+ * @param y
+ * @param m
+ * @param mtHashs   键为币种代码，值为余额指针pid
+ * @return
+ */
+bool DbUtil::_readExtraPoint(int y, int m, QHash<int, int>& mtHashs)
+{
+    QSqlQuery q(db);
+    //1、首先取得保存指定年月余额值的指针id
+    QString s = QString("select id,%1 from %2 where %3=%4 and %5=%6")
+            .arg(fld_nse_mt).arg(tbl_nse_point)
+            .arg(fld_nse_year).arg(y).arg(fld_nse_month).arg(m);
+    if(!q.exec(s))
+        return false;
+    while(q.next())
+        mtHashs[q.value(1).toInt()] = q.value(0).toInt();
+    return true;
+}
+
+/**
+ * @brief DbUtil::_readExtraForPm
+ *  读取指定年月的余额（原币形式）
+ * @param y     年
+ * @param m     月
+ * @param sums  余额值表
+ * @param dirs  余额方向表
+ * @param isFst 是一级科目（true：默认值）还是二级科目
+ * @return
+ */
+bool DbUtil::_readExtraForPm(int y, int m, QHash<int, Double> &sums, QHash<int, MoneyDirection> &dirs, bool isFst)
+{
+    QSqlQuery q(db);
+    QHash<int,int> mtHash;  //键为币种代码，值为余额指针pid
+
+    //1、首先取得保存指定年月余额值的指针id
+    if(!_readExtraPoint(y,m,mtHash))
+        return false;
+    if(mtHash.isEmpty())
+        return true;
+
+    //2、读取各币种的余额值
+    QString s;
+    QHashIterator<int,int> it(mtHash);
+    int sid,key; Double v;
+    MoneyDirection dir;
+    QString tname;
+    if(isFst)
+        tname = tbl_nse_p_f;
+    else
+        tname = tbl_nse_p_s;
+    while(it.hasNext()){
+        it.next();
+        s = QString("select * from %1 where %2=%3")
+                .arg(tname).arg(fld_nse_pid).arg(it.value());
+        if(!q.exec(s))
+            return false;
+        while(q.next()){
+            sid = q.value(NSE_E_SID).toInt();
+            dir = (MoneyDirection)q.value(NSE_E_DIR).toInt();
+            v = Double(q.value(NSE_E_VALUE).toDouble());
+            key = sid * 10 + it.key();
+            sums[key] = v;
+            dirs[key] = dir;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::_readExtraForMm
+ *  读取指定年月的余额（本币形式）
+ * @param y
+ * @param m
+ * @param sums  余额值表
+ * @param isFst 是一级科目（true：默认值）还是二级科目
+ * @return
+ */
+bool DbUtil::_readExtraForMm(int y, int m, QHash<int, Double> &sums, bool isFst)
+{
+    QSqlQuery q(db);
+    QHash<int,int> mtHash;  //键为币种代码，值为余额指针pid
+
+    //1、首先取得保存指定年月余额值的指针id
+    if(!_readExtraPoint(y,m,mtHash))
+        return false;
+    if(mtHash.isEmpty())
+        return true;
+    //因为只有需要外币的科目才会保存本币形式的余额，因此只有存在外币的本币余额项时才继续读取
+    mtHash.remove(curAccount->getMasterMt());
+    if(mtHash.isEmpty())
+        return true;
+
+    //2、读取各币种的余额值
+    QString s;
+    QHashIterator<int,int> it(mtHash);
+    int sid,key; Double v;
+    QString tname;
+    if(isFst)
+        tname = tbl_nse_m_f;
+    else
+        tname = tbl_nse_m_s;
+    while(it.hasNext()){
+        it.next();
+        s = QString("select * from %1 where %2=%3")
+                .arg(tname).arg(fld_nse_pid).arg(it.value());
+        if(!q.exec(s))
+            return false;
+        while(q.next()){
+            sid = q.value(NSE_E_SID).toInt();
+            v = Double(q.value(NSE_E_VALUE).toDouble());
+            key = sid * 10 + it.key();
+            sums[key] = v;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::_crtExtraPoint
+ *  创建余额指针
+ * @param y
+ * @param m
+ * @param mt    币种代码
+ * @param pid   余额指针
+ * @return
+ */
+bool DbUtil::_crtExtraPoint(int y, int m, int mt, int &pid)
+{
+    //如果此函数在一个数据库事务中被调用，是否要启动它自己的内嵌事务以取得记录id？
+    QSqlQuery q(db);
+    QString s = QString("insert into %1(%2,%3,%4) values(%5,%6,%7)")
+            .arg(tbl_nse_point).arg(fld_nse_year).arg(fld_nse_month)
+            .arg(fld_nse_mt).arg(y).arg(m).arg(mt);
+    if(!q.exec(s))
+        return false;
+    s = "select last_insert_rowid()";
+    if(!q.exec(s))
+        return false;
+    if(!q.first())
+        return false;
+    pid = q.value(0).toInt();
+    return true;
+}
+
+/**
+ * @brief DbUtil::_saveExtrasForPm
+ *  保存指定年月的余额到数据库中（原币形式）
+ * @param y     年
+ * @param m     月
+ * @param sums  余额值表
+ * @param dirs  余额方向表
+ * @param isFst 是一级科目（true：默认值）还是二级科目
+ * @return
+ */
+bool DbUtil::_saveExtrasForPm(int y, int m, const QHash<int, Double> &sums, const QHash<int, MoneyDirection> &dirs, bool isFst)
+{
+    //操作思路
+    //1、先读取保存在表中的余额
+    //2、在一二级科目的新余额上进行分别进行迭代操作：
+    //（1）如果新值项方向为平，则先跳过（如果老值表中存在对应值项，在迭代结束后会从标志删除）
+    //（2）如果新值在老值表中不存在，则执行插入操作（在插入操作前，可能还要执行余额指针的创建）
+    //（3）如果新老值方向不同，则更新方向
+    //（4）如果新老值不同，则更新值
+    //（5）每次迭代的末尾，都从老值表中移除已执行的值项
+    //3、迭代完成后，如果老值表不空，则说明遗留的值项都不再存在，可以从相应表中删除
+    QSqlQuery q(db);
+    QString s;
+    QHash<int,int> mtHashs; //键为币种代码，值为余额指针
+    if(!_readExtraPoint(y,m,mtHashs))
+        return false;
+    QHash<int, Double> oldSums;
+    QHash<int, MoneyDirection> oldDirs;
+    if(!_readExtraForPm(y,m,oldSums,oldDirs,isFst))
+        return false;
+    if(!db.transaction()){
+        LOG_ERROR("Database transaction start failed!");
+        return false;
+    }
+    QHashIterator<int,Double> it(sums);
+    int mt,sid;
+    QString tname;
+    if(isFst)
+        tname = tbl_nse_p_f;
+    else
+        tname = tbl_nse_p_s;
+    while(it.hasNext()){
+        it.next();
+        s.clear();
+        mt = it.key() % 10;
+        sid = it.key() / 10;
+        if(dirs.value(it.key()) == MDIR_P)
+            continue;
+        //（）、如果新值在老值表中不存在，则执行插入操作
+        else if(!oldSums.contains(it.key())){
+            if(!mtHashs.contains(mt)){
+                int pid;
+                if(!_crtExtraPoint(y,m,mt,pid))
+                    return false;
+                mtHashs[mt] = pid;
+            }
+            s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,%8,%9)")
+                    .arg(tname).arg(fld_nse_pid).arg(fld_nse_sid)
+                    .arg(fld_nse_value).arg(fld_nse_dir).arg(mtHashs.value(mt))
+                    .arg(sid).arg(it.value().getv()).arg(dirs.value(it.key()));
+
+        }
+        //（2）、如果新老值方向不同，则更新方向
+        else if(dirs.value(it.key() != oldDirs.value(it.key()))){
+            s = QString("update %1 set %2=%3 where %4=%5 and %6=%7").arg(tname)
+                    .arg(fld_nse_dir).arg(dirs.value(it.key()))
+                    .arg(fld_nse_pid).arg(mtHashs.value(mt)).arg(fld_nse_sid).arg(sid);
+
+        }
+        //（3）、如果新老值不同，则更新值
+        else if(it.value() != oldSums.value(it.key())){
+            s = QString("update %1 set %2=%3 where %4=%5 and %6=%7").arg(tname)
+                    .arg(fld_nse_value).arg(it.value().getv())
+                    .arg(fld_nse_pid).arg(mtHashs.value(mt)).arg(fld_nse_sid).arg(sid);
+
+        }
+        //（5）每次迭代的末尾，都从老值表中移除已执行的值项
+        if(!s.isEmpty())
+            q.exec(s);
+        oldSums.remove(it.key());
+        oldDirs.remove(it.key());
+    }
+    //迭代完成后，如果老值表不空，则说明遗留的值项都不再存在，可以从相应表中删除
+    if(!oldSums.isEmpty()){
+        QHashIterator<int,Double> ii(oldSums);
+        while(ii.hasNext()){
+            ii.next();
+            mt = ii.key() % 10;
+            sid = ii.key() / 10;
+            s = QString("delete from %1 where %2=%3 and %4=%5")
+                    .arg(tname).arg(fld_nse_pid).arg(mtHashs.value(mt))
+                    .arg(fld_nse_sid).arg(sid);
+            q.exec(s);
+        }
+    }
+
+    if(!db.commit()){
+        if(!db.rollback())
+            LOG_ERROR("Database transaction roll back failed!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::_saveExtrasForMm
+ *  保存指定年月的余额到数据库中（本币形式）
+ * @param y     年
+ * @param m     月
+ * @param sums  余额值表
+ * @param dirs  余额方向表
+ * @param isFst 是一级科目（true：默认值）还是二级科目
+ * @return
+ */
+bool DbUtil::_saveExtrasForMm(int y, int m, const QHash<int, Double> &sums, bool isFst)
+{
+    //假定余额值表中已经剔除了人民币科目的余额值（即只有那些需要外币的科目才需要保存）
+    QSqlQuery q(db);
+    QString s;
+    QHash<int,int> mtHashs; //键为币种代码，值为余额指针
+    if(!_readExtraPoint(y,m,mtHashs))
+        return false;
+    QHash<int, Double> oldSums;
+    if(!_readExtraForMm(y,m,oldSums,isFst))
+        return false;
+    if(!db.transaction()){
+        LOG_ERROR("Database transaction start failed!");
+        return false;
+    }
+    QHashIterator<int,Double> it(sums);
+    int mt,sid;
+    QString tname;
+    if(isFst)
+        tname = tbl_nse_m_f;
+    else
+        tname = tbl_nse_m_s;
+    while(it.hasNext()){
+        it.next();
+        s.clear();
+        mt = it.key() % 10;
+        sid = it.key() / 10;
+        if(sums.value(it.key()) == 0)
+            continue;
+        //（）、如果新值在老值表中不存在，则执行插入操作
+        else if(!oldSums.contains(it.key())){
+            if(!mtHashs.contains(mt)){
+                int pid;
+                if(!_crtExtraPoint(y,m,mt,pid))
+                    return false;
+                mtHashs[mt] = pid;
+            }
+            s = QString("insert into %1(%2,%3,%4) values(%5,%6,%7)")
+                    .arg(tname).arg(fld_nse_pid).arg(fld_nse_sid)
+                    .arg(fld_nse_value).arg(mtHashs.value(mt))
+                    .arg(sid).arg(it.value().getv());
+
+        }
+        //（3）、如果新老值不同，则更新值
+        else if(it.value() != oldSums.value(it.key())){
+            s = QString("update %1 set %2=%3 where %4=%5 and %6=%7").arg(tname)
+                    .arg(fld_nse_value).arg(it.value().getv())
+                    .arg(fld_nse_pid).arg(mtHashs.value(mt)).arg(fld_nse_sid).arg(sid);
+
+        }
+        //（5）每次迭代的末尾，都从老值表中移除已执行的值项
+        if(!s.isEmpty())
+            q.exec(s);
+        oldSums.remove(it.key());
+    }
+    //迭代完成后，如果老值表不空，则说明遗留的值项都不再存在，可以从相应表中删除
+    if(!oldSums.isEmpty()){
+        QHashIterator<int,Double> ii(oldSums);
+        while(ii.hasNext()){
+            ii.next();
+            mt = ii.key() % 10;
+            sid = ii.key() / 10;
+            s = QString("delete from %1 where %2=%3 and %4=%5")
+                    .arg(tname).arg(fld_nse_pid).arg(mtHashs.value(mt))
+                    .arg(fld_nse_sid).arg(sid);
+            q.exec(s);
+        }
+    }
+
+    if(!db.commit()){
+        if(!db.rollback())
+            LOG_ERROR("Database transaction roll back failed!");
         return false;
     }
     return true;

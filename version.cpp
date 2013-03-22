@@ -3,212 +3,173 @@
 #include <QSettings>
 #include <QInputDialog>
 #include <QTextCodec>
+#include <QDir>
 
 #include "version.h"
 #include "global.h"
 #include "tables.h"
 
-QSqlDatabase VMAccount::db;
-QSqlDatabase VMAppConfig::db;
-QSettings *VMAppConfig::appIni;
+#include "ui_versionmanager.h"
 
-/////////////////////////////VersionManager//////////////////////////////////
-VersionManager::VersionManager(VersionManager::ModuleType moduleType, QString fname)
-    :mt(moduleType),fileName(fname)
-{
-    switch(moduleType){
-    case MT_CONF:
-        initConf();
-        break;
-    case MT_ACC:
-        initAcc();
-        break;
-    }
-}
 
+/////////////////////////////VMBase/////////////////////////////////////////////////////
 /**
- * @brief VersionManager::compareVersion
- *  比较版本，如果当前版本低于最高可用版本，则提示升级，如果用户同意则执行升级操作
- * @param cancel：在返回为false时，其值为true，则表示用户取消了升级操作
- * @return true：升级成功，false：升级失败或用户取消升级
+ * @brief VMBase::getUpgradeVersion
+ *  获取从当前账户版本升级到系统支持版本要经历的版本列表
+ * @return
  */
-bool VersionManager::versionMaintain(bool& cancel)
+QList<int> VMBase::getUpgradeVersion()
 {
-    cancel = false;
-    int curMv, curSv;
-    int maxMv, maxSv;
-
-    //按需进行初始版本归集
-    if(!pvFun())
-        return false;
-
-    if(!(*gvFun)(curMv,curSv))
-        return false;
-    QStringList vs = versionHistorys.last().split("_");
-    maxMv = vs.first().toInt();
-    maxSv = vs.last().toInt();
-    if(curMv < maxMv || curSv < maxSv){
-        if(QMessageBox::Yes ==
-            QMessageBox::information(0,QObject::tr("更新通知"),
-                                     QObject::tr("%1需要更新").arg(moduleName),
-                                     QMessageBox::Yes|QMessageBox::No)){
-            if(!updateVersion(curMv,curSv))
-                return false;
-        }
-        else{
-            cancel = true;
-            return false;
+    int index = 0;
+    int curVer = curMv * 100 + curSv;
+    int count = versions.count();
+    while(index < count){
+        if(versions.at(index) == curVer)
+            break;
+        index++;
+    }
+    QList<int> verNums;
+    if(index < count - 1){
+        for(int i = index+1; i < count; ++i){
+            verNums<< versions.at(i);
         }
     }
-    close();
-    return true;
+    return verNums;
 }
 
 /**
- * @brief VersionManager::appendVersion
- *  添加新版本
- * @param mv    主版本
- * @param sv    次版本
- * @param fun   升级函数
+ * @brief VMBase::inspectVersion
+ *  比较系统支持版本和当前模块版本，以判断是否需要升级
+ * @return
  */
-void VersionManager::appendVersion(int mv, int sv, UpdateVersionFun fun)
+VersionUpgradeInspectResult VMBase::inspectVersion()
 {
-    //必须确保添加的版本比最近添加的版本更新，为方便，这里没有执行检测
-    QString vs = QString("%1_%2").arg(mv).arg(sv);
-    versionHistorys<<vs;
-    updateFuns[vs] = fun;
-}
-
-void VersionManager::initConf()
-{
-    VMAppConfig::db = QSqlDatabase::addDatabase("QSQLITE", VM_BASIC);
-    fileName = BaseDataPath + "basicdata.dat";
-    VMAppConfig::db.setDatabaseName(fileName);
-    if (!VMAppConfig::db.open()){
-        QMessageBox::critical(0, QObject::tr("不能打开基础数据库"),
-            QObject::tr("不能够建立与基础数据库之间的连接\n"
-                     "请检查data目录下是否存在basicdata.dat文件"), QMessageBox::Cancel);
-        return;
-    }
-
-    VMAppConfig::appIni = new QSettings("./config/app/appSetting.ini", QSettings::IniFormat);
-    VMAppConfig::appIni->setIniCodec(QTextCodec::codecForTr());
-
-    versionHistorys<<"1_0";
-    moduleName = QObject::tr("配置模块");
-    gvFun = &VMAppConfig::getVersion;
-    svFun = &VMAppConfig::setVersion;
-    pvFun = &VMAppConfig::perfectVersion;
-
-    appendVersion(1,1,&VMAppConfig::updateTo1_1);
-    appendVersion(1,2,&VMAppConfig::updateTo1_2);
-    //appendVersion(2,0,&VMAppConfig::updateTo2_0);
-}
-
-void VersionManager::initAcc()
-{
-    VMAccount::db = QSqlDatabase::addDatabase("QSQLITE", VM_ACCOUNT);
-    VMAccount::db.setDatabaseName(DatabasePath+fileName);
-    if(!VMAccount::db.open()){
-        QMessageBox::critical(0, QObject::tr("不能打开基础数据库"),
-            QObject::tr("不能够建立与账户数据库之间的连接\n"
-                        "请检查data目录下是否存在%1文件").arg(fileName), QMessageBox::Cancel);
-        return;
-    }
-    versionHistorys<<"1_2";    //添加初始版本号
-    moduleName = QObject::tr("账户数据库");
-
-    gvFun = &VMAccount::getVersion;
-    svFun = &VMAccount::setVersion;
-    pvFun = &VMAccount::perfectVersion;
-
-    appendVersion(1,3,&VMAccount::updateTo1_3);
-    appendVersion(1,4,&VMAccount::updateTo1_4);
-    //appendVersion(1,5,&VMAccount::updateTo1_5);
+    if(!canUpgrade)
+        return VUIR_CANT;
+    else if(curMv == sysMv && curSv == sysSv)
+        return VUIR_DONT;
+    else if(curMv < sysMv || (curMv == sysMv && curSv < sysSv))
+        return VUIR_MUST;
+    else
+        return VUIR_LOW;
 }
 
 /**
- * @brief VersionManager::close
- *  在更新操作完成后，关闭数据库连接和打开的配置文件。
- */
-void VersionManager::close()
-{
-    if(mt == MT_CONF){
-        VMAppConfig::db.close();
-        QSqlDatabase::removeDatabase(VM_BASIC);
-        VMAppConfig::appIni->sync();
-        delete VMAppConfig::appIni;
-    }
-    else{
-        VMAccount::db.close();
-        QSqlDatabase::removeDatabase(VM_ACCOUNT);
-    }
-}
-
-/**
- * @brief VersionManager::inspectVerBeforeUpdate
- *  更新到某个版本前调用本函数检测当前版本是否是指定的前置版本
+ * @brief VMBase::appendVersion
+ *  添加新版本（注意：为简化，调用这个函数要保证添加的版本号顺序，从低到高依次加入）
  * @param mv
  * @param sv
- * @return
  */
-bool VersionManager::inspectVerBeforeUpdate(int mv, int sv)
+//void VMBase::appendVersion(int mv, int sv, UpgradeFunc upFun)
+//{
+//    int verNum = mv * 100 + sv;
+//    versions<<verNum;
+//    upgradeFuns[verNum] = upFun;
+//}
+
+/**
+ * @brief VMBase::_getSysVersion
+ *  获取当前系统支持的最高版本号
+ */
+void VMBase::_getSysVersion()
 {
-    int cmv,csv;
-    if(!(*gvFun)(cmv,csv))
-        return false;
-    if(cmv != mv && csv != sv)
+    int ver = versions.last();
+    sysMv = ver / 100;
+    sysSv = ver % 100;
+}
+
+/**
+ * @brief VMBase::_inspectVerBeforeUpdate
+ *  执行升级操作前的前置版本检测
+ * @param mv
+ * @param sv
+ * @return true：前置版本匹配，false：不匹配
+ */
+bool VMBase::_inspectVerBeforeUpdate(int mv, int sv)
+{
+    if(curMv != mv && curSv != sv)
         return false;
     return true;
 }
 
+
+
+///////////////////////////////VMAccount//////////////////////////////////////////////////
 /**
- * @brief VersionManager::updateBase
- *  从起始版本更新到当前最新版本（即在历史版本号中的最高版本）
- * @param startMv
- * @param startSv
+ * @brief VMAccount::VMAccount
+ * @param filename  账户文件名
+ */
+VMAccount::VMAccount(QString filename)
+{
+    db = QSqlDatabase::addDatabase("QSQLITE", VM_ACCOUNT);
+    db.setDatabaseName(DatabasePath+filename);
+    if(!db.open()){
+        LOG_ERROR(tr("在升级账户“%1”时，不能打开数据库连接！").arg(filename));
+        canUpgrade = false;
+        return;
+    }
+    //appendVersion(1,1,VMAccount::up);
+    appendVersion(1,2,NULL);
+    appendVersion(1,3,&VMAccount::updateTo1_3);
+    appendVersion(1,4,&VMAccount::updateTo1_4);
+    _getSysVersion();
+    if(!_getCurVersion()){
+        if(!perfectVersion()){
+            LOG_ERROR(tr("在升级账户“%1”时，不能获取当前账户版本号，也不能进行版本号的归集！").arg(filename));
+            canUpgrade = false;
+            return;
+        }
+    }
+    canUpgrade = true;
+}
+
+VMAccount::~VMAccount()
+{
+    db.close();
+    QSqlDatabase::removeDatabase(VM_ACCOUNT);
+}
+
+/**
+ * @brief VMAccount::backup
+ * @param fname 账户文件名
  * @return
  */
-bool VersionManager::updateVersion(int startMv, int startSv)
+bool VMAccount::backup(QString fname)
 {
-    QString startVer = QString("%1_%2").arg(startMv).arg(startSv);
-    QList<UpdateVersionFun> funs;
-    int i;
-    for(i = 0; i < versionHistorys.count(); ++i){
-        if(startVer.compare(versionHistorys.at(i)) <= 0)
-            break;
-        else
-            continue;
-    }
-    i++;
-    int startIndex = i-1;            //更新的开始版本号所对应的索引
-    if(i == versionHistorys.count()) //没有可用更新
-        return true;
-    //收集要执行的更新函数
-    int pmv,psv,umv,usv; //前置版本和目的更新版本号
-    for(i; i < versionHistorys.count(); ++i)
-        funs<<updateFuns.value(versionHistorys.at(i));
+    //备份文件放置在源文件的“backupAccount目录下”
+    QDir backDir(DatabasePath + VM_ACC_BACKDIR + "/");
+    if(!backDir.exists())
+        QDir(DatabasePath).mkdir(VM_ACC_BACKDIR);
 
-    //执行更新函数
-    for(int j=0; j < funs.count(); ++j){
-        //每次执行更新函数前，要进行前置版本检测
-        QStringList vs = versionHistorys.at(startIndex).split("_");
-        pmv = vs.at(0).toInt();
-        psv = vs.at(1).toInt();
-        vs = versionHistorys.at(startIndex+1).split("_");
-        umv = vs.at(0).toInt();
-        usv = vs.at(1).toInt();
-        if(!inspectVerBeforeUpdate(pmv,psv)){
-            QMessageBox::critical(0,QObject::tr("更新出错"),
-                                  QObject::tr("在更新至版本%1.%2时出错（前置版本不符，要求是%3.%4）")
-                                  .arg(umv).arg(usv).arg(pmv).arg(psv));
-            return false;
-        }
-        if(!(*funs.at(j))())
-            return false;
-        startIndex++;
-    }
-    return true;
+    QString ds = fname + VM_ACC_BACKSUFFIX;
+    if(backDir.exists(ds))
+        backDir.remove(ds);
+
+    QString sfile,dfile;
+    sfile = DatabasePath + fname;
+    dfile = DatabasePath + VM_ACC_BACKDIR +"/" + ds;
+    return QFile::copy(sfile,dfile);
+}
+
+/**
+ * @brief VMAccount::restore
+ * @param fname 账户文件名
+ * @return
+ */
+bool VMAccount::restore(QString fname)
+{
+    QDir backDir(DatabasePath + VM_ACC_BACKDIR + "/");
+    if(!backDir.exists())
+        return false;
+    QString sf = fname + VM_ACC_BACKSUFFIX;
+    if(!backDir.exists(sf))
+        return false;
+    QDir(DatabasePath).remove(fname);
+    sf = backDir.absoluteFilePath(sf);
+    QString df = DatabasePath + fname;
+    if(!QFile::copy(sf,df))
+        return false;
+    return backDir.remove(sf);
 }
 
 
@@ -218,43 +179,36 @@ bool VMAccount::perfectVersion()
 }
 
 /**
- * @brief VMAccount::getVersion
- *  获取账户数据库版本
- * @param mv
- * @param sv
- * @return
+ * @brief VMAccount::getSysVersion
+ *  获取系统当前支持的最大版本号
+ * @param mv    主版本号
+ * @param sv    此版本号
  */
-bool VMAccount::getVersion(int &mv, int &sv)
+void VMAccount::getSysVersion(int &mv, int &sv)
 {
-    QSqlQuery q(db);
-    QString s = QString("select %1,%2 from %3 where %4=%5")
-            .arg(fld_acci_name).arg(fld_acci_value).arg(tbl_accInfo)
-            .arg(fld_acci_code).arg(Account::DBVERSION);
-    if(!q.exec(s))
-        return false;
-    if(!q.first())
-        return false;
-    QStringList ls = q.value(1).toString().split(".");
-    if(ls.count() != 2)
-        return false;
-    bool ok;
-    mv = ls.at(0).toInt(&ok);
-    if(!ok)
-        return false;
-    sv = ls.at(1).toInt(&ok);
-    if(!ok)
-        return false;
-    return true;
+    mv = sysMv; sv = sysSv;
 }
 
 /**
- * @brief VMAccount::setVersion
- *  设置账户数据库版本
+ * @brief VMAccount::getCurVersion
+ *  获取当前账户的版本号
  * @param mv
  * @param sv
  * @return
  */
-bool VMAccount::setVersion(int mv, int sv)
+void VMAccount::getCurVersion(int &mv, int &sv)
+{
+    mv = curMv; sv = curSv;
+}
+
+/**
+ * @brief VMAccount::setCurVersion
+ *  设置账户的当前版本
+ * @param mv
+ * @param sv
+ * @return
+ */
+bool VMAccount::setCurVersion(int mv, int sv)
 {
     QSqlQuery q(db);
     QString verStr = QString("%1.%2").arg(mv).arg(sv);
@@ -263,7 +217,42 @@ bool VMAccount::setVersion(int mv, int sv)
             .arg(verStr).arg(fld_acci_code).arg(Account::DBVERSION);
     if(!q.exec(s))
         return false;
+    curMv = mv; curSv = sv;
     return true;
+}
+
+/**
+ * @brief VMAccount::execUpgrade
+ *  执行更新到指定版本的升级操作
+ * @param verNum
+ * @return
+ */
+bool VMAccount::execUpgrade(int verNum)
+{
+    if(!upgradeFuns.contains(verNum)){
+        LOG_ERROR(tr("版本：%1 的升级函数不存在！").arg(verNum));
+        return false;
+    }
+    UpgradeFun_Acc fun = upgradeFuns.value(verNum);
+    if(!fun){
+        LOG_ERROR(tr("版本：%1 是初始版本，不需要升级！").arg(verNum));
+        return false;
+    }
+    return (this->*fun)();
+}
+
+/**
+ * @brief VMAccount::appendVersion
+ *  添加新版本及其对应的升级函数
+ * @param mv    主版本号
+ * @param sv    次版本号
+ * @param upFun 升级函数
+ */
+void VMAccount::appendVersion(int mv, int sv, UpgradeFun_Acc upFun)
+{
+    int verNum = mv * 100 + sv;
+    versions<<verNum;
+    upgradeFuns[verNum] = upFun;
 }
 
 /**
@@ -282,30 +271,43 @@ bool VMAccount::updateTo1_3()
     QString s;
     bool r,ok;
 
+    emit startUpgrade(103, tr("aaa"));
+
     //1、修改SecSubjects表，添加创建时间列
     s = "alter table SecSubjects rename to old_SecSubjects";
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“SecSubjects”表名时发生错误！"));
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“SecSubjects”表名时发生错误！"));
+        emit upgradeStep(103,tr("在更改“SecSubjects”表名时发生错误！"),VUR_ERROR);
         return false;
     }
+    emit upgradeStep(103,tr("更改“SecSubjects”表名为“old_SecSubjects”"),VUR_OK);
     s = "CREATE TABLE nameItems(id INTEGER PRIMARY KEY, sName text, lName text, remCode text, classId integer, createdTime TimeStamp NOT NULL DEFAULT (datetime('now','localtime')), creator integer)";
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“SecSubjects”表时发生错误！"));
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“SecSubjects”表时发生错误！"));
+        emit upgradeStep(103,tr("！"),VUR_ERROR);
         return false;
     }
+    emit upgradeStep(103,tr(""),VUR_OK);
     if(!db.transaction()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，启动事务失败！"));
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，启动事务失败！"));
+        emit upgradeStep(103,tr("！"),VUR_ERROR);
         return false;
     }
+    emit upgradeStep(103,tr(""),VUR_OK);
+
     s = "insert into nameItems(id,sName,lName,remCode,classId,creator) "
             "select id,subName,subLName,remCode,classId,1 as user from old_SecSubjects";
     q.exec(s);
     if(!db.commit()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，提交事务失败！"));
-        if(!db.rollback())
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，提交事务失败！"));
+        emit upgradeStep(103,tr("！"),VUR_ERROR);
+        if(!db.rollback()){
             QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，事务回滚失败！"));
+            emit upgradeStep(103,tr("！"),VUR_ERROR);
+        }
         return false;
     }
+    emit upgradeStep(103,tr(""),VUR_OK);
 
     //进行校对
     QSqlQuery q2(db);
@@ -327,18 +329,22 @@ bool VMAccount::updateTo1_3()
         if(QString::compare(name,newname) != 0)
             ok = false;
         if(!ok){
-            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“SecSubjects”的数据时，发现数据的不一致！"));
+            //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“SecSubjects”的数据时，发现数据的不一致！"));
+            emit upgradeStep(103,tr("！"),VUR_ERROR);
             break;
         }
     }
+    emit upgradeStep(103,tr(""),VUR_OK);
+
     //在这里删除表，会出错，不知为啥？ 所有必须在第二次打开时删除
     s = "delete from old_SecSubjects";
     r = q.exec(s);
     s = "drop table old_SecSubjects";
     if(!q.exec(s))
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_SecSubjects”表时发生错误，请先退出应用，使用专门工具删除它！"));
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_SecSubjects”表时发生错误，请先退出应用，使用专门工具删除它！"));
+        emit upgradeStep(103,tr("不能删除表“old_SecSubjects”"),VUR_WARNING);
 
-     //2、修改FSAgent表，添加创建（启用）时间列、禁用时间列、创建者
+    //2、修改FSAgent表，添加创建（启用）时间列、禁用时间列、创建者
     s = "alter table FSAgent rename to old_FSAgent";
     if(!q.exec(s)){
         QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“FSAgent”表名时发生错误！"));
@@ -531,7 +537,7 @@ bool VMAccount::updateTo1_3()
 
     QMessageBox::information(0,QObject::tr("更新成功"),
                                  QObject::tr("账户文件格式成功更新到1.3版本！"));
-    return setVersion(1,3);
+    return setCurVersion(1,3);
 }
 
 /**
@@ -564,7 +570,7 @@ bool VMAccount::updateTo1_4()
 
     //2、创建新余额表
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 integer)")
-            .arg(tbl_nse_point).arg(fld_sep_year).arg(fld_sep_month).arg(fld_sep_mt);
+            .arg(tbl_nse_point).arg(fld_nse_year).arg(fld_nse_month).arg(fld_nse_mt);
     if(!q.exec(s))
         return false;
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 real,%5 integer)")
@@ -585,7 +591,26 @@ bool VMAccount::updateTo1_4()
         return false;
     QMessageBox::information(0,QObject::tr("更新成功"),
                                  QObject::tr("账户文件格式成功更新到1.4版本！"));
-    return setVersion(1,4);
+    return setCurVersion(1,4);
+}
+
+/**
+ * @brief VMAccount::updateTo1_5
+ *  任务描述：将余额转移到新表系中
+ * @return
+ */
+bool VMAccount::updateTo1_5()
+{
+    //注意：如果同一个数据库建立了多个连接，则只有读操作不会产生冲突，而写操作提交事务会失败
+    //因此，我们先利用VMAccount类的数据库连接读取余额数据到内存中，再关闭此连接。并利用DbUtil类的连接
+    //将余额写入数据库中。
+    //1、建立一个到账户数据库的默认连接（即没有连接名称）
+    //1、首先获取要转移的余额的年份范围
+    //2、再根据账户的记账起止时间确定要转移的月份范围（创建一个整形数组，每一项的高4位代表年份，低2为代表月份）
+    //3、利用Busiutil类读取余额数据到一个hash表中（键为上面的整形数组元素，置为余额hash表）
+    //  这些余额hash表包含3大类，（一二级科目）余额值、（一二级科目）余额方向、（一二级科目）本币形式的余额值
+    //4、关闭默认数据库连接
+    //5、调用DbUtil类将这些余额保存到数据库中
 }
 
 /**
@@ -595,7 +620,7 @@ bool VMAccount::updateTo1_4()
  *  2、导入新科目系统的科目
  * @return
  */
-bool VMAccount::updateTo1_5()
+bool VMAccount::updateTo2_0()
 {
     QSqlQuery q(db);
     QString s;
@@ -650,14 +675,14 @@ bool VMAccount::updateTo1_5()
     }
 
     QMessageBox::information(0,QObject::tr("更新成功"),QObject::tr("账户文件格式成功更新到1.5版本！"));
-    return setVersion(1,5);
+    return setCurVersion(1,5);
 }
 
 /**
  * @brief VMAccount::updateTo1_6
  * @return
  */
-bool VMAccount::updateTo1_6()
+bool VMAccount::updateTo2_1()
 {
     //1、创建转移记录表，转移记录描述表
     //2、为了使账户可以编辑，初始化一条转移记录（在系统当前时间，由本机转出并转入的转移记录）
@@ -686,10 +711,65 @@ bool VMAccount::updateTo1_6()
         return false;
     QMessageBox::information(0,QObject::tr("更新成功"),
                                  QObject::tr("账户文件格式成功更新到1.6版本！"));
-    return setVersion(1,6);
+    return setCurVersion(1,6);
 }
 
 
+/////////////////////////////////VMAppConfig//////////////////////////////////////////
+VMAppConfig::VMAppConfig(QString fileName)
+{
+    db = QSqlDatabase::addDatabase("QSQLITE", VM_BASIC);
+    db.setDatabaseName(BaseDataPath + fileName);
+    if(!db.open()){
+        LOG_ERROR(tr("在升级配置模块时，不能打开与基本库的数据库连接！"));
+        canUpgrade = false;
+        return;
+    }
+    appendVersion(1,0,NULL);
+    appendVersion(1,1,&VMAppConfig::updateTo1_1);
+    appendVersion(1,2,&VMAppConfig::updateTo1_2);
+    //appendVersion(1,3,&VMAppConfig::updateTo1_3);
+    _getSysVersion();
+    if(!_getCurVersion()){
+        if(!perfectVersion()){
+            LOG_ERROR(tr("在升级配置模块时，不能获取基本库的当前版本号，也不能归集版本到初始版本！"));
+            canUpgrade = false;
+            return;
+        }
+    }
+    appIni = new QSettings("./config/app/appSetting.ini", QSettings::IniFormat);
+    appIni->setIniCodec(QTextCodec::codecForTr());
+    if(!appIni->isWritable()){
+        LOG_ERROR(tr("在升级配置模块时，系统配置文件“config/app/appSetting.ini”不可写！"));
+        canUpgrade = false;
+        return;
+    }
+    canUpgrade = true;
+}
+
+VMAppConfig::~VMAppConfig()
+{
+    db.close();
+    QSqlDatabase::removeDatabase(VM_BASIC);
+    appIni->sync();
+    delete appIni;
+}
+
+bool VMAppConfig::backup(QString fname)
+{
+    return true;
+}
+
+bool VMAppConfig::restore(QString fname)
+{
+    return true;
+}
+
+/**
+ * @brief VMAppConfig::perfectVersion
+ *  归集到初始版本 1.0
+ * @return
+ */
 bool VMAppConfig::perfectVersion()
 {
     QSqlQuery q(db);
@@ -710,7 +790,63 @@ bool VMAppConfig::perfectVersion()
     return true;
 }
 
-bool VMAppConfig::getVersion(int &mv, int &sv)
+void VMAppConfig::getSysVersion(int &mv, int &sv)
+{
+    mv = sysMv; sv = sysSv;
+}
+
+void VMAppConfig::getCurVersion(int &mv, int &sv)
+{
+    mv = curMv; sv = curSv;
+}
+
+bool VMAppConfig::setCurVersion(int mv, int sv)
+{
+    QSqlQuery q(db);
+    QString s = QString("update version set master=%1,second=%2").arg(mv).arg(sv);
+    return q.exec(s);
+}
+
+/**
+ * @brief VMAppConfig::execUpgrade
+ *  执行更新到指定版本的升级操作
+ * @param verNum
+ * @return
+ */
+bool VMAppConfig::execUpgrade(int verNum)
+{
+    if(!upgradeFuns.contains(verNum)){
+        LOG_ERROR(tr("版本：%1 的升级函数不存在！").arg(verNum));
+        return false;
+    }
+    UpgradeFun_Config fun = upgradeFuns.value(verNum);
+    if(!fun){
+        LOG_ERROR(tr("版本：%1 是初始版本，不需要升级！").arg(verNum));
+        return false;
+    }
+    return (this->*fun)();
+}
+
+/**
+ * @brief VMAppConfig::appendVersion
+ *  添加新版本及其对应的升级函数
+ * @param mv    主版本号
+ * @param sv    次版本号
+ * @param upFun 升级函数
+ */
+void VMAppConfig::appendVersion(int mv, int sv, UpgradeFun_Config upFun)
+{
+    int verNum = mv * 100 + sv;
+    versions<<verNum;
+    upgradeFuns[verNum] = upFun;
+}
+
+/**
+ * @brief VMAppConfig::_getCurVersion
+ *  读取当前版本
+ * @return
+ */
+bool VMAppConfig::_getCurVersion()
 {
     QSqlQuery q(db);
     QString s = "select master, second from version";
@@ -718,16 +854,9 @@ bool VMAppConfig::getVersion(int &mv, int &sv)
         return false;
     if(!q.first())
         return false;
-    mv = q.value(0).toInt();
-    sv = q.value(1).toInt();
+    curMv = q.value(0).toInt();
+    curSv = q.value(1).toInt();
     return true;
-}
-
-bool VMAppConfig::setVersion(int mv, int sv)
-{
-    QSqlQuery q(db);
-    QString s = QString("update version set master=%1,second=%2").arg(mv).arg(sv);
-    return q.exec(s);
 }
 
 /**
@@ -767,7 +896,7 @@ bool VMAppConfig::updateTo1_1()
     }
     if(!db.commit())
         return true;
-    return setVersion(1,1);
+    return setCurVersion(1,1);
 
 }
 
@@ -781,7 +910,7 @@ bool VMAppConfig::updateTo1_2()
     appIni->beginGroup("Debug");
     appIni->setValue("loglevel", Logger::levelToString(Logger::Debug));
     appIni->endGroup();
-    return setVersion(1,2);
+    return setCurVersion(1,2);
 }
 
 bool VMAppConfig::updateTo1_3()
@@ -828,10 +957,208 @@ bool VMAppConfig::updateTo1_3()
     s = QString("update machines set isLocal=1 where mid=%1").arg(mid);
     if(!q.exec(s))
         return false;
-    return setVersion(1,3);
+    return setCurVersion(1,3);
 }
 
 bool VMAppConfig::updateTo2_0()
 {
     return true;
+}
+
+/**
+ * @brief VMAccount::_getCurVersion
+ *  读取当前版本
+ * @return
+ */
+bool VMAccount::_getCurVersion()
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1,%2 from %3 where %4=%5")
+            .arg(fld_acci_name).arg(fld_acci_value).arg(tbl_accInfo)
+            .arg(fld_acci_code).arg(Account::DBVERSION);
+    if(!q.exec(s))
+        return false;
+    if(!q.first())
+        return false;
+    QStringList ls = q.value(1).toString().split(".");
+    if(ls.count() != 2)
+        return false;
+    bool ok;
+    curMv = ls.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    curSv = ls.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+    return true;
+}
+
+
+/////////////////////////////VersionManager//////////////////////////////////
+VersionManager::VersionManager(VersionManager::ModuleType moduleType, QString fname, QWidget *parent)
+    :QDialog(parent),ui(new Ui::VersionManager),mt(moduleType),fileName(fname)
+{
+    ui->setupUi(this);
+    switch(moduleType){
+    case MT_CONF:
+        initConf();
+        break;
+    case MT_ACC:
+        initAcc();
+        break;
+    }
+}
+
+VersionManager::~VersionManager()
+{
+    delete ui;
+}
+
+/**
+ * @brief VersionManager::compareVersion
+ *  比较版本，如果当前版本低于最高可用版本，则提示升级，如果用户同意则执行升级操作
+ * @param cancel：在返回为false时，其值为true，则表示用户取消了升级操作
+ * @return true：升级成功，false：升级失败或用户取消升级
+ */
+bool VersionManager::versionMaintain()
+{
+    if(upVers.isEmpty())
+        return true;
+    if(!vmObj->backup(fileName))
+        return false;
+    foreach(int verNum, upVers){
+        if(!vmObj->execUpgrade(verNum)){
+            if(!vmObj->restore(fileName))
+                QMessageBox::critical(0,tr("升级出错"),tr("在恢复文件“%1”时出错！").arg(fileName));
+
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief VersionManager::startUpgrade
+ *  开始升级到指定版本
+ * @param verNum    版本号
+ * @param infos     额外信息
+ */
+void VersionManager::startUpgrade(int verNum, const QString &infos)
+{
+    if(!upgradeInfos.contains(verNum))
+        return;
+    QString info = tr("开始升级到版本：%1.%2 >>>>>>>>>>>>>>>>>>>>>>>>>>>>> %3")
+            .arg(verNum/100).arg(verNum%100).arg(infos);
+    upgradeInfos[verNum].append(info);
+    ui->edtInfos->appendPlainText(info);
+}
+
+/**
+ * @brief VersionManager::endUpgrade
+ *  版本升级结束
+ * @param verNum    升级的版本号
+ * @param infos     升级结束后的额外信息
+ * @param ok        升级是否成功
+ */
+void VersionManager::endUpgrade(int verNum, const QString &infos, bool ok)
+{
+    if(!upgradeInfos.contains(verNum))
+        return;
+    QString info;
+    if(ok)
+        info = tr("成功升级到版本：%1.%2 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<%3")
+                .arg(verNum/100).arg(verNum%100).arg(infos);
+    else
+        info = tr("升级到版本：%1.%2 失败 <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<%3")
+                .arg(verNum/100).arg(verNum%100).arg(infos);
+    upgradeInfos[verNum].append(info);
+    ui->edtInfos->appendPlainText(info);
+}
+
+/**
+ * @brief VersionManager::upgradeStepInform
+ *  升级进度通知
+ * @param verNum    正在升级的版本号
+ * @param infos     进度信息
+ * @param result    分步进度结果
+ */
+void VersionManager::upgradeStepInform(int verNum, const QString &infos, VersionUpgradeResult result)
+{
+    if(!upgradeInfos.contains(verNum))
+        return;
+    QString resultStr;
+    switch(result){
+    case VUR_OK:
+        resultStr = tr("成功");
+        break;
+    case VUR_WARNING:
+        resultStr = tr("警告");
+        break;
+    case VUR_ERROR:
+        resultStr = tr("失败");
+        break;
+    }
+    QString info = tr("（%1）升级到版本“%2.%3”进度： %4")
+            .arg(resultStr).arg(verNum/100).arg(verNum%100).arg(infos);
+    upgradeInfos[verNum].append(info);
+    ui->edtInfos->appendPlainText(info);
+}
+
+void VersionManager::on_btnStart_clicked()
+{
+    ui->btnCancel->setEnabled(false);
+    upgradeResult = versionMaintain();
+}
+
+void VersionManager::initConf()
+{
+    ui->lblTitle->setText(tr("配置模块版本升级服务"));
+    fileName = "basicdata.dat";
+    vmObj = new VMAppConfig(fileName);
+    init();
+}
+
+void VersionManager::initAcc()
+{
+    ui->lblTitle->setText(tr("账户数据库升级服务"));
+    vmObj = new VMAccount(fileName);
+    init();
+
+}
+
+
+void VersionManager::init()
+{
+    connect(vmObj, SIGNAL(startUpgrade(int,QString)),
+            this, SLOT(startUpgrade(int,QString)));
+    connect(vmObj, SIGNAL(upgradeStepInform(int,QString,VersionUpgradeResult)),
+            this, SLOT(upgradeStepInform(int,QString,VersionUpgradeResult)));
+    connect(vmObj, SIGNAL(endUpgrade(int,QString,bool)),
+            this, SLOT(endUpgrade(int,QString,bool)));
+
+    int curMv, curSv, sysMv, sysSv;
+    vmObj->getSysVersion(sysMv,sysSv);
+    vmObj->getCurVersion(curMv,curSv);
+    ui->edtSysVer->setText(QString("%1.%2").arg(sysMv).arg(sysSv));
+    ui->edtCurVer->setText(QString("%1.%2").arg(curMv).arg(curSv));
+
+    //填充可升级版本
+    upVers = vmObj->getUpgradeVersion();
+    QListWidgetItem* item;
+    int verNum;
+    for(int i = 0; i < upVers.count(); ++i){
+        verNum = upVers.at(i);
+        item = new QListWidgetItem(tr("版本：%1.%2").arg(verNum/100).arg(verNum%100));
+        ui->lstVersion->addItem(item);
+        upgradeInfos[verNum] = QStringList();
+    }
+}
+
+/**
+ * @brief VersionManager::close
+ *  在更新操作完成后，关闭数据库连接和打开的配置文件。
+ */
+void VersionManager::close()
+{
+    delete vmObj;
 }

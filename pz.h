@@ -153,10 +153,10 @@ private:
     QList<PingZheng*> pds;                  //凭证对象列表
     QList<PingZheng*> dpds;                 //已被删除的凭证对象列表
 
-    QHash<int,double> preExtra,preDetExtra; //期初主目和子目余额
+    QHash<int,Double> preExtra,preDetExtra; //期初主目和子目余额
     QHash<int,int>    preDir,preDetDir;     //期初主目和子目余额方向
-    QHash<int,double> curHpJ,curHpD;        //当期借方和贷方发生额
-    QHash<int,double> endExtra,endDetExtra; //期末主目和子目余额
+    QHash<int,Double> curHpJ,curHpD;        //当期借方和贷方发生额
+    QHash<int,Double> endExtra,endDetExtra; //期末主目和子目余额
     QHash<int,int>    endDir,endDetDir;     //期末主目和子目余额方向
 
     bool isReStat;                          //是否需要重新进行统计标志

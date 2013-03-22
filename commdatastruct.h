@@ -7,6 +7,13 @@
 #include "cal.h"
 #include "securitys.h"
 
+//金额方向枚举
+enum MoneyDirection{
+    MDIR_J  =   1,
+    MDIR_P  =   0,
+    MDIR_D  =   -1
+};
+
 //凭证状态代码
 enum PzState{
     Pzs_Repeal     =    0,    //作废

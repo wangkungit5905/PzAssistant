@@ -89,6 +89,7 @@ public:
     ~Account();
     bool isValid();
     void close();
+    DbUtil* getDbUtil(){return dbUtil;}
     QString getSName(){return accInfos.sname;}
     void setSName(QString name){accInfos.sname = name;}
     QString getLName(){return accInfos.lname;}

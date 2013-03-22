@@ -70,8 +70,8 @@ bool viewHideColInDailyAcc2;
 QList<BusiActionData2*> clbBaList;
 double czRate;
 
-VersionManager* accVM;
-VersionManager* confVM;
+//VersionManager* accVM;
+//VersionManager* confVM;
 //VersionManager* baseVM;
 
 /**
@@ -91,25 +91,37 @@ VersionManager* confVM;
 int appInit()
 {
     //初始化路径信息
-    //DatabasePath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/databases/"));
-    //BaseDataPath = QDir::toNativeSeparators(qApp->applicationDirPath().append("/datas/basicdatas/"));
     DatabasePath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
     BaseDataPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
-    bool cancel;
     VersionManager vm(VersionManager::MT_CONF);
-    if(!vm.versionMaintain(cancel)){
-        if(cancel)
+    VersionUpgradeInspectResult result = vm.isMustUpgrade();
+    bool exec = false;
+    switch(result){
+    case VUIR_CANT:
+        //QMessageBox::warning(this,tr("出错信息"),
+        //                     tr("基本库版本不能归集到初始版本！"));
+        return 1;
+    case VUIR_DONT:
+        exec = false;
+        break;
+    case VUIR_LOW:
+        //QMessageBox::warning(this,tr("出错信息"),
+        //                     tr("当前程序版本太低，必须要用更新版本的程序打开此账户！"));
+        return 1;
+    case VUIR_MUST:
+        exec = true;
+        break;
+    }
+    if(exec){
+        if(vm.exec() == QDialog::Rejected){
+            //QMessageBox::warning(this,tr("出错信息"),
+            //                          tr("基本库版本过低，必须先升级！"));
             return 2;
-        else
+        }
+        else if(!vm.getUpgradeResult())
             return 1;
     }
 
-//    if(!AppConfig::versionMaintain(cancel)){
-//        if(cancel)
-//            return 2;
-//        else
-//            return 1;
-//    }
     AppConfig* appCfg = AppConfig::getInstance();
     if(!appCfg)
         return 3;

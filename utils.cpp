@@ -2870,77 +2870,7 @@ bool BusiUtil::readExtraForDetSub2(int y, int m, int sid,
     fdirs和sdirs为一二级科目余额的方向
     ????要不要考虑凭证集的状态？？？
 */
-bool BusiUtil::readExtraByMonth(int y,int m, QHash<int,double>& sums,
-                             QHash<int,int>& fdirs, QHash<int,double>& ssums, QHash<int,int>& sdirs)
-{
-    QSqlQuery q,q2;
-    QSqlRecord rec;
-    QString s;
 
-    s = QString("select * from SubjectExtras where (year = %1) "
-            "and (month = %2)").arg(y).arg(m);
-    if(!(q.exec(s) && q.first())){
-        qDebug() << QString("Dot't exist extra value on %1年%2月").arg(y).arg(m);
-        return false;
-    }
-    rec = q.record();
-    q.seek(-1);//定位到第一条记录的前面
-
-    //获取一级科目id到保存科目余额值的字段名的映射
-    QHash<int,QString>names;
-    getFidToFldName(names);
-    QHashIterator<int,QString> i(names);
-
-    //获取一级科目余额值和明细科目余额值及其方向
-    while(q.next()){
-        int seid;//保存一级科目余额值记录的id值
-        int mt = q.value(SE_MT).toInt(); //余额的货币类型
-        seid = q.value(0).toInt();
-        i.toFront();
-        while(i.hasNext()){ //读取一级科目余额
-            i.next();
-            int idx = rec.indexOf(i.value());
-            double v = q.value(idx).toDouble();
-            if(v != 0)
-                sums[i.key()*10+mt] = v;
-        }
-        //获取明细科目的余额及其方向
-        s = QString("select * from detailExtras where seid = %1")
-                .arg(seid);
-        if(!q2.exec(s)){
-            QMessageBox::information(0, QObject::tr("提示信息"),
-                                     QString(QObject::tr("不能获取%1年%2月的明细科目科目余额值")).arg(y).arg(m));
-            return false;
-        }
-        while(q2.next()){
-            int sid = q2.value(DE_FSID).toInt(); //明细科目id
-            ssums[sid*10+mt] = q2.value(DE_VALUE).toDouble(); //余额值
-            sdirs[sid*10+mt] = q2.value(DE_DIR).toInt();      //方向
-        }
-    }
-
-    //获取一级科目余额方向
-    s = QString("select * from SubjectExtraDirs where (year = %1) "
-            "and (month = %2)").arg(y).arg(m);
-    if(!(q.exec(s) && q.first())){
-        qDebug() << QString("Dot't exist extra value on %1年%2月").arg(y).arg(m);
-        return false;
-    }
-    rec = q.record();
-    q.seek(-1);//定位到第一条记录的前面
-    while(q.next()){
-        int mt = q.value(SED_MT).toInt(); //余额方向对应的币种
-        i.toFront();
-        while(i.hasNext()){ //读取一级科目余额
-            i.next();
-            int idx = rec.indexOf(i.value());
-            int dir = q.value(idx).toInt();
-            if(dir != 0)
-                fdirs[i.key()*10+mt] = dir;
-        }
-    }
-    return true;
-}
 
 bool BusiUtil::readExtraByMonth2(int y, int m, QHash<int, Double> &sums, QHash<int, int> &fdirs, QHash<int, Double> &ssums, QHash<int, int> &sdirs)
 {
@@ -3013,7 +2943,8 @@ bool BusiUtil::readExtraByMonth2(int y, int m, QHash<int, Double> &sums, QHash<i
     return true;
 }
 
-//读取科目余额，键为科目id*10+币种代码，但金额以本币计
+//读取科目余额，键为科目id*10+币种代码，但金额以本币计（即从表subjectExtra和detailExtra读取原币形式
+//的余额值，如果是外币就直接乘以汇率得出以本币计的余额值）
 bool BusiUtil::readExtraByMonth3(int y, int m, QHash<int, Double> &sumsR,
                                  QHash<int, int> &fdirsR,
                                  QHash<int, Double> &ssumsR,
@@ -5583,4 +5514,21 @@ bool VariousUtils::saveSubWinInfo3(int winEnum, QByteArray* otherInfo)
     return r;
 }
 
+//因为原先表示方向的是整形宏定义常量，现在用枚举常量来代替，因此提供这些转换函数
+void transferDirection(const QHash<int,int> &sd, QHash<int,MoneyDirection>& dd)
+{
+    QHashIterator<int,int> it(sd);
+    while(it.hasNext()){
+        it.next();
+        dd[it.key()] = (MoneyDirection)it.value();
+    }
+}
 
+void transferAntiDirection(const QHash<int, MoneyDirection> &sd, QHash<int, int> &dd)
+{
+    QHashIterator<int,MoneyDirection> it(sd);
+    while(it.hasNext()){
+        it.next();
+        dd[it.key()] = it.value();
+    }
+}

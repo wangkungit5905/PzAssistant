@@ -397,8 +397,7 @@ public:
             fdirs和sdirs为一二级科目余额的方向
         ????要不要考虑凭证集的状态？？？
     */
-    static bool readExtraByMonth(int y,int m, QHash<int,double>& sums,
-           QHash<int,int>& fdirs, QHash<int,double>& ssums, QHash<int,int>& sdirs);
+
     static bool readExtraByMonth2(int y,int m, QHash<int,Double>& sums,
            QHash<int,int>& fdirs, QHash<int,Double>& ssums, QHash<int,int>& sdirs);
     static bool readExtraByMonth3(int y,int m, QHash<int,Double>& sumsR,
@@ -658,6 +657,7 @@ public:
     static bool saveSubWinInfo3(int winEnum, QByteArray* otherInfo);
 };
 
-
+void transferDirection(const QHash<int, int> &sd, QHash<int, MoneyDirection> &dd);
+void transferAntiDirection(const QHash<int, MoneyDirection> &sd, QHash<int, int> &dd);
 
 #endif // UTILS_H

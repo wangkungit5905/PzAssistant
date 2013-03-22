@@ -37,13 +37,39 @@ public:
     bool setFilename(QString fname);
     void close();
 
+    //账户信息相关
     bool readAccBriefInfo(AccountBriefInfo& info);
     bool initAccount(Account::AccountInfo& infos);
     bool saveAccountInfo(Account::AccountInfo &infos);
+
+    //余额相关
+    bool readExtraForPm(int y,int m, QHash<int,Double>& fsums,
+                                     QHash<int,MoneyDirection>& fdirs,
+                                     QHash<int,Double>& ssums,
+                                     QHash<int,MoneyDirection>& sdirs);
+    bool readExtraForMm(int y,int m, QHash<int,Double>& fsums,
+                                     QHash<int,Double>& ssums);
+    bool saveExtraForPm(int y, int m, const QHash<int, Double>& fsums,
+                                      const QHash<int, MoneyDirection>& fdirs,
+                                      const QHash<int, Double>& ssums,
+                                      const QHash<int, MoneyDirection>& sdirs);
+    bool saveExtraForMm(int y, int m, const QHash<int, Double>& fsums,
+                                      const QHash<int, Double>& ssums);
+
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool readAccountSuites(QList<Account::AccountSuite*>& suites);
     bool saveAccountSuites(QList<Account::AccountSuite*> suites);
+
+    //余额相关辅助函数
+    bool _readExtraPoint(int y, int m, QHash<int, int> &mtHashs);
+    bool _readExtraForPm(int y, int m, QHash<int,Double> &sums, QHash<int,MoneyDirection> &dirs, bool isFst = true);
+    bool _readExtraForMm(int y, int m, QHash<int,Double> &sums, bool isFst = true);
+    bool _crtExtraPoint(int y, int m, int mt, int& pid);
+    bool _saveExtrasForPm(int y, int m, const QHash<int,Double> &sums, const QHash<int,MoneyDirection> &dirs, bool isFst = true);
+    bool _saveExtrasForMm(int y, int m, const QHash<int,Double> &sums, bool isFst = true);
+
+    //表格创建函数
     void crtGdzcTable();
 
 private:

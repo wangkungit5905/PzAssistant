@@ -641,7 +641,9 @@ void ActionEditTableWidget::newSndSubAndMapping(int fid, QString name, int row, 
     if(QMessageBox::Yes ==
             QMessageBox::question(this,tr("确认消息"),s,QMessageBox::Yes | QMessageBox::No,
                                   QMessageBox::Yes)){
-        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,this);
+        int subSys = curAccount->getCurSuite()->subSys;
+        SubjectManager* smg = curAccount->getSubjectManager(subSys);
+        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,smg,this);
         dlg->setName(name);
         if(QDialog::Accepted == dlg->exec()){
             //在SecSubjects表中插入新的二级科目条目

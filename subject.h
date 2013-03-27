@@ -23,7 +23,6 @@ static int SNDSUBMD = 1;     //二级科目对象使用的魔术字
 //class Money;
 class Account;
 class SecondSubject;
-class SubjectManager1;
 class FirstSubject;
 struct SubjectNameItem;
 
@@ -199,7 +198,7 @@ private:
     User* crtUser;          //创建者
     bool isDeleted;         //是否被删除了
 
-    friend class SubjectManager1;
+    friend class SubjectManager;
 };
 
 Q_DECLARE_METATYPE(SubjectNameItem)
@@ -282,7 +281,7 @@ private:
     SubjectNameItem* nItem; //描述该二级科目名称信息
     SecondSubjectEditStates witchEdit; //记录那些部分被修改了的标志
 
-    friend class SubjectManager1;
+    friend class SubjectManager;
 
 };
 
@@ -319,6 +318,7 @@ public:
 
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
+    static QHash<int,QStringList>& getAllNICls(){return nameItemCls;}
     static SubjectNameItem* getNameItem(int nid){return nameItems.value(nid);}
 
     //按科目id获取科目对象的方法
@@ -328,6 +328,7 @@ public:
     //获取特种科目的方法
     FirstSubject* getCashSub(){return cashSub;}
     FirstSubject* getBankSub(){return bankSub;}
+    FirstSubject* getGdzcSub(){return gdzcSub;}
     FirstSubject* getCwfySub(){return cwfySub;}
     FirstSubject* getDtfySub(){return dtfySub;}
     FirstSubject* getBnlrSub(){return bnlrSub;}

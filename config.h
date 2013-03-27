@@ -22,12 +22,25 @@ public:
         STRING  =  4
     };
 
+    /**
+     * @brief 在程序内部有特殊处理的科目
+     *
+     */
     enum SpecSubCode{
         SSC_CASH    = 1,    //现金
         SSC_BANK    = 2,    //银行
-        SSC_CWFY    = 3,    //财务费用
-        SSC_BNLR    = 4,    //本年利润
-        SSC_LRFP    = 5     //利润分配
+        SSC_GDZC    = 3,    //固定资产
+        SSC_CWFY    = 4,    //财务费用
+        SSC_BNLR    = 5,    //本年利润
+        SSC_LRFP    = 6     //利润分配
+    };
+
+    /**
+     * @brief 在程序内部有特殊处理的名称类别枚举
+     */
+    enum SpecNameItemClass{
+        SNIC_CLIENT = 1,    //业务客户类
+        SNIC_GDZC   = 2     //固定资产类
     };
 
 
@@ -44,6 +57,8 @@ public:
     void setUsedReportType(int accId, int rt){}
     int addAccountInfo(QString code, QString aName, QString lName, QString filename);
 
+    int getSpecNameItemCls(SpecNameItemClass witch);
+    void setSpecNameItemcls(SpecNameItemClass witch, int code);
     QString getSpecSubCode(int subSys, SpecSubCode witch);
     void setSpecSubCode(int subSys, SpecSubCode witch, QString code);
 

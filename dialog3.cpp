@@ -5949,8 +5949,8 @@ void AccountPropertyDialog::save(bool confirm)
             if(bLName)
                 account->setLName(ui->edtLName->text());
             if(bSubType){
-                SubjectManager1::SubjectSysType subType;
-                subType = (SubjectManager1::SubjectSysType)ui->cmbSubType->
+                int subType;
+                subType = ui->cmbSubType->
                         itemData(ui->cmbSubType->currentIndex()).toInt();
                 account->setSubType(subType);
             }

@@ -341,6 +341,8 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             smg->cashSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_BANK))
             smg->bankSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_GDZC))\
+            smg->gdzcSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_CWFY))
             smg->cwfySub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_BNLR))

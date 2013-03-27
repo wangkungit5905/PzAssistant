@@ -2376,7 +2376,9 @@ void SetupBaseDialog2::newSndSub(int fid, QString name, int row, int col)
             .arg(sm->getFstSubject(fid)->getName()).arg(name);
     if(QMessageBox::Yes == QMessageBox::question(this,tr("确认消息"),s,
                   QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){        
-        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,this);
+        int subSys = curAccount->getStartSuite()->subSys;
+        SubjectManager* smg = curAccount->getSubjectManager(subSys);
+        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,smg,this);
         dlg->setName(name);
         if(dlg->exec() == QDialog::Accepted){
             int id;

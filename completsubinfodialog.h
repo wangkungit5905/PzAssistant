@@ -3,16 +3,20 @@
 
 #include <QDialog>
 
+
+
 namespace Ui {
     class CompletSubInfoDialog;
 }
+
+class SubjectManager;
 
 class CompletSubInfoDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit CompletSubInfoDialog(int fid = 0, QWidget *parent = 0);
+    explicit CompletSubInfoDialog(int fid, SubjectManager* smg, QWidget *parent = 0);
     ~CompletSubInfoDialog();
     void setName(QString name);
     QString getSName();

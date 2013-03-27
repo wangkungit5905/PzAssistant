@@ -40,7 +40,6 @@ SOURCES += main.cpp\
     otherModule.cpp \
     dialog3.cpp \
     pz.cpp \
-    subjectmanager.cpp \
     tables.cpp \
     cal.cpp \
     tem.cpp \
@@ -92,7 +91,6 @@ HEADERS  += \
     account.h \
     otherModule.h \
     pz.h \
-    subjectmanager.h \
     tables.h \
     cal.h \
     tem.h \

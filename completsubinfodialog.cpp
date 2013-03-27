@@ -4,45 +4,41 @@
 #include "completsubinfodialog.h"
 #include "ui_completsubinfodialog.h"
 
-#include "utils.h"
 #include "tables.h"
+#include "subject.h"
+#include "config.h"
 
-CompletSubInfoDialog::CompletSubInfoDialog(int fid,QWidget *parent) : QDialog(parent),
+CompletSubInfoDialog::CompletSubInfoDialog(int fid,SubjectManager* smg,QWidget *parent) : QDialog(parent),
     ui(new Ui::CompletSubInfoDialog)
 {
     ui->setupUi(this);
 
     QSqlQuery q;
     QString s;
-    QString defClsName;  //默认类别名
+
 
     //首先获取需要作考虑的一些一级科目的id
-    int gid;       //固定资产id
-    BusiUtil::getIdByCode(gid,"1501");
+    int gid = smg->getGdzcSub()->getId();
 
     //将业务客户类别设置为默认
+    int nameCls;   //默认名称类别的代码
+    AppConfig* conf = AppConfig::getInstance();
     if(fid == gid)
-        defClsName = tr("固定资产类");
+        nameCls = conf->getSpecNameItemCls(AppConfig::SNIC_GDZC);
     else
-        defClsName = tr("业务客户");
-
-    s = QString("select %1, %2 from %3").arg(fld_nic_clscode)
-            .arg(fld_nic_name).arg(tbl_nameItemCls);
-    bool r = q.exec(s);
-    int idx,i = 0 ;
-    if(r){
-        while(q.next()){
-            int code = q.value(0).toInt();
-            QString name = q.value(1).toString();
-            if(name == defClsName)
-                idx = i;
-            else
-                i++;
-            ui->cmbClass->addItem(name, code);
-        }
+        nameCls = conf->getSpecNameItemCls(AppConfig::SNIC_CLIENT);
+    QHash<int,QStringList> nameClses = smg->getAllNICls();
+    QList<int> codes;
+    codes = nameClses.keys();
+    qSort(codes.begin(),codes.end());
+    int index,code;
+    for(int i = 0;i < codes.count();++i){
+        code = codes.at(i);
+        ui->cmbClass->addItem(nameClses.value(code).first(),code);
+        if(code == nameCls)
+            index = i;
     }
-
-    ui->cmbClass->setCurrentIndex(idx);
+    ui->cmbClass->setCurrentIndex(index);
     ui->edtSName->setFocus();
 }
 

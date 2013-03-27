@@ -7,13 +7,10 @@
 #include <QHash>
 #include <QSqlQuery>
 
-//#include "dbutil.h"
 #include "commdatastruct.h"
 #include "securitys.h"
 #include "appmodel.h"
 #include "common.h"
-#include "subjectmanager.h"
-//#include "global.h"
 
 class PzSetMgr;
 class DbUtil;
@@ -99,8 +96,8 @@ public:
     void setCode(QString code){accInfos.code = code;}
     QString getFileName(){return accInfos.fileName;}
     void setFileName(QString fname){accInfos.fileName = fname;}
-    SubjectManager1::SubjectSysType getSubType(){return subType;}
-    void setSubType(SubjectManager1::SubjectSysType type){subType = type;}
+    int getSubType(){return subType;}
+    void setSubType(int type){subType = type;}
     //ReportType getReportType(){return reportType;}
     //void setReportType(ReportType type){reportType = type; savePiece(RPTTYPE,QString::number(type));}
     int getMasterMt(){return accInfos.masterMt;}
@@ -160,7 +157,7 @@ private:
 
 	static QSqlDatabase* db;
     User* user;            //操作此账户的用户
-    SubjectManager1::SubjectSysType subType; //账户所用的科目类型（科目系统由帐套来定）
+    int subType; //账户所用的科目类型（科目系统由帐套来定）
     //ReportType reportType; //账户所用的报表类型
 
     QList<BankAccount*> bankAccounts;

@@ -481,6 +481,16 @@ int AppConfig::addAccountInfo(QString code, QString aName, QString lName, QStrin
     return c;
 }
 
+int AppConfig::getSpecNameItemCls(AppConfig::SpecNameItemClass witch)
+{
+    switch(witch){
+    case SNIC_CLIENT:
+        return 2;
+    case SNIC_GDZC:
+        return 6;
+    }
+}
+
 /**
  * @brief AppConfig::getSpecSubCode
  *  获取程序中要特别辨识的科目代码（因为在程序中对这些科目有专门的处理功能）
@@ -496,6 +506,8 @@ QString AppConfig::getSpecSubCode(int subSys, AppConfig::SpecSubCode witch)
         return "1001";
     case SSC_BANK:
         return "1002";
+    case SSC_GDZC:
+        return "1501";
     case SSC_CWFY:
         return "5503";
     case SSC_BNLR:

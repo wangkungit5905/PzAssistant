@@ -6,6 +6,7 @@
 #include "tables.h"
 #include "account.h"
 #include "logs/Logger.h"
+#include "subject.h"
 
 DbUtil::DbUtil()
 {
@@ -247,6 +248,210 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
 }
 
 /**
+ * @brief DbUtil::initNameItems
+ *  初始化科目管理器使用的名称条目
+ * @return
+ */
+bool DbUtil::initNameItems()
+{
+    QSqlQuery q(db);
+    QString s;
+
+    //1、装载名称条目类别（有关名称条目的信息只需装载一次）
+    s = QString("select * from %1").arg(tbl_nameItemCls);
+    if(!q.exec(s))
+        return false;
+    while(q.next()){
+        int code = q.value(NICLASS_CODE).toInt();
+        SubjectManager::nameItemCls[code] = QStringList();
+        SubjectManager::nameItemCls[code].append(q.value(NICLASS_NAME).toString());
+        SubjectManager::nameItemCls[code].append(q.value(NICLASS_EXPLAIN).toString());
+    }
+
+
+    //4、装载所有二级科目名称条目
+    s = QString("select * from %1").arg(tbl_nameItem);
+    if(!q.exec(s))
+        return false;
+
+    SubjectNameItem* item;
+    while(q.next()){
+        int id = q.value(0).toInt();
+        int clsId = q.value(NI_CALSS).toInt();
+        QString sname = q.value(NI_NAME).toString();
+        QString lname = q.value(NI_LNAME).toString();
+        QString remCode = q.value(NI_REMCODE).toString();
+        QDateTime crtTime = QDateTime::fromString(q.value(NI_CREATERTIME).toString(),Qt::ISODate);
+        int uid = q.value(NI_CREATOR).toInt();
+        item = new SubjectNameItem(id,clsId,sname,lname,remCode,crtTime,allUsers.value(uid));
+        SubjectManager::nameItems[id]=item;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::initSubjects
+ *  初始化科目管理器对象
+ * @param smg       科目管理器对象指针
+ * @param subSys    科目系统代码
+ * @return
+ */
+bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
+{
+    QSqlQuery q(db);
+    QString s;
+
+    //1、装载一级科目类别
+    s = QString("select %1,%2 from %3 where %4=%5").arg(fld_fsc_code)
+            .arg(fld_fsc_name).arg(tbl_fsclass).arg(fld_fsc_subSys).arg(subSys);
+    if(!q.exec(s))
+        return false;
+    while(q.next())
+        smg->fstSubCls[q.value(0).toInt()] = q.value(1).toString();
+
+    //2、装载所有一级科目
+    s = QString("select * from %1 where %2=%3 order by %4")
+            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_subcode);
+    if(!q.exec(s))
+        return false;
+
+    QString name,code,remCode,explain,usage;
+    bool jdDir,isUseWb;
+    int id, subCls,weight;
+    FirstSubject* fsub;
+
+    while(q.next()){
+        id = q.value(0).toInt();
+        subCls = q.value(FSUB_CLASS).toInt();
+        name = q.value(FSUB_SUBNAME).toString();
+        code = q.value(FSUB_SUBCODE).toString();
+        remCode = q.value(FSUB_REMCODE).toString();
+        weight = q.value(FSUB_WEIGHT).toInt();
+        jdDir = q.value(FSUB_DIR).toBool();
+        isUseWb = q.value(FSUB_ISUSEWB).toBool();
+        //读取explain和usage的内容，目前暂不支持（将来这两个内容将保存在另一个表中）
+        //s = QString("select * from ")
+        fsub = new FirstSubject(id,subCls,name,code,remCode,weight,jdDir,isUseWb,explain,usage,subSys);
+        smg->fstSubs<<fsub;
+        smg->fstSubHash[id]=fsub;
+
+        //设置特定科目对象
+        AppConfig* conf = AppConfig::getInstance();
+        if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_CASH))
+            smg->cashSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_BANK))
+            smg->bankSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_CWFY))
+            smg->cwfySub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_BNLR))
+            smg->bnlrSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_LRFP))
+            smg->lrfpSub = fsub;
+    }
+
+    //3、装载所有二级科目
+    s = QString("select * from %1").arg(tbl_ssub);
+    if(!q.exec(s))
+        return false;
+
+    SecondSubject* ssub;
+    while(q.next()){
+        int id = q.value(0).toInt();
+        int fid = q.value(SSUB_FID).toInt();
+        fsub = smg->fstSubHash.value(fid);
+        if(!fsub){
+            LOG_INFO(QObject::tr("Find a second subject(id=%1) don't belong to any first subject!").arg(id));
+            continue;
+            //return false;
+        }
+        int sid = q.value(SSUB_NID).toInt();
+        if(!smg->nameItems.contains(sid)){
+            LOG_INFO(QObject::tr("Find a name item(id=%1,fid=%2 %3,sid=%4) don't exist!")
+                     .arg(id).arg(fid).arg(fsub->getName()).arg(sid));
+            continue;
+            //return false;
+        }
+        code = q.value(SSUB_SUBCODE).toString();
+        weight = q.value(SSUB_WEIGHT).toInt();
+        bool isEnable = q.value(SSUB_ENABLED).toBool();
+        QDateTime crtTime = QDateTime::fromString(q.value(SSUB_CREATETIME).toString(),Qt::ISODate);
+        QDateTime disTime = QDateTime::fromString(q.value(SSUB_DISABLETIME).toString(),Qt::ISODate);
+        int uid = q.value(SSUB_CREATOR).toInt();
+        ssub = new SecondSubject(fsub,id,smg->nameItems.value(sid),code,weight,isEnable,crtTime,disTime,allUsers.value(uid));
+        smg->sndSubs[id] = ssub;
+        if(ssub->getWeight() == DEFALUTSUBFS)
+            fsub->setDefaultSubject(ssub);
+    }
+    //初始化银行账户信息
+    //if(!getAllBankAccount(banks))
+    //    return false;
+    return true;
+}
+
+/**
+ * @brief DbUtil::initMoneys
+ *  初始化当前账户所使用的所有货币对象
+ * @param moneys
+ * @return
+ */
+bool DbUtil::initMoneys(QHash<int, Money *> &moneys)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_moneyType);
+    if(!q.exec(s))
+        return false;
+    while(q.next()){
+        int code = q.value(MT_CODE).toInt();
+        QString sign = q.value(MT_SIGN).toString();
+        QString name = q.value(MT_NAME).toString();
+        moneys[code] = new Money(code,name,sign);
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::initBanks
+ *  初始化账户使用的银行账户及其对应的科目
+ * @param banks
+ * @return
+ */
+bool DbUtil::initBanks(Account *account)
+{
+    QSqlQuery q(db);
+
+    QHash<int,Bank*> banks;
+    QString s = QString("select * from %1").arg(tbl_bank);
+    if(!q.exec(s))
+        return false;
+    int id;
+    while(q.next()){
+        Bank* bank = new Bank;
+        bank->id = q.value(0).toInt();
+        bank->isMain = q.value(BANK_ISMAIN).toBool();
+        bank->name = q.value(BANK_NAME).toString();
+        bank->lname = q.value(BANK_LNAME).toString();
+        banks[bank->id] = bank;
+    }
+
+    s = QString("select * from %1").arg(tbl_bankAcc);
+    if(!q.exec(s))
+        return false;
+    while(q.next()){
+        BankAccount* ba = new BankAccount;
+        ba->id = q.value(0).toInt();
+        int bankId = q.value(BA_BANKID).toInt();
+        int mt = q.value(BA_MT).toInt();
+        int nid = q.value(BA_ACCNAME).toInt();
+        ba->bank = banks.value(bankId);
+        ba->accNumber = q.value(BA_ACCNUM).toString();
+        ba->mt = account->moneys.value(mt);
+        ba->niObj = SubjectManager::getNameItem(nid);
+        account->bankAccounts<<ba;
+    }
+    return true;
+}
+
+/**
  * @brief DbUtil::readExtraForPm
  *  读取指定年月的余额值（原币形式）
  * @param y     年
@@ -374,7 +579,7 @@ bool DbUtil::readAccountSuites(QList<Account::AccountSuite *> &suites)
         as->id = q.value(0).toInt();
         as->year = q.value(ACCS_YEAR).toInt();
         as->subSys = q.value(ACCS_SUBSYS).toInt();
-        as->lastMonth = q.value(ACCS_LASTMONTH).toInt();
+        as->lastMonth = q.value(ACCS_RECENTMONTH).toInt();
         as->isCur = q.value(ACCS_ISCUR).toBool();
         as->name = q.value(ACCS_NAME).toString();
         suites<<as;
@@ -406,14 +611,14 @@ bool DbUtil::saveAccountSuites(QList<Account::AccountSuite *> suites)
         if(as->id == 0)
             s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,'%9',%10,%11)")
                     .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
-                    .arg(fld_accs_name).arg(fld_accs_lastMonth).arg(fld_accs_isCur)
+                    .arg(fld_accs_name).arg(fld_accs_recentMonth).arg(fld_accs_isCur)
                     .arg(as->year).arg(as->subSys).arg(as->name).arg(as->lastMonth)
                     .arg(as->isCur?1:0);
         else if(*as != *(oldHash.value(as->id)))
             s = QString("update %1 set %2=%3,%4=%5,%6='%7',%8=%9,%10=%11 where id=%12")
                     .arg(tbl_accSuites).arg(fld_accs_year).arg(as->year)
                     .arg(fld_accs_subSys).arg(as->subSys).arg(fld_accs_name)
-                    .arg(as->name).arg(fld_accs_lastMonth).arg(as->lastMonth)
+                    .arg(as->name).arg(fld_accs_recentMonth).arg(as->lastMonth)
                     .arg(fld_accs_isCur).arg(as->isCur?1:0).arg(as->id);
 
         if(!s.isEmpty()){

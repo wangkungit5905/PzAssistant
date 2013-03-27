@@ -7,7 +7,7 @@
 
 
 //科目管理类-
-class SubjectManager
+class SubjectManager1
 {
 public:
     enum SubjectSysType{
@@ -15,7 +15,7 @@ public:
         SUBT_NEW = 2
     };
 
-    SubjectManager(SubjectSysType subSysType = SUBT_OLD,
+    SubjectManager1(SubjectSysType subSysType = SUBT_OLD,
                    QSqlDatabase db = QSqlDatabase::database());
 
     //获取科目名的方法

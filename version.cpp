@@ -259,7 +259,7 @@ void VMAccount::appendVersion(int mv, int sv, UpgradeFun_Acc upFun)
  * @brief VMAccount::updateTo1_3
  *  升级任务：
  *  1、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
- *  2、修改FSAgent表，添加创建（启用）时间列、创建者、禁用时间列
+ *  2、创建新版“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、创建者、禁用时间列
  *  3、修改FirSubjects表，添加科目系统（subSys）
  *  4、修改一级科目类别表结构，增加科目系统类型字段“subSys”
  *  5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
@@ -267,47 +267,49 @@ void VMAccount::appendVersion(int mv, int sv, UpgradeFun_Acc upFun)
  */
 bool VMAccount::updateTo1_3()
 {
+    int verNum = 103;
     QSqlQuery q(db);
     QString s;
     bool r,ok;
 
-    emit startUpgrade(103, tr("aaa"));
+    emit startUpgrade(verNum, tr("开始更新到版本“1.3”..."));
 
-    //1、修改SecSubjects表，添加创建时间列
+    //1、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
+
+    emit upgradeStep(verNum,tr("第一步：创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者"),VUR_OK);
+    s = QString("alter table SndSubClass rename to %1").arg(tbl_nameItemCls);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在将表“SndSubClass”改名为“%1”时发生错误！").arg(tbl_nameItemCls),VUR_ERROR);
+        return false;
+    }
+
     s = "alter table SecSubjects rename to old_SecSubjects";
     if(!q.exec(s)){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“SecSubjects”表名时发生错误！"));
-        emit upgradeStep(103,tr("在更改“SecSubjects”表名时发生错误！"),VUR_ERROR);
+        emit upgradeStep(verNum,tr("在更改“SecSubjects”表名时发生错误！"),VUR_ERROR);
         return false;
     }
-    emit upgradeStep(103,tr("更改“SecSubjects”表名为“old_SecSubjects”"),VUR_OK);
-    s = "CREATE TABLE nameItems(id INTEGER PRIMARY KEY, sName text, lName text, remCode text, classId integer, createdTime TimeStamp NOT NULL DEFAULT (datetime('now','localtime')), creator integer)";
+    emit upgradeStep(verNum,tr("更改“SecSubjects”表名为“old_SecSubjects”"),VUR_OK);
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY, %2 text, %3 text, %4 text, "
+                "%5 integer, %6 TimeStamp NOT NULL DEFAULT (datetime('now','localtime')), "
+                "%7 integer)")
+            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(fld_ni_remcode)
+            .arg(fld_ni_class).arg(fld_ni_crtTime).arg(fld_ni_creator);
     if(!q.exec(s)){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“SecSubjects”表时发生错误！"));
-        emit upgradeStep(103,tr("！"),VUR_ERROR);
+        emit upgradeStep(verNum,tr("创建表“%1”失败！").arg(tbl_nameItem),VUR_ERROR);
         return false;
     }
-    emit upgradeStep(103,tr(""),VUR_OK);
-    if(!db.transaction()){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，启动事务失败！"));
-        emit upgradeStep(103,tr("！"),VUR_ERROR);
+    emit upgradeStep(verNum,tr("成功创建表“%1”").arg(tbl_nameItem),VUR_OK);
+    s = QString("insert into %1(id,sName,lName,remCode,classId,creator) "
+            "select id,subName,subLName,remCode,classId,1 as user from old_SecSubjects")
+            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(fld_ni_remcode)
+            .arg(fld_ni_class).arg(fld_ni_creator);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在从表“old_SecSubjects”转移数据到表“%1”时发生错误")
+                         .arg(tbl_nameItem),VUR_ERROR);
         return false;
     }
-    emit upgradeStep(103,tr(""),VUR_OK);
 
-    s = "insert into nameItems(id,sName,lName,remCode,classId,creator) "
-            "select id,subName,subLName,remCode,classId,1 as user from old_SecSubjects";
-    q.exec(s);
-    if(!db.commit()){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，提交事务失败！"));
-        emit upgradeStep(103,tr("！"),VUR_ERROR);
-        if(!db.rollback()){
-            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“SecSubjects”的数据时，事务回滚失败！"));
-            emit upgradeStep(103,tr("！"),VUR_ERROR);
-        }
-        return false;
-    }
-    emit upgradeStep(103,tr(""),VUR_OK);
+    emit upgradeStep(verNum,tr("成功将表“old_SecSubjects”中的数据转移至表“%1”").arg(tbl_nameItem),VUR_OK);
 
     //进行校对
     QSqlQuery q2(db);
@@ -315,7 +317,7 @@ bool VMAccount::updateTo1_3()
     QString name,newname;
     s = "select id, subName from old_SecSubjects";
     r = q.exec(s);
-    r = q2.prepare("select sName from nameItems where id = :id");
+    r = q2.prepare(QString("select %1 from %2 where id = :id").arg(fld_ni_name).arg(tbl_nameItem));
     while(q.next()){
         ok = true;
         id = q.value(0).toInt();
@@ -329,52 +331,65 @@ bool VMAccount::updateTo1_3()
         if(QString::compare(name,newname) != 0)
             ok = false;
         if(!ok){
-            //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“SecSubjects”的数据时，发现数据的不一致！"));
-            emit upgradeStep(103,tr("！"),VUR_ERROR);
+            emit upgradeStep(verNum,tr("校对表“old_SecSubjects”和“%1”数据，发现不一致！").arg(tbl_nameItem),VUR_ERROR);
             break;
         }
     }
-    emit upgradeStep(103,tr(""),VUR_OK);
+    emit upgradeStep(verNum,tr("校对表“old_SecSubjects”和“%1”数据，数据一致！").arg(tbl_nameItem),VUR_OK);
 
     //在这里删除表，会出错，不知为啥？ 所有必须在第二次打开时删除
     s = "delete from old_SecSubjects";
     r = q.exec(s);
     s = "drop table old_SecSubjects";
     if(!q.exec(s))
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_SecSubjects”表时发生错误，请先退出应用，使用专门工具删除它！"));
-        emit upgradeStep(103,tr("不能删除表“old_SecSubjects”"),VUR_WARNING);
+        emit upgradeStep(verNum,tr("不能删除表“old_SecSubjects”"),VUR_WARNING);
 
-    //2、修改FSAgent表，添加创建（启用）时间列、禁用时间列、创建者
+    //2、创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者
+    emit upgradeStep(verNum,tr("第二步：创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者"),VUR_OK);
     s = "alter table FSAgent rename to old_FSAgent";
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“FSAgent”表名时发生错误！"));
+        emit upgradeStep(verNum,tr("在更改“FSAgent”表名时发生错误！"),VUR_ERROR);
         return false;
     }
-    s = "CREATE TABLE FSAgent(id INTEGER PRIMARY KEY, fid INTEGER, sid INTEGER, subCode varchar(5), weight INTEGER, isEnabled INTEGER,disabledTime TimeStamp, createdTime NOT NULL DEFAULT (datetime('now','localtime')),creator integer)";
+    emit upgradeStep(verNum,tr("将表“FSAgent”改名为“old_FSAgent”！"),VUR_OK);
+
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER, %3 INTEGER, "
+                "%4 varchar(5),%5 INTEGER,%6 INTEGER,%7 TimeStamp, "
+                "%8 TimeStamp NOT NULL DEFAULT (datetime('now','localtime')),%9 integer)")
+            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+            .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_disTime)
+            .arg(fld_ssub_crtTime).arg(fld_ssub_creator);
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“FSAgent”表时发生错误！"));
+        emit upgradeStep(verNum,tr("在创建“%1”表时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
     }
-    if(!db.transaction()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FSAgent”的数据时，启动事务失败！"));
+    emit upgradeStep(verNum,tr("成功创建“%1”表！").arg(tbl_ssub),VUR_OK);
+
+
+    s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7) select id,fid,sid,subCode,"
+                "FrequencyStat,isEnabled,1 as user from old_FSAgent")
+            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+            .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_creator);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在从表“old_FSAgent”转移数据到表“%1”时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
     }
-    s = "insert into FSAgent(id,fid,sid,subCode,weight,isEnabled,creator) select id,fid,sid,subCode,FrequencyStat,isEnabled,1 as user from old_FSAgent";
-    r = q.exec(s);
-    s = "update FSAgent set isEnabled=1,weight=1";
-    r = q.exec(s);
-    if(!db.commit()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FSAgent”的数据时，提交事务失败！"));
-        if(!db.rollback())
-            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FSAgent”的数据时，事务回滚失败！"));
+    emit upgradeStep(verNum,tr("成功将表“old_FSAgent”数据转移到表“%1”中！").arg(tbl_ssub),VUR_OK);
+
+    s = QString("update %1 set %2=1,%3=1").arg(tbl_ssub)
+            .arg(fld_ssub_enable).arg(fld_ssub_weight);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在更新表“%1”启用、权重字段时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
     }
+    emit upgradeStep(verNum,tr("更新表“%1”启用、权重字段！").arg(tbl_ssub),VUR_OK);
 
     //进行校对
     int fid,nfid,sid,nsid;
     s = "select id,fid,sid from old_FSAgent";
     r = q.exec(s);
-    s = "select fid,sid from FSAgent where id=:id";
+    s = QString("select %1,%2 from %3 where id=:id")
+            .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(tbl_ssub);
     r = q2.prepare(s);
     while(q.next()){
         ok = true;
@@ -391,47 +406,64 @@ bool VMAccount::updateTo1_3()
         if(fid != nfid || sid != nsid)
             ok = false;
         if(!ok){
-            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“FSAgent”的数据时，发现数据的不一致！"));
-            break;
+            emit upgradeStep(verNum,tr("在比较表“old_FSAgent”和表“%1”数据时，发现不一致！").arg(tbl_ssub),VUR_ERROR);
+            return false;
         }
     }
+    emit upgradeStep(verNum,tr("比较表“old_FSAgent”和表“%1”，数据一致！").arg(tbl_ssub),VUR_OK);
+
     s = "delete from old_FSAgent";
     r = q.exec(s);
     s = "drop table old_FSAgent";
     if(!q.exec(s))
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_FSAgent”表时发生错误，请先退出应用，使用专门工具删除它！"));
+        emit upgradeStep(verNum,tr("在删除表“old_FSAgent”表时发生错误!"),VUR_WARNING);
 
-    //3、修改FirSubjects表，添加科目系统（subSys）、科目是否启用（enabled）字段
+    //3、修改FirSubjects表，添加科目系统（subSys）字段
+    emit upgradeStep(verNum,tr("第三步：修改FirSubjects表，添加科目系统（subSys）字段"),VUR_OK);
     s = "alter table FirSubjects rename to old_FirSubjects";
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在更改“FirSubjects”表名时发生错误！"));
+        emit upgradeStep(verNum,tr("在更改“FirSubjects”表名时发生错误！"),VUR_ERROR);
         return false;
     }
-    s = "CREATE TABLE FirSubjects(id INTEGER PRIMARY KEY, subSys INTEGER, subCode varchar(4), remCode varchar(10), belongTo integer, jdDir integer, isView integer, isUseWb INTEGER, weight integer, subName varchar(10))";
+    emit upgradeStep(verNum,tr("将表“FirSubjects”更改为“old_FirSubjects”！"),VUR_OK);
+
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 varchar(4),"
+                "%4 varchar(10), %5 integer, %6 integer, %7 integer, %8 INTEGER, "
+                "%9 integer, %10 varchar(10))")
+            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
+            .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isview)
+            .arg(fld_fsub_isUseWb).arg(fld_fsub_weight).arg(fld_fsub_name);
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建“FirSubjects”表时发生错误！"));
+        emit upgradeStep(verNum,tr("在创建“%1”表时发生错误！").arg(tbl_fsub),VUR_ERROR);
         return false;
     }
-    if(!db.transaction()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FirSubjects”的数据时，启动事务失败！"));
+    emit upgradeStep(verNum,tr("成功创建“%1”表！").arg(tbl_fsub),VUR_OK);
+    s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7,%8,%9) "
+                "select id,subCode,remCode,belongTo,jdDir,isView,isReqDet,weight,"
+                "subName from old_FirSubjects")
+            .arg(tbl_fsub).arg(fld_fsub_subcode).arg(fld_fsub_remcode).arg(fld_fsub_class)
+            .arg(fld_fsub_jddir).arg(fld_fsub_isview).arg(fld_fsub_isUseWb)
+            .arg(fld_fsub_weight).arg(fld_fsub_name);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum, tr("在从表“old_FirSubjects”转移数据到表“%1”时发生错误！").arg(tbl_fsub),VUR_ERROR);
         return false;
     }
-    s = "insert into FirSubjects(id,subCode,remCode,belongTo,jdDir,isView,isUseWb,weight,subName) select id,subCode,remCode,belongTo,jdDir,isView,isReqDet,weight,subName from old_FirSubjects";
-    q.exec(s);
-    s = "update FirSubjects set subSys=1,isView=1";
-    q.exec(s);
-    if(!db.commit()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FirSubjects”的数据时，提交事务失败！"));
-        if(!db.rollback())
-            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FirSubjects”的数据时，事务回滚失败！"));
+    emit upgradeStep(verNum, tr("成功从表“old_FirSubjects”转移数据到表“%1”！").arg(tbl_fsub),VUR_OK);
+
+    s = QString("update %1 set %2=1,%3=1").arg(tbl_fsub)
+            .arg(fld_fsub_subSys).arg(fld_fsub_isview);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum, tr("在更新表“%1”的科目系统、是否显示字段收发生错误").arg(tbl_fsub),VUR_ERROR);
         return false;
     }
+    emit upgradeStep(verNum, tr("初始化表“%1”的科目系统、是否显示字段！").arg(tbl_fsub),VUR_OK);
 
     //校对
     QString code,ncode;
     s = "select id,subCode from old_FirSubjects";
     r = q.exec(s);
-    s = "select subCode from FirSubjects where id=:id";
+    s = QString("select %1 from %2 where id=:id")
+            .arg(fld_fsub_subcode).arg(tbl_fsub);
     r = q2.prepare(s);
     while(q.next()){
         ok = true;
@@ -446,70 +478,95 @@ bool VMAccount::updateTo1_3()
         if(QString::compare(code,ncode) != 0)
             ok = false;
         if(!ok){
-            QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在校对表“FirSubjects”的数据时，发现数据的不一致！"));
-            break;
+            emit upgradeStep(verNum,tr("在校对表“%1”的数据时，发现数据的不一致！").arg(tbl_fsub),VUR_ERROR);
+            return false;
         }
     }
+    emit upgradeStep(verNum,tr("在校对表“%1”的数据时，数据一致！").arg(tbl_fsub),VUR_OK);
     //设置哪些科目要使用外币
     QStringList codes;
+    s = QString("update %1 set %2=0").arg(tbl_fsub).arg(fld_fsub_isUseWb);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum, tr("在复位使用是否外币的字段时，发生错误！"),VUR_ERROR);
+        return false;
+    }
     codes<<"1002"<<"1131"<<"2121"<<"1151"<<"2131";
-    s = "update FirSubjects set isUseWb=1 where subCode=:code";
+    s = QString("update %1 set %2=1 where %3=:code")
+            .arg(tbl_fsub).arg(fld_fsub_isUseWb).arg(fld_fsub_subcode);
     r = q.prepare(s);
     for(int i = 0; i < codes.count(); ++i){
         q.bindValue(":code", codes.at(i));
-        if(!q.exec())
+        if(!q.exec()){
+            emit upgradeStep(verNum, tr("在初始化使用外币的科目时，发生错误！"),VUR_ERROR);
             return false;
+        }
     }
-    s = "update FirSubjects set isUseWb=0 where subCode!='1002' and subCode!='1131' "
-            "and subCode!='2121' and subCode!='1151' and subCode!='2131'";
-    r = q.exec(s);
-    s = "update FirSubjects set weight=1";
-    r = q.exec(s);
+    emit upgradeStep(verNum, tr("成功初始化使用外币的科目！"),VUR_OK);
+
+    s = QString("update %1 set %2=1").arg(tbl_fsub).arg(fld_fsub_weight);
+    if(!q.exec(s))
+        emit upgradeStep(verNum,tr("在复位一级科目的权重字段时发生错误！"),VUR_WARNING);
+
 
     //删除表
     s = "delete from old_FirSubjects";
     r = q.exec(s);
     s = "drop table old_FirSubjects";
-    if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在删除表“old_FirSubjects”表时发生错误，请先退出应用，使用专门工具删除它！"));
-    }
+    if(!q.exec(s))
+        emit upgradeStep(verNum,tr("在删除表“old_FirSubjects”表时发生错误"),VUR_WARNING);
 
     //4、修改一级科目类别表结构，增加科目系统类型字段“subSys”
+    emit upgradeStep(verNum,tr("第四步：修改一级科目类别表结构，增加科目系统类型字段“subSys”"),VUR_OK);
     s = "alter table FstSubClasses rename to old_FstSubClasses";
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在重命名表“FstSubClasses”时发生错误！"));
+        emit upgradeStep(verNum,tr("在重命名表“FstSubClasses”时发生错误!"),VUR_WARNING);
         return false;
     }
-    s = "create table FstSubClasses(id integer primary key, subSys integer, code integer, name text)";
+    emit upgradeStep(verNum,tr("重命名表“FstSubClasses”到“old_FstSubClasses”！"),VUR_OK);
+
+    s = QString("create table %1(id integer primary key, %2 integer, %3 integer, %4 text)")
+            .arg(tbl_fsclass).arg(fld_fsc_subSys).arg(fld_fsc_code).arg(fld_fsc_name);
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在创建表“FstSubClasses”时发生错误！"));
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误!").arg(tbl_fsclass),VUR_ERROR);
         return false;
     }
-    s = "insert into FstSubClasses(subSys,code,name) select 1 as subSys,code,name from old_FstSubClasses";
+    emit upgradeStep(verNum,tr("成功创建表“%1”!").arg(tbl_fsclass),VUR_OK);
+
+    s = QString("insert into %1(%2,%3,%4) select 1 as subSys,code,name from old_FstSubClasses")
+            .arg(tbl_fsclass).arg(fld_fsc_subSys).arg(fld_fsc_code).arg(fld_fsc_name);
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在转移表“FstSubClasses”的数据时发生错误！"));
+        emit upgradeStep(verNum,tr("在转移表“FstSubClasses”的数据时发生错误！!"),VUR_ERROR);
         return false;
     }
+    emit upgradeStep(verNum,tr("成功将表“old_FstSubClasses”数据转移到表“%1”").arg(tbl_fsclass),VUR_OK);
     s = "delete from old_FstSubClasses";
     r = q.exec(s);
     s = "drop table old_FstSubClasses";
     if(!q.exec(s))
-        QMessageBox::critical(0,QObject::tr("更新错误"),
-                              QObject::tr("在删除表“old_FstSubClasses”表时发生错误，请先退出应用，使用专门工具删除它！"));
+        emit upgradeStep(verNum,tr("在删除表“old_FstSubClasses”表时发生错误!"),VUR_ERROR);
 
 
     //5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
-    s = "create table accountSuites(id integer primary key, year integer, subSys integer, isCurrent integer, lastMonth integer, name text)";
+    emit upgradeStep(verNum,tr("第五步：创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化"),VUR_OK);
+    s = QString("create table %1(id integer primary key, %2 integer, %3 integer, "
+                "%4 integer, %5 integer, %6 text)")
+            .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
+            .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name);
+
     if(!q.exec(s)){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("创建帐套表accountSuites时发生错误！"));
+        emit upgradeStep(verNum,tr("创建帐套表“%1”时发生错误！").arg(tbl_accSuites),VUR_ERROR);
         return false;
     }
     //读取帐套
-    s = "select value from AccountInfo where code=12";
-    if(!q.exec(s))
+    s = QString("select %1 from %2 where %3=12")
+            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在从表“AccountInfo”读取帐套信息时发生错误！"),VUR_ERROR);
         return false;
+    }
     if(!q.first())
-        return false;
+        emit upgradeStep(verNum,tr("从表“AccountInfo”中未能读取帐套信息！"),VUR_WARNING);
+
     QStringList sl = q.value(0).toString().split(",");
     //每2个元素代表一个帐套年份与帐套名
     QList<int> sYears; QList<QString> sNames;
@@ -517,27 +574,55 @@ bool VMAccount::updateTo1_3()
         sYears<<sl.at(i).toInt();
         sNames<<sl.at(i+1);
     }
-    s = "insert into accountSuites(year,subSys,isCurrent,lastMonth,name) values(:year,1,0,1,:name)";
+    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:year,1,0,1,:name)")
+            .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
+            .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name);
     r = q.prepare(s);
     for(int i = 0; i < sYears.count(); ++i){
         q.bindValue("year",sYears.at(i));
         q.bindValue("name",sNames.at(i));
-        r = q.exec();
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("转移帐套数据时发生错误！"),VUR_ERROR);
+            return false;
+        }
     }
-    s = "select value from AccountInfo where code=11";
-    r = q.exec(s);
-    r = q.first();
+    emit upgradeStep(verNum,tr("成功转移帐套数据！"),VUR_OK);
+
+    s = QString("select %1 from %2 where %3=11")
+            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在读取最近打开帐套数据时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    if(!q.first())
+        emit upgradeStep(verNum,tr("未能读取最近打开帐套数据！"),VUR_WARNING);
+
     int curY = q.value(0).toInt();
-    s = QString("update accountSuites set isCurrent=1 where year=%1").arg(curY);
-    r = q.exec(s);
+    s = QString("update %1 set %2=1 where %3=%4")
+            .arg(tbl_accSuites).arg(fld_accs_isCur).arg(fld_accs_year).arg(curY);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在更新最近打开帐套时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("成功更新最近打开帐套数据！"),VUR_OK);
+
     s = QString("delete from AccountInfo where code=11 or code=12");
-    r = q.exec(s);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在从表“AccountInfo”中删除帐套信息时，发生错误！"),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("从表“AccountInfo”中删除帐套信息！"),VUR_OK);
     s = "drop table AccountInfos";
     r = q.exec(s);
 
-    QMessageBox::information(0,QObject::tr("更新成功"),
-                                 QObject::tr("账户文件格式成功更新到1.3版本！"));
-    return setCurVersion(1,3);
+    if(setCurVersion(1,3)){
+        emit endUpgrade(verNum,tr("账户文件格式成功更新到1.3版本！"),VUR_OK);
+        return true;
+    }
+    else{
+        emit endUpgrade(verNum,tr("升级过程顺利，但未能正确设置版本号！"),VUR_WARNING);
+        return false;
+    }
 }
 
 /**
@@ -545,7 +630,11 @@ bool VMAccount::updateTo1_3()
  *  任务描述：
  *  1、删除无用表
  *
- *  2、创建新余额表
+ *  2、修改BankAccounts表
+ *      （1）添加1个字段：nameId（银行账户对应的名称条目id）
+        （2）并读取已有的银行账户下对应的名称信息，补齐空白
+ *
+ *  3、创建新余额表
  *  创建保存余额相关的表，5个新表（SEPoint、SE_PM_F,SE_MM_F,SE_PM_S,SE_MM_S）
  *  （1）余额指针表（SEPoint）
  *      包含字段年、月、币种（id，year，month，mt），唯一地指出了所属凭证年月和币种
@@ -556,7 +645,9 @@ bool VMAccount::updateTo1_3()
 bool VMAccount::updateTo1_4()
 {
     QSqlQuery q(db);
-
+    int verNum = 104;
+    emit startUpgrade(verNum,tr("开始更新到版本“1.4”..."));
+    emit upgradeStep(verNum,tr("第一步：删除无用表"),VUR_OK);
     //1、删除无用表
     QStringList tables;
     tables<<"AccountBookGroups"<<"ReportStructs"<<"ReportAdditionInfo"<<"CashDailys"
@@ -565,33 +656,105 @@ bool VMAccount::updateTo1_4()
     QString s;bool r;
     foreach(QString tname, tables){
         s = QString("drop table %1").arg(tname);
-        r = q.exec(s);
+        if(!q.exec(s))
+            emit upgradeStep(verNum,tr("无法删除表“%1”").arg(tname),VUR_WARNING);
     }
 
-    //2、创建新余额表
+    //2、修改BankAccounts表
+    //（1）添加1个字段：nameId（银行账户对应的名称条目id）
+    //（2）并读取已有的银行账户下对应的名称信息，补齐空白
+    emit upgradeStep(verNum,tr("第二步：修改BankAccounts表，添加1个字段：nameId"),VUR_OK);
+    s = QString("alter table %1 add column %2 integer").arg(tbl_bankAcc).arg(fld_bankAcc_nameId);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在修改表“%1”时发生错误！").arg(tbl_bankAcc),VUR_ERROR);
+        return false;
+    }
+    QHash<int,QString> bankNames;
+    s = QString("select id,%1 from %2").arg(fld_bank_name).arg(tbl_bank);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在读取银行表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    while(q.next())
+        bankNames[q.value(0).toInt()] = q.value(1).toString();
+
+    QHash<int,QString> mtNames;
+    s = QString("select id,%1 from %2").arg(fld_mt_name).arg(tbl_moneyType);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在读取币种表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    while(q.next())
+        mtNames[q.value(0).toInt()] = q.value(1).toString();
+
+    QHashIterator<int,QString> ib(bankNames),im(mtNames);
+    while(ib.hasNext()){
+        ib.next();
+        while(im.hasNext()){
+            im.next();
+            s = QString("select id from %1 where %2='%3'")
+                    .arg(tbl_nameItem).arg(fld_ni_name)
+                    .arg(QString("%1-%2").arg(ib.value()).arg(im.value()));
+            if(!q.exec(s)){
+                emit upgradeStep(verNum,tr("在读取银行账户表时发生错误！"),VUR_ERROR);
+                return false;
+            }
+            if(!q.first()){
+                LOG_DEBUG(tr("未找到“%1-%2”的名称条目！").arg(ib.value()).arg(im.value()));
+                emit upgradeStep(verNum,tr("未能读取到与银行账号“%1（%2）”对应的名称条目记录！").arg(ib.value()).arg(im.value()),VUR_WARNING);
+                continue;
+            }
+            int nid = q.value(0).toInt();
+            s = QString("update %1 set %2=%3 where %4=%5 and %6=%7").arg(tbl_bankAcc)
+                    .arg(fld_bankAcc_nameId).arg(nid).arg(fld_bankAcc_bankId).arg(ib.key())
+                    .arg(fld_bankAcc_mt).arg(im.key());
+            if(!q.exec(s))
+                emit upgradeStep(verNum,tr("未能更新银行账户表的名称条目字段！"),VUR_WARNING);
+        }
+    }
+
+
+    //3、创建新余额表
+    emit upgradeStep(verNum,tr("第三步：创建新余额表"),VUR_OK);
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 integer)")
             .arg(tbl_nse_point).arg(fld_nse_year).arg(fld_nse_month).arg(fld_nse_mt);
-    if(!q.exec(s))
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_nse_point),VUR_ERROR);
         return false;
+    }
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 real,%5 integer)")
             .arg(tbl_nse_p_f).arg(fld_nse_pid).arg(fld_nse_sid).arg(fld_nse_value).arg(fld_nse_dir);
-    if(!q.exec(s))
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_nse_p_f),VUR_ERROR);
         return false;
+    }
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 real)")
             .arg(tbl_nse_m_f).arg(fld_nse_pid).arg(fld_nse_sid).arg(fld_nse_value);
-    if(!q.exec(s))
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_nse_m_f),VUR_ERROR);
         return false;
+    }
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 real,%5 integer)")
             .arg(tbl_nse_p_s).arg(fld_nse_pid).arg(fld_nse_sid).arg(fld_nse_value).arg(fld_nse_dir);
-    if(!q.exec(s))
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_nse_p_s),VUR_ERROR);
         return false;
+    }
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 real)")
             .arg(tbl_nse_m_s).arg(fld_nse_pid).arg(fld_nse_sid).arg(fld_nse_value);
-    if(!q.exec(s))
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_nse_m_s),VUR_ERROR);
         return false;
-    QMessageBox::information(0,QObject::tr("更新成功"),
-                                 QObject::tr("账户文件格式成功更新到1.4版本！"));
-    return setCurVersion(1,4);
+    }
+    emit upgradeStep(verNum,tr("成功创建新余额表！"),VUR_OK);
+    if(setCurVersion(1,4)){
+        emit endUpgrade(verNum,tr("账户文件格式成功更新到1.4版本！"),VUR_OK);
+        return true;
+    }
+    else{
+        emit endUpgrade(verNum,tr("账户文件格式已更新到1.4版本，但不能正确设置版本号！"),VUR_WARNING);
+        return false;
+    }
 }
 
 /**
@@ -614,7 +777,7 @@ bool VMAccount::updateTo1_5()
 }
 
 /**
- * @brief VMAccount::updateTo1_5
+ * @brief VMAccount::updateTo2_0
  *  任务描述：
  *  1、
  *  2、导入新科目系统的科目
@@ -679,7 +842,7 @@ bool VMAccount::updateTo2_0()
 }
 
 /**
- * @brief VMAccount::updateTo1_6
+ * @brief VMAccount::updateTo2_1
  * @return
  */
 bool VMAccount::updateTo2_1()
@@ -999,6 +1162,7 @@ VersionManager::VersionManager(VersionManager::ModuleType moduleType, QString fn
     :QDialog(parent),ui(new Ui::VersionManager),mt(moduleType),fileName(fname)
 {
     ui->setupUi(this);
+    closeBtnState = false;
     switch(moduleType){
     case MT_CONF:
         initConf();
@@ -1011,6 +1175,7 @@ VersionManager::VersionManager(VersionManager::ModuleType moduleType, QString fn
 
 VersionManager::~VersionManager()
 {
+    delete vmObj;
     delete ui;
 }
 
@@ -1051,6 +1216,7 @@ void VersionManager::startUpgrade(int verNum, const QString &infos)
             .arg(verNum/100).arg(verNum%100).arg(infos);
     upgradeInfos[verNum].append(info);
     ui->edtInfos->appendPlainText(info);
+    QCoreApplication::processEvents();
 }
 
 /**
@@ -1073,6 +1239,7 @@ void VersionManager::endUpgrade(int verNum, const QString &infos, bool ok)
                 .arg(verNum/100).arg(verNum%100).arg(infos);
     upgradeInfos[verNum].append(info);
     ui->edtInfos->appendPlainText(info);
+    QCoreApplication::processEvents();
 }
 
 /**
@@ -1102,12 +1269,17 @@ void VersionManager::upgradeStepInform(int verNum, const QString &infos, Version
             .arg(resultStr).arg(verNum/100).arg(verNum%100).arg(infos);
     upgradeInfos[verNum].append(info);
     ui->edtInfos->appendPlainText(info);
+    QCoreApplication::processEvents();
 }
 
 void VersionManager::on_btnStart_clicked()
 {
-    ui->btnCancel->setEnabled(false);
-    upgradeResult = versionMaintain();
+    ui->btnClose->setEnabled(false);
+    closeBtnState = true;
+    ui->btnStart->setEnabled(false);
+    upgradeResult = versionMaintain();    
+    ui->btnClose->setText(tr("关闭"));
+    ui->btnClose->setEnabled(true);
 }
 
 void VersionManager::initConf()
@@ -1131,7 +1303,7 @@ void VersionManager::init()
 {
     connect(vmObj, SIGNAL(startUpgrade(int,QString)),
             this, SLOT(startUpgrade(int,QString)));
-    connect(vmObj, SIGNAL(upgradeStepInform(int,QString,VersionUpgradeResult)),
+    connect(vmObj, SIGNAL(upgradeStep(int,QString,VersionUpgradeResult)),
             this, SLOT(upgradeStepInform(int,QString,VersionUpgradeResult)));
     connect(vmObj, SIGNAL(endUpgrade(int,QString,bool)),
             this, SLOT(endUpgrade(int,QString,bool)));
@@ -1160,5 +1332,13 @@ void VersionManager::init()
  */
 void VersionManager::close()
 {
-    delete vmObj;
+    on_btnClose_clicked();
+}
+
+void VersionManager::on_btnClose_clicked()
+{
+    if(closeBtnState)
+        accept();
+    else
+        reject();
 }

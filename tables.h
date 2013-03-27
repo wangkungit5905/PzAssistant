@@ -19,14 +19,14 @@ const QString tbl_accSuites      = "accountSuites";
 const QString fld_accs_year      = "year";         //帐套所属年份（integer）
 const QString fld_accs_subSys    = "subSys";       //帐套所用的科目系统代码（integer）
 const QString fld_accs_isCur     = "isCurrent";    //是否是当前帐套（integer）
-const QString fld_accs_lastMonth = "lastMonth";    //最后打开月份
+const QString fld_accs_recentMonth = "recentMonth";//最近打开月份
 const QString fld_accs_name      = "name";         //帐套名（text）
 //字段索引
-const int ACCS_YEAR      = 1;
-const int ACCS_SUBSYS    = 2;
-const int ACCS_ISCUR     = 3;
-const int ACCS_LASTMONTH = 4;
-const int ACCS_NAME      = 5;
+const int ACCS_YEAR         = 1;
+const int ACCS_SUBSYS       = 2;
+const int ACCS_ISCUR        = 3;
+const int ACCS_RECENTMONTH  = 4;
+const int ACCS_NAME         = 5;
 
 
 
@@ -70,10 +70,12 @@ const QString tbl_bankAcc         = "BankAccounts";
 const QString fld_bankAcc_bankId  = "bankID";    //账户所属的银行ID（INTEGER）
 const QString fld_bankAcc_mt      = "mtID";      //账户币种ID INTEGER）
 const QString fld_bankAcc_accNum  = "accNum";    //帐号（TEXT）
+const QString fld_bankAcc_nameId   = "nameId";     //该账户对应的名称条目id
 //字段索引
 const int BA_BANKID = 1;
 const int BA_MT     = 2;
 const int BA_ACCNUM = 3;
+const int BA_ACCNAME= 4;
 
 
 //*************************一级科目类别表*************************//
@@ -94,84 +96,77 @@ const int FSCLS_NAME     = 3;
 //isUseWb INTEGER, weight integer, subName varchar(10))
 //字段名
 const QString tbl_fsub         = "FirSubjects";
-const QString fld_fsub_subSys  = "subSys";       //科目系统代码
-const QString fld_fsub_subcode = "subCode";      //一级科目代码（国标）(subCode varchar(4))
-const QString fld_fsub_remcode = "remCode";      //科目助记符(remCode varchar(10))
-const QString fld_fsub_class   = "belongTo";     //所属类别（目前是6大类别）(belongTo integer)
-const QString fld_fsub_jddir   = "jdDir";        //科目的借贷方向判定方法（jdDir integer）
+const QString fld_fsub_subSys  = "subSys";       //科目系统代码（INTEGER）
+const QString fld_fsub_subcode = "subCode";      //一级科目代码（国标）(varchar(4))
+const QString fld_fsub_remcode = "remCode";      //科目助记符(varchar(10))
+const QString fld_fsub_class   = "clsId";        //所属类别（integer)
+const QString fld_fsub_jddir   = "jdDir";        //科目的借贷方向判定方法（integer）
                                         //（1：增加在借方，减少在贷方；0：增加在贷方，减少在借方）
-const QString fld_fsub_isview  = "isView";       //是否启用该科目(isView integer)(1：启用，0：不启用)
+const QString fld_fsub_isview  = "isView";       //是否启用该科目(integer)(1：启用，0：不启用)
 const QString fld_fsub_isUseWb = "isUseWb";      //是否需要使用外币
-const QString fld_fsub_weight  = "weight";       //科目使用的权重值(weight integer)
-const QString fld_fsub_name    = "subName";      //科目名(subName varchar(10))
+const QString fld_fsub_weight  = "weight";       //科目使用的权重值(integer)
+const QString fld_fsub_name    = "subName";      //科目名(varchar(10))
 //字段索引
-const int FSTSUB_SUBSYS     =  1;
-const int FSTSUB_SUBCODE    =  2;
-const int FSTSUB_REMCODE    =  3;
-const int FSTSUB_BELONGTO   =  4;
-const int FSTSUB_DIR        =  5;
-const int FSTSUB_ISVIEW     =  6;
-const int FSTSUB_ISUSEWB    =  7;
-const int FSTSUB_WEIGHT     =  8;
-const int FSTSUB_SUBNAME    =  9;
+const int FSUB_SUBSYS     =  1;
+const int FSUB_SUBCODE    =  2;
+const int FSUB_REMCODE    =  3;
+const int FSUB_CLASS      =  4;
+const int FSUB_DIR        =  5;
+const int FSUB_ISVIEW     =  6;
+const int FSUB_ISUSEWB    =  7;
+const int FSUB_WEIGHT     =  8;
+const int FSUB_SUBNAME    =  9;
 
 //*************************名称条目类别表*************************//
 //二级科目类别表
 //字段名
-const QString tbl_ssclass     = "SndSubClass";
-const QString fld_ssc_clscode = "clsCode";
-const QString fld_ssc_name    = "name";
-const QString fld_ssc_explain = "explain";
+const QString tbl_nameItemCls = "NameItemClass";
+const QString fld_nic_clscode = "clsCode";      //类别代码（INTEGER）
+const QString fld_nic_name    = "name";         //名称（TEXT）
+const QString fld_nic_explain = "explain";      //简要说明（TEXT）
 //字段索引
-const int SNDSUBCLASS_CODE    = 1;   //类别代码（clsCode INTEGER）
-const int SNDSUBCLASS_NAME    = 2;   //名称 (name TEXT )
-const int SNDSUBCLASS_EXPLAIN = 3;   //简要说明 (explain TEXT)
+const int NICLASS_CODE    = 1;
+const int NICLASS_NAME    = 2;
+const int NICLASS_EXPLAIN = 3;
 
 //*************************名称条目表*************************//
 //名称条目表
-//CREATE TABLE nameItems(id INTEGER PRIMARY KEY, sName VERCHAR(10), lName TEXT,
-//  remCode varchar(10), classId INTEGER, createdTime TimeStamp NOT NULL
-//  DEFAULT (datetime('now','localtime')), creator integer)
 //字段名
-const QString tbl_ssub          = "nameItems";
-const QString fld_ssub_name     = "sName";         //简称
-const QString fld_ssub_lname    = "lName";         //全称
-const QString fld_ssub_remcode  = "remCode";       //助记符
-const QString fld_ssub_class    = "classId";       //名称类别代码
-const QString fld_ssub_crtTime  = "createdTime";   //创建时间
-const QString fld_ssub_creator  = "creator";       //创建者
+const QString tbl_nameItem    = "nameItems";
+const QString fld_ni_name     = "sName";         //简称（TEXT）
+const QString fld_ni_lname    = "lName";         //全称（TEXT）
+const QString fld_ni_remcode  = "remCode";       //助记符（TEXT）
+const QString fld_ni_class    = "classId";       //名称类别代码（INTEGER）
+const QString fld_ni_crtTime  = "createdTime";   //创建时间（TEXT）（TimeStamp NOT NULL DEFAULT (datetime('now','localtime'))）
+const QString fld_ni_creator  = "creator";       //创建者（INTEGER）
 //字段索引
-const int SNDSUB_SUBNAME     = 1;
-const int SNDSUB_SUBLONGNAME = 2;
-const int SNDSUB_REMCODE     = 3;
-const int SNDSUB_CALSS       = 4;
-const int SNDSUB_CREATERTIME = 5;
-const int SNDSUB_CREATOR     = 6;
+const int NI_NAME        = 1;
+const int NI_LNAME       = 2;
+const int NI_REMCODE     = 3;
+const int NI_CALSS       = 4;
+const int NI_CREATERTIME = 5;
+const int NI_CREATOR     = 6;
 
-//*************************二级科目映射表*************************//
-//一级科目到二级科目的代理映射
-//CREATE TABLE FSAgent(id INTEGER PRIMARY KEY, fid INTEGER, sid INTEGER,
-//subCode varchar(5), weight INTEGER, isEnabled INTEGER,disabledTime TimeStamp,
-//createdTime NOT NULL DEFAULT (datetime('now','localtime')),creator integer)
+//*************************二级科目表*************************//
 //字段名
-const QString tbl_fsa         = "FSAgent";
-const QString fld_fsa_fid     = "fid";           //所属的一级科目ID
-const QString fld_fsa_sid     = "sid";           //对应的名称条目中的ID
-const QString fld_fsa_code    = "subCode";       //科目代码（用户根据行业特点自定义的）
-const QString fld_fsa_weight  = "weight";        //科目的使用权重
-const QString fld_fsa_enable  = "isEnabled";     //是否在账户中启用
-const QString fld_fsa_disTime = "disabledTime";  //禁用时间
-const QString fld_fsa_crtTime = "createdTime";   //创建时间
-const QString fld_fsa_creator = "creator";       //创建者
+const QString tbl_ssub        = "SndSubject";
+const QString fld_ssub_fid     = "fid";           //所属的一级科目ID（INTEGER）
+const QString fld_ssub_nid     = "nid";           //对应的名称条目中的ID（INTEGER）
+const QString fld_ssub_code    = "subCode";       //科目代码（用户根据行业特点自定义的）（TEXT）
+const QString fld_ssub_weight  = "weight";        //科目的使用权重（INTEGER）
+const QString fld_ssub_enable  = "isEnabled";     //是否在账户中启用（INTEGER）
+const QString fld_ssub_disTime = "disabledTime";  //禁用时间（TEXT）
+const QString fld_ssub_crtTime = "createdTime";   //创建时间（TEXT）（NOT NULL DEFAULT (datetime('now','localtime'))）
+const QString fld_ssub_creator = "creator";       //创建者（INTEGER）
 //字段索引
-const int FSA_FID         = 1;
-const int FSA_SID         = 2;
-const int FSA_SUBCODE     = 3;
-const int FSA_WEIGHT      = 4;
-const int FSA_ENABLED     = 5;
-const int FSA_DISABLETIME = 6;
-const int FSA_CREATETIME  = 7;
-const int FSA_CREATOR     = 8;
+const int SSUB_FID         = 1;
+const int SSUB_NID         = 2;
+const int SSUB_SUBCODE     = 3;
+const int SSUB_WEIGHT      = 4;
+const int SSUB_ENABLED     = 5;
+const int SSUB_DISABLETIME = 6;
+const int SSUB_CREATETIME  = 7;
+const int SSUB_CREATOR     = 8;
 
 //******************凭证表*********************************//
 //字段名

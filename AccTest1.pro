@@ -38,7 +38,6 @@ SOURCES += main.cpp\
     previewdialog.cpp \
     account.cpp \
     otherModule.cpp \
-    commdatastruct.cpp \
     dialog3.cpp \
     pz.cpp \
     subjectmanager.cpp \
@@ -57,7 +56,8 @@ SOURCES += main.cpp\
     logs/ConsoleAppender.cpp \
     logs/AbstractStringAppender.cpp \
     logs/AbstractAppender.cpp \
-    version.cpp
+    version.cpp \
+    subject.cpp
 
 HEADERS  += \
     connection.h \
@@ -109,7 +109,8 @@ HEADERS  += \
     logs/ConsoleAppender.h \
     logs/AbstractStringAppender.h \
     logs/AbstractAppender.h \
-    version.h
+    version.h \
+    subject.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

@@ -23,6 +23,7 @@
 #include "tdpreviewdialog.h"
 #include "previewdialog.h"
 #include "tables.h"
+#include "subject.h"
 
 //tem
 //#include "dialog3.h"
@@ -2352,7 +2353,7 @@ void SetupBaseDialog2::newMapping(int fid, int sid, int row, int col)
         return;
     SubjectManager* sm = curAccount->getSubjectManager();
     QString s = tr("在当前一级科目%1下创建新的二级科目%2")
-            .arg(sm->getFstSubName(fid)).arg(name);
+            .arg(sm->getFstSubject(fid)->getName()).arg(name);
     if(QMessageBox::Yes == QMessageBox::question(this,tr("确认消息"),s,
                   QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){
         int id;
@@ -2372,7 +2373,7 @@ void SetupBaseDialog2::newSndSub(int fid, QString name, int row, int col)
 {
     SubjectManager* sm = curAccount->getSubjectManager();
     QString s = tr("在当前一级科目%1下创建新的二级科目%2")
-            .arg(sm->getFstSubName(fid)).arg(name);
+            .arg(sm->getFstSubject(fid)->getName()).arg(name);
     if(QMessageBox::Yes == QMessageBox::question(this,tr("确认消息"),s,
                   QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){        
         CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,this);

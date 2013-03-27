@@ -1955,13 +1955,13 @@ void BasicDataDialog::saveFstToBase()
     r = q.exec(s);
     int num = 0; //完成的记录数
     while(q.next()){
-        QString code = q.value(FSTSUB_SUBCODE).toString();
-        QString remCode = q.value(FSTSUB_REMCODE).toString();
-        int belongTo = q.value(FSTSUB_BELONGTO).toInt();
-        int isView = q.value(FSTSUB_ISVIEW).toInt();
-        int isUseWb = q.value(FSTSUB_ISUSEWB).toInt();
-        int weight = q.value(FSTSUB_WEIGHT).toInt();
-        QString subName = q.value(FSTSUB_SUBNAME).toString();
+        QString code = q.value(FSUB_SUBCODE).toString();
+        QString remCode = q.value(FSUB_REMCODE).toString();
+        int belongTo = q.value(FSUB_CLASS).toInt();
+        int isView = q.value(FSUB_ISVIEW).toInt();
+        int isUseWb = q.value(FSUB_ISUSEWB).toInt();
+        int weight = q.value(FSUB_WEIGHT).toInt();
+        QString subName = q.value(FSUB_SUBNAME).toString();
         //QString description  = q.value(FSTSUB_DESC).toString();
         //QString utils = q.value(FSTSUB_UTILS).toString();
 
@@ -2718,7 +2718,7 @@ void SetupBankDialog::crtSndSubject()
 
     //获取金融机构类客户类别的代码
     QString s = QString("select %1 from %2 where %3='%1'")
-            .arg(fld_ssc_clscode).arg(tbl_ssclass).arg(fld_ssc_name).arg(tr("金融机构"));
+            .arg(fld_nic_clscode).arg(tbl_nameItemCls).arg(fld_nic_name).arg(tr("金融机构"));
     if(q.exec(s) && q.first())
         cid = q.value(0).toInt();
     else{
@@ -2753,13 +2753,13 @@ void SetupBankDialog::crtSndSubject()
 
             //在插入前首先检测是否已存在
             s = QString("select id from %1 where %2='%3'")
-                    .arg(tbl_ssub).arg(fld_ssub_name).arg(sname);
+                    .arg(tbl_nameItem).arg(fld_ni_name).arg(sname);
 
             //如果不存在，才可以进行后续的二次插入操作
             if(q2.exec(s) && !q2.first()){
                 s = QString("insert into %1(%2,%3,%4,%5) values('%6','%7',%8,%9)")
-                        .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_lname)
-                        .arg(fld_ssub_class).arg(fld_ssub_creator).arg(sname)
+                        .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname)
+                        .arg(fld_ni_class).arg(fld_ni_creator).arg(sname)
                         .arg(slname).arg(cid).arg(curUser->getUserId());
                 r = q2.exec(s);
                 //回读刚插入的记录的id
@@ -2772,8 +2772,8 @@ void SetupBankDialog::crtSndSubject()
                 s = QString("insert into FSAgent(fid,sid) "
                             "values(%1,%2)").arg(fid).arg(sid);
                 s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,1,1,%9)")
-                        .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_weight)
-                        .arg(fld_fsa_enable).arg(fld_fsa_creator).arg(fid).arg(sid)
+                        .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_weight)
+                        .arg(fld_ssub_enable).arg(fld_ssub_creator).arg(fid).arg(sid)
                         .arg(curUser->getUserId());
                 r = q2.exec(s);
             }

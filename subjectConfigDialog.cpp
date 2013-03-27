@@ -53,16 +53,16 @@ FstSubConWin::FstSubConWin(QWidget* parent) : QWidget(parent)
 
     QLabel* lblName = new QLabel(tr("科目名称"));
     edtName = new QLineEdit;
-    mapper.addMapping(edtName, FSTSUB_SUBNAME);
+    mapper.addMapping(edtName, FSUB_SUBNAME);
     QLabel* lblCode = new QLabel(tr("科目代码"));
     edtCode = new QLineEdit;
-    mapper.addMapping(edtCode, FSTSUB_SUBCODE);
+    mapper.addMapping(edtCode, FSUB_SUBCODE);
     QLabel* lblRem = new QLabel(tr("科目助记符"));
     edtRem = new QLineEdit;
-    mapper.addMapping(edtRem, FSTSUB_REMCODE);
+    mapper.addMapping(edtRem, FSUB_REMCODE);
     QLabel* lblWeight = new QLabel(tr("使用权重值"));
     edtWeight = new QLineEdit;
-    mapper.addMapping(edtWeight, FSTSUB_WEIGHT);
+    mapper.addMapping(edtWeight, FSUB_WEIGHT);
     btnFirst = new QPushButton(tr("第一个"));
     connect(btnFirst, SIGNAL(clicked()), &mapper, SLOT(toFirst()));
     btnNext =  new QPushButton(tr("下一个"));
@@ -99,8 +99,8 @@ FstSubConWin::FstSubConWin(QWidget* parent) : QWidget(parent)
     l->addWidget(btnSave);
     details = new QTextEdit;
     //mapper.addMapping(details, FSTSUB_DESC);
-    mapper.addMapping(chkIsReqDet, FSTSUB_ISUSEWB, "checkstate");
-    mapper.addMapping(chkIsView, FSTSUB_ISVIEW, "checkstate");
+    mapper.addMapping(chkIsReqDet, FSUB_ISUSEWB, "checkstate");
+    mapper.addMapping(chkIsView, FSUB_ISVIEW, "checkstate");
     QLabel* lblUtils = new QLabel(tr("使用举例"));
     utils = new QTextEdit;
     //mapper.addMapping(utils, FSTSUB_UTILS);
@@ -151,8 +151,8 @@ SndSubConWin::SndSubConWin(QWidget* parent) : QWidget(parent)
     fstModel->select();
 
     sndModel = new QSqlRelationalTableModel;
-    sndModel->setTable(tbl_fsa);
-    sndModel->setRelation(FSA_SID, QSqlRelation(tbl_ssub, "id", fld_ssub_name));
+    sndModel->setTable(tbl_ssub);
+    sndModel->setRelation(SSUB_NID, QSqlRelation(tbl_nameItem, "id", fld_ni_name));
 
     //sndModel->select();
 
@@ -201,13 +201,13 @@ SndSubConWin::SndSubConWin(QWidget* parent) : QWidget(parent)
 
     fstList = new QListView;
     fstList->setModel(fstModel);
-    fstList->setModelColumn(FSTSUB_SUBNAME);
+    fstList->setModelColumn(FSUB_SUBNAME);
     connect(fstList, SIGNAL(clicked(QModelIndex)),
             this, SLOT(fstListClicked(QModelIndex)));
 
     sndList = new QListView;
     sndList->setModel(sndModel);
-    sndList->setModelColumn(FSA_SID);
+    sndList->setModelColumn(SSUB_NID);
 //    sndList->setModel(sndModel->relationModel(FSAGENT_SID));
 //    sndList->setModelColumn(SNDSUB_SUBNAME);
     connect(sndList, SIGNAL(clicked(QModelIndex)),
@@ -220,7 +220,7 @@ SndSubConWin::SndSubConWin(QWidget* parent) : QWidget(parent)
     QLabel* lblCode = new QLabel(tr("科目代码"));
     edtCode = new QLineEdit;
     connect(edtCode, SIGNAL(textEdited(QString)), this, SLOT(dataChanged()));
-    mapper->addMapping(edtCode, FSA_SUBCODE);
+    mapper->addMapping(edtCode, SSUB_SUBCODE);
 //    QLabel* lblRem = new QLabel(tr("科目助记符"));
 //    edtRem = new QLineEdit;
 //    mapper->addMapping(edtRem, SNDSUB_REMCODE);
@@ -228,7 +228,7 @@ SndSubConWin::SndSubConWin(QWidget* parent) : QWidget(parent)
     edtStat = new QSpinBox;
     edtStat->setValue(0);
     connect(edtStat, SIGNAL(valueChanged(int)), this, SLOT(dataChanged()));
-    mapper->addMapping(edtStat, FSA_WEIGHT);
+    mapper->addMapping(edtStat, SSUB_WEIGHT);
 
     btnAdd = new QPushButton(tr("新增"));
     btnDel = new QPushButton(tr("删除"));
@@ -290,8 +290,8 @@ void SndSubConWin::fstListClicked(const QModelIndex &index)
 void SndSubConWin::sndListClicked(const QModelIndex& index)
 {
     int id = sndModel->data(sndModel->index(index.row(), 0)).toInt();
-    int fstId = sndModel->data(sndModel->index(index.row(), FSA_FID)).toInt();
-    QString sndId = sndModel->data(sndModel->index(index.row(), FSA_SID)).toString();
+    int fstId = sndModel->data(sndModel->index(index.row(), SSUB_FID)).toInt();
+    QString sndId = sndModel->data(sndModel->index(index.row(), SSUB_NID)).toString();
 
     //第一次选择
     if(curRowIndex == -1){
@@ -341,11 +341,11 @@ SubInfoConWin::SubInfoConWin(QWidget* parent) : QWidget(parent)
     //创建数据模型
     sndInfoModel = new QSqlRelationalTableModel;
     sndInfoModel->setTable("SecSubjects");
-    sndInfoModel->setRelation(SNDSUB_CALSS, QSqlRelation("SndSubClass", "id", "name"));
+    sndInfoModel->setRelation(NI_CALSS, QSqlRelation("SndSubClass", "id", "name"));
     sndInfoModel->select();
 
     sndModel = new QSqlTableModel;
-    sndModel->setTable(tbl_fsa);
+    sndModel->setTable(tbl_ssub);
     //sndModel->setRelation(SUNSUB_CALSS, QSqlRelation("SndSubClass", "id", "name"));
     //secModel->select();
 
@@ -369,7 +369,7 @@ SubInfoConWin::SubInfoConWin(QWidget* parent) : QWidget(parent)
     //创建二级科目信息列表框（显示的是二级科目的信息）
     sndList = new QListView;
     sndList->setModel(sndInfoModel);
-    sndList->setModelColumn(SNDSUB_SUBNAME);
+    sndList->setModelColumn(NI_NAME);
     connect(sndList, SIGNAL(clicked(QModelIndex)),
             this, SLOT(sndListItemClicked(QModelIndex)));
 
@@ -380,25 +380,25 @@ SubInfoConWin::SubInfoConWin(QWidget* parent) : QWidget(parent)
 
     edtName = new QLineEdit;
     connect(edtName, SIGNAL(textEdited(QString)), this, SLOT(dataChanged()));
-    dataMapper->addMapping(edtName, SNDSUB_SUBNAME);
+    dataMapper->addMapping(edtName, NI_NAME);
 
     QLabel* lblLName = new QLabel(tr("科目全称"));
     edtLName = new QLineEdit;
     connect(edtLName, SIGNAL(textEdited(QString)), this, SLOT(dataChanged()));
-    dataMapper->addMapping(edtLName, SNDSUB_SUBLONGNAME);
+    dataMapper->addMapping(edtLName, NI_LNAME);
 
     QLabel* lblRem = new QLabel(tr("科目助记符"));
     edtRem = new QLineEdit;
     connect(edtRem, SIGNAL(textEdited(QString)), this, SLOT(dataChanged()));
-    dataMapper->addMapping(edtRem, SNDSUB_REMCODE);
+    dataMapper->addMapping(edtRem, NI_REMCODE);
 
     QLabel* lblSubCls = new QLabel(tr("科目所属类别"));
     cmbSubCls = new QComboBox;
     //捕捉这个信号，当用程序代码改变当前索引时，也会触发，因此不合适，应当从底层模型
     //connect(cmbSubCls, SIGNAL(currentIndexChanged(int)), this, SLOT(dataChanged()));
-    cmbSubCls->setModel(sndInfoModel->relationModel(SNDSUB_CALSS));
-    cmbSubCls->setModelColumn(SNDSUBCLASS_NAME);
-    dataMapper->addMapping(cmbSubCls, SNDSUB_CALSS);
+    cmbSubCls->setModel(sndInfoModel->relationModel(NI_CALSS));
+    cmbSubCls->setModelColumn(NICLASS_NAME);
+    dataMapper->addMapping(cmbSubCls, NI_CALSS);
     dataMapper->setItemDelegate(new QSqlRelationalDelegate(this));
     dataMapper->toFirst();
 
@@ -429,7 +429,7 @@ SubInfoConWin::SubInfoConWin(QWidget* parent) : QWidget(parent)
     for(int i = 0; i < fstModel->rowCount(); ++i){
         QListWidgetItem* item = new QListWidgetItem(fstList);
         int fstSubId = fstModel->data(fstModel->index(i, 0)).toInt();
-        item->setText(fstModel->data(fstModel->index(i, FSTSUB_SUBNAME)).toString());
+        item->setText(fstModel->data(fstModel->index(i, FSUB_SUBNAME)).toString());
         item->setData(Qt::UserRole, fstSubId);
         item->setCheckState(Qt::Unchecked);
         checkStateMap[fstSubId] = Qt::Unchecked; //
@@ -574,8 +574,8 @@ void SubInfoConWin::sndListItemClicked(const QModelIndex &index)
                     int r = 0;
                     int rows = sndModel->rowCount();
                     while(r < rows){
-                        if((sndId = sndModel->data(sndModel->index(r, FSA_SID)).toInt()) &&
-                           (fstId == sndModel->data(sndModel->index(i, FSA_FID)).toInt())){
+                        if((sndId = sndModel->data(sndModel->index(r, SSUB_NID)).toInt()) &&
+                           (fstId == sndModel->data(sndModel->index(i, SSUB_FID)).toInt())){
                             sndModel->removeRow(r);
                             sndModel->submit();
                             break;
@@ -586,8 +586,8 @@ void SubInfoConWin::sndListItemClicked(const QModelIndex &index)
                 else{
                     int row = sndModel->rowCount();
                     sndModel->insertRow(row);
-                    sndModel->setData(sndModel->index(row, FSA_SID), sndId);
-                    sndModel->setData(sndModel->index(row, FSA_FID), fstId);
+                    sndModel->setData(sndModel->index(row, SSUB_NID), sndId);
+                    sndModel->setData(sndModel->index(row, SSUB_FID), fstId);
                     sndModel->submit();
                 }
             }
@@ -622,7 +622,7 @@ void SubInfoConWin::sndListItemClicked(const QModelIndex &index)
     rows = sndModel->rowCount();
     if(rows > 0){
         for(int i = 0; i < rows; ++i){
-            int fstId = sndModel->data(sndModel->index(i, FSA_FID)).toInt();
+            int fstId = sndModel->data(sndModel->index(i, SSUB_FID)).toInt();
             setFstListCheckState(fstId, Qt::Checked);
             //4、更新checkStateMap的选中状态与一级科目列表框的选中情况相对应
             checkStateMap[fstId] = Qt::Checked;
@@ -635,8 +635,8 @@ void SubInfoConWin::add()
 {
     int row = sndInfoModel->rowCount();
     sndInfoModel->insertRow(row);
-    sndInfoModel->setData(sndInfoModel->index(row, SNDSUB_CALSS), 1);
-    sndInfoModel->setData(sndInfoModel->index(row, SNDSUB_SUBNAME), tr("科目名"));
+    sndInfoModel->setData(sndInfoModel->index(row, NI_CALSS), 1);
+    sndInfoModel->setData(sndInfoModel->index(row, NI_NAME), tr("科目名"));
     sndInfoModel->submit();
     dataMapper->setCurrentIndex(row);
 }
@@ -711,29 +711,29 @@ SndSubConForm::SndSubConForm(QWidget* parent) : QWidget(parent)
 
     //装载二级科目类别
     ui.cmbSnd->addItem(tr("全部"), 0);
-    if(q.exec(QString("select * from %1").arg(tbl_ssclass))){
+    if(q.exec(QString("select * from %1").arg(tbl_nameItemCls))){
         while(q.next()){
-            ui.cmbSnd->addItem(q.value(SNDSUBCLASS_NAME).toString(),
-                               q.value(SNDSUBCLASS_CODE));
+            ui.cmbSnd->addItem(q.value(NICLASS_NAME).toString(),
+                               q.value(NICLASS_CODE));
         }
     }
 
     //装载二级科目
     sndModel = new QSqlRelationalTableModel;
-    sndModel->setTable(tbl_ssub);
-    sndModel->setRelation(SNDSUB_CALSS, QSqlRelation(tbl_ssclass, fld_ssc_clscode, fld_ssc_name));
+    sndModel->setTable(tbl_nameItem);
+    sndModel->setRelation(NI_CALSS, QSqlRelation(tbl_nameItemCls, fld_nic_clscode, fld_nic_name));
     sndModel->select();
 
     mapper2 = new QDataWidgetMapper;
     mapper2->setModel(sndModel);
     mapper2->setSubmitPolicy(QDataWidgetMapper::ManualSubmit);
-    mapper2->addMapping(ui.edtSubSName, SNDSUB_SUBNAME);
-    mapper2->addMapping(ui.edtSubLName, SNDSUB_SUBLONGNAME);
-    mapper2->addMapping(ui.edtRemark, SNDSUB_REMCODE);
+    mapper2->addMapping(ui.edtSubSName, NI_NAME);
+    mapper2->addMapping(ui.edtSubLName, NI_LNAME);
+    mapper2->addMapping(ui.edtRemark, NI_REMCODE);
 
-    mapper2->addMapping(ui.cmbClass, SNDSUB_CALSS);
-    ui.cmbClass->setModel(sndModel->relationModel(SNDSUB_CALSS));
-    ui.cmbClass->setModelColumn(SNDSUBCLASS_NAME);
+    mapper2->addMapping(ui.cmbClass, NI_CALSS);
+    ui.cmbClass->setModel(sndModel->relationModel(NI_CALSS));
+    ui.cmbClass->setModelColumn(NICLASS_NAME);
     mapper2->setItemDelegate(new QSqlRelationalDelegate());
 
     //mapper2->toFirst();
@@ -761,7 +761,7 @@ SndSubConForm::SndSubConForm(QWidget* parent) : QWidget(parent)
     //装载的二级科目与sndModel的数据会不一致)
     //QSqlQuery q;
     s = QString("select id, %1, %2 from %3")
-            .arg(fld_ssub_name).arg(fld_ssub_class).arg(tbl_ssub);
+            .arg(fld_ni_name).arg(fld_ni_class).arg(tbl_nameItem);
     bool r = q.exec(s);
     if(r){
         while(q.next()){
@@ -879,8 +879,8 @@ void SndSubConForm::btnAddToClicked()
 {
     QSqlQuery q;
     QString s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,1,1)")
-            .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_weight)
-            .arg(fld_fsa_enable).arg(fid).arg(sid);
+            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_weight)
+            .arg(fld_ssub_enable).arg(fid).arg(sid);
     q.exec(s);
     //回读此新的二级科目的id，并添加到全局变量中allSndSubs和allSndSubLNames
     s = QString("select last_insert_rowid()");
@@ -907,13 +907,13 @@ void SndSubConForm::btnAddToClicked()
 void SndSubConForm::btnRemoveToClicked()
 {
     QSqlQuery q;
-    QString s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_fsa)
-            .arg(fld_fsa_fid).arg(fid).arg(fld_fsa_sid).arg(sid);
+    QString s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_ssub)
+            .arg(fld_ssub_fid).arg(fid).arg(fld_ssub_nid).arg(sid);
     q.exec(s); q.first();
     int id = q.value(0).toInt();
     allSndSubs.remove(id);
     allSndSubLNames.remove(id);
-    s = QString("delete from %1 where id=%2").arg(tbl_fsa).arg(id);
+    s = QString("delete from %1 where id=%2").arg(tbl_ssub).arg(id);
     q.exec(s);
     ui.btnRomveTo->setEnabled(false);
     refreshMapList();
@@ -934,15 +934,15 @@ void SndSubConForm::btnAddClicked()
 {
     int row = sndModel->rowCount();
     sndModel->insertRow(row);
-    sndModel->setData(sndModel->index(row, SNDSUB_SUBNAME), tr("科目名"));
-    sndModel->setData(sndModel->index(row, SNDSUB_CALSS), 1);
+    sndModel->setData(sndModel->index(row, NI_NAME), tr("科目名"));
+    sndModel->setData(sndModel->index(row, NI_CALSS), 1);
     sndModel->submit();
     sndModel->select();
     mapper2->toLast();
 
     //将新增的二级科目添加到lstSnd
     int id = sndModel->data(sndModel->index(row, 0)).toInt();
-    QString sname = sndModel->data(sndModel->index(row, SNDSUB_SUBNAME)).toString();
+    QString sname = sndModel->data(sndModel->index(row, NI_NAME)).toString();
     QListWidgetItem* item = new QListWidgetItem(sname);
     item->setData(Qt::UserRole, id);
     ui.lstSnd->addItem(item);
@@ -987,20 +987,20 @@ void SndSubConForm::btnSaveClicked()
     int isDetByMt;
 
     //首先检查在FSAgent表中是否已存在指定的一二级科目的对应关系条目
-    s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_fsa)
-            .arg(fld_fsa_fid).arg(fid).arg(fld_fsa_sid).arg(sid);
+    s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_ssub)
+            .arg(fld_ssub_fid).arg(fid).arg(fld_ssub_nid).arg(sid);
     if(q.exec(s) && q.first()){
         int id = q.value(0).toInt();
         //这里还没有考虑保存启用状态等信息
         s = QString("update %1 set %2='%3',%4=%5 where id=%6")
-                .arg(tbl_fsa).arg(fld_fsa_code).arg(subCode)
-                .arg(fld_fsa_weight).arg(weight).arg(id);
+                .arg(tbl_ssub).arg(fld_ssub_code).arg(subCode)
+                .arg(fld_ssub_weight).arg(weight).arg(id);
         r = q.exec(s);
     }
     else{
         s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,%9,'%10',%11,1,%12)")
-                .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_code)
-                .arg(fld_fsa_weight).arg(fld_fsa_enable).arg(fld_fsa_creator)
+                .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+                .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_creator)
                 .arg(fid).arg(sid).arg(subCode).arg(weight).arg(curUser->getUserId());
         r = q.exec(s);
     }
@@ -1019,8 +1019,8 @@ void SndSubConForm::refreshMapList()
 //                        "(FSAgent.fid = %1)").arg(fid);
     QString s = QString("select %1.%2,%1.%3,%1.%4,%1.%5, %6.%7 from %1 join %6 "
                         "where %1.%3 = %6.id and %1.%2 = %8")
-            .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_code)
-            .arg(fld_fsa_weight).arg(tbl_ssub).arg(fld_ssub_name).arg(fid);
+            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+            .arg(fld_ssub_weight).arg(tbl_nameItem).arg(fld_ni_name).arg(fid);
     //刷新所属关系列表
     mapModel->setQuery(s);
     int c = mapModel->rowCount();

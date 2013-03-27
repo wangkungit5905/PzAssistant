@@ -10,6 +10,7 @@
 #include "completsubinfodialog.h"
 #include "delegates2.h"
 #include "tables.h"
+#include "subject.h"
 
 ActionEditTableView::ActionEditTableView(QWidget* parent):QTableView(parent)
 {
@@ -289,15 +290,15 @@ QString BASummaryItem::genQuoteInfo() const
                 .append(bankNums);
     if(oppoSubject != 0)
         s.append("\n").append(QObject::tr("对方科目："))
-                .append(subManager->getFstSubName(oppoSubject));
+                .append(subManager->getFstSubject(oppoSubject)->getName());
 
     return s;
 }
 
 
 ///////////////////////////////BAFstSubItem///////////////////////////////
-BAFstSubItem::BAFstSubItem(int subId, SubjectManager* subMgr,
-                           int type) : QTableWidgetItem(type)
+BAFstSubItem::BAFstSubItem(int subId, SubjectManager* subMgr,int type) :
+    QTableWidgetItem(type)
 {
     this->subId = subId;
     subManager = subMgr;
@@ -307,8 +308,13 @@ QVariant BAFstSubItem::data(int role) const
 {
     if (role == Qt::TextAlignmentRole)
         return (int)Qt::AlignCenter;
-    if(role == Qt::DisplayRole)
-        return subManager->getFstSubName(subId);
+    if(role == Qt::DisplayRole){
+        FirstSubject* fsub = subManager->getFstSubject(subId);
+        if(fsub)
+            return fsub->getName();
+        else
+            return "";
+    }
     if(role == Qt::EditRole)
         return subId;
     return QTableWidgetItem::data(role);
@@ -329,8 +335,12 @@ BASndSubItem::BASndSubItem(int subId, QHash<int,QString>* subNames, QHash<int,QS
     this->subId = subId;
     this->subNames = subNames;
     this->subLNames = subLNames;
-    //初始化银行账号表
-    BusiUtil::readAllBankAccont(bankAccounts);
+    //初始化银行账号表（以后再解决）
+//    foreach(BankAccount* ba, curAccount->getAllBankAccount()){
+//        bankAccounts[ba->subId] = ba->
+//    }
+
+
 }
 
 QVariant BASndSubItem::data(int role) const
@@ -340,9 +350,9 @@ QVariant BASndSubItem::data(int role) const
     if(role == Qt::ToolTipRole){
         QString tip = subLNames->value(subId);
         if(bankAccounts.contains(subId)){
-            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(bankAccounts.value(subId)->accNum));
+            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(bankAccounts.value(subId)->accNumber));
             tip.append(QObject::tr("是否基本户："));
-            if(bankAccounts.value(subId)->isMain)
+            if(bankAccounts.value(subId)->bank->isMain)
                 tip.append(QObject::tr("是"));
             else
                 tip.append(QObject::tr("否"));
@@ -599,9 +609,9 @@ void ActionEditTableWidget::newSndSubMapping(int pid, int sid,
     else
         ok = false;
 
-    SubjectManager* sm = curAccount->getSubjectManager();
+    SubjectManager* sm = curAccount->getSubjectManager();   //这个也要修改
     s = QString(QObject::tr("确定要在一级科目“%1”下创建二级科目“%2”吗？")
-                           .arg(sm->getFstSubName(pid)).arg(sname));
+                           .arg(sm->getFstSubject(pid)->getName()).arg(sname));
     if(!reqConfirm || (QMessageBox::Yes == QMessageBox::question(0,
         QObject::tr("确认消息"), s, QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes))){
         int id;
@@ -627,7 +637,7 @@ void ActionEditTableWidget::newSndSubAndMapping(int fid, QString name, int row, 
 {
     SubjectManager* sm = curAccount->getSubjectManager();
     QString s = tr("确认需要创建新的二级科目“%1”，并建立与一级科目“%2”的对应关系吗？")
-            .arg(name).arg(sm->getFstSubName(fid));
+            .arg(name).arg(sm->getFstSubject(fid)->getName());
     if(QMessageBox::Yes ==
             QMessageBox::question(this,tr("确认消息"),s,QMessageBox::Yes | QMessageBox::No,
                                   QMessageBox::Yes)){
@@ -882,15 +892,15 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
                         //        "SecSubjects.id = FSAgent.sid where fid = %1").arg(pid);
                         s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on "
                                 "%1.id = %4.%5 where %6=%7")
-                                .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_remcode)
-                                .arg(tbl_fsa).arg(fld_fsa_sid).arg(fld_fsa_fid).arg(pid);
+                                .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_remcode)
+                                .arg(tbl_ssub).arg(fld_ssub_nid).arg(fld_ssub_fid).arg(pid);
                     else
                         //s = "select SecSubjects.subName,SecSubjects.remCode,"
                         //        "FSAgent.id from SecSubjects join FSAgent on "
                         //        "SecSubjects.id = FSAgent.sid";
                         s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on %1.id = %4.%5")
-                                .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_remcode)
-                                .arg(tbl_fsa).arg(fld_fsa_fid);
+                                .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_remcode)
+                                .arg(tbl_ssub).arg(fld_ssub_fid);
 
                     m.setQuery(s);
                 }

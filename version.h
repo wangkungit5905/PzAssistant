@@ -151,12 +151,15 @@ private slots:
 
     void on_btnStart_clicked();
 
+    void on_btnClose_clicked();
+
 private:
     void initConf();
     void initAcc();
     void init();
     void close();
 
+    bool closeBtnState; //关闭按钮状态（初始时，它显示为“取消”对应值为false，当更新完成后显示为关闭，对应值为true）
     ModuleType mt;
     QString fileName;   //数据库文件名
     bool upgradeResult; //升级结果（true：成功，flase：失败）

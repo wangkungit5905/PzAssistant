@@ -9,6 +9,7 @@
 #include "dbutil.h"
 #include "logs/Logger.h"
 #include "version.h"
+#include "subject.h"
 
 QSqlDatabase* Account::db;
 
@@ -17,25 +18,14 @@ Account::Account(QString fname)
     curPzSet = NULL;
 	isReadOnly = false;
     accInfos.fileName = fname;
-    dbUtil = new DbUtil;
-    if(!dbUtil->setFilename(fname)){
-        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
-                      QObject::tr("Can't connect to account file!"));
-        return;
-    }
-    if(!dbUtil->initAccount(accInfos)){
-        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
-                      QObject::tr("Account init happen error!"));
-        return;
-    }
-    subMng = new SubjectManager(subType,*db);
-
+    if(!init())
+        QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("账户在初始化时发生错误！"));
 
 }
 
 Account::~Account()
 {
-    delete subMng;
+    qDeleteAll(smgs);
 }
 
 bool Account::isValid()
@@ -274,6 +264,19 @@ void Account::colsePzSet()
     curPzSet = NULL;
 }
 
+/**
+ * @brief Account::getSubjectManager
+ *  返回指定科目系统的科目管理器对象
+ * @param subSys
+ * @return
+ */
+SubjectManager *Account::getSubjectManager(int subSys)
+{
+    if(!smgs.contains(subSys))
+        smgs[subSys] = new SubjectManager(this,subSys);
+    return smgs.value(subSys);
+}
+
 void Account::setDatabase(QSqlDatabase *db)
 {Account::db=db;}
 
@@ -286,6 +289,33 @@ void Account::setDatabase(QSqlDatabase *db)
  */
 bool Account::init()
 {
+    dbUtil = new DbUtil;
+    if(!dbUtil->setFilename(accInfos.fileName)){
+        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
+                      QObject::tr("Can't connect to account file!"));
+        return false;
+    }
+    if(!dbUtil->initAccount(accInfos)){
+        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
+                      QObject::tr("Account info init happen error!"));
+        return false;
+    }
+    if(!dbUtil->initMoneys(moneys)){
+        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
+                      QObject::tr("Money init happen error!"));
+        return false;
+    }
+    if(!dbUtil->initNameItems()){
+        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
+                      QObject::tr("Name items init happen error!"));
+        return false;
+    }
+    if(!dbUtil->initBanks(this)){
+        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
+                      QObject::tr("Bank init happen error!"));
+        return false;
+    }
+    return true;
 }
 
 

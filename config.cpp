@@ -482,6 +482,41 @@ int AppConfig::addAccountInfo(QString code, QString aName, QString lName, QStrin
 }
 
 /**
+ * @brief AppConfig::getSpecSubCode
+ *  获取程序中要特别辨识的科目代码（因为在程序中对这些科目有专门的处理功能）
+ * @param subSys    科目系统代码
+ * @param witch     指代哪个科目
+ * @return
+ */
+QString AppConfig::getSpecSubCode(int subSys, AppConfig::SpecSubCode witch)
+{
+    //目前为了简化，将硬编码实现
+    switch(witch){
+    case SSC_CASH:
+        return "1001";
+    case SSC_BANK:
+        return "1002";
+    case SSC_CWFY:
+        return "5503";
+    case SSC_BNLR:
+        return "3131";
+    case SSC_LRFP:
+        return "3141";
+    }
+}
+
+/**
+ * @brief AppConfig::setSpecSubCode
+ * @param subSys
+ * @param witch
+ * @param code
+ */
+void AppConfig::setSpecSubCode(int subSys, AppConfig::SpecSubCode witch, QString code)
+{
+    //待以后决定了如何保存这些特别科目的机制后，再实现
+}
+
+/**
  * @brief AppConfig::getLocalMid
  *  获取本机ID标识
  * @return 0：出错，比如没有找到isLocal字段为1的记录

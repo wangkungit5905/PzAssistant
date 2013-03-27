@@ -15,10 +15,13 @@
 
 #include "commdatastruct.h"
 #include "common.h"
-#include "subjectmanager.h"
+
 //#include "cal.h"
 
 #define INITROWS 50  //显示业务活动的表格的初始空白行数
+
+
+class SubjectManager;
 
 //显示和编辑凭证内的业务活动列表的表格视图类
 class ActionEditTableView : public QTableView

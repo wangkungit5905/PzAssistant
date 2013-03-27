@@ -4,6 +4,7 @@
 #include "tables.h"
 #include "utils.h"
 #include "securitys.h"
+#include "subject.h"
 
 
 QSet<int> BusiUtil::pset; //具有正借负贷特性的一级科目id集合
@@ -363,7 +364,7 @@ bool BusiUtil::init()
         else
             inIds.insert(fid);
         s = QString("select id from %1 where %2 = %3")
-                .arg(tbl_fsa).arg(fld_fsa_fid).arg(fid);
+                .arg(tbl_ssub).arg(fld_ssub_fid).arg(fid);
         if(!q2.exec(s))
             return false;
         while(q2.next()){
@@ -603,8 +604,8 @@ bool BusiUtil::getSidByName(QString fname, QString sname, int &id, int subSys)
             return false;
         s = QString("select %1.id from %1 join %2 where "
                     "(%1.%3=%2.id) and (%1.%4=%5) "
-                    "and (%2.%6='%7')").arg(tbl_fsa).arg(tbl_ssub).arg(fld_fsa_sid)
-                .arg(fld_fsa_fid).arg(fid).arg(fld_ssub_name).arg(sname);
+                    "and (%2.%6='%7')").arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ssub_nid)
+                .arg(fld_ssub_fid).arg(fid).arg(fld_ni_name).arg(sname);
         if(!q.exec(s))
             return false;
         if(!q.first())
@@ -760,7 +761,7 @@ bool BusiUtil::getAllSubSName(QHash<int,QString>& names)
 
     s = QString("select %1.id,%2.%3 from %1 "
                 "join %2 where %1.%4 = %2.id")
-            .arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_name).arg(fld_fsa_sid);
+            .arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ssub_nid);
     if(!q.exec(s)){
         QMessageBox::information(0, QObject::tr("提示信息"),
                                  QString(QObject::tr("不能获取所有子科目哈希表")));
@@ -785,7 +786,7 @@ bool BusiUtil::getAllSndSubNameList(QStringList& names)
 {
     QSqlQuery q;
     QString s = QString("select %1 from %2 order by %3")
-            .arg(fld_ssub_name).arg(tbl_ssub).arg(fld_ssub_lname);
+            .arg(fld_ni_name).arg(tbl_nameItem).arg(fld_ni_lname);
     if(!q.exec(s))
         return false;
     while(q.next())
@@ -803,7 +804,7 @@ bool BusiUtil::getAllSubSCode(QHash<int, QString> &codes)
 {
     QSqlQuery q;
     QString s = QString("select %1.id,%1.%2 from %1 join %3 where %1.%4 = %3.id")
-            .arg(tbl_fsa).arg(fld_fsa_code).arg(tbl_ssub).arg(fld_fsa_sid);
+            .arg(tbl_ssub).arg(fld_ssub_code).arg(tbl_nameItem).arg(fld_ssub_nid);
     if(!q.exec(s)){
         QMessageBox::information(0, QObject::tr("提示信息"),
                                  QString(QObject::tr("不能获取所有子科目哈希表")));
@@ -845,7 +846,7 @@ bool BusiUtil::getAllSubSLName(QHash<int,QString>& names)
 
         s = QString("select %1.id,%2.%3 from %1 "
                     "join %2 where %1.%4 = %2.id")
-                .arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_lname).arg(fld_fsa_sid);
+                .arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ni_lname).arg(fld_ssub_nid);
         if(!q.exec(s)){
             QMessageBox::information(0, QObject::tr("提示信息"),
                                      QString(QObject::tr("不能获取所有子科目全名的哈希表")));
@@ -926,10 +927,10 @@ bool BusiUtil::getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& name
     s = QString("select %1.id, %2.%3 from %1 "
                 "join %2 where %1.%4 = %2.id "
                 "and %1.%5 = %6")
-            .arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_name).arg(fld_fsa_sid)
-            .arg(fld_fsa_fid).arg(pid);
+            .arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ssub_nid)
+            .arg(fld_ssub_fid).arg(pid);
     if(!isAll)
-        s.append(QString(" and %1.%2=1").arg(tbl_fsa).arg(fld_fsa_enable));
+        s.append(QString(" and %1.%2=1").arg(tbl_ssub).arg(fld_ssub_enable));
     if(!q.exec(s))
         return false;
     while(q.next()){
@@ -950,8 +951,8 @@ bool BusiUtil::getOwnerSub(int oid, QHash<int, QString> &names)
 {
     QSqlQuery q;
     QString s = QString("select %1.id,%2.%3 from %1 join %2 where %1.%4 = %2.id "
-                "and %1.%5 = %6").arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_name)
-                .arg(fld_fsa_sid).arg(fld_fsa_fid).arg(oid);
+                "and %1.%5 = %6").arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ni_name)
+                .arg(fld_ssub_nid).arg(fld_ssub_fid).arg(oid);
     if(!q.exec(s))
         return false;
     while(q.next())
@@ -1021,8 +1022,8 @@ bool BusiUtil::getDefaultSndSubs(QHash<int,int>& defSubs, int subSys)
         return false;
     while(q1.next()){
         fid = q1.value(0).toInt();
-        s = QString("select id,%1 from %2 where %3=%4").arg(fld_fsa_weight)
-                .arg(tbl_fsa).arg(fld_fsa_fid).arg(fid);
+        s = QString("select id,%1 from %2 where %3=%4").arg(fld_ssub_weight)
+                .arg(tbl_ssub).arg(fld_ssub_fid).arg(fid);
         if(!q2.exec(s))
             return false;
         fs=id=0;
@@ -1056,7 +1057,7 @@ bool BusiUtil::getSidToFid(QHash<int, int> &sidToFids, int subSys)
     QList<int> fids;
     while(q.next())
         fids<<q.value(0).toInt();
-    s = QString("select id,%1 from %2").arg(fld_fsa_fid).arg(tbl_fsa);
+    s = QString("select id,%1 from %2").arg(fld_ssub_fid).arg(tbl_ssub);
     if(!q.exec(s))
         return false;
     int fid,id;
@@ -2152,8 +2153,8 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
     s = QString("select %1.id from %1 join %2 "
                 "where (%1.%3 = %2.id) and "
                 "(%1.%4 = %5) and (%2.%6 = '%7')")
-            .arg(tbl_fsa).arg(tbl_ssub).arg(fld_fsa_sid).arg(fld_fsa_fid)
-            .arg(bnlrId).arg(fld_ssub_name).arg(QObject::tr("结转"));
+            .arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ssub_nid).arg(fld_ssub_fid)
+            .arg(bnlrId).arg(fld_ni_name).arg(QObject::tr("结转"));
     if(!q.exec(s) || !q.first()){
         qDebug() << QObject::tr("不能获取”本年利润-结转“子账户");
         return false;
@@ -2178,7 +2179,7 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
     int num = 1; //业务活动在凭证内的序号
 
     Double iv, fv; //结转凭证的借贷合计值
-    SubjectManager* sm = curAccount->getSubjectManager();
+    SubjectManager* sm = curAccount->getSubjectManager(/*subSys*/); //这个要修改
 
     //结转收入类凭证的业务活动列表（这里的最内层循环也可以省略）
     for(int i = 0; i < iidLst.count(); ++i)
@@ -2194,8 +2195,8 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
                     bd1->fid = iidLst[i];
                     bd1->sid = sid;
                     bd1->summary = QObject::tr("结转（%1-%2）至本年利润")
-                            .arg(sm->getFstSubName(iidLst[i]))
-                            .arg(sm->getSndSubName(sid));
+                            .arg(sm->getFstSubject(iidLst.at(i))->getName())  //  ( sm->getFstSubName(iidLst[i]))
+                            .arg(sm->getSndSubject(sid)->getName());   //arg(sm->getSndSubName(sid));
                     bd1->mt = mts[k];
                     //结转收入类到本年利润，一般是损益类科目放在借方，本年利润放在贷方
                     //而且，损益类中收入类科目余额约定是贷方，故不做不做方向检测
@@ -2233,8 +2234,8 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
                     bd1->fid = fidLst[i];
                     bd1->sid = sid;
                     bd1->summary = QObject::tr("结转（%1-%2）至本年利润")
-                            .arg(sm->getFstSubName(fidLst[i]))
-                            .arg(sm->getSndSubName(sid));
+                            .arg(sm->getFstSubject(fidLst[i])->getName())
+                            .arg(sm->getSndSubject(sid)->getName());
                     bd1->mt = mts[k];
                     //结转费用类到本年利润，一般是损益类科目放在贷方，本年利润方在借方
                     //而且，损益类中费用类科目余额是约定在借方，故不做方向检测
@@ -2586,8 +2587,8 @@ bool BusiUtil::newFstToSnd(int fid, int sid, int& id)
 {
     QSqlQuery q;
     QString s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,1,1)")
-            .arg(tbl_fsa).arg(fld_fsa_fid).arg(fld_fsa_sid).arg(fld_fsa_weight)
-            .arg(fld_fsa_enable).arg(fid).arg(sid);
+            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_weight)
+            .arg(fld_ssub_enable).arg(fid).arg(sid);
     if(!q.exec(s))
         return false;
     s = QString("select last_insert_rowid()");
@@ -2616,8 +2617,8 @@ bool BusiUtil::newSndSubAndMapping(int fid, int& id, QString name,QString lname,
     QSqlQuery q;
     //在SecSubject表中创建新二级科目名称前，不进行检测是因为调用此函数前已经进行了相应的检测
     QString s = QString("insert into %1(%2,%3,%4,%5) values('%6','%7','%8',%9)")
-            .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_lname).arg(fld_ssub_remcode)
-            .arg(fld_ssub_class).arg(name).arg(lname).arg(remCode).arg(clsCode);
+            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(fld_ni_remcode)
+            .arg(fld_ni_class).arg(name).arg(lname).arg(remCode).arg(clsCode);
     id = 0;
     if(!q.exec(s))
         return false;
@@ -2644,7 +2645,7 @@ bool BusiUtil::getFstToSnd(int fid, int sid, int& id)
 {
     QSqlQuery q;
     QString s = QString("select id from %1 where %2 = %3 and %4 = %5")
-            .arg(tbl_fsa).arg(fld_fsa_fid).arg(fid).arg(fld_fsa_sid).arg(sid);
+            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fid).arg(fld_ssub_nid).arg(sid);
     if(!q.exec(s))
         return false;
     if(!q.first()){
@@ -2666,7 +2667,7 @@ bool BusiUtil::isSndSubDisabled(int id, bool &enabled)
 {
     QSqlQuery q;
     QString s = QString("select %1 from %2 where id=%3")
-            .arg(fld_fsa_enable).arg(tbl_fsa).arg(id);
+            .arg(fld_ssub_enable).arg(tbl_ssub).arg(id);
     if(!q.exec(s))
         return false;
     if(!q.first())
@@ -2688,8 +2689,8 @@ bool BusiUtil::getSndSubNameForId(int id, QString& name, QString& lname)
     QSqlQuery q;
     QString s = QString("select %1.%2,%1.%3 from %4 join %1 "
                 "where (%1.id = %4.%5) and (%4.id = %6)")
-            .arg(tbl_ssub).arg(fld_ssub_name).arg(fld_ssub_lname).arg(tbl_fsa)
-            .arg(fld_fsa_sid).arg(id);
+            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(tbl_ssub)
+            .arg(fld_ssub_nid).arg(id);
     if(!q.exec(s))
         return false;
     if(q.first()){
@@ -3221,7 +3222,7 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
            .arg(tbl_fsub).arg(fld_fsub_isview));
     while(q.next())
         fids << q.value(0).toInt();
-    q.exec(QString("select id from %1").arg(tbl_fsa));
+    q.exec(QString("select id from %1").arg(tbl_ssub));
     while(q.next())
         sids << q.value(0).toInt();
 
@@ -3417,7 +3418,7 @@ bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
     fids = fldNames.keys();
     for(int i = 0; i < fids.count(); ++i){
         s = QString("select id from %1 where fid=%2")
-                .arg(tbl_fsa).arg(fids[i]);
+                .arg(tbl_ssub).arg(fids[i]);
         if(!q.exec(s))
             return false;
         while(q.next())
@@ -4725,8 +4726,8 @@ bool BusiUtil::getOutMtInBank(QList<int>& ids, QList<int>& mt)
         return false;    
     s = QString("select %1.id, %2.%3 from %1 join %2 "
                 "where (%1.%4 = %2.id) and (%1.%5 = %6)")
-            .arg(tbl_fsa).arg(tbl_ssub).arg(fld_ssub_name).arg(fld_fsa_sid)
-            .arg(fld_fsa_fid).arg(bankId);
+            .arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ssub_nid)
+            .arg(fld_ssub_fid).arg(bankId);
     if(!q.exec(s))
         return false;
     int id,idx;
@@ -4804,7 +4805,7 @@ bool BusiUtil::getSNameForId(int sid, QString& name, QString& lname)
 {
     QSqlQuery q;
     QString s = QString("select %1,%2 from %3 where id = %4")
-            .arg(fld_ssub_name).arg(fld_ssub_lname).arg(tbl_ssub).arg(sid);
+            .arg(fld_ni_name).arg(fld_ni_lname).arg(tbl_nameItem).arg(sid);
     if(!q.exec(s))
         return false;
     if(q.first()){
@@ -4857,55 +4858,55 @@ bool BusiUtil::saveAccInfo(AccountBriefInfo* accInfo)
 }
 
 //读取银行帐号
-bool BusiUtil::readAllBankAccont(QHash<int,BankAccount*>& banks)
-{
-    QSqlQuery q;
-    QString s, accNum;
-    int id;
+//bool BusiUtil::readAllBankAccont(QHash<int,BankAccount*>& banks)
+//{
+//    QSqlQuery q;
+//    QString s, accNum;
+//    int id;
 
-    QList<int> bankIds,mtIds;
-    QHash<int,bool> isMains;
-    QStringList bankNames,mtNames;
-    s = "select id,IsMain,name from Banks";
-    q.exec(s);
-    while(q.next()){
-        id = q.value(0).toInt();
-        bankIds << id;
-        bankNames << q.value(2).toString();
-        isMains[id] = q.value(1).toBool();
-    }
+//    QList<int> bankIds,mtIds;
+//    QHash<int,bool> isMains;
+//    QStringList bankNames,mtNames;
+//    s = "select id,IsMain,name from Banks";
+//    q.exec(s);
+//    while(q.next()){
+//        id = q.value(0).toInt();
+//        bankIds << id;
+//        bankNames << q.value(2).toString();
+//        isMains[id] = q.value(1).toBool();
+//    }
 
-    s = "select code,name from MoneyTypes";
-    q.exec(s);
-    while(q.next()){
-        mtIds << q.value(0).toInt();
-        mtNames << q.value(1).toString();
-    }
-    for(int i = 0; i < bankIds.count(); ++i)
-        for(int j = 0; j < mtIds.count(); ++j){
-            s = QString("select accNum from BankAccounts where (bankId=%1) and "
-                        "(mtID=%2)").arg(bankIds[i]).arg(mtIds[j]);
-            if(!q.exec(s))
-                return false;
-            if(!q.first())
-                return true;
-            accNum = q.value(0).toString();
-            s = QString("select %1.id from %1 join %2 on %1.%3 = %2.id where %2.%4='%5'")
-                    .arg(tbl_fsa).arg(tbl_ssub).arg(fld_fsa_sid).arg(fld_ssub_name)
-                    .arg(QString("%1-%2").arg(bankNames[i]).arg(mtNames[j]));
-            if(!q.exec(s))
-                return false;
-            if(q.first()){
-                BankAccount* ba = new BankAccount;
-                ba->accNum = accNum;
-                ba->isMain = isMains.value(bankIds[i]);
-                ba->mt = mtIds[j];
-                ba->name = QString("%1-%2").arg(bankNames[i]).arg(mtNames[j]);
-                banks[q.value(0).toInt()] = ba;
-            }
-        }
-    return true;
-}
+//    s = "select code,name from MoneyTypes";
+//    q.exec(s);
+//    while(q.next()){
+//        mtIds << q.value(0).toInt();
+//        mtNames << q.value(1).toString();
+//    }
+//    for(int i = 0; i < bankIds.count(); ++i)
+//        for(int j = 0; j < mtIds.count(); ++j){
+//            s = QString("select accNum from BankAccounts where (bankId=%1) and "
+//                        "(mtID=%2)").arg(bankIds[i]).arg(mtIds[j]);
+//            if(!q.exec(s))
+//                return false;
+//            if(!q.first())
+//                return true;
+//            accNum = q.value(0).toString();
+//            s = QString("select %1.id from %1 join %2 on %1.%3 = %2.id where %2.%4='%5'")
+//                    .arg(tbl_fsa).arg(tbl_nameItem).arg(fld_fsa_nid).arg(fld_ni_name)
+//                    .arg(QString("%1-%2").arg(bankNames[i]).arg(mtNames[j]));
+//            if(!q.exec(s))
+//                return false;
+//            if(q.first()){
+//                BankAccount* ba = new BankAccount;
+//                ba->accNumber = accNum;
+//                ba->bank->isMain = isMains.value(bankIds[i]);
+//                ba->mt = mtIds[j];
+//                ba->name = QString("%1-%2").arg(bankNames[i]).arg(mtNames[j]);
+//                banks[q.value(0).toInt()] = ba;
+//            }
+//        }
+//    return true;
+//}
 
 
 /**
@@ -5306,7 +5307,7 @@ bool BusiUtil::isAccMtS(int sid)
 {
     QSqlQuery q;
     QString s = QString("select %1 from %2 where id=%3")
-            .arg(fld_fsa_fid).arg(tbl_fsa).arg(sid);
+            .arg(fld_ssub_fid).arg(tbl_ssub).arg(sid);
     if(!q.exec(s) || !q.first())
         return false;
     else{

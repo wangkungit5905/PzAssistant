@@ -30,6 +30,7 @@
 #include "dbutil.h"
 #include "logs/logview.h"
 #include "version.h"
+#include "subject.h"
 
 #include "completsubinfodialog.h"
 
@@ -464,7 +465,7 @@ void MainWindow::accountInit()
     BusiUtil::getIdByCode(subYsId, "1131");
     BusiUtil::getIdByCode(subYfId, "2121");
     SubjectManager* sm = curAccount->getSubjectManager();
-    subCashRmbId = sm->getCashRmbSid();
+    subCashRmbId = sm->getCashSub()->getId();
     //BusiUtil::getSidByName(allFstSubs.value(subCashId), tr("人民币"), subCashRmbId);
     //BusiUtil::getGdzcSubClass(allGdzcSubjectCls);
     Gdzc::getSubClasses(allGdzcSubjectCls);

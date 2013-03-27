@@ -7,6 +7,55 @@
 #include "cal.h"
 #include "securitys.h"
 
+//通用项目编辑状态
+enum CommonItemEditState{
+    CIES_PENDING  = -1,    //未决的（比如数据库表中还没有与此对象对应的记录）
+    CIES_INIT     = 0,     //初始的（从数据库表中读取并创建该对象后未做更改）
+    CIES_NEW      = 1,     //新增的（对象是新增的，但在数据库表中已存在对应记录）
+    CIES_CHANGED  = 2,     //改变了
+    CIES_DELETED  = 3,     //删除了
+    CIES_DELETEDAFTERCHANGED = 4 //修改后被删除
+};
+
+//名称条目编辑状态
+enum NameItemEditState{
+    ES_NI_INIT = 0x0,       //未做任何修改
+    ES_NI_CLASS = 0x01,     //名称条目类别改变
+    ES_NI_SNAME = 0x02,     //名称条目的基本信息被修改
+    ES_NI_LNAME = 0x04,     //名称条目的子目被修改
+    ES_NI_SYMBOL = 0x08     //名称条目助记符
+};
+Q_DECLARE_FLAGS(NameItemEditStates, NameItemEditState)
+Q_DECLARE_OPERATORS_FOR_FLAGS(NameItemEditStates)
+
+//一级科目编辑状态
+enum FirstSubjectEditState{
+    ES_FS_INIT      = 0x0,      //未做任何修改
+    ES_FS_CODE      = 0x01,     //科目代码
+    ES_FS_SYMBOL    = 0x02,     //助记符
+    ES_FS_CLASS     = 0x04,     //科目所属类别
+    ES_FS_JDDIR     = 0x08,     //记账方向
+    ES_FS_ISENABLED = 0x10,     //是否启用
+    ES_FS_ISUSEWB   = 0x20,     //是否使用外币
+    ES_FS_WEIGHT    = 0x40,     //权重
+    ES_FS_NAME      = 0x80,     //科目名称
+    ES_FS_DESC      = 0x100,    //简要描述
+    ES_FS_USAGE     = 0x200,    //用例说明
+    ES_FS_CHILD     = 0x400     //从属的二级科目
+};
+Q_DECLARE_FLAGS(FirstSubjectEditStates, FirstSubjectEditState)
+Q_DECLARE_OPERATORS_FOR_FLAGS(FirstSubjectEditStates)
+
+//二级科目编辑状态
+enum SecondSubjectEditState{
+    ES_SS_INIT = 0x0,       //未做任何修改
+    ES_SS_CODE = 0x01,      //二级科目的基本信息被修改
+    ES_SS_WEIGHT = 0x02,    //二级科目的子目被修改
+    ES_SS_ISENABLED = 0x04  //是否启用
+};
+Q_DECLARE_FLAGS(SecondSubjectEditStates, SecondSubjectEditState)
+Q_DECLARE_OPERATORS_FOR_FLAGS(SecondSubjectEditStates)
+
 //金额方向枚举
 enum MoneyDirection{
     MDIR_J  =   1,
@@ -48,11 +97,28 @@ enum PzClass{
 };
 
 //银行账户
+//struct BankAccount{
+//    bool isMain;     //是否基本户
+//    QString name;    //账户名（由银行名-币种名组成）
+//    int mt;          //币种
+//    QString accNum;  //帐号
+//};
+
+struct Bank{
+    int id;
+    bool isMain;    //是否基本户
+    QString name,lname; //简称和全称
+};
+
+class SubjectNameItem;
+
 struct BankAccount{
-    bool isMain;     //是否基本户
-    QString name;    //账户名（由银行名-币种名组成）
-    int mt;          //币种
-    QString accNum;  //帐号
+    CommonItemEditState editState;
+    int id;
+    Bank* bank;             //账户所属银行对象
+    Money* mt;              //该账户所对应的币种
+    QString accNumber;      //帐号
+    SubjectNameItem* niObj; //对应的名称条目对象
 };
 
 //保存日记账表格行数据的结构

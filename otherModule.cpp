@@ -749,7 +749,7 @@ bool Dtfy::genImpPzData(int y,int m,QList<PzData*> pzds, User* user, QSqlDatabas
     //获取待摊费用类别到对应子目的id的映射
     SubjectManager* sm = curAccount->getSubjectManager();
     QHash<int,int> subMaps;
-    sm->getDtfySubIds(subMaps);
+    //sm->getDtfySubIds(subMaps); //本函数未实现，因为新科目系统不再使用待摊费用
 
     double sum = 0; //凭证的借贷方合计值
     int tid,dfid,dsid;      //待摊费用类别、贷方主子科目id

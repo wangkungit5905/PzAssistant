@@ -15,6 +15,7 @@
 #include "utils.h"
 #include "global.h"
 #include "pz.h"
+#include "subject.h"
 
 
 //tem
@@ -1134,11 +1135,11 @@ DtfyAdminDialog::DtfyAdminDialog(QByteArray *sinfo, QSqlDatabase db, QWidget *pa
     //装载贷方主目
     SubjectManager* sm = curAccount->getSubjectManager();
     int cashId,bankId;
-    cashId = sm->getCashId();
-    bankId = sm->getBankId();
+    cashId = sm->getCashSub()->getId();
+    bankId = sm->getBankSub()->getId();
     ui->cmbFsub->addItem("",0);
-    ui->cmbFsub->addItem(sm->getFstSubName(cashId),cashId);
-    ui->cmbFsub->addItem(sm->getFstSubName(bankId),bankId);
+    ui->cmbFsub->addItem(sm->getFstSubject(cashId)->getName(),cashId);
+    ui->cmbFsub->addItem(sm->getFstSubject(bankId)->getName(),bankId);
     QList<int> ids;
     QList<QString> names;
     BusiUtil::getSndSubInSpecFst(subCashId,ids,names);
@@ -1519,8 +1520,8 @@ void DtfyAdminDialog::preview(QString title,QString d,QList<Dtfy::BaItemData*> d
     foreach(Dtfy::BaItemData* ba,datas){
         //列：摘要、一级科目、二级科目、币种、借方、贷方
         items<<new QStandardItem(ba->summary);
-        items<<new QStandardItem(sm->getFstSubName(ba->fid));
-        items<<new QStandardItem(sm->getSndSubName(ba->sid));
+        items<<new QStandardItem(sm->getFstSubject(ba->fid)->getName());
+        items<<new QStandardItem(sm->getSndSubject(ba->sid)->getName());
         items<<new QStandardItem(allMts.value(ba->mt));
         if(ba->dir == DIR_J)
             items<<new ApStandardItem(ba->v)<<NULL;
@@ -2788,8 +2789,8 @@ void ShowTZDialog::printCommon(PrintTask task, QPrinter* printer)
     PrintTemplateTz* pt = new PrintTemplateTz(m,thv,&colw);
     SubjectManager* sm = curAccount->getSubjectManager();
     pt->setMasteMt(allMts.value(RMB));
-    pt->setSubName(tr("%1（%2）").arg(sm->getFstSubName(fid))
-                   .arg(sm->getFstSubCode(fid)));
+    pt->setSubName(tr("%1（%2）").arg(sm->getFstSubject(fid)->getName())
+                   .arg(sm->getFstSubject(fid)->getCode()));
     pt->setAccountName(curAccount->getLName());
     pt->setCreator(curUser->getName());
     pt->setPrintDate(QDate::currentDate());
@@ -5226,18 +5227,18 @@ void ShowDZDialog::renPageData(int pageNum, QList<int>*& colWidths, QStandardIte
     SubjectManager* sm = curAccount->getSubjectManager();
     if((pfids[pageNum-1] == subCashId) ||
         pfids[pageNum-1] == subBankId)
-        s = tr("%1日记账").arg(sm->getFstSubName(pfids[pageNum-1]));
+        s = tr("%1日记账").arg(sm->getFstSubject(pfids[pageNum-1])->getName());
     else
-        s = tr("%1明细账").arg(sm->getFstSubName(pfids[pageNum-1]));;
+        s = tr("%1明细账").arg(sm->getFstSubject(pfids[pageNum-1])->getName());;
     pt->setTitle(s);
     pt->setPageNum(subPageNum.value(pageNum));
     //pt->setMasteMt(allMts.value(RMB));
     //pt->setDateRange(cury,sm,em);
     //SubjectManager* sm = curAccount->getSubjectManager();
     s = tr("%1（%2）——（%3）")
-            .arg(sm->getFstSubName(pfids[pageNum-1]))
-            .arg(sm->getFstSubCode(pfids[pageNum-1]))
-            .arg(sm->getSndSubLName(psids[pageNum-1]));
+            .arg(sm->getFstSubject(pfids[pageNum-1])->getName())
+            .arg(sm->getFstSubject(pfids[pageNum-1])->getCode())
+            .arg(sm->getSndSubject(psids[pageNum-1])->getLName());
     pt->setSubName(s);
     //pt->setAccountName(curAccInfo->accLName);
     //pt->setCreator(curUser->getName());
@@ -5294,15 +5295,15 @@ void ShowDZDialog::printCommon(QPrinter* printer)
     if((fid != 0) && (sid != 0) && (mt != 0)){
         QString s;
         if((fid == subCashId) || (fid == subBankId))
-            s = tr("%1日记账").arg(smg->getFstSubName(fid));
+            s = tr("%1日记账").arg(smg->getFstSubject(fid)->getName());
         else
-            s = tr("%1明细账").arg(smg->getFstSubName(fid));
+            s = tr("%1明细账").arg(smg->getFstSubject(fid)->getName());
         pt->setTitle(s);
         pt->setMasteMt(allMts.value(RMB));
         pt->setDateRange(cury,sm,em);
-        s = tr("%1（%2）——（%3）").arg(smg->getFstSubName(fid))
-                .arg(smg->getFstSubCode(fid))
-                .arg(smg->getSndSubLName(sid));
+        s = tr("%1（%2）——（%3）").arg(smg->getFstSubject(fid)->getName())
+                .arg(smg->getFstSubject(fid)->getCode())
+                .arg(smg->getSndSubject(sid)->getLName());
         pt->setSubName(s);
         pt->setAccountName(curAccount->getLName());
         pt->setCreator(curUser->getName());
@@ -5553,9 +5554,9 @@ void HistoryPzDialog::updateContent()
             row = i;
         item = new ApStandardItem(datas[i]->summary,Qt::AlignLeft|Qt::AlignVCenter);
         l<<item;
-        item = new ApStandardItem(sm->getFstSubName(datas[i]->fid));
+        item = new ApStandardItem(sm->getFstSubject(datas[i]->fid)->getName());
         l<<item;
-        item = new ApStandardItem(sm->getSndSubName(datas[i]->sid));
+        item = new ApStandardItem(sm->getSndSubject(datas[i]->sid)->getName());
         l<<item;
         item = new ApStandardItem(allMts.value(datas[i]->mt));
         l<<item;
@@ -5748,7 +5749,7 @@ void LookupSubjectExtraDialog::refresh()
             for(int j = 0; j < mtLst.count(); ++j){
                 key = ids[i] * 10 + mtLst[j];
                 if(fsums.contains(key)){
-                    item = new ApStandardItem(sm->getFstSubName(ids[i]));
+                    item = new ApStandardItem(sm->getFstSubject(ids[i])->getName());
                     l<<item;
                     item = new ApStandardItem(allMts.value(mts[j]));
                     l<<item;
@@ -5948,8 +5949,8 @@ void AccountPropertyDialog::save(bool confirm)
             if(bLName)
                 account->setLName(ui->edtLName->text());
             if(bSubType){
-                SubjectManager::SubjectSysType subType;
-                subType = (SubjectManager::SubjectSysType)ui->cmbSubType->
+                SubjectManager1::SubjectSysType subType;
+                subType = (SubjectManager1::SubjectSysType)ui->cmbSubType->
                         itemData(ui->cmbSubType->currentIndex()).toInt();
                 account->setSubType(subType);
             }

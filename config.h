@@ -22,6 +22,14 @@ public:
         STRING  =  4
     };
 
+    enum SpecSubCode{
+        SSC_CASH    = 1,    //现金
+        SSC_BANK    = 2,    //银行
+        SSC_CWFY    = 3,    //财务费用
+        SSC_BNLR    = 4,    //本年利润
+        SSC_LRFP    = 5     //利润分配
+    };
+
 
     ~AppConfig();
 
@@ -35,6 +43,9 @@ public:
     bool readPzSetStates(QHash<PzsState,QString>& snames, QHash<PzsState,QString>& lnames);
     void setUsedReportType(int accId, int rt){}
     int addAccountInfo(QString code, QString aName, QString lName, QString filename);
+
+    QString getSpecSubCode(int subSys, SpecSubCode witch);
+    void setSpecSubCode(int subSys, SpecSubCode witch, QString code);
 
     int getLocalMid();
 

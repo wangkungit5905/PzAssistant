@@ -43,8 +43,8 @@ void SubjectSearchForm::attachDb(QSqlDatabase *db)
             this,SLOT(classChanged(int)));
     connect(ui->edtKeyWord,SIGNAL(editingFinished()),
             this,SLOT(keyWordEditingFinished()));
-    s = QString("select id,%1,%2,%3 from %4").arg(fld_ssub_name)
-            .arg(fld_ssub_lname).arg(fld_ssub_remcode).arg(tbl_ssub);
+    s = QString("select id,%1,%2,%3 from %4").arg(fld_ni_name)
+            .arg(fld_ni_lname).arg(fld_ni_remcode).arg(tbl_nameItem);
     model->setQuery(s,*db);
     ui->tview->setModel(model);
 }
@@ -79,14 +79,14 @@ void SubjectSearchForm::refresh()
 {
     QString fKey,fCode,keyWord,s;
     QSqlQuery q(*db);
-    s = QString("select id,%1,%2,%3 from %4").arg(fld_ssub_name)
-            .arg(fld_ssub_lname).arg(fld_ssub_remcode).arg(tbl_ssub);
+    s = QString("select id,%1,%2,%3 from %4").arg(fld_ni_name)
+            .arg(fld_ni_lname).arg(fld_ni_remcode).arg(tbl_nameItem);
     keyWord = ui->edtKeyWord->text();
     int code = ui->cmbClass->itemData(ui->cmbClass->currentIndex()).toInt();
     if(!keyWord.isEmpty())
-        fKey = QString("%1 like '%%2%'").arg(fld_ssub_name).arg(keyWord);
+        fKey = QString("%1 like '%%2%'").arg(fld_ni_name).arg(keyWord);
     if(code != 0)
-        fCode = QString("%1 = %2").arg(fld_ssub_class).arg(code);
+        fCode = QString("%1 = %2").arg(fld_ni_class).arg(code);
     if(!fKey.isEmpty() && code == 0)
         s.append(" where ").append(fKey);
     else if(fKey.isEmpty() && code != 0)

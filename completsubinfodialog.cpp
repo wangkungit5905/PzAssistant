@@ -26,8 +26,8 @@ CompletSubInfoDialog::CompletSubInfoDialog(int fid,QWidget *parent) : QDialog(pa
     else
         defClsName = tr("业务客户");
 
-    s = QString("select %1, %2 from %3").arg(fld_ssc_clscode)
-            .arg(fld_ssc_name).arg(tbl_ssclass);
+    s = QString("select %1, %2 from %3").arg(fld_nic_clscode)
+            .arg(fld_nic_name).arg(tbl_nameItemCls);
     bool r = q.exec(s);
     int idx,i = 0 ;
     if(r){

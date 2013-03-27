@@ -11,7 +11,9 @@
  *  提供对账户数据库的直接访问支持，所有其他的类要访问账户数据库，必须通过此类
  */
 
-#define AccConnName "Account"
+const QString AccConnName = "Account";
+
+class SubjectManager;
 
 class DbUtil
 {
@@ -41,6 +43,14 @@ public:
     bool readAccBriefInfo(AccountBriefInfo& info);
     bool initAccount(Account::AccountInfo& infos);
     bool saveAccountInfo(Account::AccountInfo &infos);
+
+    //科目相关
+    bool initNameItems();
+    bool initSubjects(SubjectManager* smg, int subSys);
+
+    //货币相关
+    bool initMoneys(QHash<int,Money*> &moneys);
+    bool initBanks(Account* account);
 
     //余额相关
     bool readExtraForPm(int y,int m, QHash<int,Double>& fsums,

@@ -7,6 +7,7 @@
 #include "tables.h"
 #include "common.h"
 #include "utils.h"
+#include "subject.h"
 
 InspectPzErrorThread::InspectPzErrorThread(int y, int m, QSqlDatabase db,
                                            QObject *parent):
@@ -244,12 +245,14 @@ bool InspectPzErrorThread::inspectDirEngage(int fsid, int dir, PzClass pzc, QStr
 {
     SubjectManager* sm = curAccount->getSubjectManager();
     if(pzc == Pzc_Hand){
-        if(sm->isSySubs(fsid)){
-            if(BusiUtil::isInSub(fsid) && dir == DIR_J){
+        if(sm->isSySubject(fsid)){
+            //if(BusiUtil::isInSub(fsid) && dir == DIR_J){
+            if(!sm->getFstSubject(fsid)->getJdDir() && dir == DIR_J){
                 eStr = tr("手工凭证中，收入类科目必须在贷方");
                 return false;
             }
-            else if(BusiUtil::isFeiSub(fsid) && dir == DIR_D){
+            //else if(BusiUtil::isFeiSub(fsid) && dir == DIR_D){
+            else if(sm->getFstSubject(fsid)->getJdDir() && dir == DIR_D){
                 eStr = tr("手工凭证中，费用类科目必须在借方");
                 return false;
             }
@@ -260,12 +263,13 @@ bool InspectPzErrorThread::inspectDirEngage(int fsid, int dir, PzClass pzc, QStr
             return true;
     }
     else if(pzc == Pzc_Jzhd_Bank || pzc == Pzc_Jzhd_Yf || pzc == Pzc_Jzhd_Ys){
-        if((fsid == sm->getBankId() || fsid == sm->getYsId() || fsid == sm->getYfId())
-                && dir == DIR_J){
+        //if((fsid == sm->getBankId() || fsid == sm->getYsId() || fsid == sm->getYfId())
+        //        && dir == DIR_J){
+        if(sm->getFstSubject(fsid)->isUseForeignMoney() && (dir == DIR_J)){
             eStr = tr("结转汇兑损益类凭证中，拟结转科目必须在贷方");
             return false;
         }
-        else if(fsid == sm->getCwfyId() && dir == DIR_D){
+        else if(fsid == sm->getCwfySub()->getId() && (dir == DIR_D)){
             eStr = tr("结转汇兑损益类凭证中，财务费用科目必须在借方");
             return false;
         }
@@ -273,11 +277,13 @@ bool InspectPzErrorThread::inspectDirEngage(int fsid, int dir, PzClass pzc, QStr
             return true;
     }
     else if(pzc == Pzc_JzsyIn){
-        if(BusiUtil::isInSub(fsid) && dir == DIR_D){
+        //if(BusiUtil::isInSub(fsid) && dir == DIR_D){
+        if(!sm->getFstSubject(fsid)->getJdDir() && dir == DIR_D){
             eStr = tr("结转收入的凭证中，收入类科目必须在借方");
             return false;
         }
-        else if(fsid == sm->getBnlrId() && dir == DIR_J){
+        //else if(fsid == sm->getBnlrId() && dir == DIR_J){
+        else if(fsid = sm->getBnlrSub()->getId() && dir == DIR_J){
             eStr = tr("结转收入的凭证中，本年利润必须在贷方");
             return false;
         }
@@ -285,11 +291,12 @@ bool InspectPzErrorThread::inspectDirEngage(int fsid, int dir, PzClass pzc, QStr
             return true;
     }
     else if(pzc == Pzc_JzsyFei){
-        if(BusiUtil::isFeiSub(fsid) && dir == DIR_J){
+        //if(BusiUtil::isFeiSub(fsid) && dir == DIR_J){
+        if(!sm->getFstSubject(fsid)->getJdDir() && dir == DIR_J){
             eStr = tr("结转费用的凭证中，费用类科目必须在贷方");
             return false;
         }
-        else if(fsid == sm->getBnlrId() && dir == DIR_D){
+        else if(fsid == sm->getBnlrSub()->getId() && dir == DIR_D){
             eStr = tr("结转费用的凭证中，本年利润必须在借方");
             return false;
         }
@@ -297,11 +304,11 @@ bool InspectPzErrorThread::inspectDirEngage(int fsid, int dir, PzClass pzc, QStr
             return true;
     }
     else if(pzc == Pzc_Jzlr){
-        if(fsid == sm->getBnlrId() && dir == DIR_D){
+        if(fsid == sm->getBnlrSub()->getId() && dir == DIR_D){
             eStr = tr("结转利润的凭证中，本年利润必须在借方");
             return false;
         }
-        else if(fsid == sm->getLrfpId() && dir == DIR_J){
+        else if(fsid == sm->getLrfpSub()->getId() && dir == DIR_J){
             return false;
             eStr = tr("结转利润的凭证中，利润分配必须在贷方");
         }

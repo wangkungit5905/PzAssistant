@@ -5,43 +5,43 @@
 #include "subjectmanager.h"
 #include "tables.h"
 
-SubjectManager::SubjectManager(SubjectSysType subSysType,QSqlDatabase db):
+SubjectManager1::SubjectManager1(SubjectSysType subSysType,QSqlDatabase db):
     subType(subSysType),db(db)
 {
     init();
 }
 
 //返回一级科目名
-QString SubjectManager::getFstSubName(int id)
+QString SubjectManager1::getFstSubName(int id)
 {
     return fstSubs.value(id);
 }
 
-QString SubjectManager::getFstSubCode(int id)
+QString SubjectManager1::getFstSubCode(int id)
 {
     return fstCodes.value(id);
 }
 
 //返回二级科目名（参数id为FSAgent表的id列）
-QString SubjectManager::getSndSubName(int id)
+QString SubjectManager1::getSndSubName(int id)
 {
     return sndNames[sndIdx.value(id)];
 }
 
 //返回二级科目全称
-QString SubjectManager::getSndSubLName(int id)
+QString SubjectManager1::getSndSubLName(int id)
 {
     return sndLNames[sndIdx.value(id)];
 }
 
 //获取现金主目下的人民币子目（应该表达为现金主目下对应母币的子目）
-int SubjectManager::getCashRmbSid()
+int SubjectManager1::getCashRmbSid()
 {
     QSqlQuery q(db);
     QString s;
     //s = "select FSAgent.id from FSAgent join SecSubjects on FSAgent.sid=SecSubjects.id where SecSubjects.subName='人民币'";
     s = QString("select %1.id from %1 join %2 on %1.%3=%2.id where %2.%4='%5'")
-            .arg(tbl_fsa).arg(tbl_ssub).arg(fld_fsa_sid).arg(fld_ssub_name)
+            .arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ssub_nid).arg(fld_ni_name)
             .arg(QObject::tr("人民币"));
     if(q.exec(s) && q.first())
         return q.value(0).toInt();
@@ -49,7 +49,7 @@ int SubjectManager::getCashRmbSid()
         return 0;
 }
 
-bool SubjectManager::init()
+bool SubjectManager1::init()
 {
     QSqlQuery q(db);
     QString s;
@@ -108,8 +108,8 @@ bool SubjectManager::init()
     }
 
     //初始化二级科目表
-    s = QString("select id,%1,%2 from %3").arg(fld_ssub_name)
-            .arg(fld_ssub_lname).arg(tbl_ssub);
+    s = QString("select id,%1,%2 from %3").arg(fld_ni_name)
+            .arg(fld_ni_lname).arg(tbl_nameItem);
     if(!q.exec(s))
         return false;
     QString lname;
@@ -124,8 +124,8 @@ bool SubjectManager::init()
     }
 
     //初始化二级科目映射表
-    s = QString("select id,%1,%2 from %3").arg(fld_fsa_fid)
-            .arg(fld_fsa_sid).arg(tbl_fsa);
+    s = QString("select id,%1,%2 from %3").arg(fld_ssub_fid)
+            .arg(fld_ssub_nid).arg(tbl_ssub);
     if(!q.exec(s))
         return false;
     int fid,sid;
@@ -140,12 +140,12 @@ bool SubjectManager::init()
 }
 
 //获取待摊费用类别id到对应子目id的映射
-void SubjectManager::getDtfySubIds(QHash<int,int>& h)
+void SubjectManager1::getDtfySubIds(QHash<int,int>& h)
 {
 
 }
 
-void SubjectManager::getDtfySubNames()
+void SubjectManager1::getDtfySubNames()
 {
 
 }

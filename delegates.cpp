@@ -167,15 +167,15 @@ SmartComboBox::SmartComboBox(int witch, QSqlQueryModel* model, int curFid,
 
     if(witch == 1){ //一级科目
         listview->setModel(model);
-        listview->setModelColumn(FSTSUB_SUBNAME);
+        listview->setModelColumn(FSUB_SUBNAME);
     }
     else if(witch == 2){ //二级科目
         //应该使用取自SecSubjects表的model        
         smodel = new QSqlTableModel;
         smodel->setTable("SecSubjects");
-        smodel->setSort(SNDSUB_REMCODE, Qt::AscendingOrder);
+        smodel->setSort(NI_REMCODE, Qt::AscendingOrder);
         listview->setModel(smodel);
-        listview->setModelColumn(SNDSUB_SUBNAME);
+        listview->setModelColumn(NI_NAME);
         smodel->select();
     }
     listview->setFixedHeight(150); //最好是设置一个与父窗口的高度合适的尺寸
@@ -214,14 +214,14 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
                 listview->show();
             }
             //定位到最匹配的条目
-            QString remCode = model->data(model->index(i, FSTSUB_REMCODE)).toString();
+            QString remCode = model->data(model->index(i, FSUB_REMCODE)).toString();
             int rows = model->rowCount();
             while((keys->compare(remCode, Qt::CaseInsensitive) > 0) && (i < rows)){
                 i++;
-                remCode = model->data(model->index(i, FSTSUB_REMCODE)).toString();
+                remCode = model->data(model->index(i, FSUB_REMCODE)).toString();
             }
             if(i < rows)
-                listview->setCurrentIndex(model->index(i, FSTSUB_SUBNAME));
+                listview->setCurrentIndex(model->index(i, FSUB_SUBNAME));
 
 
 
@@ -236,14 +236,14 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
                 i = 0;
                 listview->show();
             }
-            QString subCode = model->data(model->index(i, FSTSUB_SUBCODE)).toString();
+            QString subCode = model->data(model->index(i, FSUB_SUBCODE)).toString();
             int rows = model->rowCount();
             while((keys->compare(subCode) > 0) && (i < rows)){
                 i++;
-                subCode = model->data(model->index(i, FSTSUB_SUBCODE)).toString();
+                subCode = model->data(model->index(i, FSUB_SUBCODE)).toString();
             }
             if(i < rows)
-                listview->setCurrentIndex(model->index(i, FSTSUB_SUBNAME));
+                listview->setCurrentIndex(model->index(i, FSUB_SUBNAME));
         }
         //如果是其他编辑键
         else if(listview->isVisible()){
@@ -255,38 +255,38 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
                 else{ //用遗留的字符根据是数字还是字母再重新进行依据科目代码或助记符进行定位
                     if(isDigit){
                         i = 0;
-                        QString subCode = model->data(model->index(i, FSTSUB_SUBCODE)).toString();
+                        QString subCode = model->data(model->index(i, FSUB_SUBCODE)).toString();
                         int rows = model->rowCount();
                         while((keys->compare(subCode) > 0) && (i < rows)){
                             i++;
-                            subCode = model->data(model->index(i, FSTSUB_SUBCODE)).toString();
+                            subCode = model->data(model->index(i, FSUB_SUBCODE)).toString();
                         }
                         if(i < rows)
-                            listview->setCurrentIndex(model->index(i, FSTSUB_SUBNAME));
+                            listview->setCurrentIndex(model->index(i, FSUB_SUBNAME));
                     }
                     else{
                         i = 0;
-                        QString remCode = model->data(model->index(i, FSTSUB_REMCODE)).toString();
+                        QString remCode = model->data(model->index(i, FSUB_REMCODE)).toString();
                         int rows = model->rowCount();
                         while((keys->compare(remCode, Qt::CaseInsensitive) > 0) && (i < rows)){
                             i++;
-                            remCode = model->data(model->index(i, FSTSUB_REMCODE)).toString();
+                            remCode = model->data(model->index(i, FSUB_REMCODE)).toString();
                         }
                         if(i < rows)
-                            listview->setCurrentIndex(model->index(i, FSTSUB_SUBNAME));
+                            listview->setCurrentIndex(model->index(i, FSUB_SUBNAME));
                     }
                 }
                 break;
 
             case Qt::Key_Up:
                 if(listview->currentIndex().row() > 0){
-                    listview->setCurrentIndex(model->index(listview->currentIndex().row() - 1, FSTSUB_SUBNAME));
+                    listview->setCurrentIndex(model->index(listview->currentIndex().row() - 1, FSUB_SUBNAME));
                 }
                 break;
 
             case Qt::Key_Down:
                 if(listview->currentIndex().row() < model->rowCount() - 1){
-                    listview->setCurrentIndex(model->index(listview->currentIndex().row() + 1, FSTSUB_SUBNAME));
+                    listview->setCurrentIndex(model->index(listview->currentIndex().row() + 1, FSUB_SUBNAME));
                 }
                 break;
 
@@ -317,14 +317,14 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
                 listview->show();
             }
             //定位到最匹配的条目
-            QString remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
+            QString remCode = smodel->data(smodel->index(i, NI_REMCODE)).toString();
             int rows = smodel->rowCount();
             while((keys->compare(remCode, Qt::CaseInsensitive) > 0) && (i < rows)){
                 i++;
-                remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
+                remCode = smodel->data(smodel->index(i, NI_REMCODE)).toString();
             }
             if(i < rows)
-                listview->setCurrentIndex(smodel->index(i, SNDSUB_SUBNAME));
+                listview->setCurrentIndex(smodel->index(i, NI_NAME));
 
 
             //QComboBox::keyPressEvent(e);
@@ -373,21 +373,21 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
                     }
                     else{
                         i = 0;
-                        QString remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
+                        QString remCode = smodel->data(smodel->index(i, NI_REMCODE)).toString();
                         int rows = smodel->rowCount();
                         while((keys->compare(remCode, Qt::CaseInsensitive) > 0) && (i < rows)){
                             i++;
-                            remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
+                            remCode = smodel->data(smodel->index(i, NI_REMCODE)).toString();
                         }
                         if(i < rows)
-                            listview->setCurrentIndex(smodel->index(i, SNDSUB_SUBNAME));
+                            listview->setCurrentIndex(smodel->index(i, NI_NAME));
                     }
                 }
                 break;
 
             case Qt::Key_Up:
                 if(listview->currentIndex().row() > 0){
-                    listview->setCurrentIndex(smodel->index(listview->currentIndex().row() - 1, SNDSUB_SUBNAME));
+                    listview->setCurrentIndex(smodel->index(listview->currentIndex().row() - 1, NI_NAME));
                 }
                 break;
 
@@ -395,7 +395,7 @@ void SmartComboBox::keyPressEvent ( QKeyEvent * e )
                 idx = listview->currentIndex().row();
                 c = smodel->rowCount();
                 if( idx < c - 1){
-                    listview->setCurrentIndex(smodel->index(idx + 1, SNDSUB_SUBNAME));
+                    listview->setCurrentIndex(smodel->index(idx + 1, NI_NAME));
                 }
                 break;
 

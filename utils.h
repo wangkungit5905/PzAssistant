@@ -506,7 +506,7 @@ public:
     static bool saveAccInfo(AccountBriefInfo* accInfo);
 
     //读取银行帐号
-    static bool readAllBankAccont(QHash<int,BankAccount*>& banks);
+    //static bool readAllBankAccont(QHash<int,BankAccount*>& banks);
 
     static bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
     static bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);

@@ -17,6 +17,7 @@
 
 class PzSetMgr;
 class DbUtil;
+class SubjectManager;
 
 
 class Account
@@ -98,8 +99,8 @@ public:
     void setCode(QString code){accInfos.code = code;}
     QString getFileName(){return accInfos.fileName;}
     void setFileName(QString fname){accInfos.fileName = fname;}
-    SubjectManager::SubjectSysType getSubType(){return subType;}
-    void setSubType(SubjectManager::SubjectSysType type){subType = type;}
+    SubjectManager1::SubjectSysType getSubType(){return subType;}
+    void setSubType(SubjectManager1::SubjectSysType type){subType = type;}
     //ReportType getReportType(){return reportType;}
     //void setReportType(ReportType type){reportType = type; savePiece(RPTTYPE,QString::number(type));}
     int getMasterMt(){return accInfos.masterMt;}
@@ -143,13 +144,14 @@ public:
 
     PzSetMgr* getPzSet();
     void colsePzSet();
-    SubjectManager* getSubjectManager(){return subMng;}
+    SubjectManager* getSubjectManager(int subSys = 1);
 
     QDateTime getLastAccessTime(){return QDateTime::fromString(accInfos.lastAccessTime,Qt::ISODate);}
     void setLastAccessTime(QDateTime time){accInfos.lastAccessTime = time.toString(Qt::ISODate);}
 
 	void setReadOnly(bool readOnly){isReadOnly=readOnly;}
 	bool getReadOnly(){return isReadOnly;}
+    QList<BankAccount*> getAllBankAccount(){return bankAccounts;}
     static void setDatabase(QSqlDatabase* db);
 
 private:
@@ -158,16 +160,19 @@ private:
 
 	static QSqlDatabase* db;
     User* user;            //操作此账户的用户
-    SubjectManager::SubjectSysType subType; //账户所用的科目类型（科目系统由帐套来定）
+    SubjectManager1::SubjectSysType subType; //账户所用的科目类型（科目系统由帐套来定）
     //ReportType reportType; //账户所用的报表类型
 
     QList<BankAccount*> bankAccounts;
     PzSetMgr* curPzSet;      //当前凭证集
-    SubjectManager* subMng;  //科目管理对象
+    QHash<int,SubjectManager*> smgs; //科目管理对象（键为科目系统代码）
 	bool isReadOnly;         //是否只读模式
 
     DbUtil* dbUtil; //直接访问账户文件的数据库访问对象
     AccountInfo accInfos;   //账户信息
+    QHash<int,Money*> moneys; //账户所使用的所有货币对象
+
+    friend class DbUtil;
 };
 
 //帐套结构比较函数

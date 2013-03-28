@@ -70,6 +70,9 @@ public:
     bool saveExtraForMm(int y, int m, const QHash<int, Double>& fsums,
                                       const QHash<int, Double>& ssums);
 
+    //提供给SubjectComplete类的数据模型所用的查询对象
+    QSqlQuery* getQuery(){/*QSqlQuery q(db); return q;*/return new QSqlQuery(db);}
+
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool readAccountSuites(QList<Account::AccountSuite*>& suites);

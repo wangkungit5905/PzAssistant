@@ -23,6 +23,7 @@
 
 class SubjectManager;
 struct BankAccount;
+class DbUtil;
 
 
 //以0和1表示选取状态的组合选取框类（QCheckBox类在用QDataWidgetMapper与数据库建立映射后，是用文本来表示真假值的）
@@ -245,13 +246,14 @@ signals:
 //自动根据第一个输入字符是数字还是英文字母，来建立对应的完成串列表。它专与QComboBox类一起使用。
 //完成器内部是直接从表FirSubjects和SecSubjects表中提取数据，还可以为它们设置过滤条件
 //为保证完成器选择列表与组合框的可选项的一致性，在装载组合框的选项时必须考虑。
+
 class SubjectComplete  : public QCompleter
 {
     Q_OBJECT
 public:
     SubjectComplete(SujectLevel witch = FstSubject, QObject *parent = 0);
+    ~SubjectComplete();
     void setPid(int pid);
-    void setFilter(QString strFlt);
 
 protected:
     QString pathFromIndex(const QModelIndex &index) const;
@@ -263,10 +265,12 @@ private slots:
 private:    
     QTreeView tv;       //用于显示候选词列表
     QSqlQueryModel m;   //完成器使用的模型
+    QSqlQuery* q;
     SujectLevel witch;  //服务的科目级别（1：一级科目，2：二级科目）
     int pid;            //当服务于二级科目时，表示二级科目的父科目的id
     QString keyBuf;     //键入字符缓存
     QString filter;     //过滤子句（针对FirSubjects表）
+    DbUtil* dbUtil;
 };
 
 //支持二行表格标题行的表格类（通常是第一行的某些列需要跨越多个原始的表格列）

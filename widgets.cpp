@@ -11,6 +11,8 @@
 #include "delegates2.h"
 #include "tables.h"
 #include "subject.h"
+#include "logs/Logger.h"
+#include "dbutil.h"
 
 
 //////////////////////////////////////////////////////////////////////
@@ -736,12 +738,19 @@ void CustomSpinBox::keyPressEvent(QKeyEvent * event)
 SubjectComplete::SubjectComplete(SujectLevel witch, QObject *parent)
     : QCompleter(parent),witch(witch)
 {
+    dbUtil = curAccount->getDbUtil();
+    q = dbUtil->getQuery();
     pid = 0; //如果服务于二级科目，则初始时默认是所有二级科目名列表
     tv.setRootIsDecorated(false);
     tv.header()->hide();
     tv.header()->setStretchLastSection(false);
     tv.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     connect(&tv,SIGNAL(clicked(QModelIndex)),this,SLOT(clickedInList(QModelIndex)));
+}
+
+SubjectComplete::~SubjectComplete()
+{
+    delete q;
 }
 
 //设置一级科目的id以限制可选的二级科目范围
@@ -753,14 +762,6 @@ void SubjectComplete::setPid(int pid)
 
     }
 }
-
-//为完成器的数据提取，设置过滤条件（sql语句的where子句，不包括where关键字本身）
-//此函数设置的过滤条件必须与从数据库中装载组合框选项时使用的过滤条件一致
-void SubjectComplete::setFilter(QString strFlt)
-{
-    filter = strFlt;
-}
-
 
 QString SubjectComplete::pathFromIndex(const QModelIndex &index) const
 {
@@ -785,10 +786,11 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
                 if(witch == 1){
                     QString s = QString("select %1,%2,id from %3 where (%4=1) ")
                             .arg(fld_fsub_name).arg(fld_fsub_subcode).arg(tbl_fsub).arg(fld_fsub_isview);
-                    if(filter.count()!=0)
+                    if(!filter.isEmpty())
                         s.append(" and ").append(filter);
                     s.append(QString(" order by %1").arg(fld_fsub_subcode));
-                    m.setQuery(s);
+                    q->exec(s);
+                    m.setQuery(*q);
                 }
                 else
                     return QCompleter::eventFilter(obj,e); //目前对二级科目不做代码处理
@@ -811,29 +813,27 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
                     s = QString("select %1,%2,id,%3 from %4 where (%5=1)")
                             .arg(fld_fsub_name).arg(fld_fsub_remcode).arg(fld_fsub_subcode)
                             .arg(tbl_fsub).arg(fld_fsub_isview);
-                    if(filter.count()!=0)
+                    if(!filter.isEmpty())
                         s.append(" and ").append(filter);
                     s.append(QString(" order by %1").arg(fld_fsub_remcode));
-                    m.setQuery(s);
+                    q->exec(s);
+                    m.setQuery(*q);
+                    LOG_DEBUG(QString("model sql statement is '%1'").arg(s));
                 }
                 else{
                     if(pid != 0)
-                        //s = QString("select SecSubjects.subName,SecSubjects.remCode,"
-                        //        "FSAgent.id from SecSubjects join FSAgent on "
-                        //        "SecSubjects.id = FSAgent.sid where fid = %1").arg(pid);
                         s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on "
                                 "%1.id = %4.%5 where %6=%7")
                                 .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_remcode)
                                 .arg(tbl_ssub).arg(fld_ssub_nid).arg(fld_ssub_fid).arg(pid);
                     else
-                        //s = "select SecSubjects.subName,SecSubjects.remCode,"
-                        //        "FSAgent.id from SecSubjects join FSAgent on "
-                        //        "SecSubjects.id = FSAgent.sid";
                         s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on %1.id = %4.%5")
                                 .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_remcode)
                                 .arg(tbl_ssub).arg(fld_ssub_fid);
 
-                    m.setQuery(s);
+                    //LOG_DEBUG(QString("model station is '%1'").arg(s));
+                    q->exec(s);
+                    m.setQuery(*q);
                 }
                 setModel(&m); //只有在设置了模型后，对tv的调整才会有效
                 setPopup(&tv);

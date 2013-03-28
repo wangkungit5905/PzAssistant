@@ -252,7 +252,6 @@ MainWindow::MainWindow(QWidget *parent) :
     //dlgAcc = NULL;
     dlgBank = NULL;
     dlgData = NULL;
-    dlgBase = NULL;
 
     curPzn = 0;
 
@@ -312,8 +311,6 @@ MainWindow::~MainWindow()
         delete dlgBank;
     if(dlgData != NULL)
         delete dlgData;
-    if(dlgBase != NULL)
-        delete dlgBase;
 }
 
 //获取主窗口的Mdi区域的大小（必须在主窗口显示后调用）

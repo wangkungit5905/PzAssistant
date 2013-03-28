@@ -13,7 +13,6 @@
 #include "dialogs.h"
 #include "dialog3.h"
 #include "sqltooldialog.h"
-#include "setupbasedialog.h"
 #include "pzdialog2.h"
 #include "widgets.h"
 #include "subjectsearchform.h"
@@ -297,7 +296,6 @@ private:
     //CreateAccountDialog* dlgAcc;
     SetupBankDialog* dlgBank;
     BasicDataDialog* dlgData;
-    SetupBaseDialog* dlgBase;
 
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
 

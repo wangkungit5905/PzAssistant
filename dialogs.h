@@ -121,51 +121,7 @@ private:
 //    int mtCode;  //币种代码
 //};
 
-class CollectPzDialog : public QDialog
-{
-    Q_OBJECT
 
-public:
-    CollectPzDialog(QWidget* parent = 0);
-
-public slots:
-    void calBtnClicked();
-    void dateChanged(const QDate &date);
-    void saveExtras();
-    void selSubject(const QModelIndex &index);
-    void toExcel();
-    void setDateLimit(int sy,int sm,int ey,int em);
-
-private:
-    void initRates(int year,int month);
-    void initHashs();
-    int genKey(int id, int code){return id * MAXMT + code;}
-
-    QSqlQueryModel* model;  //获取凭证信息
-    //QSqlQueryModel* model1; //获取凭证分册类别内容
-    QSqlQueryModel* model2; //获取业务活动内容
-    QStandardItemModel* fmodel; //一级科目的汇总数据
-    QStandardItemModel* smodel; //明细科目的汇总数据(按币种和明细科目)
-    QStandardItemModel* smmodel; //明细科目的汇总数据（按币种）
-
-    QSqlQuery query;
-    Ui::collectPzDialog ui;
-
-    QHash<int, QString> fhash; //一级科目id到一级科目名称的映射
-    QHash<int, QString> chash; //一级科目id到一级科目代码的映射
-    QSet<int> detSubSet; //需要进行明细核算的一级科目id集合
-    QHash<int,QString> shash; //明细科目Id（FSAgent表的id列）到科目名的映射
-    //QHash<int,double> sumByMt; //币种代码到对应合计值的映射（在计算明细科目合计值时要根据币种来分开合计）
-    QMap<int,QString> mtMap; //币种代码到名称的映射
-    //QHash<int,double> fsums; //本期一级科目的合计值，保存科目余额时使用
-    QHash<int,double> subSums; //明细科目合计值表(key = 明细科目id x 10 + 币种代码)
-
-    QDate selDate;      //选择的日期
-    int selBookType;    //选择的凭证分册类型
-    double rate;        //汇率
-    QHash<int,double> rates; //汇率表，币种代码到汇率的映射
-    PzCollectProcess pzcp; //在一个类里面处理所有一级科目的汇总值
-};
 
 class BasicDataDialog : public QDialog
 {
@@ -322,34 +278,6 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////
-//显示子目余额值的对话框类
-class DetailExtraDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    explicit DetailExtraDialog(QString subCode, int year,
-                               int month, QWidget *parent = 0);
-    void setOnlyView();
-    ~DetailExtraDialog();
-
-public slots:
-    void saveDetailExtra();
-    void dataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
-
-signals:
-    void extraValueChanged();
-
-private:
-    Ui::DetailExtraDialog *ui;
-    int year, month;  //余额所属年月
-    QString subCode;  //明细科目所属的一级科目的代码
-    double oldValue;  //在SubjectExtras表中的老值(总账科目余额值)
-    //bool isExist;     //是否在SubjectExtras表中存在对应年月的记录条目
-    QStandardItemModel* model;
-    QHash<int,double> rates;  //汇率表
-    QString tsName; //总账科目余额在SubjectExtras表中的对应字段名
-};
 
 
 #endif // DIALOGS_H

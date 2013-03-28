@@ -35,6 +35,7 @@ CompletSubInfoDialog::CompletSubInfoDialog(int fid,SubjectManager* smg,QWidget *
     for(int i = 0;i < codes.count();++i){
         code = codes.at(i);
         ui->cmbClass->addItem(nameClses.value(code).first(),code);
+
         if(code == nameCls)
             index = i;
     }

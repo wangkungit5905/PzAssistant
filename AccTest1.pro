@@ -22,7 +22,6 @@ SOURCES += main.cpp\
     widgets.cpp \
     sqltooldialog.cpp \
     completsubinfodialog.cpp \
-    setupbasedialog.cpp \
     dialog2.cpp \
     mainwindow.cpp \
     ExcelFormat.cpp \
@@ -73,7 +72,6 @@ HEADERS  += \
     forms/sqltooldialog.h \
     sqltooldialog.h \
     completsubinfodialog.h \
-    setupbasedialog.h \
     dialog2.h \
     mainwindow.h \
     ExcelFormat.h \

@@ -14,7 +14,6 @@ TEMPLATE = app
 SOURCES += main.cpp\
     connection.cpp \
     config.cpp \
-    delegates.cpp \
     appmodel.cpp \
     subjectConfigDialog.cpp \
     dialogs.cpp \
@@ -61,7 +60,6 @@ HEADERS  += \
     connection.h \
     config.h \
     global.h \
-    delegates.h \
     appmodel.h \
     common.h \
     subjectConfigDialog.h \
@@ -152,7 +150,6 @@ FORMS    += \
     forms/lookupsubjectextradialog.ui \
     forms/accountpropertydialog.ui \
     forms/printTemplates/gdzcjtzjhztable.ui \
-    forms/pzdialog3.ui \
     forms/printTemplates/dtfyjttxhztable.ui \
     forms/subjectsearchform.ui \
     forms/viewpzseterrorform.ui \

@@ -147,19 +147,30 @@ void FirstSubject::setUsage(QString s)
  * @param isInit    是否在科目管理器的初始化阶段调用此方法
  * @return
  */
-SecondSubject *FirstSubject::addChildSub(SubjectNameItem* name,QString Code,int subWeight,bool isEnable,
-                                         QDateTime crtTime,User* crtUser)
-{
-    if(!name)
-        return NULL;
-    foreach(SecondSubject* sub, childSubs)
-        if(sub->getNameItem() == name)
-            return NULL;
-    SecondSubject* sb = new SecondSubject(this,0,name,Code,subWeight,isEnable,crtTime,QDateTime(),curUser);
-    childSubs<<sb;
-    witchEdited |= ES_FS_CHILD;
-    return sb;
-}
+//SecondSubject *FirstSubject::addChildSub(SecondSubject *ssub)
+//{
+//    if(!ssub){
+//        LOG_ERROR("SecondSubject object is NULL!");
+//        return NULL;
+//    }
+//    foreach(SecondSubject* sub, childSubs){
+//        if(sub->getNameItem() == ssub){
+//            LOG_ERROR(QObject::tr("SecondSubject(%1) have existed in FirstSubject(%2)")
+//                      .arg(sub->getName()).arg(name));
+//            return NULL;
+//        }
+//    }
+//    SecondSubject* ssub = new SecondSubject(this,0,ni,code,weight,isEnabled,crtTime,creator);
+//    if(!dbUtil->saveSndSubject(ssub)){
+//        delete ssub;
+//        return NULL;
+//    }
+
+////    SecondSubject* sb = new SecondSubject(this,0,ssub,Code,subWeight,isEnable,crtTime,QDateTime(),curUser);
+//    childSubs<<ssub;
+//    witchEdited |= ES_FS_CHILD;
+//    return sb;
+//}
 
 //void FirstSubject::addChildSub(SecondSubject *sub, bool isInit)
 //{
@@ -514,6 +525,10 @@ SubjectManager::SubjectManager(Account *account, int subSys):
     init();
 }
 
+void SubjectManager::save()
+{
+}
+
 
 bool SubjectManager::init()
 {
@@ -530,6 +545,68 @@ bool SubjectManager::isSySubject(int sid)
 {
     FirstSubject* sub = getFstSubject(sid);
     return sySubCls == sub->getSubClass();
+}
+
+QList<BankAccount *> &SubjectManager::getBankAccounts()
+{
+}
+
+/**
+ * @brief SubjectManager::addNameItem
+ *  添加新的名称条目
+ * @param sname     简称
+ * @param lname     全称
+ * @param rcode     助记符
+ * @param clsId     名称类别代码
+ * @param crtTime   创建时间
+ * @param creator   创建者
+ * @return
+ */
+SubjectNameItem *SubjectManager::addNameItem(QString sname, QString lname, QString rcode, int clsId, QDateTime crtTime, User *creator)
+{
+    SubjectNameItem* ni = new SubjectNameItem(0,clsId,sname,lname,rcode,crtTime,creator);
+    if(!dbUtil->saveNameItem(ni)){
+        delete ni;
+        return NULL;
+    }
+    SubjectManager::nameItems[ni->getId()] = ni;
+    return ni;
+}
+
+/**
+ * @brief SubjectManager::addSndSubject
+ *  使用指定名称条目对象在指定的一级科目下创建二级科目
+ * @param fsub      主目对象
+ * @param ni        所用的名称对象
+ * @param code      二级科目的代码
+ * @param weight    权重
+ * @param isEnabled 是否启用
+ * @param crtTime   创建时间
+ * @param creator   创建者
+ * @return
+ */
+SecondSubject *SubjectManager::addSndSubject(FirstSubject *fsub, SubjectNameItem *ni, QString code, int weight, bool isEnabled, QDateTime crtTime, User *creator)
+{
+    if(!ni){
+        LOG_ERROR("SubjectNameItem object is NULL!");
+        return NULL;
+    }
+    foreach(SecondSubject* sub, fsub->childSubs){
+        if(sub->getNameItem() == ni){
+            LOG_ERROR(QObject::tr("SecondSubject(%1) have existed in FirstSubject(%2)")
+                      .arg(sub->getName()).arg(fsub->getName()));
+            return NULL;
+        }
+    }
+
+    SecondSubject* ssub = new SecondSubject(fsub,0,ni,code,weight,isEnabled,crtTime,QDateTime(),creator);
+    if(!dbUtil->saveSndSubject(ssub)){
+        delete ssub;
+        return NULL;
+    }
+    fsub->childSubs<<ssub;
+    sndSubs[ssub->getId()] = ssub;
+    return ssub;
 }
 
 

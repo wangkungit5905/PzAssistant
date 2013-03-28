@@ -390,6 +390,55 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     return true;
 }
 
+bool DbUtil::saveNameItem(SubjectNameItem *ni)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(ni->getId() == UNID)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,'%9','%10','%11','%12',%13)")
+                .arg(tbl_nameItem).arg(fld_ni_class).arg(fld_ni_name).arg(fld_ni_lname)
+                .arg(fld_ni_remcode).arg(fld_ni_crtTime).arg(fld_ni_creator)
+                .arg(ni->getClassId()).arg(ni->getShortName()).arg(ni->getLongName())
+                .arg(ni->getRemCode()).arg(ni->getCreateTime().toString(Qt::ISODate))
+                .arg(ni->getCreator()->getUserId());
+    else
+        s = QString("update %1 set %2=%3,%4='%5',%6='%7',%8='%9',%10='%11',%12='%13',%14=%15 where id=%16")
+                .arg(tbl_nameItem).arg(fld_ni_class).arg(ni->getClassId())
+                .arg(fld_ni_name).arg(ni->getShortName()).arg(fld_ni_lname).arg(ni->getLongName())
+                .arg(fld_ni_remcode).arg(ni->getRemCode()).arg(fld_ni_crtTime)
+                .arg(ni->getCreateTime().toString(Qt::ISODate)).arg(fld_ni_creator)
+                .arg(ni->getCreator()->getUserId()).arg(ni->getId());
+    return q.exec(s);
+}
+
+bool DbUtil::saveSndSubject(SecondSubject *sub)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(sub->getId() == UNID)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) "
+                    "values(%9,%10,'%11',%12,%13,%14,%15)").arg(tbl_ssub)
+                .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+                .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_crtTime)
+                .arg(fld_ssub_creator).arg(sub->getParent()->getId()).arg(sub->getNameItem()->getId())
+                .arg(sub->getCode()).arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
+                .arg(sub->getCreateTime().toString(Qt::ISODate)).arg(sub->getCreator()->getUserId());
+    else
+        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10='%11',%=%,%=%,%=% where id=%")
+                .arg(tbl_ssub).arg(fld_ssub_fid).arg(sub->getParent()->getId())
+                .arg(fld_ssub_nid).arg(sub->getNameItem()->getId())
+                .arg(fld_ssub_weight).arg(sub->getWeight()).arg(fld_ssub_enable).arg(sub->isEnabled()?1:0)
+                .arg(fld_ssub_code).arg(sub->getCode())
+                .arg(fld_ssub_crtTime).arg(sub->getCreateTime().toString(Qt::ISODate))
+                .arg(fld_ssub_disTime).arg(sub->getDiableTime().toString(Qt::ISODate))
+                .arg(fld_ssub_creator).arg(sub->getCreator()->getUserId());
+    return q.exec(s);
+}
+
+bool DbUtil::savefstSubject(FirstSubject *fsub)
+{
+}
+
 /**
  * @brief DbUtil::initMoneys
  *  初始化当前账户所使用的所有货币对象

@@ -22,17 +22,8 @@
 
 
 class SubjectManager;
+struct BankAccount;
 
-//显示和编辑凭证内的业务活动列表的表格视图类
-class ActionEditTableView : public QTableView
-{
-    Q_OBJECT
-public:
-    ActionEditTableView(QWidget* parent = 0);
-
-protected:
-    void keyPressEvent(QKeyEvent* event);
-};
 
 //以0和1表示选取状态的组合选取框类（QCheckBox类在用QDataWidgetMapper与数据库建立映射后，是用文本来表示真假值的）
 class CustomCheckBox : public QCheckBox
@@ -47,18 +38,6 @@ public:
 
 };
 
-
-//实现打印功能的表格视图类
-class PrintView2 : public QTableView
-{
-    Q_OBJECT
-
-public:
-    PrintView2();
-
-public Q_SLOTS:
-    void print(QPrinter *printer);
-};
 
 //支持外部验证器的表格项目类
 class ValidableTableWidgetItem : public QTableWidgetItem
@@ -133,17 +112,14 @@ private:
 class BASndSubItem : public QTableWidgetItem
 {
 public:
-    BASndSubItem(int subId, QHash<int,QString>* subNames, QHash<int,QString>* subLNames,
-                 int type = QTableWidgetItem::UserType + 2);
+    BASndSubItem(int subId, SubjectManager* smg,int type = QTableWidgetItem::UserType + 2);
 
     QVariant data(int role) const;
     void setData(int role, const QVariant &value);
 
 private:
     int subId;
-    QHash<int,QString>* subNames;
-    QHash<int,QString>* subLNames;
-    QHash<int,BankAccount*> bankAccounts;  //银行子目到账号，键为明细科目id
+    SubjectManager* smg;
 };
 
 //在QTableWidget中显示币种的表格项
@@ -220,7 +196,7 @@ signals:
     void requestContextMenu(int row, int col); //请求对上下文菜单进行刷新
 
 private slots:
-    void newSndSubMapping(int pid, int sid, int row, int col, bool reqConfirm = true);
+    void newSndSubMapping(int pid, int nid, int row, int col, bool reqConfirm = true);
     void newSndSubAndMapping(int fid, QString name, int row, int col);
     void sndSubjectDisabeld(int id);
     //void cellClicked(int row, int column);
@@ -228,6 +204,7 @@ private slots:
 
 
 private:
+    SubjectManager* smg;
     int volidRows;   //有效行数（那些处于表格上端的显示业务活动的行（包括表尾到备用空白行）才是有效行，其余空白的行都是无效的行）
     int curRow;     //当前单元格的行和列
     int curCol;

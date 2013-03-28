@@ -8,8 +8,6 @@
 #include <QStandardItemModel>
 #include <QMenu>
 
-//#include "delegates.h"
-#include "delegates.h"
 #include "delegates2.h"
 #include "securitys.h"
 #include "HierarchicalHeaderView.h"

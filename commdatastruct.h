@@ -111,6 +111,7 @@ struct Bank{
 };
 
 class SubjectNameItem;
+class SecondSubject;
 
 struct BankAccount{
     CommonItemEditState editState;
@@ -118,7 +119,8 @@ struct BankAccount{
     Bank* bank;             //账户所属银行对象
     Money* mt;              //该账户所对应的币种
     QString accNumber;      //帐号
-    SubjectNameItem* niObj; //对应的名称条目对象
+    SubjectNameItem* niObj; //对应的名称条目对象（这个域在Account对象初始化阶段就要设置）
+    SecondSubject* subObj;  //对应的二级科目对象（这个域只在科目管理器返回此结构时设置）
 };
 
 //保存日记账表格行数据的结构

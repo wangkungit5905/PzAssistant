@@ -1,4 +1,5 @@
 #include <QInputDialog>
+#include <QKeyEvent>
 
 #include "tables.h"
 #include "common.h"
@@ -240,14 +241,15 @@ void PzDialog2::initAction()
         if(curPzClass == Pzc_Hand || curPzClass == Pzc_JzsyIn || curPzClass == Pzc_JzsyFei
           || curPzClass == Pzc_Jzlr  || !isCollapseJz){
             delegate->setVolidRows(numActions);
+            int subSys = curAccount->getCurSuite()->subSys;
+            SubjectManager* smg = curAccount->getSubjectManager(subSys);
             for(int i = 0; i < busiActions.count(); ++i){
                 ui->twActions->appendRow();  //添加一个有效行
                 BASummaryItem* smItem = new BASummaryItem(busiActions[i]->summary, subMgr);
                 ui->twActions->setItem(i,0,smItem);
                 BAFstSubItem* fstItem = new BAFstSubItem(busiActions[i]->fid, subMgr);
                 ui->twActions->setItem(i,1,fstItem);
-                BASndSubItem* sndItem = new BASndSubItem(busiActions[i]->sid,
-                                  &allSndSubs, &allSndSubLNames);
+                BASndSubItem* sndItem = new BASndSubItem(busiActions[i]->sid,smg);
                 ui->twActions->setItem(i,2,sndItem);
                 BAMoneyTypeItem* mtItem = new BAMoneyTypeItem(busiActions[i]->mt, &allMts);
                 ui->twActions->setItem(i,3,mtItem);
@@ -1521,7 +1523,9 @@ void PzDialog2::initNewAction(int row, int pid, int num, int dir, Double v,
     ui->twActions->setItem(row,0,smItem);
     BAFstSubItem* fstItem = new BAFstSubItem(fid, subMgr);  //一级科目
     ui->twActions->setItem(row,1,fstItem);
-    BASndSubItem* sndItem = new BASndSubItem(sid, &allSndSubs, &allSndSubLNames);
+    int subSys = curAccount->getCurSuite()->subSys;
+    SubjectManager* smg = curAccount->getSubjectManager(subSys);
+    BASndSubItem* sndItem = new BASndSubItem(sid, smg);
     ui->twActions->setItem(row,2,sndItem);              //二级科目
     BAMoneyTypeItem* mtItem = new BAMoneyTypeItem(mt, &allMts);//币种
     ui->twActions->setItem(row,3,mtItem);

@@ -22,7 +22,6 @@
 #include "utils.h"
 #include "global.h"
 #include "connection.h"
-#include "delegates.h"
 #include "account.h"
 #include "tables.h"
 //#include "ExcelFormat.h"

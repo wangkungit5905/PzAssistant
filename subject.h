@@ -5,6 +5,7 @@
 #include <QStringList>
 
 #include "commdatastruct.h"
+#include "global.h"
 
 const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
 const int UNCLASS   = 0;    //未知的分类
@@ -101,12 +102,11 @@ public:
     void setUsage(QString s);
 
 
-    //子科目操作方法
+    //子科目操作方法（按约定：添加子目用科目管理器使用的方法）
     //bool addChildSub(SecondSubject* sub);
     int getChildCount(){return childSubs.count();}
 
-    SecondSubject* addChildSub(SubjectNameItem* name,QString Code,int subWeight,bool isEnable,
-                               QDateTime crtTime,User* crtUser);
+    //SecondSubject* addChildSub(SecondSubject* ssub);
     //void addChildSub(SecondSubject* sub, bool isInit = false);
 
     SecondSubject* restoreChildSub(SecondSubject* sub);
@@ -145,7 +145,7 @@ private:
     QList<SecondSubject*> delSubs;    //暂存被移除的子目
     SecondSubject* defSub;  //默认子目
 
-    //friend class SubjectManager;
+    friend class SubjectManager;
 };
 
 Q_DECLARE_METATYPE(FirstSubject)
@@ -334,6 +334,15 @@ public:
     FirstSubject* getBnlrSub(){return bnlrSub;}
     FirstSubject* getLrfpSub(){return lrfpSub;}
     bool isSySubject(int sid);
+    QList<BankAccount*>& getBankAccounts();
+
+    //
+    SubjectNameItem* addNameItem(QString sname,QString lname,QString rcode,int clsId,
+                                 QDateTime crtTime=QDateTime::currentDateTime(),User* creator=curUser);
+    //
+    SecondSubject* addSndSubject(FirstSubject* fsub,SubjectNameItem* ni,QString code="",
+                                 int weight=1,bool isEnabled=true,
+                                 QDateTime crtTime=QDateTime::currentDateTime(),User* creator=curUser);
 
     ////////////////////////////////////////////////////////////
     //获取科目名的方法

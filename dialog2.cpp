@@ -2198,7 +2198,9 @@ void SetupBaseDialog2::refresh()
     DetExtData* sData;
     for(int i = 0; i < rows; ++i){
         sData = sDatas.value(curSubId)[i];
-        BASndSubItem* sItem = new BASndSubItem(sData->subId,&allSndSubs,&allSndSubLNames);
+        int subSys = curAccount->getCurSuite()->subSys;
+        SubjectManager* smg = curAccount->getSubjectManager(subSys);
+        BASndSubItem* sItem = new BASndSubItem(sData->subId,smg);
         BAMoneyTypeItem* mtItem = new BAMoneyTypeItem(sData->mt, &allMts);
         BAMoneyValueItem* vItem,*rvItem;
         if(sData->dir == DIR_J){
@@ -2242,7 +2244,9 @@ void SetupBaseDialog2::on_btnAdd_clicked()
         sdata->desc = "";
 
         ui->tvDetails->insertRow(row);
-        BASndSubItem* sItem = new BASndSubItem(sdata->subId ,&allSndSubs,&allSndSubLNames);
+        int subSys = curAccount->getCurSuite()->subSys;
+        SubjectManager* smg = curAccount->getSubjectManager(subSys);
+        BASndSubItem* sItem = new BASndSubItem(sdata->subId ,smg);
         BAMoneyTypeItem* mtItem = new BAMoneyTypeItem(sdata->mt, &allMts);
         BAMoneyValueItem* vItem = new BAMoneyValueItem(sdata->dir,sdata->v);
         BAMoneyValueItem* rvItem = new BAMoneyValueItem(sdata->dir,sdata->v);

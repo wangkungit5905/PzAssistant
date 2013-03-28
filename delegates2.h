@@ -162,9 +162,6 @@ signals:
 private slots:
     void summaryEditingFinished();
     void shortCutActivated();
-//public slots:
-
-
 protected:
     void keyPressEvent(QKeyEvent *event);
     void mouseDoubleClickEvent(QMouseEvent *e);

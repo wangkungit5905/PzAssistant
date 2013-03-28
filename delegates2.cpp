@@ -3,6 +3,7 @@
 #include <QInputDialog>
 #include <QCompleter>
 #include <QPainter>
+#include <QKeyEvent>
 
 #include "tables.h"
 #include "delegates2.h"

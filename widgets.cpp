@@ -12,45 +12,6 @@
 #include "tables.h"
 #include "subject.h"
 
-ActionEditTableView::ActionEditTableView(QWidget* parent):QTableView(parent)
-{
-
-}
-
-
-void ActionEditTableView::keyPressEvent(QKeyEvent* event)
-{
-    int keyCode = event->key();
-
-    //如果是回车键，则导航到下一个可用的单元格（先向右，再向下）
-    if(keyCode == Qt::Key_Return){
-        QModelIndex index = currentIndex();
-        QAbstractItemModel* mod = model();
-        int row = index.row();
-        int col = index.column();
-//        int c = mod->rowCount();
-//        if(c > 0){
-//            col++;
-//            if(col > (mod->columnCount()-1)){
-//                row++;
-//            }
-//        }
-//        else{
-
-//        }
-
-
-
-        QModelIndex newIndex = mod->index(row, col+1);
-        if(newIndex.isValid())
-            setCurrentIndex(newIndex);
-        //moveCursor(QAbstractItemView::MoveRight, Qt::NoModifier);
-
-        event->accept();
-    }
-    else
-        QTableView::keyPressEvent(event);
-}
 
 //////////////////////////////////////////////////////////////////////
 CustomCheckBox::CustomCheckBox(QWidget* parent) :  QCheckBox(parent){}
@@ -73,21 +34,6 @@ void CustomCheckBox::setState(int state)
         setChecked(true);
     else
         setChecked(false);
-}
-
-
-/////////////////PrintView//////////////////////////////////////
-PrintView2::PrintView2()
-{
-    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-}
-
-void PrintView2::print(QPrinter *printer)
-{
-    resize(printer->width(), printer->height());
-    render(printer);
-
 }
 
 
@@ -329,17 +275,9 @@ void BAFstSubItem::setData(int role, const QVariant &value)
 
 
 ///////////////////////////BASndSubItem//////////////////////////////
-BASndSubItem::BASndSubItem(int subId, QHash<int,QString>* subNames, QHash<int,QString>* subLNames,
-                           int type) : QTableWidgetItem(type)
+BASndSubItem::BASndSubItem(int subId, SubjectManager* smg,int type):
+    subId(subId),smg(smg),QTableWidgetItem(type)
 {
-    this->subId = subId;
-    this->subNames = subNames;
-    this->subLNames = subLNames;
-    //初始化银行账号表（以后再解决）
-//    foreach(BankAccount* ba, curAccount->getAllBankAccount()){
-//        bankAccounts[ba->subId] = ba->
-//    }
-
 
 }
 
@@ -348,11 +286,19 @@ QVariant BASndSubItem::data(int role) const
     if (role == Qt::TextAlignmentRole)
         return (int)Qt::AlignCenter;
     if(role == Qt::ToolTipRole){
-        QString tip = subLNames->value(subId);
-        if(bankAccounts.contains(subId)){
-            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(bankAccounts.value(subId)->accNumber));
+        QString tip = smg->getSndSubject(subId)->getLName();
+        //如果是银行科目，则显示银行账户信息
+        BankAccount* ba=0; bool found = false;
+        foreach(ba,smg->getBankAccounts()){
+            if(ba->subObj->getId() == subId){
+                found = true;
+                break;
+            }
+        }
+        if(found){
+            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(ba->accNumber));
             tip.append(QObject::tr("是否基本户："));
-            if(bankAccounts.value(subId)->bank->isMain)
+            if(ba->bank->isMain)
                 tip.append(QObject::tr("是"));
             else
                 tip.append(QObject::tr("否"));
@@ -360,7 +306,7 @@ QVariant BASndSubItem::data(int role) const
         return tip;
     }
     if(role == Qt::DisplayRole)
-        return subNames->value(subId);
+        return smg->getSndSubject(subId)->getName();
     if(role == Qt::EditRole)
         return subId;
     return QTableWidgetItem::data(role);
@@ -489,6 +435,10 @@ ActionEditTableWidget::ActionEditTableWidget(QWidget* parent):QTableWidget(paren
 {
     //connect(this,SIGNAL(cellClicked(int,int)),this,SLOT(cellClicked(int,int)));
     //setVerticalHeader();
+
+    int subSys = curAccount->getCurSuite()->subSys;
+    smg = curAccount->getSubjectManager(subSys);
+
     volidRows = 0;
     rowTag = false;
     //isReadOnly = false;  //默认表格可编辑
@@ -596,66 +546,45 @@ void ActionEditTableWidget::selectedRows(QList<int>& rows, bool& isContinue)
 }
 
 //建立新的一二级科目映射关系
-void ActionEditTableWidget::newSndSubMapping(int pid, int sid,
+void ActionEditTableWidget::newSndSubMapping(int pid, int nid,
                                              int row, int col, bool reqConfirm)
 {
-    QSqlQuery q;
-    QString sname, s;
-    bool ok = true;
+    QString s;
+    SubjectNameItem* ni = smg->getNameItem(nid);
 
-    s = QString("select subName from SecSubjects where id = %1").arg(sid);
-    if(q.exec(s) && q.first())
-        sname = q.value(0).toString();
-    else
-        ok = false;
-
-    SubjectManager* sm = curAccount->getSubjectManager();   //这个也要修改
-    s = QString(QObject::tr("确定要在一级科目“%1”下创建二级科目“%2”吗？")
-                           .arg(sm->getFstSubject(pid)->getName()).arg(sname));
+    s = QString(tr("确定要在一级科目“%1”下使用已有名称“%2”创建二级科目吗？")
+                           .arg(smg->getFstSubject(pid)->getName()).arg(ni->getShortName()));
     if(!reqConfirm || (QMessageBox::Yes == QMessageBox::question(0,
         QObject::tr("确认消息"), s, QMessageBox::Yes | QMessageBox::No, QMessageBox::Yes))){
-        int id;
-        if(BusiUtil::newFstToSnd(pid,sid,id)){ //创建映射关系
-            //更新对应表格项以显示新的映射科目            
-            QString name,lname;            
-            BusiUtil::getSndSubNameForId(id,name,lname); //获取二级科目名
-            allSndSubs[id] = name;  //更新二级科目名的全局变量以使表格项能够正常显示
-            allSndSubLNames[id] = lname;
-            item(row,col)->setData(Qt::EditRole, id); //在表格项中设置新条目对应的id
-        }
-        else
-            ok = false;
+        SecondSubject* ssub = smg->addSndSubject(smg->getFstSubject(pid),ni);
+        item(row,col)->setData(Qt::EditRole, ssub->getId()); //在表格项中设置新条目对应的id
     }
     else
-        ok = false;
-    if(!ok)
         item(row,col)->setData(Qt::EditRole, 0);
 }
 
 //在SecSubjects表中创建新的二级科目名name，并建立与指定一级科目fid的映射
 void ActionEditTableWidget::newSndSubAndMapping(int fid, QString name, int row, int col)
 {
-    SubjectManager* sm = curAccount->getSubjectManager();
-    QString s = tr("确认需要创建新的二级科目“%1”，并建立与一级科目“%2”的对应关系吗？")
-            .arg(name).arg(sm->getFstSubject(fid)->getName());
+    int subSys = curAccount->getCurSuite()->subSys;
+    SubjectManager* sm = curAccount->getSubjectManager(subSys);
+    FirstSubject* fsub = sm->getFstSubject(fid);
+    QString s = tr("确定要创建新的名称条目“%1”，并利用新建名称在一级科目“%2”下创建二级科目吗？")
+            .arg(name).arg(fsub->getName());
     if(QMessageBox::Yes ==
             QMessageBox::question(this,tr("确认消息"),s,QMessageBox::Yes | QMessageBox::No,
                                   QMessageBox::Yes)){
-        int subSys = curAccount->getCurSuite()->subSys;
-        SubjectManager* smg = curAccount->getSubjectManager(subSys);
         CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,smg,this);
         dlg->setName(name);
         if(QDialog::Accepted == dlg->exec()){
             //在SecSubjects表中插入新的二级科目条目
-            int id;
             QString sname = dlg->getSName();
             QString lname = dlg->getLName();
             QString remCode = dlg->getRemCode();
             int cls = dlg->getSubCalss();
-            BusiUtil::newSndSubAndMapping(fid,id,sname,lname,remCode,cls);
-            allSndSubs[id] = name;  //更新二级科目名的全局变量以是表格项能够正常显示
-            allSndSubLNames[id] = lname;
-            item(row,col)->setData(Qt::EditRole, id); //在表格项中设置新条目对应的id
+            SubjectNameItem* ni = sm->addNameItem(sname,lname,remCode,cls);
+            SecondSubject* ssub = sm->addSndSubject(fsub,ni);
+            item(row,col)->setData(Qt::EditRole, ssub->getId()); //在表格项中设置新条目对应的id
         }
     }
 }

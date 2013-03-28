@@ -14,6 +14,7 @@
 const QString AccConnName = "Account";
 
 class SubjectManager;
+class FirstSubject;
 
 class DbUtil
 {
@@ -47,6 +48,9 @@ public:
     //科目相关
     bool initNameItems();
     bool initSubjects(SubjectManager* smg, int subSys);
+    bool saveNameItem(SubjectNameItem* ni);
+    bool saveSndSubject(SecondSubject* sub);
+    bool savefstSubject(FirstSubject* fsub);
 
     //货币相关
     bool initMoneys(QHash<int,Money*> &moneys);

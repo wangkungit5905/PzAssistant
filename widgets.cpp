@@ -307,8 +307,13 @@ QVariant BASndSubItem::data(int role) const
         }
         return tip;
     }
-    if(role == Qt::DisplayRole)
-        return smg->getSndSubject(subId)->getName();
+    if(role == Qt::DisplayRole){
+        SecondSubject* ssub = smg->getSndSubject(subId);
+        if(ssub)
+            return ssub->getName();
+        else
+            return "";
+    }
     if(role == Qt::EditRole)
         return subId;
     return QTableWidgetItem::data(role);
@@ -547,7 +552,15 @@ void ActionEditTableWidget::selectedRows(QList<int>& rows, bool& isContinue)
     //还应考虑剔除无效行！！！！！
 }
 
-//建立新的一二级科目映射关系
+/**
+ * @brief ActionEditTableWidget::newSndSubMapping
+ *  创建新的二级科目
+ * @param pid   一级科目id
+ * @param nid   名称条目id
+ * @param row
+ * @param col
+ * @param reqConfirm
+ */
 void ActionEditTableWidget::newSndSubMapping(int pid, int nid,
                                              int row, int col, bool reqConfirm)
 {
@@ -565,7 +578,14 @@ void ActionEditTableWidget::newSndSubMapping(int pid, int nid,
         item(row,col)->setData(Qt::EditRole, 0);
 }
 
-//在SecSubjects表中创建新的二级科目名name，并建立与指定一级科目fid的映射
+/**
+ * @brief ActionEditTableWidget::newSndSubAndMapping
+ *  创建新的名称条目，并用此名称在指定一级科目下创建二级科目
+ * @param fid
+ * @param name
+ * @param row
+ * @param col
+ */
 void ActionEditTableWidget::newSndSubAndMapping(int fid, QString name, int row, int col)
 {
     int subSys = curAccount->getCurSuite()->subSys;
@@ -598,7 +618,7 @@ void ActionEditTableWidget::newSndSubAndMapping(int fid, QString name, int row, 
  */
 void ActionEditTableWidget::sndSubjectDisabeld(int id)
 {
-    QMessageBox::warning(0,tr("警告信息"),tr("二级科目（%1）已被禁用！").arg(allSndSubs.value(id)));
+    QMessageBox::warning(0,tr("警告信息"),tr("二级科目（%1）已被禁用！").arg(smg->getSndSubject(id)->getName()));
 }
 
 void ActionEditTableWidget::currentCellChanged (int currentRow, int currentColumn, int previousRow, int previousColumn)

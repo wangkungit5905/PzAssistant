@@ -35,11 +35,11 @@ QString lastModifyTime;
 
 //QHash<int,QString> allFstSubs;
 //QHash<int,QString> allFSCodes;
-QHash<int,QString> allSndSubs;
-QHash<int,QString> allSndSubLNames;
+//QHash<int,QString> allSndSubs;
+//QHash<int,QString> allSndSubLNames;
 QHash<int,QString> MTS;
 QHash<int,QString> allMts;
-QHash<int,int>  defaultSndSubs;
+//QHash<int,int>  defaultSndSubs;
 
 QHash<int,GdzcType*> allGdzcProductCls;
 QHash<int,QString> allGdzcSubjectCls;

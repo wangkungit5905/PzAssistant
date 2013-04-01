@@ -106,8 +106,10 @@ public:
     static QSet<int> inSIds;  //损益类科目中的收入类子目id集合
     static QSet<int> feiSIds; //损益类科目中的费用类子目id集合
 
+    static QSqlDatabase db;     //为了能够让它暂时为我服务，给它一个数据连接对象而不是使用默认的连接
+
     //类的初始化函数
-    static bool init();
+    static bool init(QSqlDatabase db);
 
     static bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
 

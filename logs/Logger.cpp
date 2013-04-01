@@ -379,6 +379,12 @@ void Logger::writeAssert(const char* file, int line, const char* function, const
     LoggerPrivate::instance()->writeAssert(file, line, function, condition);
 }
 
+void Logger::SqlExecError(LogLevel logLevel, const char *file, int line, const char *function, const QString &s)
+{
+    QString message = QString("Exec Sql statement error(%1)").arg(s);
+    LoggerPrivate::instance()->write(QDateTime::currentDateTime(), logLevel, file, line, function, message);
+}
+
 
 QList<LogStruct *> Logger::read(LogOutDevice device)
 {

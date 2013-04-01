@@ -82,6 +82,8 @@ class AbstractAppender;
  */
 #define LOG_ERROR(...)   Logger::write(Logger::Error, __FILE__, __LINE__, Q_FUNC_INFO, ##__VA_ARGS__)
 
+#define LOG_SQLERROR(...) Logger::SqlExecError(Logger::Error,__FILE__, __LINE__, Q_FUNC_INFO, ##__VA_ARGS__)
+
 //! Write the fatal log record
 /**
  * This macro records the fatal log record using the Logger::write() function. It works identically to the LOG_DEBUG()
@@ -313,6 +315,9 @@ class Logger
      * \sa write()
      */
     static void writeAssert(const char* file, int line, const char* function, const char* condition);
+
+    static void SqlExecError(/*const QDateTime& timeStamp,*/ LogLevel logLevel, const char* file, int line, const char* function,
+                             const QString& s);
 
     //! 读取日志信息
     static QList<LogStruct *> read(LogOutDevice device = File);

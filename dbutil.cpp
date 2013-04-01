@@ -1,10 +1,10 @@
 #include <QDebug>
 #include <QSqlError>
+#include <QVariant>
 
 #include "dbutil.h"
 #include "global.h"
 #include "tables.h"
-#include "account.h"
 #include "logs/Logger.h"
 #include "subject.h"
 
@@ -125,15 +125,14 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
         case LNAME:
             infos.lname = q.value(1).toString();
             break;
-            break;
         case MASTERMT:
-            infos.masterMt = q.value(1).toInt();
+            //infos->accInfos.masterMt = infos->moneys.value(q.value(1).toInt());
             break;
         case WAIMT:
-            sl.clear();
-            sl = q.value(1).toString().split(",");
-            foreach(QString v, sl)
-                infos.waiMts<<v.toInt();
+            //sl.clear();
+            //sl = q.value(1).toString().split(",");
+            //foreach(QString v, sl)
+            //    infos->accInfos.waiMts<<infos->moneys.value(v.toInt());
             break;
         case STIME:
             infos.startDate = q.value(1).toString();
@@ -151,8 +150,6 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
     }
 
     //如果表内的信息字段内容不全，则需要提供默认值，以使对象的属性具有意义
-    if(infos.masterMt == 0)
-        infos.masterMt = RMB;
     //默认，日志文件名同账户文件名同名，但扩展名不同
     if(infos.logFileName.isEmpty()){
         infos.logFileName = fileName;
@@ -208,8 +205,9 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
         return false;
     if(infos.lname != oldInfos.lname && !saveAccInfoPiece(LNAME,infos.lname))
         return false;
-    if(infos.masterMt != oldInfos.masterMt && !saveAccInfoPiece(MASTERMT,QString::number(infos.masterMt)))
-        return false;
+    //未实现Money类的操作符重载
+    //if(infos.masterMt != oldInfos.masterMt && !saveAccInfoPiece(MASTERMT,QString::number(infos.masterMt)))
+    //    return false;
     if(infos.startDate != oldInfos.startDate && !saveAccInfoPiece(STIME,infos.startDate))
         return false;
     if(infos.endDate != oldInfos.endDate && !saveAccInfoPiece(ETIME,infos.endDate))
@@ -222,25 +220,25 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
         return false;
     bool changed = false;
     //保存外币列表
-    if(infos.waiMts.count() != oldInfos.waiMts.count())
-        changed = true;
-    else{
-        for(int i = 0; i < infos.waiMts.count(); ++i){
-            if(infos.waiMts.at(i) != oldInfos.waiMts.at(i)){
-                changed = true;
-                break;
-            }
-        }
-    }
-    if(changed){
-        QString vs;
-        for(int i = 0; i < infos.waiMts.count(); ++i)
-            vs.append(QString("%1,").arg(infos.waiMts.at(i)));
-        vs.chop(1);
-        if(!saveAccInfoPiece(WAIMT,vs))
-            return false;
-        changed = false;
-    }
+//    if(infos.waiMts.count() != oldInfos.waiMts.count())
+//        changed = true;
+//    else{
+//        for(int i = 0; i < infos.waiMts.count(); ++i){
+//            if(infos.waiMts.at(i) != oldInfos.waiMts.at(i)){
+//                changed = true;
+//                break;
+//            }
+//        }
+//    }
+//    if(changed){
+//        QString vs;
+//        for(int i = 0; i < infos.waiMts.count(); ++i)
+//            vs.append(QString("%1,").arg(infos.waiMts.at(i)));
+//        vs.chop(1);
+//        if(!saveAccInfoPiece(WAIMT,vs))
+//            return false;
+//        changed = false;
+//    }
     //保存帐套名表
     if(!saveAccountSuites(infos.suites))
         return false;
@@ -445,19 +443,60 @@ bool DbUtil::savefstSubject(FirstSubject *fsub)
  * @param moneys
  * @return
  */
-bool DbUtil::initMoneys(QHash<int, Money *> &moneys)
+bool DbUtil::initMoneys(Account *account)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_moneyType);
     if(!q.exec(s))
         return false;
+    int mmt = 0;
     while(q.next()){
         int code = q.value(MT_CODE).toInt();
         QString sign = q.value(MT_SIGN).toString();
         QString name = q.value(MT_NAME).toString();
-        moneys[code] = new Money(code,name,sign);
+        account->moneys[code] = new Money(code,name,sign);
+        bool isMain = q.value(MT_MASTER).toBool();
+        if(isMain)
+            mmt = code;
     }
+    //初始化账户信息结构中的母币和外币
+    QHashIterator<int,Money*> it(account->moneys);
+    while(it.hasNext()){
+        it.next();
+        if(mmt == it.key())
+            account->accInfos.masterMt = it.value();
+        else
+            account->accInfos.waiMts<<it.value();
+    }
+    if(mmt == 0)
+        QMessageBox::warning(0,QObject::tr("设置错误"),QObject::tr("没有设置本币！"));
+
     return true;
+//    //获取账户所使用的母币
+//    s = QString("select %1,%2 from %3 where %4=%5").arg(fld_acci_code)
+//            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(MASTERMT);
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    if(!q.first()){
+//        LOG_ERROR("Master money don't set!");
+//        return false;
+//    }
+//    account->accInfos.masterMt = account->moneys.value(q.value(1).toInt());
+//    //获取账户所使用的外币
+//    s = QString("select %1,%2 from %3 where %4=%5").arg(fld_acci_code)
+//            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(WAIMT);
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    if(!q.first())
+//        return true;
+//    QStringList sl = q.value(1).toString().split(",");
+//    foreach(QString v, sl)
+//        account->accInfos.waiMts<<account->moneys.value(v.toInt());
+//    return true;
 }
 
 /**
@@ -583,6 +622,29 @@ bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const
         return false;
     if(!_saveExtrasForMm(y,m,ssums,false))
         return false;
+    return true;
+}
+
+/**
+ * @brief DbUtil::getFS_Id_name
+ *  获取指定科目系统的一级科目的id和名称（一般用于一级科目选取组合框的初始化）
+ * @param ids
+ * @param names
+ */
+bool DbUtil::getFS_Id_name(QList<int> &ids, QList<QString> &names, int subSys)
+{
+    QSqlQuery q(db);
+    QString s = QString("select id,%1 from %2 where %3=%4")
+            .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
+    if(q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int id; QString name;
+    while(q.next()){
+        ids<<q.value(0).toInt();
+        names<<q.value(1).toString();
+    }
     return true;
 }
 
@@ -776,7 +838,7 @@ bool DbUtil::_readExtraForMm(int y, int m, QHash<int, Double> &sums, bool isFst)
     if(mtHash.isEmpty())
         return true;
     //因为只有需要外币的科目才会保存本币形式的余额，因此只有存在外币的本币余额项时才继续读取
-    mtHash.remove(curAccount->getMasterMt());
+    mtHash.remove(curAccount->getMasterMt()->code());
     if(mtHash.isEmpty())
         return true;
 

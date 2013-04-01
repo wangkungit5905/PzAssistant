@@ -543,7 +543,7 @@ bool VMAccount::updateTo1_3()
     r = q.exec(s);
     s = "drop table old_FstSubClasses";
     if(!q.exec(s))
-        emit upgradeStep(verNum,tr("在删除表“old_FstSubClasses”表时发生错误!"),VUR_ERROR);
+        emit upgradeStep(verNum,tr("在删除表“old_FstSubClasses”表时发生错误!"),VUR_WARNING);
 
 
     //5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
@@ -632,7 +632,7 @@ bool VMAccount::updateTo1_3()
  *
  *  2、修改BankAccounts表
  *      （1）添加1个字段：nameId（银行账户对应的名称条目id）
-        （2）并读取已有的银行账户下对应的名称信息，补齐空白
+ *      （2）并读取已有的银行账户下对应的名称信息，补齐空白
  *
  *  3、创建新余额表
  *  创建保存余额相关的表，5个新表（SEPoint、SE_PM_F,SE_MM_F,SE_PM_S,SE_MM_S）
@@ -640,6 +640,8 @@ bool VMAccount::updateTo1_3()
  *      包含字段年、月、币种（id，year，month，mt），唯一地指出了所属凭证年月和币种
  *  （2）所有与新余额相关的表以SE开头，表示科目余额。
  *      其中：PM指代原币新式、MM指代本币形式、F指代一级科目、S指代二级科目
+ *
+ *  4、修改币种表，添加字段“是否是母币”，并用账户信息表中的相应记录初始化后移除
  * @return
  */
 bool VMAccount::updateTo1_4()
@@ -716,8 +718,8 @@ bool VMAccount::updateTo1_4()
 
     //3、创建新余额表
     emit upgradeStep(verNum,tr("第三步：创建新余额表"),VUR_OK);
-    s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 integer)")
-            .arg(tbl_nse_point).arg(fld_nse_year).arg(fld_nse_month).arg(fld_nse_mt);
+    s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 integer,%5 integer)")
+            .arg(tbl_nse_point).arg(fld_nse_year).arg(fld_nse_month).arg(fld_nse_mt).arg(fld_nse_state);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_nse_point),VUR_ERROR);
         return false;
@@ -747,6 +749,60 @@ bool VMAccount::updateTo1_4()
         return false;
     }
     emit upgradeStep(verNum,tr("成功创建新余额表！"),VUR_OK);
+
+    //4、修改币种表，添加字段“是否是母币”，并用账户信息表中的相应记录初始化后移除
+    emit upgradeStep(verNum,tr("第四步：修改币种表，将本外币信息放置在此"),VUR_OK);
+    s = QString("alter table %1 rename to old_%1").arg(tbl_moneyType);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在更改表“%1”名称时发生错误"),VUR_ERROR);
+        return false;
+    }
+    s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 text,%5 text)")
+            .arg(tbl_moneyType).arg(fld_mt_isMaster).arg(fld_mt_code)
+            .arg(fld_mt_name).arg(fld_mt_sign);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("创建表“%1”失败！").arg(tbl_moneyType),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("成功创建表“%1”！").arg(tbl_moneyType),VUR_OK);
+    s = QString("insert into %1(id,%2,%3,%4) select id,%2,%3,%4 from old_%1")
+            .arg(tbl_moneyType).arg(fld_mt_code).arg(fld_mt_name).arg(fld_mt_sign);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在转移币种表数据时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("成功转移币种表数据！"),VUR_OK);
+    s = QString("select id,%1 from %2 where %3=%4").arg(fld_acci_value)
+            .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::MASTERMT);
+    if(!q.exec(s) || !q.first()){
+        emit upgradeStep(verNum,tr("在从账户信息表中读取本币代码时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    int id = q.value(0).toInt();
+    int mt = q.value(1).toInt();
+    s = QString("update %1 set %2=1 where %3=%4").arg(tbl_moneyType)
+            .arg(fld_mt_isMaster).arg(fld_mt_code).arg(mt);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在设置本币代码时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("update %1 set %2=0 where %3!=%4").arg(tbl_moneyType)
+                .arg(fld_mt_isMaster).arg(fld_mt_code).arg(mt);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在设置外币代码时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("正确设置了本外币设置信息"),VUR_OK);
+    s = QString("delete from %1 where id=%2").arg(tbl_accInfo).arg(id);
+    if(!q.exec(s))
+        emit upgradeStep(verNum,tr("在从账户信息表中移除本币设置信息时发生错误！"),VUR_WARNING);
+    s = QString("delete from %1 where %2=%3").arg(tbl_accInfo).arg(fld_acci_code).arg(Account::WAIMT);
+    if(!q.exec(s))
+        emit upgradeStep(verNum,tr("在从账户信息表中移除外币设置信息时发生错误！"),VUR_WARNING);
+
+
+
+
     if(setCurVersion(1,4)){
         emit endUpgrade(verNum,tr("账户文件格式成功更新到1.4版本！"),VUR_OK);
         return true;

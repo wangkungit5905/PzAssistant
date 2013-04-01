@@ -33,14 +33,16 @@ const int ACCS_NAME         = 5;
 //*************************币种表*************************//
 //CREATE TABLE MoneyTypes(id INTEGER PRIMARY KEY, code INTEGER, sign TEXT, name TEXT)
 //字段名
-const QString tbl_moneyType = " MoneyTypes";
-const QString fld_mt_code   = "code";  //币种代码
-const QString fld_mt_sign   = "sign";  //币种符号
-const QString fld_mt_name   = "name";  //币种名称
+const QString tbl_moneyType = "MoneyTypes";
+const QString fld_mt_isMaster   = "isMaster";   //是否是母币
+const QString fld_mt_code       = "code";       //币种代码
+const QString fld_mt_sign       = "sign";       //币种符号
+const QString fld_mt_name       = "name";       //币种名称
 //字段索引
-const int MT_CODE = 1;
-const int MT_SIGN = 2;
-const int MT_NAME = 3;
+const int MT_MASTER = 1;
+const int MT_CODE   = 2;
+const int MT_SIGN   = 3;
+const int MT_NAME   = 4;
 
 
 //*************************汇率表***********************************//
@@ -307,10 +309,12 @@ const QString tbl_nse_point   = "SE_Point";
 const QString fld_nse_year    = "year";
 const QString fld_nse_month   = "month";
 const QString fld_nse_mt      = "mt";
+const QString fld_nse_state   = "state";
 //字段索引
-const int NSE_POINT_YEAR  =1;
-const int NSE_POINT_MONTH =2;
-const int NSE_POINT_MT    =3;
+const int NSE_POINT_YEAR  = 1;
+const int NSE_POINT_MONTH = 2;
+const int NSE_POINT_MT    = 3;
+const int NSE_POINT_STATE = 4;
 
 //新余额表
 const QString tbl_nse_p_f = "SE_PM_F";   //一级科目原币余额

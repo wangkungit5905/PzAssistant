@@ -466,13 +466,14 @@ SndSubComboBox::SndSubComboBox(int pid, QWidget *parent) : QComboBox(parent)
         for(int i = 0; i < ids.count(); ++i)
             addItem(names[i], ids[i]);
     }
-    else{
-        QHashIterator<int,QString> it(allSndSubs);
-        while(it.hasNext()){
-            it.next();
-            addItem(it.value(), it.key());
-        }
-    }
+//显然，只有设置了一级科目，才能显示可用的二级科目
+//    else{
+//        QHashIterator<int,QString> it(allSndSubs);
+//        while(it.hasNext()){
+//            it.next();
+//            addItem(it.value(), it.key());
+//        }
+//    }
 
     setEditable(true);  //使其可以输入新的二级科目名
     //BusiUtil::getAllSndSubNameList(snames);

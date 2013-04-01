@@ -277,10 +277,10 @@ MainWindow::MainWindow(QWidget *parent) :
             return;
 
         QString fn = curAccInfo.fname; fn.chop(4);
-        ConnectionManager::openConnection(fn);
-        adb = ConnectionManager::getConnect();
+        //ConnectionManager::openConnection(fn);
+        //adb = ConnectionManager::getConnect();
         curAccount = new Account(curAccInfo.fname);
-        curAccount->setDatabase(&adb);
+        //curAccount->setDatabase(&adb);
         if(!curAccount->isValid()){
             showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
             return;
@@ -289,7 +289,7 @@ MainWindow::MainWindow(QWidget *parent) :
         //usedRptType = curAccInfo->usedSubSys;
         accountInit();
         setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
-        sfm->attachDb(&adb);
+        sfm->attachDb(&curAccount->getDbUtil()->getDb());
     }
     else {//禁用只有在账户打开的情况下才可以的部件
         setWindowTitle(QString("%1---%2").arg(appTitle)
@@ -448,25 +448,30 @@ void MainWindow::initDockWidget()
 void MainWindow::accountInit()
 {
     //设置账户内使用的币种
-    allMts.clear();
-    allMts[curAccount->getMasterMt()] = MTS.value(curAccount->getMasterMt());
-    foreach(int mt, curAccount->getWaiMt())
-        allMts[mt] = MTS.value(mt);
-    BusiUtil::getAllSubSName(allSndSubs);
-    BusiUtil::getAllSubSLName(allSndSubLNames);
-    BusiUtil::getDefaultSndSubs(defaultSndSubs);
+    //allMts.clear();
+    //allMts[curAccount->getMasterMt()] = MTS.value(curAccount->getMasterMt());
+    //foreach(int mt, curAccount->getWaiMt())
+    //    allMts[mt] = MTS.value(mt);
+    //BusiUtil::getAllSubSName(allSndSubs);
+    //BusiUtil::getAllSubSLName(allSndSubLNames);
+    //BusiUtil::getDefaultSndSubs(defaultSndSubs);
 
     //初始化需特别处理到科目id
-    BusiUtil::getIdByCode(subCashId, "1001");
-    BusiUtil::getIdByCode(subBankId, "1002");
-    BusiUtil::getIdByCode(subYsId, "1131");
-    BusiUtil::getIdByCode(subYfId, "2121");
-    SubjectManager* sm = curAccount->getSubjectManager();
-    subCashRmbId = sm->getCashSub()->getId();
+    //BusiUtil::getIdByCode(subCashId, "1001");
+    //BusiUtil::getIdByCode(subBankId, "1002");
+    //BusiUtil::getIdByCode(subYsId, "1131");
+    //BusiUtil::getIdByCode(subYfId, "2121");
+
+    //应该在打开一个帐套后才能获取正确的科目管理器对象
+    //SubjectManager* sm = curAccount->getSubjectManager();
+
+
+    //subCashRmbId = sm->getCashSub()->getId();
     //BusiUtil::getSidByName(allFstSubs.value(subCashId), tr("人民币"), subCashRmbId);
-    //BusiUtil::getGdzcSubClass(allGdzcSubjectCls);
-    Gdzc::getSubClasses(allGdzcSubjectCls);
-    if(!BusiUtil::init())
+    //BusiUtil::getGdzcSubClass(allGdzcSubjectCls);    
+    //Gdzc::getSubClasses(allGdzcSubjectCls);
+
+    if(!BusiUtil::init(curAccount->getDbUtil()->getDb()))
         QMessageBox::critical(this,tr("错误信息"),tr("BusiUtil对象初始化阶段发生错误！"));
 
 }
@@ -554,8 +559,8 @@ void MainWindow::openAccount()
         //curUsedSubSys = curAccInfo->usedSubSys;  //读取打开的账户所使用的科目系统
         //usedRptType = curAccInfo->usedRptType;   //读取打开的账户所使用的报表类型
         QString fn = dlg->getFileName(); fn.chop(4);
-        ConnectionManager::openConnection(fn);
-        adb = ConnectionManager::getConnect();
+        //ConnectionManager::openConnection(fn);
+        //adb = ConnectionManager::getConnect();
         if(curAccount){
             delete curAccount;
             curAccount = NULL;
@@ -569,7 +574,7 @@ void MainWindow::openAccount()
         appCfg->setRecentOpenAccount(curAccountId);
         refreshTbrVisble();
         refreshActEnanble();
-        sfm->attachDb(&adb);
+        sfm->attachDb(&curAccount->getDbUtil()->getDb());
         accountInit();
     }
 }
@@ -607,7 +612,7 @@ void MainWindow::closeAccount()
 
     delete curAccount;
     curAccount = NULL;
-    ConnectionManager::closeConnection();
+    //ConnectionManager::closeConnection();
     ui->tbrPzs->setVisible(false);
     curAccountId = 0;
     //delete curAccInfo;
@@ -704,8 +709,8 @@ void MainWindow::openPzs()
        QString dateStr = dlg->getDate().toString(Qt::ISODate);
        dateStr.chop(3); //去掉日部分
 
-       curPzModel = new CustomRelationTableModel;
-       curPzModel->setTable("PingZhengs");       
+       curPzModel = new CustomRelationTableModel(this,curAccount->getDbUtil()->getDb());
+       curPzModel->setTable(tbl_pz);
 
        //过滤模型数据
        QString fileStr = QString("date like '%1%'").arg(dateStr);
@@ -782,7 +787,7 @@ void MainWindow::editPzs()
         sortClos << PZ_ZBNUM << Qt::AscendingOrder; //按凭证自编号的升序
     curPzModel->setSort(sortClos);
 
-    PzDialog2* dlg = new PzDialog2(cursy, cursm, curPzModel, false, this);
+    PzDialog2* dlg = new PzDialog2(curAccount, cursy, cursm, curPzModel, false, this);
     dlg->setWindowTitle(tr("凭证窗口"));
     connect(dlg, SIGNAL(canMoveUpAction(bool)), this, SLOT(canMoveUp(bool)));
     connect(dlg, SIGNAL(canMoveDownAction(bool)), this, SLOT(canMoveDown(bool)));
@@ -2682,7 +2687,7 @@ void MainWindow::on_actShowDetail_triggered()
         QByteArray* sinfo;
         SubWindowDim* winfo;
         VariousUtils::getSubWinInfo(DETAILSVIEW,winfo,sinfo);
-        ShowDZDialog* dlg = new ShowDZDialog(sinfo);
+        ShowDZDialog* dlg = new ShowDZDialog(curAccount,sinfo);
         connect(dlg,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
         dlg->setSubRange(witch,fids,sids,gv,lv,inc);
         dlg->setDateRange(sm,em,cursy);   //暂且用cursy来代表年份，未来要修改
@@ -3038,7 +3043,7 @@ void MainWindow::on_actPzErrorInspect_triggered()
         w = static_cast<ViewPzSetErrorForm*>(subWindows.value(VIEWPZSETERROR)->widget());
     }
     else{
-        w = new ViewPzSetErrorForm(cursy,cursm);
+        w = new ViewPzSetErrorForm(cursy,cursm,curAccount->getDbUtil()->getDb());
         MyMdiSubWindow* sw = new MyMdiSubWindow;
         sw->setWidget(w);
         ui->mdiArea->addSubWindow(sw);
@@ -3221,7 +3226,8 @@ bool MainWindow::impTestDatas()
     //VMAccount::backup(tr("宁波苏航.dat"));
     //bool r = VMAccount::restore(tr("宁波苏航.dat"));
 
-
+    QList<int> ids; QList<QString> names;
+    bool r = acc.getDbUtil()->getFS_Id_name(ids,names);
     int i = 0;
 
     //1、在空白表上保存余额通过

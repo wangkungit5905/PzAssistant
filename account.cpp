@@ -44,13 +44,13 @@ void Account::close()
     dbUtil->close();
 }
 
-void Account::addWaiMt(int mt)
+void Account::addWaiMt(Money* mt)
 {
     if(!accInfos.waiMts.contains(mt))
         accInfos.waiMts<<mt;
 }
 
-void Account::delWaiMt(int mt)
+void Account::delWaiMt(Money* mt)
 {
     if(accInfos.waiMts.contains(mt))
         accInfos.waiMts.removeOne(mt);
@@ -60,8 +60,8 @@ void Account::delWaiMt(int mt)
 QString Account::getWaiMtStr()
 {
     QString t;
-    foreach(int mt, accInfos.waiMts)
-        t.append(MTS.value(mt)).append(",");
+    foreach(Money* mt, accInfos.waiMts)
+        t.append(mt->name()).append(",");
     if(!t.isEmpty())
         t.chop(1);
     return t;
@@ -289,22 +289,24 @@ void Account::setDatabase(QSqlDatabase *db)
  */
 bool Account::init()
 {
+    accInfos.masterMt = NULL;
+
     dbUtil = new DbUtil;
     if(!dbUtil->setFilename(accInfos.fileName)){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Can't connect to account file!"));
         return false;
     }
-    if(!dbUtil->initAccount(accInfos)){
-        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
-                      QObject::tr("Account info init happen error!"));
-        return false;
-    }
-    if(!dbUtil->initMoneys(moneys)){
+    if(!dbUtil->initMoneys(this)){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Money init happen error!"));
         return false;
     }
+    if(!dbUtil->initAccount(accInfos)){
+        Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
+                      QObject::tr("Account info init happen error!"));
+        return false;
+    }    
     if(!dbUtil->initNameItems()){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Name items init happen error!"));

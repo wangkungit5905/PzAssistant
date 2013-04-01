@@ -25,6 +25,8 @@ QSet<int> BusiUtil::feiIds; //损益类科目中的费用类科目id集合
 QSet<int> BusiUtil::inSIds;  //损益类科目中的收入类子目id集合
 QSet<int> BusiUtil::feiSIds; //损益类科目中的费用类子目id集合
 
+QSqlDatabase BusiUtil::db;
+
 ExpressParse::ExpressParse()
 {
     OpratorPri p1 = {'(',1};
@@ -285,9 +287,10 @@ double ExpressParse::calValue(QString exp, QHash<QString, double>* vhash)
 /**
     类的初始化函数
 */
-bool BusiUtil::init()
+bool BusiUtil::init(QSqlDatabase db)
 {
-    QSqlQuery q,q2;
+    BusiUtil::db = db;
+    QSqlQuery q(db),q2(db);
 
     //初始化一二级科目的借贷方向特效id集合
     //资产类（正：借，负：贷）

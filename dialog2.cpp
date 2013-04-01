@@ -24,6 +24,7 @@
 #include "previewdialog.h"
 #include "tables.h"
 #include "subject.h"
+#include "cal.h"
 
 //tem
 //#include "dialog3.h"
@@ -2016,8 +2017,10 @@ void SetupBaseDialog2::initTable()
     if(!BusiUtil::getRates2(year,month,rates))
             return;
     //获取账户所采用的所有外币
-    foreach(int mt, account->getWaiMt())
-        ui->cmbMts->addItem(allMts.value(mt),mt);
+    foreach(Money* mt, account->getWaiMt()){
+        QVariant v; v.setValue<Money*>(mt);
+        ui->cmbMts->addItem(mt->name(),v);
+    }
     ui->cmbMts->setCurrentIndex(0);
 
     BusiUtil::getFstSubCls(fstClass);      //一级科目类别
@@ -2349,22 +2352,29 @@ void SetupBaseDialog2::cellChanged(int row, int column)
     ui->btnSave->setEnabled(isDirty);
 }
 
-//创建新的一二级科目映射
-void SetupBaseDialog2::newMapping(int fid, int sid, int row, int col)
+/**
+ * @brief SetupBaseDialog2::newMapping
+ *  创建新的二级科目
+ * @param fid   一级科目id
+ * @param sid
+ * @param row
+ * @param col
+ */
+void SetupBaseDialog2::newMapping(int fid, int nid, int row, int col)
 {
     QString name,lname;
-    if(!BusiUtil::getSNameForId(sid,name,lname))
+    if(!BusiUtil::getSNameForId(nid,name,lname))
         return;
-    SubjectManager* sm = curAccount->getSubjectManager();
+    int subSys = curAccount->getCurSuite()->subSys;
+    SubjectManager* sm = curAccount->getSubjectManager(subSys);
     QString s = tr("在当前一级科目%1下创建新的二级科目%2")
             .arg(sm->getFstSubject(fid)->getName()).arg(name);
     if(QMessageBox::Yes == QMessageBox::question(this,tr("确认消息"),s,
                   QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){
-        int id;
-        BusiUtil::newFstToSnd(fid,sid,id);
-        allSndSubs[id] = name;
-        allSndSubLNames[id] = lname;
-        ui->tvDetails->item(row,col)->setData(Qt::EditRole, id);
+        FirstSubject* fsub = sm->getFstSubject(fid);
+        SubjectNameItem* ni = sm->getNameItem(nid);
+        SecondSubject* ssub = sm->addSndSubject(fsub,ni);
+        ui->tvDetails->item(row,col)->setData(Qt::EditRole, ssub->getId());
         ui->tvDetails->edit(ui->tvDetails->model()->index(row,col+1));//将输入焦点移到右边栏
     }
     else
@@ -2372,27 +2382,32 @@ void SetupBaseDialog2::newMapping(int fid, int sid, int row, int col)
 
 }
 
-//创建新的明细科目
+/**
+ * @brief SetupBaseDialog2::newSndSub
+ *  创建新的名称条目，并用此名称在指定一级科目下创建二级科目
+ * @param fid
+ * @param name
+ * @param row
+ * @param col
+ */
 void SetupBaseDialog2::newSndSub(int fid, QString name, int row, int col)
 {
-    SubjectManager* sm = curAccount->getSubjectManager();
+    int subSys = curAccount->getStartSuite()->subSys;
+    SubjectManager* sm = curAccount->getSubjectManager(subSys);
     QString s = tr("在当前一级科目%1下创建新的二级科目%2")
             .arg(sm->getFstSubject(fid)->getName()).arg(name);
     if(QMessageBox::Yes == QMessageBox::question(this,tr("确认消息"),s,
-                  QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){        
-        int subSys = curAccount->getStartSuite()->subSys;
-        SubjectManager* smg = curAccount->getSubjectManager(subSys);
-        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,smg,this);
+                  QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){
+        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,sm,this);
         dlg->setName(name);
         if(dlg->exec() == QDialog::Accepted){
-            int id;
+            QString sname = dlg->getSName();
             QString lname = dlg->getLName();
             QString remCode = dlg->getRemCode();
             int clsCode = dlg->getSubCalss();
-            BusiUtil::newSndSubAndMapping(fid,id,name,lname,remCode,clsCode);
-            allSndSubs[id] = name;
-            allSndSubLNames[id] = lname;            
-            ui->tvDetails->item(row,col)->setData(Qt::EditRole, id);
+            SubjectNameItem* ni = sm->addNameItem(sname,lname,remCode,clsCode);
+            SecondSubject* ssub = sm->addSndSubject(sm->getFstSubject(fid),ni);
+            ui->tvDetails->item(row,col)->setData(Qt::EditRole, ssub->getId());
             ui->tvDetails->edit(ui->tvDetails->model()->index(row,col+1));//将输入焦点移到右边栏
         }
     }
@@ -2510,8 +2525,8 @@ void SetupBaseDialog2::on_btnCancel_clicked()
 //选择一个外币，显示与该外币对应的汇率
 void SetupBaseDialog2::on_cmbMts_currentIndexChanged(int index)
 {
-    int mt = ui->cmbMts->itemData(index).toInt();
-    ui->edtRate->setText(rates.value(mt).toString());
+    Money* mt = ui->cmbMts->itemData(index).value<Money*>();
+    ui->edtRate->setText(rates.value(mt->code()).toString());
 }
 
 

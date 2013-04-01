@@ -115,7 +115,7 @@ public:
     bool removeChildSub(SubjectNameItem* name);
 
     SecondSubject* getChildSub(int index){if(index<0 || index>=childSubs.count()) return 0;return childSubs.at(index);}
-    QList<SecondSubject*> getChildSubs(){return childSubs;}
+    QList<SecondSubject*>& getChildSubs(){return childSubs;}
     bool getRangeChildSubs(SecondSubject* ssub,SecondSubject* esub, QList<SecondSubject*>& subs);
     bool containChildSub(SecondSubject* sndSub);
     bool containChildSub(SubjectNameItem* ni);

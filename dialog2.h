@@ -268,7 +268,7 @@ public:
 private slots:
 
     void cellChanged(int row, int column);
-    void newMapping(int fid, int sid, int row, int col);
+    void newMapping(int fid, int nid, int row, int col);
     void newSndSub(int fid, QString name, int row, int col);
     void editNext(int row, int col);
     void sortIndicatorChanged(int logicalIndex, Qt::SortOrder order);

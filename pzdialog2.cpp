@@ -7,6 +7,7 @@
 #include "pzdialog2.h"
 #include "ui_pzdialog2.h"
 #include "widgets.h"
+#include "subject.h"
 
 
 ////////////////////////MapLabel/////////////////////////////////////////
@@ -39,9 +40,8 @@ int MapLabel::getValue()
 }
 
 ///////////////////////////PzDialog2////////////////////////////////////
-PzDialog2::PzDialog2(int year, int month, CustomRelationTableModel* model,
-                     bool readOnly, QWidget *parent) : QDialog(parent),
-    ui(new Ui::PzDialog2)
+PzDialog2::PzDialog2(Account *account, int year, int month, CustomRelationTableModel* model,
+                     bool readOnly, QWidget *parent) : QDialog(parent),ui(new Ui::PzDialog2),account(account)
 {
     ui->setupUi(this);
     //setLayout(ui->mLayout);
@@ -73,8 +73,8 @@ PzDialog2::PzDialog2(int year, int month, CustomRelationTableModel* model,
         ip.next();
         PzStates.insert(ip.key(),ip.value());
     }
-
-    subMgr = curAccount->getSubjectManager();
+    int subSys = account->getCurSuite()->subSys;
+    smg = account->getSubjectManager(subSys);
 
     init();
     timer = new QTimer;
@@ -245,9 +245,9 @@ void PzDialog2::initAction()
             SubjectManager* smg = curAccount->getSubjectManager(subSys);
             for(int i = 0; i < busiActions.count(); ++i){
                 ui->twActions->appendRow();  //添加一个有效行
-                BASummaryItem* smItem = new BASummaryItem(busiActions[i]->summary, subMgr);
+                BASummaryItem* smItem = new BASummaryItem(busiActions[i]->summary, smg);
                 ui->twActions->setItem(i,0,smItem);
-                BAFstSubItem* fstItem = new BAFstSubItem(busiActions[i]->fid, subMgr);
+                BAFstSubItem* fstItem = new BAFstSubItem(busiActions[i]->fid, smg);
                 ui->twActions->setItem(i,1,fstItem);
                 BASndSubItem* sndItem = new BASndSubItem(busiActions[i]->sid,smg);
                 ui->twActions->setItem(i,2,sndItem);
@@ -1343,9 +1343,10 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         //如果当前的一级科目没有包含当前的二级科目则设置二级科目为默认值
         else if(!subs.contains(sid)){
             installDataWatch(false);
-            ui->twActions->item(row,col+1)->setData(Qt::EditRole, defaultSndSubs.value(fid));
+            sid = smg->getFstSubject(fid)->getDefaultSubject()->getId();
+            ui->twActions->item(row,col+1)->setData(Qt::EditRole, sid);
             installDataWatch();
-            busiActions[row]->sid = defaultSndSubs.value(fid);
+            busiActions[row]->sid = sid;
         }
         busiActions[row]->fid = fid;
         b = true;
@@ -1363,23 +1364,23 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
 
         //如果一级科目是现金，则设置与二级科目对应的币种
         if(fid == cid){
-            QString mName = allSndSubs.value(sid);
-            QHashIterator<int,QString> it(allMts);
-            int mt;
-            while(it.hasNext()){
-                it.next();
-                if(mName == it.value()){
-                    mt = it.key();
-                    break;
-                }
-            }
-            ui->twActions->item(row, ActionEditItemDelegate::MTYPE)->setData(Qt::EditRole, mt);
-            busiActions[row]->mt = mt;            
+//            QString mName = allSndSubs.value(sid);
+//            QHashIterator<int,QString> it(allMts);
+//            int mt;
+//            while(it.hasNext()){
+//                it.next();
+//                if(mName == it.value()){
+//                    mt = it.key();
+//                    break;
+//                }
+//            }
+            ui->twActions->item(row, ActionEditItemDelegate::MTYPE)->setData(Qt::EditRole, account->getMasterMt()->code());
+            busiActions[row]->mt = account->getMasterMt()->code();
         }
 
         //如果一级科目为银行存款，则寻找二级科目中的币种后缀，并根据二级科目中的币种自动设置相对应的币种
         else if(fid == bid){
-            QString sname = allSndSubs.value(sid);
+            QString sname = smg->getSndSubject(sid)->getName();
             int idx = sname.indexOf("-");
             QString mtName = sname.right(sname.length()-idx-1);
             QHashIterator<int,QString> it(allMts);
@@ -1519,9 +1520,9 @@ void PzDialog2::initNewAction(int row, int pid, int num, int dir, Double v,
 {
     installDataWatch(false);
     QTableWidgetItem* item;
-    BASummaryItem* smItem = new BASummaryItem(summary, subMgr);//摘要
+    BASummaryItem* smItem = new BASummaryItem(summary, smg);//摘要
     ui->twActions->setItem(row,0,smItem);
-    BAFstSubItem* fstItem = new BAFstSubItem(fid, subMgr);  //一级科目
+    BAFstSubItem* fstItem = new BAFstSubItem(fid, smg);  //一级科目
     ui->twActions->setItem(row,1,fstItem);
     int subSys = curAccount->getCurSuite()->subSys;
     SubjectManager* smg = curAccount->getSubjectManager(subSys);

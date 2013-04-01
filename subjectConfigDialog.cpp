@@ -887,8 +887,8 @@ void SndSubConForm::btnAddToClicked()
     bool r = q.exec(s);
     r = q.first();
     int id = q.value(0).toInt();
-    allSndSubs[id] = q.value(1).toString();
-    allSndSubLNames[id] = q.value(2).toString();
+    //allSndSubs[id] = q.value(1).toString();
+    //allSndSubLNames[id] = q.value(2).toString();
     ui.btnAddTo->setEnabled(false);
 
     //刷新
@@ -911,8 +911,8 @@ void SndSubConForm::btnRemoveToClicked()
             .arg(fld_ssub_fid).arg(fid).arg(fld_ssub_nid).arg(sid);
     q.exec(s); q.first();
     int id = q.value(0).toInt();
-    allSndSubs.remove(id);
-    allSndSubLNames.remove(id);
+    //allSndSubs.remove(id);
+    //allSndSubLNames.remove(id);
     s = QString("delete from %1 where id=%2").arg(tbl_ssub).arg(id);
     q.exec(s);
     ui.btnRomveTo->setEnabled(false);

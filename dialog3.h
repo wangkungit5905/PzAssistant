@@ -377,7 +377,7 @@ public:
         THREERAIL    =5    //三栏明细式（由应收/应付等使用）
     }; 
 
-    explicit ShowDZDialog(QByteArray* sinfo = NULL, QWidget *parent = 0);
+    explicit ShowDZDialog(Account* account, QByteArray* sinfo = NULL, QWidget *parent = 0);
     ~ShowDZDialog();
     void setSubRange(int witch, QList<int> fids, QHash<int,QList<int> > sids,
                      double gv, double lv, bool inc);
@@ -517,7 +517,8 @@ private:
     PreviewDialog* preview;
 
     QAction* actMoveTo;  //转到该凭证的QAction
-
+    Account* account;
+    SubjectManager* smg;
 };
 
 
@@ -578,6 +579,7 @@ private:
     QList<int> mts;                //币种代码列表
     QStandardItemModel* model;
     Account* account;
+    SubjectManager* sm;
 };
 
 

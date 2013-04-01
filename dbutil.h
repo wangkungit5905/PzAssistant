@@ -3,7 +3,9 @@
 
 #include <QSqlDatabase>
 
+
 #include "account.h"
+
 
 
 /**
@@ -42,7 +44,7 @@ public:
 
     //账户信息相关
     bool readAccBriefInfo(AccountBriefInfo& info);
-    bool initAccount(Account::AccountInfo& infos);
+    bool initAccount(Account::AccountInfo &infos);
     bool saveAccountInfo(Account::AccountInfo &infos);
 
     //科目相关
@@ -53,7 +55,7 @@ public:
     bool savefstSubject(FirstSubject* fsub);
 
     //货币相关
-    bool initMoneys(QHash<int,Money*> &moneys);
+    bool initMoneys(Account* account);
     bool initBanks(Account* account);
 
     //余额相关
@@ -72,6 +74,10 @@ public:
 
     //提供给SubjectComplete类的数据模型所用的查询对象
     QSqlQuery* getQuery(){/*QSqlQuery q(db); return q;*/return new QSqlQuery(db);}
+    QSqlDatabase& getDb(){return db;}
+
+    //服务函数
+    bool getFS_Id_name(QList<int> &ids, QList<QString> &names, int subSys = 1);
 
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
@@ -91,6 +97,7 @@ private:
 
 private:
     QSqlDatabase db;
+    int masterMt;   //母币代码（在访问余额状态时要用，因为该状态只保存在母币余额中）
     QString fileName;   //账户文件名
     QHash<InfoField,QString> pNames; //账户信息片段名称表
 };

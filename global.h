@@ -41,11 +41,11 @@ extern QString BaseDataPath;    //基础数据库路径
 //extern QHash<int,QString> allFstSubs;  //所有一级科目id到科目名称的映射表
 //extern QHash<int,QString> allFSCodes;  //所有一级科目id到科目代码的映射表
 
-extern QHash<int,QString> allSndSubs;  //所有二级科目id到科目名称的映射表
-extern QHash<int,QString> allSndSubLNames; //所有二级科目id到科目全称的映射表
+//extern QHash<int,QString> allSndSubs;  //所有二级科目id到科目名称的映射表
+//extern QHash<int,QString> allSndSubLNames; //所有二级科目id到科目全称的映射表
 extern QHash<int,QString> MTS;         //所有币种代码到名称的映射表（包括账户内未使用的外币）
 extern QHash<int,QString> allMts;      //当前打开账户所用的所有币种代码到名称的映射表
-extern QHash<int,int>  defaultSndSubs; //所有一级科目下的默认二级科目
+//extern QHash<int,int>  defaultSndSubs; //所有一级科目下的默认二级科目
 
 //固定资产相关变量
 extern QHash<int,GdzcType*> allGdzcProductCls; //所有固定资产产品类别表，键为固定资产类别的代码

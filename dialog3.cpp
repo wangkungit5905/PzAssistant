@@ -16,6 +16,7 @@
 #include "global.h"
 #include "pz.h"
 #include "subject.h"
+#include "dbutil.h"
 
 
 //tem
@@ -2848,11 +2849,12 @@ void ShowTZDialog::on_actPreview_triggered()
 
 
 ////////////////////////////////ShowDZDialog/////////////////////////////////////////////
-ShowDZDialog::ShowDZDialog(QByteArray* sinfo, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::ShowDZDialog)
+ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) :
+    QDialog(parent),ui(new Ui::ShowDZDialog),account(account)
 {
     ui->setupUi(this);
+    int subSys = account->getCurSuite()->subSys;
+    smg = account->getSubjectManager(subSys);
     ui->pbr->setVisible(false);
     tfid = -1;tsid = -1;tmt = -1;
     mt = RMB;
@@ -3248,9 +3250,15 @@ void ShowDZDialog::onSelFstSub(int index)
                 ui->cmbSsub->addItem(sNames.value(fid)[0], sids.value(fid)[0]);
             else{  //否者加载所有选择的子目
                 ui->cmbSsub->addItem(tr("所有"), 0);
-                for(int i = 0; i < sids.value(fid).count(); ++i)
-                    ui->cmbSsub->addItem(allSndSubs.value(sids.value(fid)[i]),
-                                         sids.value(fid)[i]);
+                QList<SecondSubject*> ssubs = smg->getFstSubject(fid)->getChildSubs();
+                SecondSubject* ssub;
+                for(int i = 0; i < ssubs.count(); ++i){
+                    ssub = ssubs.at(i);
+                    ui->cmbSsub->addItem(ssub->getName(),ssub->getId());
+                }
+                //for(int i = 0; i < sids.value(fid).count(); ++i)
+                //    ui->cmbSsub->addItem(allSndSubs.value(sids.value(fid)[i]),
+                //                         sids.value(fid)[i]);
             }
 
             //初始化可选的币种列表
@@ -5593,7 +5601,8 @@ LookupSubjectExtraDialog::LookupSubjectExtraDialog(Account* account, QWidget *pa
     ui(new Ui::LookupSubjectExtraDialog),account(account)
 {
     ui->setupUi(this);
-
+    int subSys = account->getCurSuite()->subSys;
+    sm = account->getSubjectManager(subSys);
     model = new QStandardItemModel;
     fCom = new SubjectComplete;
     sCom = new SubjectComplete(SndSubject);
@@ -5609,13 +5618,11 @@ LookupSubjectExtraDialog::LookupSubjectExtraDialog(Account* account, QWidget *pa
     int id; QString name;
 
     //初始化一级科目组合框
-    q.exec(QString("select id,%1 from %2").arg(fld_fsub_name).arg(tbl_fsub));
+    QList<int> ids; QList<QString> names;
+    account->getDbUtil()->getFS_Id_name(ids,names,account->getCurSuite()->subSys);
     ui->cmbFstSub->addItem(tr("所有"),0);
-    while(q.next()){
-        id = q.value(0).toInt();
-        name = q.value(1).toString();
-        ui->cmbFstSub->addItem(name,id);
-    }
+    for(int i = 0; i < ids.count(); ++i)
+        ui->cmbFstSub->addItem(names.at(i),ids.at(i));
     fid = 0;
 
     mts = allMts.keys();
@@ -5692,16 +5699,18 @@ void LookupSubjectExtraDialog::fstSubChanged(int index)
                this,SLOT(sndSubChanged(int)));
 
     //装载当前选择的一级科目下所有的明细科目
-    QString s = QString("select FSAgent.id,SecSubjects.subName"
-                        " from FSAgent join SecSubjects on "
-                        "SecSubjects.id = FSAgent.sid where fid = %1")
-            .arg(fid);
+//    QString s = QString("select FSAgent.id,SecSubjects.subName"
+//                        " from FSAgent join SecSubjects on "
+//                        "SecSubjects.id = FSAgent.sid where fid = %1")
+//            .arg(fid);
     ui->cmbSndSub->clear();
     ui->cmbSndSub->addItem(tr("所有"),0);
-    QSqlQuery q;
-    q.exec(s);
-    while(q.next())
-        ui->cmbSndSub->addItem(q.value(1).toString(),q.value(0).toInt());
+    foreach(SecondSubject* ssub, sm->getFstSubject(fid)->getChildSubs())
+        ui->cmbSndSub->addItem(ssub->getName(),ssub->getId());
+//    QSqlQuery q;
+//    q.exec(s);
+//    while(q.next())
+//        ui->cmbSndSub->addItem(q.value(1).toString(),q.value(0).toInt());
     //如果选择的一级科目下只有一个二级科目，则省略“所有”项目
     if(ui->cmbSndSub->count() == 2)
         ui->cmbSndSub->removeItem(0);
@@ -5725,9 +5734,6 @@ void LookupSubjectExtraDialog::sndSubChanged(int index)
 //刷新余额表格
 void LookupSubjectExtraDialog::refresh()
 {
-    //QHash<int,double> fsums,ssums;
-    //QHash<int,int> fdirs,sdirs;
-    SubjectManager* sm = curAccount->getSubjectManager();
     ApStandardItem* item;
     QList<QStandardItem*> l;
     int key;
@@ -5742,10 +5748,10 @@ void LookupSubjectExtraDialog::refresh()
         QList<int> mtLst;
         for(int i = 0; i < ids.count(); ++i){
             mtLst.clear();
-            if(BusiUtil::isAccMt(ids[i]))
+            if(sm->getFstSubject(ids.at(i))->isUseForeignMoney())
                 mtLst = mts;
             else
-                mtLst<<RMB;
+                mtLst<<account->getMasterMt()->code();
             for(int j = 0; j < mtLst.count(); ++j){
                 key = ids[i] * 10 + mtLst[j];
                 if(fsums.contains(key)){
@@ -5766,16 +5772,20 @@ void LookupSubjectExtraDialog::refresh()
     //显示指定一级科目下的所有二级科目的余额
     else if((fid != 0) && (sid == 0)){
         //获取该一级科目下的所有二级科目的id列表
-        QList<QString> names;
-        BusiUtil::getSndSubInSpecFst(fid,ids,names);
-        qSort(ids.begin(),ids.end());
+        //QList<QString> names;
+        //BusiUtil::getSndSubInSpecFst(fid,ids,names);
+        //qSort(ids.begin(),ids.end());
         //如果该科目开始要求按币种分别核算
-        if(BusiUtil::isAccMt(fid)){
-            for(int i = 0; i < ids.count(); ++i)
+        FirstSubject*  fsub = sm->getFstSubject(fid);
+        QList<SecondSubject*> ssubs = fsub->getChildSubs();
+        SecondSubject* ssub;
+        if(fsub->isUseForeignMoney()){
+            for(int i = 0; i < ssubs.count(); ++i)
                 for(int j = 0; j < mts.count(); ++j){
-                    key = ids[i] * 10 + mts[j];
+                    ssub = ssubs.at(i);
+                    key = ssub->getId() * 10 + mts[j];
                     if(ssums.contains(key)){
-                        item = new ApStandardItem(allSndSubs.value(ids[i]));
+                        item = new ApStandardItem(ssub->getName());
                         l<<item;
                         item = new ApStandardItem(allMts.value(mts[j]));
                         l<<item;
@@ -5789,12 +5799,13 @@ void LookupSubjectExtraDialog::refresh()
                 }
         }
         else{
-            for(int i = 0; i < ids.count(); ++i){
-                key = ids[i] * 10 + RMB;
+            for(int i = 0; i < ssubs.count(); ++i){
+                ssub = ssubs.at(i);
+                key = ssub->getId() * 10 + account->getMasterMt()->code();
                 if(ssums.contains(key)){
-                    item = new ApStandardItem(allSndSubs.value(ids[i]));
+                    item = new ApStandardItem(ssub->getName());
                     l<<item;
-                    item = new ApStandardItem(allMts.value(RMB));
+                    item = new ApStandardItem(account->getMasterMt()->name());
                     l<<item;
                     item = new ApStandardItem(ssums.value(key).getv());
                     l<<item;
@@ -5812,10 +5823,11 @@ void LookupSubjectExtraDialog::refresh()
         if(BusiUtil::isAccMt(fid))
             mtLst = mts;
         else
-            mtLst<<RMB;
+            mtLst<<account->getMasterMt()->code();
         for(int i = 0; i < mtLst.count(); ++i){
+            SecondSubject* ssub = sm->getSndSubject(sid);
             key = sid * 10 + mtLst[i];
-            item = new ApStandardItem(allSndSubs.value(sid));
+            item = new ApStandardItem(ssub->getName());
             l<<item;
             item = new ApStandardItem(allMts.value(mtLst[i]));
             l<<item;
@@ -5861,7 +5873,7 @@ AccountPropertyDialog::AccountPropertyDialog(Account *account, QWidget *parent) 
         ui->lstSuites->addItem(item);
     }
     ui->edtCurSuite->setText(account->getSuiteName(account->getCurSuite()->year));
-    ui->edtMMt->setText(allMts.value(account->getMasterMt()));
+    ui->edtMMt->setText(account->getMasterMt()->name());
     ui->edtWaiMt->setText(account->getWaiMtStr());
     ui->btnAddMt->setEnabled(MTS.count() > account->getWaiMt().count()+1);
     ui->btnDelMt->setEnabled(!account->getWaiMt().empty());
@@ -5967,15 +5979,16 @@ void AccountPropertyDialog::save(bool confirm)
                 account->setEndTime(date);
             }
             if(bWaiMt){
-                QList<int>waiMt;
-                QStringList wl = ui->edtWaiMt->text().split(",");
-                QHashIterator<int,QString> it(MTS);
-                while(it.hasNext()){
-                    it.next();
-                    if(wl.contains(it.value()))
-                        waiMt<<it.key();
-                }
-                account->setWaiMt(waiMt);
+                //对账户使用的外币的增删操作，还要从长计议
+//                QList<int>waiMt;
+//                QStringList wl = ui->edtWaiMt->text().split(",");
+//                QHashIterator<int,QString> it(MTS);
+//                while(it.hasNext()){
+//                    it.next();
+//                    if(wl.contains(it.value()))
+//                        waiMt<<it.key();
+//                }
+//                account->setWaiMt(waiMt);
             }
         }
     }

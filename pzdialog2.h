@@ -38,7 +38,7 @@ class PzDialog2 : public QDialog
     Q_OBJECT
 
 public:
-    explicit PzDialog2(int year, int month, CustomRelationTableModel* model,
+    explicit PzDialog2(Account* account, int year, int month, CustomRelationTableModel* model,
                        bool readOnly = false, QWidget *parent = 0);
     ~PzDialog2();
 
@@ -220,7 +220,8 @@ private:
     QStringList vheadLst; //业务活动表格的垂直行标题（用于显示业务活动的序号，和编辑）
 
     QTimer* timer;
-    SubjectManager* subMgr;
+    Account* account;
+    SubjectManager* smg;
 };
 
 #endif // PZDIALOG2_H

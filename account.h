@@ -72,8 +72,8 @@ public:
      */
     struct AccountInfo{
         QString code,sname,lname;           //账户代码、简称和全称
-        int masterMt;                       //本币代码
-        QList<int> waiMts;                  //外币代码表
+        Money* masterMt;                       //本币代码
+        QList<Money*> waiMts;                  //外币代码表
         QString startDate,endDate;          //记账起止时间
         QList<AccountSuite*> suites;        //帐套列表
         QString lastAccessTime;             //账户最后访问时间
@@ -100,12 +100,12 @@ public:
     void setSubType(int type){subType = type;}
     //ReportType getReportType(){return reportType;}
     //void setReportType(ReportType type){reportType = type; savePiece(RPTTYPE,QString::number(type));}
-    int getMasterMt(){return accInfos.masterMt;}
-    void setMasterMt(int mt){accInfos.masterMt = mt;}
-    QList<int> getWaiMt(){return accInfos.waiMts;}
-    void setWaiMt(QList<int> mts){accInfos.waiMts = mts;}
-    void addWaiMt(int mt);
-    void delWaiMt(int mt);
+    Money* getMasterMt(){return accInfos.masterMt;}
+    void setMasterMt(Money* mt){accInfos.masterMt = mt;}
+    QList<Money*> getWaiMt(){return accInfos.waiMts;}
+    void setWaiMt(QList<Money*> mts){accInfos.waiMts = mts;}
+    void addWaiMt(Money *mt);
+    void delWaiMt(Money *mt);
     QString getWaiMtStr();
     QDate getStartTime(){return QDate::fromString(accInfos.startDate,Qt::ISODate);}
     void setStartTime(QDate date){accInfos.startDate = date.toString(Qt::ISODate);}

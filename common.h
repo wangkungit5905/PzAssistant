@@ -186,12 +186,7 @@
 
 //////////////////////////////基础数据库某些表字段信息/////////////////////////
 //子窗口信息表（subWinInfos）
-#define SWI_ENUM  1   //字窗口类别枚举值（winEnum INTEGER）
-#define SWI_X     2   //x,y,w,h是字窗口最后一次关闭时的位置和大小尺寸（x INTEGER）
-#define SWI_Y     3   //              （y INTEGER）
-#define SWI_W     4   //              （w INTEGER）
-#define SWI_H     5   //              （h INTEGER）
-#define SWI_TBL   6   //子窗体内表格各列的宽度信息（tblInfo BLOB）
+
 
 //账户信息表（AccountInfos）此表的字段可以精简，只保留账户代码和文件名
 #define ACCIN_CODE       1   //账户代码（code TEXT）

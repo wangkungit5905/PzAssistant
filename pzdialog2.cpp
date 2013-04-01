@@ -8,6 +8,7 @@
 #include "ui_pzdialog2.h"
 #include "widgets.h"
 #include "subject.h"
+#include "dbutil.h"
 
 
 ////////////////////////MapLabel/////////////////////////////////////////
@@ -44,10 +45,10 @@ PzDialog2::PzDialog2(Account *account, int year, int month, CustomRelationTableM
                      bool readOnly, QWidget *parent) : QDialog(parent),ui(new Ui::PzDialog2),account(account)
 {
     ui->setupUi(this);
-    //setLayout(ui->mLayout);
     this->readOnly = readOnly;
     cury = year; curm = month;
-    if(!BusiUtil::getPzsState(cury,curm, curPzSetState))
+    dbUtil = account->getDbUtil();
+    if(!dbUtil->getPzsState(cury,curm, curPzSetState))
         curPzSetState = Ps_Rec;
     pzStateDirty = false;
     pzDirty = false;
@@ -93,9 +94,9 @@ PzDialog2::~PzDialog2()
 void PzDialog2::init()
 {
     //初始化银行存款、应收和应付账款的科目id
-    BusiUtil::getIdByCode(bankId,"1002");
-    BusiUtil::getIdByCode(ysId,"1131");
-    BusiUtil::getIdByCode(yfId,"2121");
+    //BusiUtil::getIdByCode(bankId,"1002");
+    //BusiUtil::getIdByCode(ysId,"1131");
+    //BusiUtil::getIdByCode(yfId,"2121");
 
     //初始化最大可用凭证号（模型的最后一行即是最大凭证号）
     maxPzNum = 1;
@@ -115,17 +116,11 @@ void PzDialog2::init()
         maxPzZbNum++;
 
     //初始化币种列表及汇率表
-    BusiUtil::getMTName(mtNames);
-    mtNames.remove(RMB); //移除人民币币种
-    QHashIterator<int,QString> it(mtNames);
-    while(it.hasNext()){
-        it.next();
-        ui->cmbMt->addItem(it.value(), it.key());
-    }
-    if(BusiUtil::getRates2(cury, curm, rates)){
-        currentMtChanged(0); //显示第一个外币的汇率
-    }
-    rates[RMB] = 1.00;      //不管是否成功读取汇率，人民币对人民币的汇率必须设置，否则在折算时会出错
+    foreach(Money* mt,account->getWaiMt())
+        ui->cmbMt->addItem(mt->name(),mt->code());
+    if(account->getRates(cury, curm, rates))
+        currentMtChanged(0); //显示第一个外币的汇率    
+    rates[account->getMasterMt()->code()] = 1.00;      //不管是否成功读取汇率，人民币对人民币的汇率必须设置，否则在折算时会出错
     connect(ui->cmbMt, SIGNAL(currentIndexChanged(int)),
             this, SLOT(currentMtChanged(int)));
 
@@ -155,7 +150,7 @@ void PzDialog2::init()
         curPzClass = Pzc_Hand;
     }
 
-    BusiUtil::getActionsInPz(curPzId, busiActions);
+    dbUtil->getActionsInPz(curPzId, busiActions);
     numActions = busiActions.count();
 
     //初始化业务活动表    
@@ -174,7 +169,7 @@ void PzDialog2::init()
     ui->twActions->addAction(ui->actInsertNewAction);
     ui->twActions->addAction(ui->actInsertOppoAction);
     ui->twActions->addAction(ui->actInsSelOppoAction);    
-    ui->twActions->addAction(ui->actCollaps);
+    //ui->twActions->addAction(ui->actCollaps);
 
     connect(ui->twActions, SIGNAL(requestContextMenu(int,int)),
             this, SLOT(refreshContextMenu(int,int)));
@@ -231,13 +226,12 @@ void PzDialog2::initAction()
 
     if(curPzId != 0){
         //installDataWatch(false);
-        BusiUtil::getActionsInPz(curPzId, busiActions);
+        dbUtil->getActionsInPz(curPzId, busiActions);
         //addBusiAct();
         numActions = busiActions.count();
         //refreshVHeaderView();
 
         QTableWidgetItem* item;
-        QList<BusiActionData*> baList;
         if(curPzClass == Pzc_Hand || curPzClass == Pzc_JzsyIn || curPzClass == Pzc_JzsyFei
           || curPzClass == Pzc_Jzlr  || !isCollapseJz){
             delegate->setVolidRows(numActions);
@@ -279,90 +273,90 @@ void PzDialog2::initAction()
                 appendBlankAction(); //添加一个空记录，以便即时编辑
             }            
         }
-        else if(curPzClass == Pzc_Jzhd_Bank ||  //如果是结转汇兑损益的凭证
-                curPzClass == Pzc_Jzhd_Ys ||
-                curPzClass == Pzc_Jzhd_Yf){
-            //对银行存款下的汇兑损益进行合计，只需要处理一方的值，因为这些凭证都是平衡的
-            Double sums;
-            bool dir = false;
+//        else if(curPzClass == Pzc_Jzhd_Bank ||  //如果是结转汇兑损益的凭证
+//                curPzClass == Pzc_Jzhd_Ys ||
+//                curPzClass == Pzc_Jzhd_Yf){
+//            //对银行存款下的汇兑损益进行合计，只需要处理一方的值，因为这些凭证都是平衡的
+//            Double sums;
+//            bool dir = false;
 
-            delegate->setVolidRows(2);
-            for(int i = 0; i < busiActions.count(); ++i){
-                if(busiActions[i]->fid == bankId ||
-                   busiActions[i]->fid == ysId ||
-                   busiActions[i]->fid == yfId ){
-                    if(busiActions[i]->dir == DIR_J)
-                        sums += busiActions[i]->v;
-                    else
-                        sums -= busiActions[i]->v;
-                }
+//            delegate->setVolidRows(2);
+//            for(int i = 0; i < busiActions.count(); ++i){
+//                if(busiActions[i]->fid == bankId ||
+//                   busiActions[i]->fid == ysId ||
+//                   busiActions[i]->fid == yfId ){
+//                    if(busiActions[i]->dir == DIR_J)
+//                        sums += busiActions[i]->v;
+//                    else
+//                        sums -= busiActions[i]->v;
+//                }
 
-            }
-            //确定方向
-            if(sums > 0)
-                dir = true;
-            else
-                sums.changeSign();
+//            }
+//            //确定方向
+//            if(sums > 0)
+//                dir = true;
+//            else
+//                sums.changeSign();
 
 
-            //创建1对合计的结转汇兑损益的业务活动
-            QString summ1 = tr("结转汇兑损益"); //银行、应收或应付一方的摘要
-            QString summ2;                    //和财务费用一方的摘要
-            QString fstName;                  //银行、应收或应付一方的一级科目名
+//            //创建1对合计的结转汇兑损益的业务活动
+//            QString summ1 = tr("结转汇兑损益"); //银行、应收或应付一方的摘要
+//            QString summ2;                    //和财务费用一方的摘要
+//            QString fstName;                  //银行、应收或应付一方的一级科目名
 
-            if(curPzClass == Pzc_Jzhd_Bank){
-                summ2 = tr("结转自银行存款的汇兑损益");
-                fstName = tr("银行存款");
-            }
-            else if(curPzClass == Pzc_Jzhd_Ys){
-                summ2 = tr("结转自应收账款的汇兑损益");
-                fstName = tr("应收账款");
-            }
-            else if(curPzClass == Pzc_Jzhd_Yf){
-                summ2 = tr("结转自应付账款的汇兑损益");
-                fstName = tr("应付账款");
-            }
-            ui->twActions->insertRow(0);
-            item = new QTableWidgetItem(summ1);
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->twActions->setItem(0,0,item);
-            item = new QTableWidgetItem(fstName);
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->twActions->setItem(0,1,item);
-            item = new QTableWidgetItem(tr("人民币"));
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->twActions->setItem(0,3,item);
-            if(dir == DIR_J){
-                item = new BAMoneyValueItem(1,sums.getv());
-                ui->twActions->setItem(0,4,item);
-            }
-            else{
-                item = new BAMoneyValueItem(0,sums.getv());
-                ui->twActions->setItem(0,5,item);
-            }
+//            if(curPzClass == Pzc_Jzhd_Bank){
+//                summ2 = tr("结转自银行存款的汇兑损益");
+//                fstName = tr("银行存款");
+//            }
+//            else if(curPzClass == Pzc_Jzhd_Ys){
+//                summ2 = tr("结转自应收账款的汇兑损益");
+//                fstName = tr("应收账款");
+//            }
+//            else if(curPzClass == Pzc_Jzhd_Yf){
+//                summ2 = tr("结转自应付账款的汇兑损益");
+//                fstName = tr("应付账款");
+//            }
+//            ui->twActions->insertRow(0);
+//            item = new QTableWidgetItem(summ1);
+//            item->setTextAlignment(Qt::AlignCenter);
+//            ui->twActions->setItem(0,0,item);
+//            item = new QTableWidgetItem(fstName);
+//            item->setTextAlignment(Qt::AlignCenter);
+//            ui->twActions->setItem(0,1,item);
+//            item = new QTableWidgetItem(tr("人民币"));
+//            item->setTextAlignment(Qt::AlignCenter);
+//            ui->twActions->setItem(0,3,item);
+//            if(dir == DIR_J){
+//                item = new BAMoneyValueItem(1,sums.getv());
+//                ui->twActions->setItem(0,4,item);
+//            }
+//            else{
+//                item = new BAMoneyValueItem(0,sums.getv());
+//                ui->twActions->setItem(0,5,item);
+//            }
 
-            ui->twActions->insertRow(1);
-            item = new QTableWidgetItem(summ2);
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->twActions->setItem(1,0,item);
-            item = new QTableWidgetItem(tr("财务费用"));
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->twActions->setItem(1,1,item);
-            item = new QTableWidgetItem(tr("汇兑损益"));
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->twActions->setItem(1,2,item);
-            item = new QTableWidgetItem(tr("人民币"));
-            item->setTextAlignment(Qt::AlignCenter);
-            ui->twActions->setItem(1,3,item);
-            if(dir == DIR_J){
-                item = new BAMoneyValueItem(0,sums.getv());
-                ui->twActions->setItem(1,5,item);
-            }
-            else{
-                item = new BAMoneyValueItem(1,sums.getv());
-                ui->twActions->setItem(1,4,item);                
-            }
-        }
+//            ui->twActions->insertRow(1);
+//            item = new QTableWidgetItem(summ2);
+//            item->setTextAlignment(Qt::AlignCenter);
+//            ui->twActions->setItem(1,0,item);
+//            item = new QTableWidgetItem(tr("财务费用"));
+//            item->setTextAlignment(Qt::AlignCenter);
+//            ui->twActions->setItem(1,1,item);
+//            item = new QTableWidgetItem(tr("汇兑损益"));
+//            item->setTextAlignment(Qt::AlignCenter);
+//            ui->twActions->setItem(1,2,item);
+//            item = new QTableWidgetItem(tr("人民币"));
+//            item->setTextAlignment(Qt::AlignCenter);
+//            ui->twActions->setItem(1,3,item);
+//            if(dir == DIR_J){
+//                item = new BAMoneyValueItem(0,sums.getv());
+//                ui->twActions->setItem(1,5,item);
+//            }
+//            else{
+//                item = new BAMoneyValueItem(1,sums.getv());
+//                ui->twActions->setItem(1,4,item);
+//            }
+//        }
         ui->twActions->scrollToTop();
         refreshVHeaderView();        
     }
@@ -789,7 +783,7 @@ bool PzDialog2::isDirty()
 //重新分配凭证号
 void PzDialog2::reAssignPzNum()
 {
-    BusiUtil::assignPzNum(cury,curm);
+    dbUtil->assignPzNum(cury,curm);
     installDataWatch2(false);
     model->select();
     dataMapping->setCurrentIndex(0);
@@ -982,7 +976,7 @@ void PzDialog2::insertPz()
     pz->producer = curUser;
     pz->bookKeeper = NULL;
     pz->verify = NULL;
-    BusiUtil::crtNewPz(pz);
+    dbUtil->crtNewPz(pz);
     model->select();
     dataMapping->setModel(model);
     dataMapping->setCurrentIndex(idx+1);
@@ -997,7 +991,7 @@ void PzDialog2::delPz()
                                                  QMessageBox::Yes | QMessageBox::No)){
         //save(false);
         //删除相关的业务活动
-        BusiUtil::delActionsInPz(curPzId);
+        dbUtil->delActionsInPz(curPzId);
         int index = dataMapping->currentIndex();
         //为保持凭证号的连贯性，需调整后续凭证的号码
         if(index < model->rowCount()-1)
@@ -1186,7 +1180,7 @@ void PzDialog2::save(bool isForm)
                         //busiActions.removeAt(i);
                     }
                 }
-                BusiUtil::saveActionsInPz2(curPzId,busiActions,delActions);
+                dbUtil->saveActionsInPz(curPzId,busiActions,delActions);
                 //恢复先前存在到空白业务活动
                 QList<int> bs = blanks.keys();
                 qSort(bs.begin(),bs.end());
@@ -1270,7 +1264,7 @@ void PzDialog2::on_edtRate_returnPressed()
                 == QMessageBox::Yes){
             rates[mtCode] = v;
             //将新的汇率值保存到数据库中
-            BusiUtil::saveRates2(cury, curm, rates);
+            curAccount->setRates(cury, curm, rates);
         }
 
     }
@@ -1325,23 +1319,25 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
     }
     else if(((col == ActionEditItemDelegate::FSTSUB)
              && (item->data(Qt::EditRole).toInt() != busiActions[row]->fid))){
-        QHash<int,QString> subs;  //
+        //QHash<int,QString> subs;  //
         int fid = item->data(Qt::EditRole).toInt();
+        FirstSubject* fsub = smg->getFstSubject(fid);
         int sid = ui->twActions->item(row,col+1)->data(Qt::EditRole).toInt();
-        BusiUtil::getOwnerSub(fid,subs);
+        SecondSubject* ssub = smg->getSndSubject(sid);
+        //BusiUtil::getOwnerSub(fid,subs);
 
         //如果一级科目是现金，则默认设置二级科目为人民币，币种也为人民币，金额将自动转换
-        int cid; //现金科目的id
-        BusiUtil::getIdByCode(cid,"1001");
-        if(fid == cid){
-            ui->twActions->item(row,ActionEditItemDelegate::SNDSUB)->setData(Qt::EditRole,RMB);
-            ui->twActions->item(row,ActionEditItemDelegate::MTYPE)->setData(Qt::EditRole,RMB);
-            busiActions[row]->sid = RMB;
-            busiActions[row]->mt = RMB;
+        //int cid; //现金科目的id
+        //BusiUtil::getIdByCode(cid,"1001");
+        if(fid == smg->getCashSub()->getId()){
+            ui->twActions->item(row,ActionEditItemDelegate::SNDSUB)->setData(Qt::EditRole,fsub->getDefaultSubject()->getId());
+            ui->twActions->item(row,ActionEditItemDelegate::MTYPE)->setData(Qt::EditRole,account->getMasterMt()->code());
+            busiActions[row]->sid = fsub->getDefaultSubject()->getId();
+            busiActions[row]->mt = account->getMasterMt()->code();
         }
 
         //如果当前的一级科目没有包含当前的二级科目则设置二级科目为默认值
-        else if(!subs.contains(sid)){
+        else if(!fsub->containChildSub(ssub)){
             installDataWatch(false);
             sid = smg->getFstSubject(fid)->getDefaultSubject()->getId();
             ui->twActions->item(row,col+1)->setData(Qt::EditRole, sid);
@@ -1356,14 +1352,14 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
             && (item->data(Qt::EditRole).toInt() != busiActions[row]->sid)){
 
         int sid = item->data(Qt::EditRole).toInt();
-        int cid; //现金科目id
-        int bid;//银行存款科目的id
-        BusiUtil::getIdByCode(cid,"1001");
-        BusiUtil::getIdByCode(bid,"1002");
+        //int cid; //现金科目id
+        //int bid;//银行存款科目的id
+        //BusiUtil::getIdByCode(cid,"1001");
+        //BusiUtil::getIdByCode(bid,"1002");
         int fid = ui->twActions->item(row,ActionEditItemDelegate::FSTSUB)->data(Qt::EditRole).toInt();
 
         //如果一级科目是现金，则设置与二级科目对应的币种
-        if(fid == cid){
+        if(fid == smg->getCashSub()->getId()){
 //            QString mName = allSndSubs.value(sid);
 //            QHashIterator<int,QString> it(allMts);
 //            int mt;
@@ -1379,15 +1375,15 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         }
 
         //如果一级科目为银行存款，则寻找二级科目中的币种后缀，并根据二级科目中的币种自动设置相对应的币种
-        else if(fid == bid){
+        else if(fid == smg->getBankSub()->getId()){
             QString sname = smg->getSndSubject(sid)->getName();
             int idx = sname.indexOf("-");
             QString mtName = sname.right(sname.length()-idx-1);
-            QHashIterator<int,QString> it(allMts);
+            QHashIterator<int,Money*> it(account->getAllMoneys());
             int mt;
             while(it.hasNext()){
                 it.next();
-                if(mtName == it.value()){
+                if(mtName == it.value()->name()){
                     mt = it.key();
                     break;
                 }

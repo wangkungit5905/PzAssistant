@@ -341,5 +341,6 @@ private:
     QRadioButton *rdoRecording, *rdoRepealPz, *rdoInstatPz, *rdoVerifyPz;
     QAction *actRecording;/*, *actRepeal, *actVerify, *actInstat;*/
 
+    DbUtil* dbUtil;
  };
 #endif // MAINWINDOW_H

@@ -205,6 +205,7 @@ private:
     SubjectComplete *fcom, *scom;  //一二级科目选择框使用的完成器
     int fid,sid; //当前选择的一二级科目id
     bool isCanSave; //是否可以保存余额（基于当前的凭证集状态）
+    DbUtil* dbUtil;
 };
 
 Q_DECLARE_METATYPE(ViewExtraDialog::StateInfo)

@@ -222,6 +222,7 @@ private:
     QTimer* timer;
     Account* account;
     SubjectManager* smg;
+    DbUtil* dbUtil;
 };
 
 #endif // PZDIALOG2_H

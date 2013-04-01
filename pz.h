@@ -9,6 +9,8 @@
 #include "commdatastruct.h"
 #include "appmodel.h"
 
+class DbUtil;
+
 //凭证类
 class PingZheng
 {
@@ -161,6 +163,7 @@ private:
 
     bool isReStat;                          //是否需要重新进行统计标志
     bool isReSave;                          //是否需要保存余额
+    DbUtil* dbUtil;
 };
 
 

@@ -7,8 +7,8 @@
 #include "sqltooldialog.h"
 #include "ui_sqltooldialog.h"
 
-SqlToolDialog::SqlToolDialog(QWidget *parent) : QDialog(parent),
-    ui(new Ui::SqlToolDialog)
+SqlToolDialog::SqlToolDialog(QSqlDatabase db, QWidget *parent) : QDialog(parent),
+    ui(new Ui::SqlToolDialog),db(db)
 {
     ui->setupUi(this);
 
@@ -17,7 +17,7 @@ SqlToolDialog::SqlToolDialog(QWidget *parent) : QDialog(parent),
 
     mc=bc=0;
     model = new  QSqlQueryModel;
-    tmodel = new QSqlTableModel;
+    tmodel = new QSqlTableModel(this,db);
     initTableList();
 
 }
@@ -29,7 +29,7 @@ SqlToolDialog::~SqlToolDialog()
 
 void SqlToolDialog::excuteSql()
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     bool r;
     int c;
     bool isSelect;
@@ -44,7 +44,7 @@ void SqlToolDialog::excuteSql()
         r = q.exec(s);
         if(r){  //成功执行
             if(isSelect){//如果执行的是select语句，则显示查询的数据
-                model->setQuery(s);
+                model->setQuery(s,db);
                 ui->tview->setModel(model);
                 //ui->stackedWidget->setCurrentIndex(0);
             }
@@ -77,8 +77,7 @@ void SqlToolDialog::initTableList()
             sql：创建表所用的Sql语句
     */
 
-    QSqlQuery q;
-    bool r;
+    QSqlQuery q(db);
 
     ui->cmbTables->clear();
     QString s = "select * from sqlite_master";
@@ -181,7 +180,7 @@ void SqlToolDialog::attachBasis(bool checked)
 {
     bool r;
     QString s;
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString filename = "./datas/basicdatas/basicdata.dat";
 
     if(checked){ //将基础数据库附加到当前数据库连接上
@@ -212,7 +211,7 @@ void SqlToolDialog::on_chkImport_toggled(bool checked)
 {
     bool r;
     QString s;
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString filename;
 
     if(checked){ //将外部数据库附加到当前数据库连接上

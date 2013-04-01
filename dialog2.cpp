@@ -25,6 +25,7 @@
 #include "tables.h"
 #include "subject.h"
 #include "cal.h"
+#include "dbutil.h"
 
 //tem
 //#include "dialog3.h"
@@ -215,6 +216,7 @@ ViewExtraDialog::ViewExtraDialog(int y, int m, QByteArray* sinfo, QWidget *paren
     headerModel = NULL;
     dataModel = NULL;
     imodel = NULL;
+    dbUtil = curAccount->getDbUtil();
 
     //初始化自定义的层次式表头
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
@@ -1244,7 +1246,7 @@ void ViewExtraDialog::viewTable()
     }
     //应根据凭证集的状态和当前选择的科目的范围来决定保存按钮是否启用
     PzsState state;
-    BusiUtil::getPzsState(y,m,state);
+    dbUtil->getPzsState(y,m,state);
     isCanSave = (state == Ps_AllVerified);
     ui->btnSave->setEnabled((fid == 0) && (sid == 0) && isCanSave);
 }
@@ -1778,7 +1780,7 @@ void ViewExtraDialog::initHashs()
     BusiUtil::getAllSubSCode(sidToCode);
     BusiUtil::getMTName(allMts);
 
-    BusiUtil::getRates2(y,m,sRates);
+    curAccount->getRates(y,m,sRates);
     sRates[RMB] = 1.00;
     int yy,mm;
     if(m == 12){
@@ -1789,7 +1791,7 @@ void ViewExtraDialog::initHashs()
         yy = y;
         mm = m+1;
     }
-    BusiUtil::getRates2(yy,mm,eRates);
+    curAccount->getRates(yy,mm,eRates);
     eRates[RMB] = 1.00;
 
     if(m == 1){
@@ -1824,7 +1826,7 @@ void ViewExtraDialog::initHashs()
     }
 
     PzsState pzsState;
-    BusiUtil::getPzsState(y,m,pzsState);
+    dbUtil->getPzsState(y,m,pzsState);
     ui->lblPzsState->setText(pzsStates.value(pzsState));
     ui->lblPzsState->setToolTip(pzsStateDescs.value(pzsState));
 
@@ -2014,7 +2016,7 @@ void SetupBaseDialog2::closeDlg()
 //初始化内部使用的Hash表，及其代理
 void SetupBaseDialog2::initTable()
 {
-    if(!BusiUtil::getRates2(year,month,rates))
+    if(!curAccount->getRates(year,month,rates))
             return;
     //获取账户所采用的所有外币
     foreach(Money* mt, account->getWaiMt()){

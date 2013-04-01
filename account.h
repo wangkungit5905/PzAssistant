@@ -55,7 +55,7 @@ public:
      * @brief The AccountSuite struct
      *  描述帐套的数据结构
      */
-    struct AccountSuite{
+    struct AccountSuiteRecord{
         int id;
         int year,lastMonth; //帐套所属年份、最后打开月份
         int startMonth,endMonth; //开始月份和结束月份
@@ -63,7 +63,7 @@ public:
         QString name;       //帐套名
         bool isCur;         //是否当前打开帐套
 
-        bool operator !=(const AccountSuite& other);
+        bool operator !=(const AccountSuiteRecord& other);
     };
 
     /**
@@ -75,7 +75,7 @@ public:
         Money* masterMt;                       //本币代码
         QList<Money*> waiMts;                  //外币代码表
         QString startDate,endDate;          //记账起止时间
-        QList<AccountSuite*> suites;        //帐套列表
+        QList<AccountSuiteRecord*> suites;        //帐套列表
         QString lastAccessTime;             //账户最后访问时间
         QString dbVersion;                  //账户文件版本号
         QString logFileName;                //账户日志文件
@@ -100,6 +100,7 @@ public:
     void setSubType(int type){subType = type;}
     //ReportType getReportType(){return reportType;}
     //void setReportType(ReportType type){reportType = type; savePiece(RPTTYPE,QString::number(type));}
+    QHash<int,Money*>& getAllMoneys(){return moneys;}
     Money* getMasterMt(){return accInfos.masterMt;}
     void setMasterMt(Money* mt){accInfos.masterMt = mt;}
     QList<Money*> getWaiMt(){return accInfos.waiMts;}
@@ -125,9 +126,9 @@ public:
     QString getSuiteName(int y);
     void setSuiteName(int y, QString name);
     QList<int> getSuites();
-    AccountSuite* getStartSuite(){return accInfos.suites.first();}
-    AccountSuite* getEndSuite(){return accInfos.suites.last();}
-    AccountSuite* getCurSuite();
+    AccountSuiteRecord* getStartSuite(){return accInfos.suites.first();}
+    AccountSuiteRecord* getEndSuite(){return accInfos.suites.last();}
+    AccountSuiteRecord* getCurSuite();
     void setCurSuite(int y);
     bool getSuiteMonthRange(int y, int& sm,int& em);
     bool containSuite(int y);
@@ -142,6 +143,9 @@ public:
     PzSetMgr* getPzSet();
     void colsePzSet();
     SubjectManager* getSubjectManager(int subSys = 1);
+
+    bool getRates(int y, int m, QHash<int, Double> &rates);
+    bool setRates(int y, int m, QHash<int, Double> &rates);
 
     QDateTime getLastAccessTime(){return QDateTime::fromString(accInfos.lastAccessTime,Qt::ISODate);}
     void setLastAccessTime(QDateTime time){accInfos.lastAccessTime = time.toString(Qt::ISODate);}
@@ -173,6 +177,6 @@ private:
 };
 
 //帐套结构比较函数
-bool byAccountSuiteThan(Account::AccountSuite *as1, Account::AccountSuite *as2);
+bool byAccountSuiteThan(Account::AccountSuiteRecord *as1, Account::AccountSuiteRecord *as2);
 
 #endif // ACCOUNT_H

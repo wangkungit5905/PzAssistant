@@ -35,6 +35,6 @@ Double JzHdsyInfoInputDlg::getRate()
 void JzHdsyInfoInputDlg::on_dateEdit_dateChanged(const QDate &date)
 {
     QHash<int,Double> rates;
-    rateExist = BusiUtil::getRates2(ui->dateEdit->date().year(),ui->dateEdit->date().month(),rates);
+    rateExist = curAccount->getRates(ui->dateEdit->date().year(),ui->dateEdit->date().month(),rates);
     ui->edtRate->setReadOnly(rateExist);
 }

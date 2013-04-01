@@ -221,10 +221,10 @@ void OpenPzDialog::on_btnOk_clicked()
         //int month = account->getEndTime().month();
         QHash<int,Double> rates;
         if(m == 1)
-            BusiUtil::getRates2(y-1,12,rates);
+            curAccount->getRates(y-1,12,rates);
         else
-            BusiUtil::getRates2(y,m-1,rates);
-        BusiUtil::saveRates2(y,m,rates);
+            curAccount->getRates(y,m-1,rates);
+        curAccount->setRates(y,m,rates);
     }
     account->setCurSuite(y);
     accept();

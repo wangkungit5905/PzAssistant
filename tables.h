@@ -33,16 +33,16 @@ const int ACCS_NAME         = 5;
 //*************************币种表*************************//
 //CREATE TABLE MoneyTypes(id INTEGER PRIMARY KEY, code INTEGER, sign TEXT, name TEXT)
 //字段名
-const QString tbl_moneyType = "MoneyTypes";
+const QString tbl_moneyType     = "MoneyTypes";
 const QString fld_mt_isMaster   = "isMaster";   //是否是母币
 const QString fld_mt_code       = "code";       //币种代码
-const QString fld_mt_sign       = "sign";       //币种符号
 const QString fld_mt_name       = "name";       //币种名称
+const QString fld_mt_sign       = "sign";       //币种符号
 //字段索引
 const int MT_MASTER = 1;
 const int MT_CODE   = 2;
-const int MT_SIGN   = 3;
-const int MT_NAME   = 4;
+const int MT_NAME   = 3;
+const int MT_SIGN   = 4;
 
 
 //*************************汇率表***********************************//
@@ -333,7 +333,23 @@ const int NSE_E_VALUE = 3;
 const int NSE_E_DIR   = 4;
 
 
+//子窗口信息表（subWinInfos）
+//字段名
+const QString tbl_subWinInfo = "subWinInfos";
+const QString fld_swi_enum  = "winEnum";  //字窗口类别枚举值（INTEGER）
+const QString fld_swi_x     = "x";        //x,y,w,h是子窗口最后一次关闭时的位置和大小尺寸
+const QString fld_swi_y     = "y";
+const QString fld_swi_width = "w";
+const QString fld_swi_height= "h";
+const QString fld_swi_tblInfo = "tblInfo";//子窗体内表格各列的宽度信息（tblInfo）
 
+//字段索引
+const int   SWI_ENUM    = 1;
+const int   SWI_X       = 2;
+const int   SWI_Y       = 3;
+const int   SWI_W       = 4;
+const int   SWI_H       = 5;
+const int   SWI_TBL     = 6;
 
 
 

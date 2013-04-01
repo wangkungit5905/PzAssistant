@@ -37,6 +37,13 @@ public:
         DBVERSION = 51           //账户文件的版本号（用来表示数据库内表格的变动）
     };
 
+    //数据库操作错误代码
+    enum ErrorCode{
+        Transaction_open    = 1,    //打开事务
+        Transaction_commit  = 2,    //提交事务
+        Transaction_rollback  = 3     //回滚事务
+    };
+
     DbUtil();
     ~DbUtil();
     bool setFilename(QString fname);
@@ -57,6 +64,9 @@ public:
     //货币相关
     bool initMoneys(Account* account);
     bool initBanks(Account* account);
+
+    //凭证数统计
+    bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
 
     //余额相关
     bool readExtraForPm(int y,int m, QHash<int,Double>& fsums,
@@ -79,10 +89,27 @@ public:
     //服务函数
     bool getFS_Id_name(QList<int> &ids, QList<QString> &names, int subSys = 1);
 
+    bool getPzsState(int y,int m,PzsState& state);
+    bool setPzsState(int y,int m,PzsState state);
+    bool getRates(int y, int m, QHash<int,Double>& rates);
+    bool saveRates(int y,int m, QHash<int,Double>& rates);
+
+    //凭证相关
+    bool assignPzNum(int y, int m);
+    bool crtNewPz(PzData* pz);
+    bool delActionsInPz(int pzId);
+    bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
+    bool saveActionsInPz(int pid, QList<BusiActionData2*>& busiActions,
+                                    QList<BusiActionData2*> dels = QList<BusiActionData2*>());
+
+    //访问子窗口的位置、大小等信息
+    bool getSubWinInfo(int winEnum, SubWindowDim* &info, QByteArray* &otherInfo);
+    bool saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo = NULL);
+
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
-    bool readAccountSuites(QList<Account::AccountSuite*>& suites);
-    bool saveAccountSuites(QList<Account::AccountSuite*> suites);
+    bool readAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
+    bool saveAccountSuites(QList<Account::AccountSuiteRecord*> suites);
 
     //余额相关辅助函数
     bool _readExtraPoint(int y, int m, QHash<int, int> &mtHashs);
@@ -94,6 +121,9 @@ private:
 
     //表格创建函数
     void crtGdzcTable();
+
+    //
+    void warn_transaction(ErrorCode witch, QString context);
 
 private:
     QSqlDatabase db;

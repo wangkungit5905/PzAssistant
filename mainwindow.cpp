@@ -470,7 +470,7 @@ void MainWindow::accountInit()
     //BusiUtil::getSidByName(allFstSubs.value(subCashId), tr("人民币"), subCashRmbId);
     //BusiUtil::getGdzcSubClass(allGdzcSubjectCls);    
     //Gdzc::getSubClasses(allGdzcSubjectCls);
-
+    dbUtil = curAccount->getDbUtil();
     if(!BusiUtil::init(curAccount->getDbUtil()->getDb()))
         QMessageBox::critical(this,tr("错误信息"),tr("BusiUtil对象初始化阶段发生错误！"));
 
@@ -709,7 +709,7 @@ void MainWindow::openPzs()
        QString dateStr = dlg->getDate().toString(Qt::ISODate);
        dateStr.chop(3); //去掉日部分
 
-       curPzModel = new CustomRelationTableModel(this,curAccount->getDbUtil()->getDb());
+       curPzModel = new CustomRelationTableModel(this,dbUtil->getDb());
        curPzModel->setTable(tbl_pz);
 
        //过滤模型数据
@@ -717,7 +717,7 @@ void MainWindow::openPzs()
        curPzModel->setFilter(fileStr);
        curPzModel->select();
 
-       if(!BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount))
+       if(!dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount))
            sqlWarning();
        isExtraVolid = BusiUtil::getExtraState(cursy,cursm);
        refreshShowPzsState();
@@ -810,7 +810,7 @@ void MainWindow::editPzs()
 
     QByteArray* sinfo;
     SubWindowDim* winfo;
-    VariousUtils::getSubWinInfo(PZEDIT,winfo,sinfo);
+    dbUtil->getSubWinInfo(PZEDIT,winfo,sinfo);
     showSubWindow(PZEDIT,winfo,dlg);
     if(winfo)
         delete winfo;
@@ -846,7 +846,7 @@ void MainWindow::viewSubjectExtra()
 
     SubWindowDim* winfo;
     QByteArray* sinfo;
-    bool exist = VariousUtils::getSubWinInfo(LOOKUPSUBEXTRA,winfo,sinfo);
+    bool exist = dbUtil->getSubWinInfo(LOOKUPSUBEXTRA,winfo,sinfo);
     dlg = new LookupSubjectExtraDialog(curAccount);
 
     showSubWindow(LOOKUPSUBEXTRA,winfo,dlg);
@@ -877,7 +877,7 @@ void MainWindow::openSpecPz(int pid,int bid)
     else{
         QByteArray* sinfo;
         SubWindowDim* winfo;
-        VariousUtils::getSubWinInfo(HISTORYVIEW,winfo,sinfo);
+        dbUtil->getSubWinInfo(HISTORYVIEW,winfo,sinfo);
         HistoryPzDialog* dlg = new HistoryPzDialog(pid,bid,sinfo);
         showSubWindow(HISTORYVIEW,winfo,dlg);
         if(sinfo)
@@ -1726,7 +1726,7 @@ void MainWindow::saveSubWinInfo(subWindowType winEnum, QByteArray* sinfo)
     info->y = subWindows.value(winEnum)->y();
     info->w = subWindows.value(winEnum)->width();
     info->h = subWindows.value(winEnum)->height();
-    VariousUtils::saveSubWinInfo(winEnum,info,sinfo);
+    dbUtil->saveSubWinInfo(winEnum,info,sinfo);
     delete info;
 }
 
@@ -1739,7 +1739,7 @@ void MainWindow::refreshShowPzsState()
     //显示各类凭证的数目
     ui->statusbar->setPzCounts(pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     PzsState state;
-    BusiUtil::getPzsState(cursy,cursm,state);
+    dbUtil->getPzsState(cursy,cursm,state);
     //如果凭证集原先未结账，则根据实际的凭证审核状态来决定凭证集的状态
     if(!isOpenPzSet)
         state = Ps_NoOpen;
@@ -1804,7 +1804,7 @@ void MainWindow::on_actCurStat_triggered()
 
     SubWindowDim* winfo;
     QByteArray* sinfo;
-    VariousUtils::getSubWinInfo(PZSTAT,winfo,sinfo);
+    dbUtil->getSubWinInfo(PZSTAT,winfo,sinfo);
     dlg = new ViewExtraDialog(cursy, cursm, sinfo, this );
     connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
     connect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
@@ -1979,7 +1979,7 @@ void MainWindow::on_actPrint_triggered()
         int range = psDlg->getPrintPzSet(pznSet);//获取打印范围
         int mode = psDlg->getPrintMode();        //获取打印模式
         QHash<int,Double> rates;
-        BusiUtil::getRates2(cursy,cursm,rates);        //获取汇率
+        curAccount->getRates(cursy,cursm,rates);        //获取汇率
         QString lname = curAccount->getLName();
 
         QPrinter printer;
@@ -2331,7 +2331,7 @@ void MainWindow::on_actAllVerify_triggered()
 
     int affectedRows;
     BusiUtil::setAllPzState(cursy,cursm,Pzs_Verify,Pzs_Recording,affectedRows);
-    BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+    dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     refreshShowPzsState();
     showPzNumsAffected(affectedRows);
     if(subWindows.contains(PZEDIT)){
@@ -2357,7 +2357,7 @@ void MainWindow::on_actAllInstat_triggered()
 
     int affectedRows;
     BusiUtil::setAllPzState(cursy,cursm,Pzs_Instat,Pzs_Verify,affectedRows);
-    BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+    dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     refreshShowPzsState();
     showPzNumsAffected(affectedRows);
     if(subWindows.contains(PZEDIT)){
@@ -2484,7 +2484,7 @@ void MainWindow::on_actJzbnlr_triggered()
     d.verify = NULL;
     d.bookKeeper = NULL;
 
-    if(BusiUtil::crtNewPz(&d)){
+    if(dbUtil->crtNewPz(&d)){
         showTemInfo(tr("成功创建结转本年利润凭证！"));
         pzAmount++;
         pzRecording++;
@@ -2570,7 +2570,7 @@ void MainWindow::on_actAntiJz_triggered()
         }
         if(affeced > 0){
             isExtraVolid = false;
-            BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+            dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
         }
         refreshShowPzsState();
     }
@@ -2591,7 +2591,7 @@ void MainWindow::on_actAntiEndAcc_triggered()
     BusiUtil::setPzsState(cursy,cursm,/*Ps_Stat5*/Ps_Rec);
     allPzToRecording(cursy,cursm);
     isExtraVolid = false;
-    BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+    dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     refreshShowPzsState();
     refreshActEnanble();
 }
@@ -2615,7 +2615,7 @@ void MainWindow::on_actAntiImp_triggered()
 //打开Sql工具
 void MainWindow::showSqlTool()
 {
-    SqlToolDialog* dlg = new SqlToolDialog;
+    SqlToolDialog* dlg = new SqlToolDialog(curAccount->getDbUtil()->getDb());
     dlg->setWindowTitle(tr("SQL工具窗"));
     ui->mdiArea->addSubWindow(dlg);
     dlg->show();
@@ -2660,7 +2660,7 @@ void MainWindow::on_actShowTotal_triggered()
 {
     QByteArray* sinfo;
     SubWindowDim* winfo;
-    VariousUtils::getSubWinInfo(TOTALVIEW,winfo,sinfo);
+    dbUtil->getSubWinInfo(TOTALVIEW,winfo,sinfo);
     ShowTZDialog* dlg = new ShowTZDialog(cursy,cursm,sinfo);
     showSubWindow(TOTALVIEW,winfo,dlg);
     if(sinfo)
@@ -2686,7 +2686,7 @@ void MainWindow::on_actShowDetail_triggered()
 
         QByteArray* sinfo;
         SubWindowDim* winfo;
-        VariousUtils::getSubWinInfo(DETAILSVIEW,winfo,sinfo);
+        dbUtil->getSubWinInfo(DETAILSVIEW,winfo,sinfo);
         ShowDZDialog* dlg = new ShowDZDialog(curAccount,sinfo);
         connect(dlg,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
         dlg->setSubRange(witch,fids,sids,gv,lv,inc);
@@ -2813,7 +2813,7 @@ bool MainWindow::jzsy()
     //1、检测本期和下期汇率是否有变动，如果有，则检测是否执行了结转汇兑损益，如果没有，则退出
     QHash<int,Double> sRates,eRates;
     int y=cursy,m=cursm;
-    BusiUtil::getRates2(y,m,sRates);
+    curAccount->getRates(y,m,sRates);
     if(m == 12){
         y++;
         m = 1;
@@ -2821,7 +2821,7 @@ bool MainWindow::jzsy()
     else{
         m++;
     }
-    BusiUtil::getRates2(y,m,eRates);
+    curAccount->getRates(y,m,eRates);
 
     if(eRates.empty()){
         QString tip = tr("下期汇率未设置，请先设置：%1年%2月美金汇率：").arg(y).arg(m);
@@ -2830,7 +2830,7 @@ bool MainWindow::jzsy()
         if(!ok)
             return true;
         eRates[USD] = Double(rate);
-        BusiUtil::saveRates2(y,m,eRates);
+        curAccount->setRates(y,m,eRates);
     }
     //汇率不等，则检查是否执行了结转汇兑损益
     if(sRates.value(USD) != eRates.value(USD)){
@@ -2847,7 +2847,7 @@ bool MainWindow::jzsy()
     BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
     if(count < 2){
         BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzsy,count);
-        BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+        dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
         isExtraVolid = false;
         refreshShowPzsState();
     }
@@ -2899,7 +2899,7 @@ bool MainWindow::jzhdsy()
         yy = cursy;
         mm = cursm+1;
     }
-    BusiUtil::getRates2(yy,mm,rates);
+    curAccount->getRates(yy,mm,rates);
     QString tip = tr("请确认汇率是否正确：%1年%2月美金汇率：").arg(yy).arg(mm);
     bool ok;
     double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,rates.value(USD).getv(),0,100,2,&ok);
@@ -2907,10 +2907,10 @@ bool MainWindow::jzhdsy()
         return true;
     rates[USD] = Double(rate);
     int affected;
-    BusiUtil::saveRates2(yy,mm,rates);
+    curAccount->setRates(yy,mm,rates);
     BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzhd,affected);
     if(affected > 0){
-        BusiUtil::scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
+        dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
         refreshShowPzsState();
     }
 
@@ -2944,7 +2944,7 @@ void MainWindow::on_actAccProperty_triggered()
 {
     QByteArray* sinfo;
     SubWindowDim* winfo;
-    VariousUtils::getSubWinInfo(ACCOUNTPROPERTY,winfo,sinfo);
+    dbUtil->getSubWinInfo(ACCOUNTPROPERTY,winfo,sinfo);
     AccountPropertyDialog* dlg = new AccountPropertyDialog(curAccount);
     showSubWindow(ACCOUNTPROPERTY,winfo,dlg);
     if(sinfo)
@@ -3199,7 +3199,7 @@ void MainWindow::on_actViewLog_triggered()
 bool MainWindow::impTestDatas()
 {
     //curAccount = new Account(tr("宁波苏航.dat"));
-    Account acc(tr("宁波苏航.dat"));
+    //Account acc(tr("宁波苏航.dat"));
     //acc.appendSuite(2014,tr("2014年测试帐套"));
     //acc.setSuiteName(2013,tr("2013测试帐套"));
     //acc.addWaiMt(3);
@@ -3226,8 +3226,26 @@ bool MainWindow::impTestDatas()
     //VMAccount::backup(tr("宁波苏航.dat"));
     //bool r = VMAccount::restore(tr("宁波苏航.dat"));
 
-    QList<int> ids; QList<QString> names;
-    bool r = acc.getDbUtil()->getFS_Id_name(ids,names);
+    QList<BusiActionData2*> bas;
+    curAccount->getDbUtil()->getActionsInPz(1,bas);
+    BusiActionData2* ba,*ba2;
+    ba = bas.first();
+//    ba->summary = ba->summary.append("  test");
+//    ba->state = BusiActionData2::EDITED;
+//    curAccount->getDbUtil()->saveActionsInPz(1,bas);
+
+    ba2 = new BusiActionData2;
+    ba2->summary = "new busiaction read id";
+    ba2->state = BusiActionData2::NEW;
+    ba2->fid = ba->fid;
+    ba2->sid = ba->sid;
+    ba2->mt = ba->mt;
+    ba2->dir = ba->dir;
+    ba2->pid = ba->pid;
+    ba2->num = 3;
+    bas<<ba2;
+    curAccount->getDbUtil()->saveActionsInPz(1,bas);
+    //ba = bas.last()
     int i = 0;
 
     //1、在空白表上保存余额通过

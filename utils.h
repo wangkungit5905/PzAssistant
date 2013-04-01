@@ -467,7 +467,7 @@ public:
     static bool getPzIdForSpecCls(int y, int m, int cls, User* user, int& id);
 
     //
-    static bool delActionsInPz(int pzId);
+    //static bool delActionsInPz(int pzId);
 
     //在FSAgent表中创建新的一二级科目的映射条目
     static bool newFstToSnd(int fid, int sid, int& id);
@@ -497,10 +497,10 @@ public:
     static bool getOutMtInBank(QList<int>& ids, QList<int>& mt);
 
     //新建凭证
-    static bool crtNewPz(PzData* pz);    
+    //static bool crtNewPz(PzData* pz);
 
     //按凭证日期，重新设置凭证集内的凭证号
-    static bool assignPzNum(int y, int m);
+    //static bool assignPzNum(int y, int m);
 
     static bool getSNameForId(int sid, QString& name, QString& lname);
 
@@ -510,7 +510,7 @@ public:
     //读取银行帐号
     //static bool readAllBankAccont(QHash<int,BankAccount*>& banks);
 
-    static bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
+    //static bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
     static bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
 
     //引入其他模块产生的凭证
@@ -647,10 +647,10 @@ public:
     }
 
     //获取子窗口信息
-    static bool getSubWinInfo(int winEnum, SubWindowDim*& info, QByteArray*& otherInfo);
+    //static bool getSubWinInfo(int winEnum, SubWindowDim*& info, QByteArray*& otherInfo);
 
     //保存字窗口信息
-    static bool saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo = NULL);
+    //static bool saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo = NULL);
 
     //获取子窗口信息
     static bool getSubWinInfo3(int winEnum, QByteArray*& ba);

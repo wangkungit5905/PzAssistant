@@ -547,6 +547,7 @@ private:
     QHash<int,QString> userNames;  //用户名表
     QStandardItemModel* bm; //访问凭证业务活动的数据模型
     QList<int> colWidths;  //表格列宽
+    DbUtil* dbUtil;
 };
 
 

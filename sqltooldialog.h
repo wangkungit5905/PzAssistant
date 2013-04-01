@@ -18,7 +18,7 @@ class SqlToolDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit SqlToolDialog(QWidget *parent = 0);
+    explicit SqlToolDialog(QSqlDatabase db, QWidget *parent = 0);
     ~SqlToolDialog();
 
 public slots:
@@ -43,6 +43,7 @@ private:
 
     Ui::SqlToolDialog *ui;
 
+    QSqlDatabase db;
     QSqlQueryModel* model;
     QSqlTableModel* tmodel;
 

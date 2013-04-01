@@ -542,6 +542,50 @@ bool DbUtil::initBanks(Account *account)
 }
 
 /**
+ * @brief DbUtil::scanPzSetCount
+ *  统计凭证集内各类凭证的总数
+ * @param y         年
+ * @param m         月
+ * @param repeal    作废凭证数
+ * @param recording 正在录入的凭证数
+ * @param verify    审核通过的凭证数
+ * @param instat    已入账的凭证数
+ * @param amount    凭证总数
+ * @return
+ */
+bool DbUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount)
+{
+    QSqlQuery q(db);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select %1 from %2 where %3 like '%4%'")
+            .arg(fld_pz_state).arg(tbl_pz).arg(fld_pz_date).arg(ds);
+    if(!q.exec(s))
+        return false;
+    repeal=0;recording=0;verify=0;instat=0;amount=0;
+    PzState state;
+    while(q.next()){
+        amount++;
+        state = (PzState)q.value(0).toInt();
+        switch(state){
+        case Pzs_Repeal:
+            repeal++;
+            break;
+        case Pzs_Recording:
+            recording++;
+            break;
+        case Pzs_Verify:
+            verify++;
+            break;
+        case Pzs_Instat:
+            instat++;
+            break;
+        }
+    }
+    return true;
+}
+
+/**
  * @brief DbUtil::readExtraForPm
  *  读取指定年月的余额值（原币形式）
  * @param y     年
@@ -625,6 +669,8 @@ bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const
     return true;
 }
 
+
+
 /**
  * @brief DbUtil::getFS_Id_name
  *  获取指定科目系统的一级科目的id和名称（一般用于一级科目选取组合框的初始化）
@@ -644,6 +690,537 @@ bool DbUtil::getFS_Id_name(QList<int> &ids, QList<QString> &names, int subSys)
     while(q.next()){
         ids<<q.value(0).toInt();
         names<<q.value(1).toString();
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::getPzsState
+ *  获取指定年月的凭证集状态
+ * @param y
+ * @param m
+ * @param state
+ * @return
+ */
+bool DbUtil::getPzsState(int y, int m, PzsState &state)
+{
+    QSqlQuery q(db);
+    if(y==0 && m==0){
+        state = Ps_NoOpen;
+        return true;
+    }
+    QString s = QString("select %1 from %2 where (%3=%4) and (%5=%6)")
+            .arg(fld_pzss_state).arg(tbl_pzsStates).arg(fld_pzss_year)
+            .arg(y).arg(fld_pzss_month).arg(m);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())  //还没有记录，则表示刚开始录入凭证
+        state = Ps_Rec;
+    else
+        state = (PzsState)q.value(0).toInt();
+    return true;
+}
+
+/**
+ * @brief DbUtil::setPzsState
+ *  保存指定年月的凭证集状态
+ * @param y
+ * @param m
+ * @param state
+ * @return
+ */
+bool DbUtil::setPzsState(int y, int m, PzsState state)
+{
+    QSqlQuery q(db);
+    //首先检测是否存在对应记录
+    QString s = QString("select %1 from %2 where (%3=%4) and (%5=%6)")
+            .arg(fld_pzss_state).arg(tbl_pzsStates).arg(fld_pzss_year)
+            .arg(y).arg(fld_pzss_month).arg(m);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first())
+        s = QString("update %1 set %2=%3 where (%4=%5) and (%6=%7)")
+                .arg(tbl_pzsStates).arg(fld_pzss_state).arg(state)
+                .arg(fld_pzss_year).arg(y).arg(fld_pzss_month).arg(m);
+    else
+        s = QString("insert into %1(%2,%3,%4) values(%5,%6,%7)").arg(tbl_pzsStates)
+                .arg(fld_pzss_year).arg(fld_pzss_month).arg(fld_pzss_state)
+                .arg(y).arg(m).arg(state);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::getRates
+ *  获取指定年月凭证集所采用的汇率
+ * @param y
+ * @param m
+ * @param rates     汇率表（键为币种代码）
+ * @param mainMt    本币代码
+ * @return
+ */
+bool DbUtil::getRates(int y, int m, QHash<int, Double> &rates)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_moneyType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QString mainSign; //母币符号
+    QHash<int,QString> msHash; //货币代码到货币符号的映射
+    int mt; QString mtSign;bool isMast;
+    while(q.next()){
+        isMast = q.value(MT_MASTER).toBool();
+        mt = q.value(MT_CODE).toInt();
+        mtSign = q.value(MT_SIGN).toString();
+        if(!isMast)
+            msHash[mt] = mtSign;
+        else
+            mainSign = mtSign;
+    }
+
+    QList<int> mtcs = msHash.keys();
+    s = QString("select ");
+    for(int i = 0; i<mtcs.count(); ++i){
+        s.append(msHash.value(mtcs.at(i)));
+        s.append(QString("2%1,").arg(mainSign));
+    }
+    s.chop(1);
+    s.append(QString(" from %1 ").arg(tbl_rateTable));
+    s.append(QString("where %1 = %2 and %3 = %4")
+             .arg(fld_rt_year).arg(y).arg(fld_rt_month).arg(m));
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        LOG_DEBUG(QObject::tr("没有指定汇率！"));
+        return false;
+    }
+    for(int i = 0;i<mtcs.count();++i)
+        rates[mtcs.at(i)] = Double(q.value(i).toDouble());
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveRates
+ *  保存指定年月凭证集所采用的汇率
+ * @param y
+ * @param m
+ * @param rates     汇率表（键为币种代码）
+ * @param mainMt    本币代码
+ * @return
+ */
+bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
+{
+    QSqlQuery q(db);
+    QString s,vs;
+
+    QList<int> wbCodes;     //外币币种代码
+    QList<QString> wbSigns; //外币符号列表
+    QList<QString> mtFields; //存放与外币币种对应汇率的字段名（按序号一一对应）
+    s = QString("select %1,%2,%3 from %4").arg(fld_mt_code).arg(fld_mt_sign)
+            .arg(fld_mt_isMaster).arg(tbl_moneyType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QString mainSign,mtSign;
+    int mt; bool isMast;
+    while(q.next()){
+        mt = q.value(0).toInt();
+        mtSign = q.value(1).toString();
+        isMast = q.value(2).toBool();
+        if(isMast)
+            mainSign = mtSign;
+        else{
+            wbCodes << mt;
+            wbSigns << mtSign;
+        }
+    }
+    for(int i = 0; i < wbCodes.count(); ++i)
+        mtFields << wbSigns.at(i) + "2" + mainSign;
+    s = QString("select id from %1 where %2 = %3 and %4 = %5")
+            .arg(tbl_rateTable).arg(fld_rt_year).arg(y).arg(fld_rt_month).arg(m);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first()){
+        int id = q.value(0).toInt();
+        s = QString("update %1 set ").arg(tbl_rateTable);
+        for(int i = 0; i < mtFields.count(); ++i){
+            if(rates.contains(wbCodes.at(i)))
+                s.append(QString("%1=%2,").arg(mtFields.at(i))
+                         .arg(rates.value(wbCodes.at(i)).toString()));
+        }
+
+        s.chop(1);
+        s.append(QString(" where id = %1").arg(id));
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    else{
+        s = QString("insert into %1(%2,%3,").arg(tbl_rateTable).arg(fld_rt_year).arg(fld_rt_month);
+        vs = QString("values(%1,%2,").arg(y).arg(m);
+        for(int i = 0; i < mtFields.count(); ++i){
+            if(rates.contains(wbCodes.at(i))){
+                s.append(mtFields.at(i)).append(",");
+                vs.append(rates.value(wbCodes[i]).toString()).append(",");
+            }
+        }
+        s.chop(1); vs.chop(1);
+        s.append(") "); vs.append(")");
+        s.append(vs);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::assignPzNum
+ *  按凭证日期和录入顺序重置凭证号
+ * @param y
+ * @param m
+ * @return
+ */
+bool DbUtil::assignPzNum(int y, int m)
+{
+    QSqlQuery q(db),q1(db);
+    QString s;
+
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    if(!db.transaction()){
+        warn_transaction(Transaction_open,QObject::tr("重置凭证"));
+        return false;
+    }
+    s = QString("select id from %1 where %2 like '%3%' order by %2")
+            .arg(tbl_pz).arg(fld_pz_date).arg(ds);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int id, num = 1;
+    while(q.next()){
+        id = q.value(0).toInt();
+        s = QString("update %1 set %2=%3 where id=%4")
+                .arg(tbl_pz).arg(fld_pz_number).arg(num++).arg(id);
+        if(!q1.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    if(!db.commit()){
+        warn_transaction(Transaction_commit,QObject::tr("重置凭证"));
+        if(!db.rollback()){
+            warn_transaction(Transaction_rollback,QObject::tr("重置凭证"));
+            return false;
+        }
+        return false;
+    }
+    return true;
+}
+
+bool DbUtil::crtNewPz(PzData *pz)
+{
+    QSqlQuery q(db);
+    QString s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12) "
+                        "values('%13',%14,%15,%16,%17,%18,%19,%20,%21,%22,%23)").arg(tbl_pz)
+            .arg(fld_pz_date).arg(fld_pz_number).arg(fld_pz_zbnum).arg(fld_pz_jsum)
+            .arg(fld_pz_dsum).arg(fld_pz_class).arg(fld_pz_encnum).arg(fld_pz_state)
+            .arg(fld_pz_vu).arg(fld_pz_ru).arg(fld_pz_bu)
+            .arg(pz->date).arg(pz->pzNum).arg(pz->pzZbNum).arg(pz->jsum)
+            .arg(pz->dsum).arg(pz->pzClass).arg(pz->attNums).arg(pz->state)
+            .arg(pz->verify!=NULL?pz->verify->getUserId():NULL)
+            .arg(pz->producer!=NULL?pz->producer->getUserId():NULL)
+            .arg(pz->bookKeeper!=NULL?pz->bookKeeper->getUserId():NULL);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    s = QString("select last_insert_rowid()");
+    if(q.exec(s) && q.first())
+        pz->pzId = q.value(0).toInt();
+    else
+        return false;
+    return true;
+}
+
+bool DbUtil::delActionsInPz(int pzId)
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where %2 = %3").arg(tbl_ba).arg(fld_ba_pid).arg(pzId);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    //int rows = q.numRowsAffected();
+    return true;
+}
+
+/**
+ * @brief DbUtil::getActionsInPz
+ *  获取指定凭证内的所有会计分录（将来当引入凭证和会计分录类时，要修改）
+ * @param pid
+ * @param busiActions
+ * @return
+ */
+bool DbUtil::getActionsInPz(int pid, QList<BusiActionData2 *> &busiActions)
+{
+    QSqlQuery q(db);
+
+    if(busiActions.count() > 0){
+        qDeleteAll(busiActions);
+        busiActions.clear();
+    }
+
+    QString s = QString("select * from %1 where %2 = %3 order by %4")
+            .arg(tbl_ba).arg(fld_ba_pid).arg(pid).arg(fld_ba_number);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        BusiActionData2* ba = new BusiActionData2;
+        ba->id = q.value(0).toInt();
+        ba->pid = pid;
+        ba->summary = q.value(BACTION_SUMMARY).toString();
+        ba->fid = q.value(BACTION_FID).toInt();
+        ba->sid = q.value(BACTION_SID).toInt();
+        ba->mt  = q.value(BACTION_MTYPE).toInt();
+        ba->dir = q.value(BACTION_DIR).toInt();
+        if(ba->dir == DIR_J)
+            ba->v = Double(q.value(BACTION_JMONEY).toDouble());
+        else
+            ba->v = Double(q.value(BACTION_DMONEY).toDouble());
+        ba->num = q.value(BACTION_NUMINPZ).toInt();
+        ba->state = BusiActionData2::INIT;
+        busiActions.append(ba);
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveActionsInPz
+ *  保存指定凭证的所有会计分录（当引入凭证类后，可以使用一个凭证对象参数在一个事务中保存所有凭证相关的内容）
+ * @param pid
+ * @param busiActions
+ * @param dels
+ * @return
+ */
+bool DbUtil::saveActionsInPz(int pid, QList<BusiActionData2 *> &busiActions, QList<BusiActionData2 *> dels)
+{
+    QString s;
+    QSqlQuery q1(db),q2(db),q3(db),q4(db);
+    bool hasNew = false;
+
+    if(!busiActions.isEmpty()){
+        if(!db.transaction()){
+            warn_transaction(Transaction_open,QObject::tr("保存凭证内的会计分录"));
+            return false;
+        }
+
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
+                    "values(:pid,:summary,:fid,:sid,:mt,:jv,:dv,:dir,:num)")
+                .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary).arg(fld_ba_fid)
+                .arg(fld_ba_sid).arg(fld_ba_mt).arg(fld_ba_jv).arg(fld_ba_dv)
+                .arg(fld_ba_dir).arg(fld_ba_number);
+        q1.prepare(s);
+        s = QString("update %1 set %2=:summary,%3=:fid,%4=:sid,%5=:mt,"
+                    "%6=:jv,%7=:dv,%8=:dir,%9=:num where id=:id")
+                .arg(tbl_ba).arg(fld_ba_summary).arg(fld_ba_fid).arg(fld_ba_sid)
+                .arg(fld_ba_mt).arg(fld_ba_jv).arg(fld_ba_dv).arg(fld_ba_dir)
+                .arg(fld_ba_number);
+        q2.prepare(s);
+        s = QString("update %1 set %2=:num where id=:id").arg(tbl_ba).arg(fld_ba_number);
+        q3.prepare(s);
+        for(int i = 0; i < busiActions.count(); ++i){
+            busiActions[i]->num = i + 1;  //在保存的同时，重新赋于顺序号
+            switch(busiActions[i]->state){
+            case BusiActionData2::INIT:
+                break;
+            case BusiActionData2::NEW:
+                hasNew = true;
+                q1.bindValue(":pid",busiActions[i]->pid);
+                q1.bindValue(":summary", busiActions[i]->summary);
+                q1.bindValue(":fid", busiActions[i]->fid);
+                q1.bindValue(":sid", busiActions[i]->sid);
+                q1.bindValue(":mt", busiActions[i]->mt);
+                if(busiActions[i]->dir == DIR_J){
+                    q1.bindValue(":jv", busiActions[i]->v.getv());
+                    q1.bindValue(":dv",0);
+                    q1.bindValue(":dir", DIR_J);
+                }
+                else{
+                    q1.bindValue(":jv",0);
+                    q1.bindValue(":dv", busiActions[i]->v.getv());
+                    q1.bindValue(":dir", DIR_D);
+                }
+                q1.bindValue(":num", busiActions[i]->num);
+                q1.exec();
+                q4.exec("select last_insert_rowid()");
+                q4.first();
+                busiActions.at(i)->id = q4.value(0).toInt();
+                break;
+            case BusiActionData2::EDITED:
+                q2.bindValue(":summary", busiActions[i]->summary);
+                q2.bindValue(":fid", busiActions[i]->fid);
+                q2.bindValue(":sid", busiActions[i]->sid);
+                q2.bindValue(":mt", busiActions[i]->mt);
+                if(busiActions[i]->dir == DIR_J){
+                    q2.bindValue(":jv", busiActions[i]->v.getv());
+                    q2.bindValue(":dv",0);
+                    q2.bindValue(":dir", DIR_J);
+                }
+                else{
+                    q2.bindValue(":jv",0);
+                    q2.bindValue(":dv", busiActions[i]->v.getv());
+                    q2.bindValue(":dir", DIR_D);
+                }
+                q2.bindValue(":num", busiActions[i]->num);
+                q2.bindValue("id", busiActions[i]->id);
+                q2.exec();
+                break;
+            case BusiActionData2::NUMCHANGED:
+                q3.bindValue(":num", busiActions[i]->num);
+                q3.bindValue(":id", busiActions[i]->id);
+                q3.exec();
+                break;
+            }
+            busiActions[i]->state = BusiActionData2::INIT;
+        }
+        if(!db.commit()){
+            warn_transaction(Transaction_commit,QObject::tr("保存凭证内的会计分录"));
+            return false;
+        }
+        //回读新增的业务活动的id(待需要时再使用此代码)
+        //if(hasNew && !getActionsInPz(pid,busiActions))
+        //    return false;
+    }
+    if(!dels.isEmpty()){
+        if(!db.transaction()){
+            warn_transaction(Transaction_open,QObject::tr("保存凭证内的会计分录"));
+            return false;
+        }
+        s = "delete from BusiActions where id=:id";
+        q4.prepare(s);
+        for(int i = 0; i < dels.count(); ++i){
+            q4.bindValue(":id", dels[i]->id);
+            q4.exec();
+        }
+        if(!db.commit()){
+            warn_transaction(Transaction_commit,QObject::tr("保存凭证内的会计分录"));
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::getSubWinInfo
+ *  读取子窗口的各种几何尺寸信息
+ * @param winEnum
+ * @param info
+ * @param otherInfo
+ * @return
+ */
+bool DbUtil::getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *&otherInfo)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2 = %3")
+            .arg(tbl_subWinInfo).arg(fld_swi_enum).arg(winEnum);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first()){
+        info = new SubWindowDim;
+        info->x = q.value(SWI_X).toInt();
+        info->y = q.value(SWI_Y).toInt();
+        info->w = q.value(SWI_W).toInt();
+        info->h = q.value(SWI_H).toInt();
+        otherInfo = new QByteArray(q.value(SWI_TBL).toByteArray());
+    }
+    else{
+        info = NULL;
+        otherInfo = NULL;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveSubWinInfo
+ *  保存子窗口的各种几何尺寸信息
+ * @param winEnum
+ * @param info
+ * @param otherInfo
+ * @return
+ */
+bool DbUtil::saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *otherInfo)
+{
+    QSqlQuery q(db);
+    QString s;
+
+    if(otherInfo == NULL)
+        otherInfo = new QByteArray;
+    s = QString("select * from %1 where %2 = %3")
+            .arg(tbl_subWinInfo).arg(fld_swi_enum).arg(winEnum);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first()){
+        int id = q.value(0).toInt();
+        s = QString("update %1 set %2=:enum,%3=:x,%4=:y,%5=:w,%6=:h"
+                    ",%7=:info where id=:id")
+                .arg(tbl_subWinInfo).arg(fld_swi_enum).arg(fld_swi_x).arg(fld_swi_y)
+                .arg(fld_swi_width).arg(fld_swi_height).arg(fld_swi_tblInfo);
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.bindValue(":enum",winEnum);
+        q.bindValue(":x",info->x);
+        q.bindValue(":y",info->y);
+        q.bindValue(":w",info->w);
+        q.bindValue(":h",info->h);
+        q.bindValue(":info",*otherInfo);
+        q.bindValue(":id",id);
+    }
+    else{
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) "
+                    "values(:enum,:x,:y,:w,:h,:info)")
+                .arg(tbl_subWinInfo).arg(fld_swi_enum).arg(fld_swi_x).arg(fld_swi_y)
+                .arg(fld_swi_width).arg(fld_swi_height).arg(fld_swi_tblInfo);;
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.bindValue(":enum",winEnum);
+        q.bindValue(":x",info->x);
+        q.bindValue(":y",info->y);
+        q.bindValue(":w",info->w);
+        q.bindValue(":h",info->h);
+        q.bindValue(":info",*otherInfo);
+    }
+    if(!q.exec()){
+        LOG_SQLERROR(s);
+        return false;
     }
     return true;
 }
@@ -679,16 +1256,16 @@ bool DbUtil::saveAccInfoPiece(DbUtil::InfoField code, QString value)
  * @param suites
  * @return
  */
-bool DbUtil::readAccountSuites(QList<Account::AccountSuite *> &suites)
+bool DbUtil::readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
 {
     //读取账户的帐套信息
     QSqlQuery q(db);
     QString s = QString("select * from %1 order by %2").arg(tbl_accSuites).arg(fld_accs_year);
     if(!q.exec(s))
         return false;
-    Account::AccountSuite* as;
+    Account::AccountSuiteRecord* as;
     while(q.next()){
-        as = new Account::AccountSuite;
+        as = new Account::AccountSuiteRecord;
         as->id = q.value(0).toInt();
         as->year = q.value(ACCS_YEAR).toInt();
         as->subSys = q.value(ACCS_SUBSYS).toInt();
@@ -706,7 +1283,7 @@ bool DbUtil::readAccountSuites(QList<Account::AccountSuite *> &suites)
  * @param suites
  * @return
  */
-bool DbUtil::saveAccountSuites(QList<Account::AccountSuite *> suites)
+bool DbUtil::saveAccountSuites(QList<Account::AccountSuiteRecord *> suites)
 {
     QString s;
     QSqlQuery q(db);
@@ -714,13 +1291,13 @@ bool DbUtil::saveAccountSuites(QList<Account::AccountSuite *> suites)
         Logger::write(QDateTime::currentDateTime(),Logger::Error,"",0,"", QObject::tr("Start transaction failed!"));
         return false;
     }
-    QList<Account::AccountSuite *> oldSuites;
+    QList<Account::AccountSuiteRecord *> oldSuites;
     if(!readAccountSuites(oldSuites))
         return false;
-    QHash<int,Account::AccountSuite*> oldHash;
-    foreach(Account::AccountSuite* as, oldSuites)
+    QHash<int,Account::AccountSuiteRecord*> oldHash;
+    foreach(Account::AccountSuiteRecord* as, oldSuites)
         oldHash[as->id] = as;
-    foreach(Account::AccountSuite* as, suites){
+    foreach(Account::AccountSuiteRecord* as, suites){
         if(as->id == 0)
             s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,'%9',%10,%11)")
                     .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
@@ -1103,4 +1680,23 @@ void DbUtil::crtGdzcTable()
     s = "CREATE TABLE gdzczjs(id INTEGER PRIMARY KEY,gid INTEGER,pid INTEGER,"
         "bid INTEGER,date TEXT,price DOUBLE)";
     r = q1.exec(s);
+}
+
+void DbUtil::warn_transaction(ErrorCode witch, QString context)
+{
+    QString s;
+    switch(witch){
+    case Transaction_open:
+        s = QObject::tr("启动事务");
+        break;
+    case Transaction_commit:
+        s = QObject::tr("提交事务");
+        break;
+    case Transaction_rollback:
+        s = QObject::tr("回滚事务");
+        break;
+    }
+    QString ss = QObject::tr("在%1时，%2失败！").arg(context).arg(s);
+    //LOG_SQLERROR(ss);
+    QMessageBox::critical(0,QObject::tr("数据库访问出错"),ss);
 }

@@ -5446,6 +5446,7 @@ HistoryPzDialog::HistoryPzDialog(int pzId, int bid, QByteArray* sinfo, QWidget *
     ui->setupUi(this);
     this->pzId = pzId;
     this->bid = bid;
+    dbUtil = curAccount->getDbUtil();
 
     QHashIterator<PzState,QString> ip(pzStates);
     while(ip.hasNext()){
@@ -5553,7 +5554,7 @@ void HistoryPzDialog::updateContent()
     bm->clear();
     SubjectManager* sm = curAccount->getSubjectManager();
     QList<BusiActionData2*> datas;
-    BusiUtil::getActionsInPz(pzId,datas);
+    dbUtil->getActionsInPz(pzId,datas);
     QList<QStandardItem*> l;
     ApStandardItem* item;
     int row;

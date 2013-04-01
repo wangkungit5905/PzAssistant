@@ -77,7 +77,7 @@ QString Account::getWaiMtStr()
  */
 void Account::appendSuite(int y, QString name, int curMonth,int subSys)
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y){
             as->name = name;
             as->lastMonth = curMonth;
@@ -88,7 +88,7 @@ void Account::appendSuite(int y, QString name, int curMonth,int subSys)
         else
             as->isCur = false;
     }
-    AccountSuite* as = new AccountSuite;
+    AccountSuiteRecord* as = new AccountSuiteRecord;
     as->id = 0; as->year = y; as->name = name;
     as->isCur = true; as->lastMonth = curMonth;
     as->startMonth = 1; as->endMonth = 1;as->subSys = subSys;
@@ -100,7 +100,7 @@ void Account::appendSuite(int y, QString name, int curMonth,int subSys)
 
 void Account::setSuiteName(int y, QString name)
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y)
             as->name = name;
     }
@@ -119,9 +119,9 @@ QList<int> Account::getSuites()
  *  获取最近打开的帐套
  * @return
  */
- Account::AccountSuite* Account::getCurSuite()
+ Account::AccountSuiteRecord* Account::getCurSuite()
  {
-     foreach(AccountSuite* as, accInfos.suites)
+     foreach(AccountSuiteRecord* as, accInfos.suites)
          if(as->isCur)
              return as;
      if(!accInfos.suites.empty()){
@@ -138,7 +138,7 @@ QList<int> Account::getSuites()
  */
 void Account::setCurSuite(int y)
 {
-    foreach(AccountSuite* as, accInfos.suites)
+    foreach(AccountSuiteRecord* as, accInfos.suites)
         if(as->year == y)
             as->isCur = true;
 }
@@ -178,7 +178,7 @@ QString Account::getSuiteName(int y)
 //获取当前帐套的起始月份
 int Account::getSuiteFirstMonth(int y)
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y)
             return as->startMonth;
     }
@@ -188,7 +188,7 @@ int Account::getSuiteFirstMonth(int y)
 //获取当前帐套的结束月份
 int Account::getSuiteLastMonth(int y)
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y)
             return as->endMonth;
     }
@@ -202,7 +202,7 @@ int Account::getSuiteLastMonth(int y)
  */
 void Account::setCurMonth(int m)
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->isCur)
             as->lastMonth = m;
     }
@@ -215,7 +215,7 @@ void Account::setCurMonth(int m)
  */
 int Account::getCurMonth()
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->isCur)
             return as->lastMonth;
     }
@@ -277,6 +277,16 @@ SubjectManager *Account::getSubjectManager(int subSys)
     return smgs.value(subSys);
 }
 
+bool Account::getRates(int y, int m, QHash<int, Double> &rates)
+{
+    return dbUtil->getRates(y,m,rates);
+}
+
+bool Account::setRates(int y, int m, QHash<int, Double> &rates)
+{
+    return dbUtil->saveRates(y,m,rates);
+}
+
 void Account::setDatabase(QSqlDatabase *db)
 {Account::db=db;}
 
@@ -324,7 +334,7 @@ bool Account::init()
 //获取帐套内凭证集的开始、结束月份
 bool Account::getSuiteMonthRange(int y,int& sm, int &em)
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y){
             sm = as->startMonth;
             em = as->endMonth;
@@ -336,7 +346,7 @@ bool Account::getSuiteMonthRange(int y,int& sm, int &em)
 
 bool Account::containSuite(int y)
 {
-    foreach(AccountSuite* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y)
             return true;
     }
@@ -371,13 +381,13 @@ void Account::delLogs(QDateTime start, QDateTime end)
 }
 
 ////////////////////////////////////////////////////////////////
-bool byAccountSuiteThan(Account::AccountSuite *as1, Account::AccountSuite *as2)
+bool byAccountSuiteThan(Account::AccountSuiteRecord *as1, Account::AccountSuiteRecord *as2)
 {
     return as1->year < as2->year;
 }
 
 
-bool Account::AccountSuite::operator !=(const AccountSuite& other)
+bool Account::AccountSuiteRecord::operator !=(const AccountSuiteRecord& other)
 {
     if(year != other.year)
         return true;

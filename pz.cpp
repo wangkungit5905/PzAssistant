@@ -3,6 +3,7 @@
 #include "global.h"
 #include "utils.h"
 #include "otherModule.h"
+#include "dbutil.h"
 
 /////////////////PingZheng/////////////////////////////////////////
 PingZheng::PingZheng(User* user, QSqlDatabase db):user(user),db(db)
@@ -233,7 +234,7 @@ bool PzSetMgr::open()
         pds<<pz;
     }
 
-    if(!BusiUtil::getPzsState(y,m,state)){
+    if(!dbUtil->getPzsState(y,m,state)){
         state = Ps_NoOpen;
         if(!BusiUtil::setPzsState(y,m,state))
             return false;

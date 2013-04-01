@@ -1077,108 +1077,108 @@ bool BusiUtil::getSidToFid(QHash<int, int> &sidToFids, int subSys)
 bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, QList<BusiActionData2 *> dels)
 {
     QString s;
-        QSqlQuery q1,q2,q3,q4;
-        bool r, hasNew = false;
-        QSqlDatabase db = QSqlDatabase::database();
+    QSqlQuery q1,q2,q3,q4;
+    bool r, hasNew = false;
+    QSqlDatabase db = QSqlDatabase::database();
 
-        if(!busiActions.isEmpty()){
-            if(!db.transaction())
-                return false;
+    if(!busiActions.isEmpty()){
+        if(!db.transaction())
+            return false;
 
-            s = QString("insert into BusiActions(pid,summary,firSubID,secSubID,"
-                        "moneyType,jMoney,dMoney,dir,NumInPz) values(:pid,:summary,"
-                        ":fid,:sid,:mt,:jv,:dv,:dir,:num)");
-            q1.prepare(s);
-            s = QString("update BusiActions set summary=:summary,firSubID=:fid,"
-                        "secSubID=:sid,moneyType=:mt,jMoney=:jv,dMoney=:dv,"
-                        "dir=:dir,NumInPz=:num where id=:id");
-            q2.prepare(s);
-            s = "update BusiActions set NumInPz=:num where id=:id";
-            q3.prepare(s);
-            for(int i = 0; i < busiActions.count(); ++i){
-                busiActions[i]->num = i + 1;  //在保存的同时，重新赋于顺序号
-                switch(busiActions[i]->state){
-                case BusiActionData2::INIT:
-                    break;
-                case BusiActionData2::NEW:
-                    hasNew = true;
-                    q1.bindValue(":pid",busiActions[i]->pid);
-                    q1.bindValue(":summary", busiActions[i]->summary);
-                    q1.bindValue(":fid", busiActions[i]->fid);
-                    q1.bindValue(":sid", busiActions[i]->sid);
-                    q1.bindValue(":mt", busiActions[i]->mt);
-                    if(busiActions[i]->dir == DIR_J){
-                        q1.bindValue(":jv", busiActions[i]->v.getv());
-                        q1.bindValue(":dv",0);
-                        q1.bindValue(":dir", DIR_J);
-                    }
-                    else{
-                        q1.bindValue(":jv",0);
-                        q1.bindValue(":dv", busiActions[i]->v.getv());
-                        q1.bindValue(":dir", DIR_D);
-                    }
-                    q1.bindValue(":num", busiActions[i]->num);
-                    q1.exec();
-                    break;
-                case BusiActionData2::EDITED:
-                    q2.bindValue(":summary", busiActions[i]->summary);
-                    q2.bindValue(":fid", busiActions[i]->fid);
-                    q2.bindValue(":sid", busiActions[i]->sid);
-                    q2.bindValue(":mt", busiActions[i]->mt);
-                    if(busiActions[i]->dir == DIR_J){
-                        q2.bindValue(":jv", busiActions[i]->v.getv());
-                        q2.bindValue(":dv",0);
-                        q2.bindValue(":dir", DIR_J);
-                    }
-                    else{
-                        q2.bindValue(":jv",0);
-                        q2.bindValue(":dv", busiActions[i]->v.getv());
-                        q2.bindValue(":dir", DIR_D);
-                    }
-                    q2.bindValue(":num", busiActions[i]->num);
-                    q2.bindValue("id", busiActions[i]->id);
-                    q2.exec();
-                    break;
-                case BusiActionData2::NUMCHANGED:
-                    q3.bindValue(":num", busiActions[i]->num);
-                    q3.bindValue(":id", busiActions[i]->id);
-                    q3.exec();
-                    break;
+        s = QString("insert into BusiActions(pid,summary,firSubID,secSubID,"
+                    "moneyType,jMoney,dMoney,dir,NumInPz) values(:pid,:summary,"
+                    ":fid,:sid,:mt,:jv,:dv,:dir,:num)");
+        q1.prepare(s);
+        s = QString("update BusiActions set summary=:summary,firSubID=:fid,"
+                    "secSubID=:sid,moneyType=:mt,jMoney=:jv,dMoney=:dv,"
+                    "dir=:dir,NumInPz=:num where id=:id");
+        q2.prepare(s);
+        s = "update BusiActions set NumInPz=:num where id=:id";
+        q3.prepare(s);
+        for(int i = 0; i < busiActions.count(); ++i){
+            busiActions[i]->num = i + 1;  //在保存的同时，重新赋于顺序号
+            switch(busiActions[i]->state){
+            case BusiActionData2::INIT:
+                break;
+            case BusiActionData2::NEW:
+                hasNew = true;
+                q1.bindValue(":pid",busiActions[i]->pid);
+                q1.bindValue(":summary", busiActions[i]->summary);
+                q1.bindValue(":fid", busiActions[i]->fid);
+                q1.bindValue(":sid", busiActions[i]->sid);
+                q1.bindValue(":mt", busiActions[i]->mt);
+                if(busiActions[i]->dir == DIR_J){
+                    q1.bindValue(":jv", busiActions[i]->v.getv());
+                    q1.bindValue(":dv",0);
+                    q1.bindValue(":dir", DIR_J);
                 }
-                busiActions[i]->state = BusiActionData2::INIT;
+                else{
+                    q1.bindValue(":jv",0);
+                    q1.bindValue(":dv", busiActions[i]->v.getv());
+                    q1.bindValue(":dir", DIR_D);
+                }
+                q1.bindValue(":num", busiActions[i]->num);
+                q1.exec();
+                break;
+            case BusiActionData2::EDITED:
+                q2.bindValue(":summary", busiActions[i]->summary);
+                q2.bindValue(":fid", busiActions[i]->fid);
+                q2.bindValue(":sid", busiActions[i]->sid);
+                q2.bindValue(":mt", busiActions[i]->mt);
+                if(busiActions[i]->dir == DIR_J){
+                    q2.bindValue(":jv", busiActions[i]->v.getv());
+                    q2.bindValue(":dv",0);
+                    q2.bindValue(":dir", DIR_J);
+                }
+                else{
+                    q2.bindValue(":jv",0);
+                    q2.bindValue(":dv", busiActions[i]->v.getv());
+                    q2.bindValue(":dir", DIR_D);
+                }
+                q2.bindValue(":num", busiActions[i]->num);
+                q2.bindValue("id", busiActions[i]->id);
+                q2.exec();
+                break;
+            case BusiActionData2::NUMCHANGED:
+                q3.bindValue(":num", busiActions[i]->num);
+                q3.bindValue(":id", busiActions[i]->id);
+                q3.exec();
+                break;
             }
-            if(!db.commit())
-                return false;
-            //回读新增的业务活动的id(待需要时再使用此代码)
-            if(hasNew){
-                r = getActionsInPz(pid,busiActions);
-            }
+            busiActions[i]->state = BusiActionData2::INIT;
         }
-        if(!dels.isEmpty()){
-            if(!db.transaction())
-                return false;
-            s = "delete from BusiActions where id=:id";
-            q4.prepare(s);
-            for(int i = 0; i < dels.count(); ++i){
-                q4.bindValue(":id", dels[i]->id);
-                q4.exec();
-            }
-            if(!db.commit())
-                return false;
+        if(!db.commit())
+            return false;
+        //回读新增的业务活动的id(待需要时再使用此代码)
+        if(hasNew){
+            r = getActionsInPz(pid,busiActions);
         }
-        return r;
+    }
+    if(!dels.isEmpty()){
+        if(!db.transaction())
+            return false;
+        s = "delete from BusiActions where id=:id";
+        q4.prepare(s);
+        for(int i = 0; i < dels.count(); ++i){
+            q4.bindValue(":id", dels[i]->id);
+            q4.exec();
+        }
+        if(!db.commit())
+            return false;
+    }
+    return r;
 }
 
 //删除与指定id的凭证相关的业务活动
-bool BusiUtil::delActionsInPz(int pzId)
-{
-    QString s;
-    QSqlQuery q;
-    s = QString("delete from BusiActions where pid = %1").arg(pzId);
-    bool r = q.exec(s);
-    int rows = q.numRowsAffected();
-    return r;
-}
+//bool BusiUtil::delActionsInPz(int pzId)
+//{
+//    QString s;
+//    QSqlQuery q;
+//    s = QString("delete from BusiActions where pid = %1").arg(pzId);
+//    bool r = q.exec(s);
+//    int rows = q.numRowsAffected();
+//    return r;
+//}
 
 
 //将各币种的余额汇总为用母币计的余额并确定余额方向
@@ -4659,7 +4659,7 @@ int BusiUtil::getMaxPzNum(int y, int m)
 //读取凭证集状态
 bool BusiUtil::getPzsState(int y,int m,PzsState& state)
 {
-    QSqlQuery q;    
+    QSqlQuery q;
     if(y==0 && m==0){
         state = Ps_NoOpen;
         return true;
@@ -4751,50 +4751,35 @@ bool BusiUtil::getOutMtInBank(QList<int>& ids, QList<int>& mt)
 }
 
 //新建凭证
-bool BusiUtil::crtNewPz(PzData* pz)
-{
-    QSqlQuery q;
-    QString s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12) "
-                        "values('%13',%14,%15,%16,%17,%18,%19,%20,%21,%22,%23)").arg(tbl_pz)
-            .arg(fld_pz_date).arg(fld_pz_number).arg(fld_pz_zbnum).arg(fld_pz_jsum)
-            .arg(fld_pz_dsum).arg(fld_pz_class).arg(fld_pz_encnum).arg(fld_pz_state)
-            .arg(fld_pz_vu).arg(fld_pz_ru).arg(fld_pz_bu)
-            .arg(pz->date).arg(pz->pzNum).arg(pz->pzZbNum).arg(pz->jsum)
-            .arg(pz->dsum).arg(pz->pzClass).arg(pz->attNums).arg(pz->state)
-            .arg(pz->verify!=NULL?pz->verify->getUserId():NULL)
-            .arg(pz->producer!=NULL?pz->producer->getUserId():NULL)
-            .arg(pz->bookKeeper!=NULL?pz->bookKeeper->getUserId():NULL);
-    if(!q.exec(s))
-        return false;
+//bool BusiUtil::crtNewPz(PzData* pz)
+//{
+//    QSqlQuery q;
+//    QString s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12) "
+//                        "values('%13',%14,%15,%16,%17,%18,%19,%20,%21,%22,%23)").arg(tbl_pz)
+//            .arg(fld_pz_date).arg(fld_pz_number).arg(fld_pz_zbnum).arg(fld_pz_jsum)
+//            .arg(fld_pz_dsum).arg(fld_pz_class).arg(fld_pz_encnum).arg(fld_pz_state)
+//            .arg(fld_pz_vu).arg(fld_pz_ru).arg(fld_pz_bu)
+//            .arg(pz->date).arg(pz->pzNum).arg(pz->pzZbNum).arg(pz->jsum)
+//            .arg(pz->dsum).arg(pz->pzClass).arg(pz->attNums).arg(pz->state)
+//            .arg(pz->verify!=NULL?pz->verify->getUserId():NULL)
+//            .arg(pz->producer!=NULL?pz->producer->getUserId():NULL)
+//            .arg(pz->bookKeeper!=NULL?pz->bookKeeper->getUserId():NULL);
+//    if(!q.exec(s))
+//        return false;
 
-    s = QString("select last_insert_rowid()");
-    if(q.exec(s) && q.first())
-        pz->pzId = q.value(0).toInt();
-    else
-        return false;
-    return true;
-}
+//    s = QString("select last_insert_rowid()");
+//    if(q.exec(s) && q.first())
+//        pz->pzId = q.value(0).toInt();
+//    else
+//        return false;
+//    return true;
+//}
 
 //按凭证日期，重新设置凭证集内的凭证号
-bool BusiUtil::assignPzNum(int y, int m)
-{
-    QSqlQuery q,q1;
-    QString s;
-    bool r;
+//bool BusiUtil::assignPzNum(int y, int m)
+//{
 
-    QDate d(y,m,1);
-    QString ds = d.toString(Qt::ISODate);
-    ds.chop(3);
-    s = QString("select id from PingZhengs where date like '%1%' order by date").arg(ds);
-    r = q.exec(s);
-    int id, num = 1;
-    while(q.next()){
-        id = q.value(0).toInt();
-        s = QString("update PingZhengs set number=%1 where id=%2").arg(num++).arg(id);
-        r = q1.exec(s);
-    }
-    return r;
-}
+//}
 
 /**
  * @brief BusiUtil::getSNameForId
@@ -4912,49 +4897,22 @@ bool BusiUtil::saveAccInfo(AccountBriefInfo* accInfo)
 //}
 
 
-/**
- * @brief BusiUtil::scanPzSetCount
- *  扫描凭证集内的凭证，分别计数各类凭证的数目和总数
- * @param y
- * @param m
- * @param repeal        作废
- * @param recording     录入
- * @param verify        审核
- * @param instat        入账
- * @param amount        总数
- * @return
- */
-bool BusiUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount)
-{
-    QSqlQuery q;
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QString s = QString("select %1 from %2 where %3 like '%4%'")
-            .arg(fld_pz_state).arg(tbl_pz).arg(fld_pz_date).arg(ds);
-    if(!q.exec(s))
-        return false;
-    repeal=0;recording=0;verify=0;instat=0;amount=0;
-    PzState state;
-    while(q.next()){
-        amount++;
-        state = (PzState)q.value(0).toInt();
-        switch(state){
-        case Pzs_Repeal:
-            repeal++;
-            break;
-        case Pzs_Recording:
-            recording++;
-            break;
-        case Pzs_Verify:
-            verify++;
-            break;
-        case Pzs_Instat:
-            instat++;
-            break;
-        }
-    }
-    return true;
-}
+///**
+// * @brief BusiUtil::scanPzSetCount
+// *  扫描凭证集内的凭证，分别计数各类凭证的数目和总数
+// * @param y
+// * @param m
+// * @param repeal        作废
+// * @param recording     录入
+// * @param verify        审核
+// * @param instat        入账
+// * @param amount        总数
+// * @return
+// */
+//bool BusiUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount)
+//{
+
+//}
 
 /**
  * @brief BusiUtil::inspectJzPzExist
@@ -5361,67 +5319,16 @@ QList<PzClass> BusiUtil::getSpecClsPzCode(PzdClass cls)
 
 ////////////////////////////////////////////////////////////////////////////
 //获取子窗口信息
-bool VariousUtils::getSubWinInfo(int winEnum, SubWindowDim*& info, QByteArray*& otherInfo)
-{
-    QSqlQuery q;
-    QString s;
-    bool r;
+//bool VariousUtils::getSubWinInfo(int winEnum, SubWindowDim*& info, QByteArray*& otherInfo)
+//{
 
-    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-    r = q.exec(s);
-    r = q.first();
-    if(r){
-        info = new SubWindowDim;
-        info->x = q.value(SWI_X).toInt();
-        info->y = q.value(SWI_Y).toInt();
-        info->w = q.value(SWI_W).toInt();
-        info->h = q.value(SWI_H).toInt();
-        otherInfo = new QByteArray(q.value(SWI_TBL).toByteArray());
-    }
-    else{
-        info = NULL;
-        otherInfo = NULL;
-    }
-    return r;
-}
+//}
 
 //保存字窗口信息
-bool VariousUtils::saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo)
-{
-    QSqlQuery q;
-    QString s;
-    bool r;
+//bool VariousUtils::saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo)
+//{
 
-    if(otherInfo == NULL)
-        otherInfo = new QByteArray;
-    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-    if(q.exec(s) && q.first()){
-        int id = q.value(0).toInt();
-        s = QString("update subWinInfos set winEnum= :enum,x=:x,y=:y,w=:w,h=:h"
-                    ",tblInfo=:info where id=:id");
-        r = q.prepare(s);
-        q.bindValue(":enum",winEnum);
-        q.bindValue(":x",info->x);
-        q.bindValue(":y",info->y);
-        q.bindValue(":w",info->w);
-        q.bindValue(":h",info->h);
-        q.bindValue(":info",*otherInfo);
-        q.bindValue(":id",id);
-    }
-    else{
-        s = QString("insert into subWinInfos(winEnum,x,y,w,h,tblInfo) "
-                    "values(:enum,:x,:y,:w,:h,:info)");
-        r = q.prepare(s);
-        q.bindValue(":enum",winEnum);
-        q.bindValue(":x",info->x);
-        q.bindValue(":y",info->y);
-        q.bindValue(":w",info->w);
-        q.bindValue(":h",info->h);
-        q.bindValue(":info",*otherInfo);
-    }
-    r = q.exec();
-    return r;
-}
+//}
 
 //读取子窗口信息
 //QVariant VariousUtils::getSubWinInfo2(int winEnum)

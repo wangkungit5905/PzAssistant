@@ -5,6 +5,8 @@
 
 #include "utils.h"
 #include "otherModule.h"
+#include "subject.h"
+#include "dbutil.h"
 
 //新建固定资产条目时调用的构造函数
 Gdzc::Gdzc()
@@ -277,12 +279,14 @@ bool Gdzc::getSubClasses(QHash<int, QString> &names)
 //获取固定资产类别id到固定资产子目id的映射
 bool Gdzc::getSubClsToGs(QHash<int,int>& subIds)
 {
-    QSqlQuery q;
+    QSqlQuery q(curAccount->getDbUtil()->getDb());
     QString s;
     int pid;  //固定资产科目id
 
-    if(!BusiUtil::getIdByCode(pid, "1501"))
-        return false;
+    SubjectManager* smg = curAccount->getSubjectManager();
+    pid = smg->getGdzcSub()->getId();
+    //if(!BusiUtil::getIdByCode(pid, "1501"))
+    //    return false;
     s = QString("select id,sid from FSAgent where fid = %1").arg(pid);
     if(!q.exec(s))
         return false;
@@ -297,12 +301,14 @@ bool Gdzc::getSubClsToGs(QHash<int,int>& subIds)
 //获取固定资产类别id到累计折旧子目id的映射
 bool Gdzc::getSubClsToLs(QHash<int,int>& subIds)
 {
-    QSqlQuery q;
+    QSqlQuery q(curAccount->getDbUtil()->getDb());
     QString s;
     int lid;  //固定资产科目id
 
-    if(!BusiUtil::getIdByCode(lid, "1502"))
-        return false;
+    //if(!BusiUtil::getIdByCode(lid, "1502"))
+    //    return false;
+    SubjectManager* smg = curAccount->getSubjectManager();
+    lid = smg->getLjzjSub()->getId();
     s = QString("select id,sid from FSAgent where fid = %1").arg(lid);
     if(!q.exec(s))
         return false;
@@ -317,7 +323,7 @@ bool Gdzc::getSubClsToLs(QHash<int,int>& subIds)
 //从数据库表gdzcs中装载所有固定资产
 bool Gdzc::load(QList<Gdzc*>& accLst, bool isAll)
 {
-    QSqlQuery q;
+    QSqlQuery q(curAccount->getDbUtil()->getDb());
     QString s;
     bool r;
 
@@ -352,7 +358,7 @@ bool Gdzc::load(QList<Gdzc*>& accLst, bool isAll)
 bool Gdzc::removeZjInfos(int y, int m, int gid)
 {
     QString s;
-    QSqlQuery q,q2;
+    QSqlQuery q(curAccount->getDbUtil()->getDb()),q2(curAccount->getDbUtil()->getDb());
     bool r = false;
 
     QDate d(y,m,1);
@@ -386,7 +392,7 @@ bool Gdzc::removeZjInfos(int y, int m, int gid)
 bool Gdzc::createZjPz(int y,int m,User* user)
 {
     QString s;
-    QSqlQuery q,q2;
+    QSqlQuery q(curAccount->getDbUtil()->getDb()),q2(curAccount->getDbUtil()->getDb());
     bool r = false;
 
     QHash<int, int> subIds;  //固定资产科目类别id到累计折旧子目的映射表
@@ -465,7 +471,8 @@ bool Gdzc::createZjPz(int y,int m,User* user)
     //创建会计分录
     int lid; //累计折旧科目id
     int num = 0;
-    BusiUtil::getIdByCode(lid,"1502");
+    //BusiUtil::getIdByCode(lid,"1502");
+    lid = curAccount->getSubjectManager()->getLjzjSub()->getId();
     Gdzc::getSubClsToLs(subIds);
     QList<int> subs = sums.keys();
     qSort(subs.begin(),subs.end());
@@ -621,7 +628,8 @@ bool DtfyType::load(QHash<int,DtfyType*>& l, QSqlDatabase db)
     if(l.empty()){
         //获取待摊费用科目的id
         int subd;
-        BusiUtil::getIdByCode(subd,"1301");
+        //BusiUtil::getIdByCode(subd,"1301");
+        curAccount->getSubjectManager()->getDtfySub()->getId();
         QStringList subName;
         QStringList remCode;
         subName<<QObject::tr("办公室租金")
@@ -652,8 +660,9 @@ bool DtfyType::load(QHash<int,DtfyType*>& l, QSqlDatabase db)
 //获取待摊费用科目id(fid)及其下的子目(sids,键为待摊费用类别，值为子目id（FSAgent表id列）)
 bool Dtfy::getDtfySubId(int &fid,QHash<int,int>& sids, QSqlDatabase db)
 {
-    if(!BusiUtil::getIdByCode(fid,"1301"))
-        return false;
+    //if(!BusiUtil::getIdByCode(fid,"1301"))
+    //    return false;
+    fid = curAccount->getSubjectManager()->getDtfySub()->getId();
     QHash<int,DtfyType*> dts;
     DtfyType::load(dts);
     QSqlQuery q(db);

@@ -85,7 +85,7 @@ class GdzcAdminDialog : public QDialog
     static const int ColId    = 4;
 
 public:
-    explicit GdzcAdminDialog(QByteArray *sinfo, QWidget *parent = 0);
+    explicit GdzcAdminDialog(Account* account, QByteArray *sinfo, QWidget *parent = 0);
     ~GdzcAdminDialog();
     void save(bool isConfirm = true);
     QByteArray* getState();
@@ -168,6 +168,9 @@ private:
     QList<int> zjInfoColWidths;//显示折旧信息的表格列宽
     QList<int> pzColWidths;    //预览折旧凭证的会计分录的表格列宽
     QSize pzWinRect;           //预览折旧凭证的窗口大小
+
+    Account* account;
+    SubjectManager* smg;
 };
 
 
@@ -177,8 +180,7 @@ class DtfyAdminDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit DtfyAdminDialog(QByteArray *sinfo, QSqlDatabase db = QSqlDatabase::database(),
-                             QWidget *parent = 0);
+    explicit DtfyAdminDialog(Account* account, QByteArray *sinfo, QWidget *parent = 0);
     ~DtfyAdminDialog();
     void save(bool isConfirm = true);
     QByteArray* getState();
@@ -263,7 +265,8 @@ private:
     QSize pzWinRect;           //预览摊销凭证的窗口大小
 
     QHash<int, QHash<int,QString> > dsids;  //贷方子目，键为贷方主目id，值为该主目下的子目的id到名称的映射表
-
+    Account* account;
+    SubjectManager* smg;
     QSqlDatabase db;
 };
 
@@ -479,6 +482,7 @@ private:
 
     //用户当前选择的科目币种状态
     int fid;  //当前选择的一级科目id
+    FirstSubject* fsub;
     int sid;  //当前选择的二级科目id
     int mt;   //当前币种
     //与当前表格数据相对应的科目与币种的选择组合状态（通过与上面的状态相比较来决定更新表格数据）
@@ -574,13 +578,14 @@ private:
 
     SubjectComplete *fCom,*sCom;
     int fid,sid;  //选择的一二级科目id
+    FirstSubject* fsub;
     int y,m;      //年，月
     QHash<int,Double> fsums,ssums; //一二级科目余额及其方向，键为科目id * 10 + 币种代码
     QHash<int,int> fdirs,sdirs;
     QList<int> mts;                //币种代码列表
     QStandardItemModel* model;
     Account* account;
-    SubjectManager* sm;
+    SubjectManager* smg;
 };
 
 

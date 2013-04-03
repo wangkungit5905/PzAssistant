@@ -58,31 +58,6 @@ private:
 
 //Q_DECLARE_METATYPE(BASummaryForm)
 
-//汇率设定对话框
-class RateSetDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    explicit RateSetDialog(QWidget *parent = 0);
-    RateSetDialog(int witch, QWidget* parent = 0);
-    ~RateSetDialog();
-
-    void setCurRates(QHash<int,double>* rates);
-    void setEndRates(QHash<int,double>* rates);
-
-public slots:
-    void rateChanged();
-    void curMtChanged(int index);
-
-private:
-    Ui::RateSetDialog *ui;
-
-    int witch; //1：用于设置当期汇率，2：设置期末（下月）汇率
-    int curMt; //当前选择的币种代码
-    QHash<int,double> *crates, *erates;
-    QHash<int,QString> mnames;
-};
 
 //显示科目余额的对话框（并统计本期发生额）
 class ViewExtraDialog : public QDialog
@@ -185,6 +160,7 @@ private:
     QHash<int,QString> idToCode, sidToCode; //一二级科目id到科目代码的映射
     QHash<int,QString> idToName, sidToName; //一二级科目id到科目名称的映射
     QHash<int,Double> sRates,eRates; //期初、期末汇率表
+    QHash<int,QString> allMts;      //所有币种代码到币种名称的映射
 
     //数据表（键为科目id * 10 + 币种代码）
     QHash<int,Double> preExa, preDetExa;                    //期初余额（以原币计）
@@ -206,6 +182,7 @@ private:
     int fid,sid; //当前选择的一二级科目id
     bool isCanSave; //是否可以保存余额（基于当前的凭证集状态）
     DbUtil* dbUtil;
+    SubjectManager* smg;
 };
 
 Q_DECLARE_METATYPE(ViewExtraDialog::StateInfo)
@@ -248,7 +225,7 @@ public:
         int mt;      //币种
         Double v;    //金额
         Double rv;   //外币对应的人民币金额
-        int dir;     //方向
+        MoneyDirection dir;     //方向
     };
 
     //保存某个明细科目余额值条目的数据结构
@@ -257,7 +234,7 @@ public:
         int mt;      //币种
         Double v;    //金额
         Double rv;   //外币对应的人民币金额
-        int dir;     //方向
+        MoneyDirection dir;     //方向
         bool tag;    //是否被标记，可以帮助用户识别此行数据是否被处理过
         QString desc;//与标记配合的由用户输入的描述信息
     };
@@ -302,6 +279,8 @@ private:
 
     Ui::SetupBaseDialog2 *ui;
     Account* account;         //账户对象
+    SubjectManager* smg;
+    DbUtil* dbUtil;
     bool isInit;              //是否处于对话框构建的初始化阶段
     QTreeWidgetItem* sjtItem; //科目余额节点
     QHash<int,QTreeWidgetItem*> sjtNodes; //一级科目节点，key为科目id
@@ -324,11 +303,13 @@ private:
     int curSubId; //当前选定的一级科目ID
     QHash<int,Double> fExts, sExts; //存储从数据库中读取的一二级科目的余额值，key为id x 10 + 币种代码
     QHash<int,Double> fRExts, sRExts; //一二级科目外币余额对应的人民币金额，键同上
-    QHash<int,int> fExtDirs, sExtDirs; //一二级科目的余额方向
+    QHash<int,MoneyDirection> fExtDirs, sExtDirs; //一二级科目的余额方向
     bool isDirty;
 
     QHash<int,QList<FstExtData*> > fDatas;  //一级科目余额表，键为一级科目ID，值为余额数据列表
     QHash<int,QList<DetExtData*> > sDatas;  //二级科目余额表，键为一级科目ID，值为余额数据列表
+
+
 };
 
 ////////////////////登录对话框类///////////////////////////////////////////

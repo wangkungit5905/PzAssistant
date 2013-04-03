@@ -456,8 +456,10 @@ bool DbUtil::initMoneys(Account *account)
         QString name = q.value(MT_NAME).toString();
         account->moneys[code] = new Money(code,name,sign);
         bool isMain = q.value(MT_MASTER).toBool();
-        if(isMain)
+        if(isMain){
+            masterMt = code;
             mmt = code;
+        }
     }
     //初始化账户信息结构中的母币和外币
     QHashIterator<int,Money*> it(account->moneys);
@@ -755,6 +757,60 @@ bool DbUtil::setPzsState(int y, int m, PzsState state)
         return false;
     }
     return true;
+}
+
+/**
+ * @brief DbUtil::setExtraState
+ *  设置余额是否有效
+ * @param y
+ * @param m
+ * @param isVolid
+ * @return
+ */
+bool DbUtil::setExtraState(int y, int m, bool isVolid)
+{
+    //余额的有效性状态只记录在“余额指针表”中保存本币余额的那条记录里
+    QSqlQuery q(db);
+    QString s = QString("update %1 set %2=%3 where %4=%5 and %6=%7 and %8=%9")
+            .arg(tbl_nse_point).arg(fld_nse_sid).arg(isVolid?1:0).arg(fld_nse_year)
+            .arg(y).arg(fld_nse_month).arg(m).arg(fld_nse_mt).arg(masterMt);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.numRowsAffected() == 1)
+        return true;
+    s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,%8,%9)")
+            .arg(tbl_nse_point).arg(fld_nse_year).arg(fld_nse_month)
+            .arg(fld_nse_mt).arg(fld_nse_state).arg(y).arg(m).arg(masterMt)
+            .arg(isVolid?1:0);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::getExtraState
+ *  获取余额是否有效
+ * @param y
+ * @param m
+ * @return
+ */
+bool DbUtil::getExtraState(int y, int m)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1 from %2 where %3=%4 and %5=%6 and %7=%8")
+            .arg(fld_nse_state).arg(tbl_nse_point).arg(fld_nse_year)
+            .arg(y).arg(fld_nse_month).arg(m).arg(fld_nse_mt).arg(masterMt);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())
+        return false;
+    return q.value(0).toBool();
 }
 
 /**
@@ -1128,6 +1184,178 @@ bool DbUtil::saveActionsInPz(int pid, QList<BusiActionData2 *> &busiActions, QLi
             return false;
         }
     }
+    return true;
+}
+/**
+ * @brief DbUtil:delSpecPz
+ *  删除指定年月的指定大类别凭证
+ * @param y
+ * @param m
+ * @param pzCls         凭证大类
+ * @param pzCntAffected 删除的凭证数
+ * @return
+ */
+bool DbUtil::delSpecPz(int y, int m, PzdClass pzCls, int &affected)
+{
+    QString s;
+    QSqlQuery q(db);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QList<PzClass> codes = getSpecClsPzCode(pzCls);
+    QSqlDatabase db = QSqlDatabase::database();
+    if(!db.transaction()){
+        warn_transaction(Transaction_open,QObject::tr("删除大类别凭证"));
+        return false;
+    }
+    QList<int> ids;
+    for(int i = 0; i < codes.count(); ++i){
+        s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
+        q.exec(s);q.first();
+        ids<<q.value(0).toInt();
+    }
+    if(!db.commit()){
+        warn_transaction(Transaction_commit,QObject::tr("删除大类别凭证"));
+        return false;
+    }
+    if(!db.transaction()){
+        warn_transaction(Transaction_open,QObject::tr("删除大类别凭证"));
+        return false;
+    }
+    affected = 0;
+    for(int i = 0; i < ids.count(); ++i){
+        s = QString("delete from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_pid).arg(ids.at(i));
+        q.exec(s);
+        s = QString("delete from %1 where id=%2").arg(tbl_pz).arg(ids.at(i));
+        q.exec(s);
+        affected += q.numRowsAffected();
+    }
+    if(!db.commit()){
+        warn_transaction(Transaction_commit,QObject::tr("删除大类别凭证"));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::getSpecClsPzCode
+ *  获取指定大类凭证的类别代码列表
+ * @param cls
+ * @return
+ */
+QList<PzClass> DbUtil::getSpecClsPzCode(PzdClass cls)
+{
+    QList<PzClass> codes;
+    if(cls == Pzd_Jzhd)
+        codes<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+    else if(cls == Pzd_Jzsy)
+        codes<<Pzc_JzsyIn<<Pzc_JzsyFei;
+    else if(cls == Pzd_Jzlr)
+        codes<<Pzc_Jzlr;
+    return codes;
+}
+
+/**
+ * @brief DbUtil::haveSpecClsPz
+ *  检测凭证集内各类特殊凭证是否存在
+ * @param y
+ * @param m
+ * @param isExist
+ * @return
+ */
+bool DbUtil::haveSpecClsPz(int y, int m, QHash<PzdClass, bool> &isExist)
+{
+    QSqlQuery q(db);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6 or %4=%7)")
+            .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(Pzc_Jzhd_Bank)
+            .arg(Pzc_Jzhd_Ys).arg(Pzc_Jzhd_Yf);
+    if(!q.exec(s))
+        return false;
+    isExist[Pzd_Jzhd] = q.first();
+
+    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6)")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+                .arg(Pzc_JzsyIn).arg(Pzc_JzsyFei);
+    if(!q.exec(s))
+        return false;
+    isExist[Pzd_Jzsy] = q.first();
+    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+                .arg(Pzc_Jzlr);
+    if(!q.exec(s))
+        return false;
+    isExist[Pzd_Jzlr] = q.first();
+    return true;
+}
+
+/**
+ * @brief DbUtil::specPzClsInstat
+ *  将指定类别凭证全部入账
+ * @param y
+ * @param m
+ * @param cls
+ * @param affected  受影响的凭证条目
+ * @return
+ */
+bool DbUtil::specPzClsInstat(int y, int m, PzdClass cls, int &affected)
+{
+    QSqlQuery q(db);
+    QString s;
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QList<PzClass> codes = getSpecClsPzCode(cls);
+    if(!db.transaction()){
+        warn_transaction(Transaction_open,QObject::tr("将指定类别凭证全部入账"));
+        return false;
+    }
+    affected = 0;
+    for(int i = 0; i < codes.count(); ++i){
+        s = QString("update %1 set %2=%3 where (%4 like '%5%') and %6=%7")
+                .arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Instat)
+                .arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
+        q.exec(s);
+        affected += q.numRowsAffected();
+    }
+    if(!db.commit()){
+        warn_transaction(Transaction_commit,QObject::tr("将指定类别凭证全部入账"));
+        return false;
+    }
+}
+
+/**
+ * @brief DbUtil::setAllPzState
+ *  设置凭证集内的所有具有指定状态的凭证到目的状态
+ * @param y
+ * @param m
+ * @param state         目的状态
+ * @param includeState  指定的凭证状态
+ * @param affected      受影响的行数
+ * @param user
+ * @return
+ */
+bool DbUtil::setAllPzState(int y, int m, PzState state, PzState includeState, int &affected, User *user)
+{
+    QSqlQuery q(db);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString userField;
+    if(state == Pzs_Recording)
+        userField = fld_pz_ru;
+    else if(state == Pzs_Verify)
+        userField = fld_pz_vu;
+    else if(state == Pzs_Instat)
+        userField = fld_pz_bu;
+    QString s = QString("update %1 set %2=%3,%4=%5 where (%6 like '%7%') and %2=%8")
+            .arg(tbl_pz).arg(fld_pz_state).arg(state).arg(userField)
+            .arg(user->getUserId()).arg(fld_pz_date).arg(ds).arg(includeState);
+    affected = 0;
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    affected = q.numRowsAffected();
     return true;
 }
 

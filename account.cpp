@@ -272,10 +272,19 @@ void Account::colsePzSet()
  */
 SubjectManager *Account::getSubjectManager(int subSys)
 {
-    if(!smgs.contains(subSys))
-        smgs[subSys] = new SubjectManager(this,subSys);
-    return smgs.value(subSys);
+    int ssCode;
+    if(subSys == 0)
+        ssCode = getCurSuite()->subSys;
+    if(!smgs.contains(ssCode))
+        smgs[subSys] = new SubjectManager(this,ssCode);
+    return smgs.value(ssCode);
 }
+
+//SubjectManager *Account::getSubjectManager()
+//{
+//    int subSys = getCurSuite()->subSys;
+//    return getSubjectManager(subSys);
+//}
 
 bool Account::getRates(int y, int m, QHash<int, Double> &rates)
 {

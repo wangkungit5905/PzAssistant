@@ -190,7 +190,7 @@ void PzDialog2::init()
         ui->twActions->setRowHeight(i, rowHeight); //设置表格行高
 
     //设置表格的项目代理
-    delegate = new ActionEditItemDelegate(this);
+    delegate = new ActionEditItemDelegate(smg,this);
     ui->twActions->setItemDelegate(delegate);
     connect(delegate, SIGNAL(newSndSubMapping(int,int,int,int,bool)),
             ui->twActions, SLOT(newSndSubMapping(int,int,int,int,bool)));

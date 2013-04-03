@@ -507,21 +507,21 @@ bool BusiUtil::saveRates2(int y, int m, QHash<int, Double> &rates, int mainMt)
  * @param subSys
  * @return
  */
-bool BusiUtil::getFstSubCls(QHash<int, QString> &clsNames, int subSys)
-{
-    QSqlQuery q;
-    QString s = QString("select %1,%2 from %3 where %4=%5")
-            .arg(fld_fsc_code).arg(fld_fsc_name).arg(tbl_fsclass).arg(fld_fsc_subSys)
-            .arg(subSys);
-    if(!(q.exec(s) && q.first())){
-        QMessageBox::information(0,QObject::tr("提示信息"),
-                                 QString(QObject::tr("未能一级科目类别")));
-        return false;
-    }
-    q.seek(-1);
-    while(q.next())
-        clsNames[q.value(0).toInt()] = q.value(1).toString();
-}
+//bool BusiUtil::getFstSubCls(QHash<int, QString> &clsNames, int subSys)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select %1,%2 from %3 where %4=%5")
+//            .arg(fld_fsc_code).arg(fld_fsc_name).arg(tbl_fsclass).arg(fld_fsc_subSys)
+//            .arg(subSys);
+//    if(!(q.exec(s) && q.first())){
+//        QMessageBox::information(0,QObject::tr("提示信息"),
+//                                 QString(QObject::tr("未能一级科目类别")));
+//        return false;
+//    }
+//    q.seek(-1);
+//    while(q.next())
+//        clsNames[q.value(0).toInt()] = q.value(1).toString();
+//}
 /**
  * @brief BusiUtil::getMTName
  *  获取币种代码表
@@ -651,21 +651,21 @@ bool BusiUtil::getIdByName(int &id, QString name, int subSys)
  * @param isByView  是否只输出配置为显示的一级科目
  * @return
  */
-bool BusiUtil::getIdsByCls(QList<int> &ids, int cls, bool isByView, int subSys)
-{
-    QSqlQuery q;
-    QString s;
+//bool BusiUtil::getIdsByCls(QList<int> &ids, int cls, bool isByView, int subSys)
+//{
+//    QSqlQuery q;
+//    QString s;
 
-    s = QString("select id from %1 where %2=%3 and %4 = %5").arg(tbl_fsub)
-            .arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_class).arg(cls);
-    if(isByView)
-        s.append(QString(" and %1 = 1").arg(fld_fsub_isview));
-    if(!q.exec(s))
-        return false;
-    while(q.next())
-        ids.append(q.value(0).toInt());
-    return true;
-}
+//    s = QString("select id from %1 where %2=%3 and %4 = %5").arg(tbl_fsub)
+//            .arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_class).arg(cls);
+//    if(isByView)
+//        s.append(QString(" and %1 = 1").arg(fld_fsub_isview));
+//    if(!q.exec(s))
+//        return false;
+//    while(q.next())
+//        ids.append(q.value(0).toInt());
+//    return true;
+//}
 
 /**
 
@@ -737,22 +737,22 @@ bool BusiUtil::getAllSubFName(QHash<int,QString>& names, bool isByView)
  * @param isByView
  * @return
  */
-bool BusiUtil::getAllSubFCode(QHash<int,QString>& codes, bool isByView)
-{
-    QSqlQuery q;
-    QString s = QString("select id,%1 from %2")
-            .arg(fld_fsub_subcode).arg(tbl_fsub);
-    if(isByView)
-        s.append(QString(" where %3=1").arg(fld_fsub_isview));
-    if(q.exec(s)){
-        if(!codes.empty())
-            codes.clear();
-        while(q.next())
-            codes[q.value(0).toInt()] = q.value(1).toString();
-        return true;
-    }
-    return false;
-}
+//bool BusiUtil::getAllSubFCode(QHash<int,QString>& codes, bool isByView)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select id,%1 from %2")
+//            .arg(fld_fsub_subcode).arg(tbl_fsub);
+//    if(isByView)
+//        s.append(QString(" where %3=1").arg(fld_fsub_isview));
+//    if(q.exec(s)){
+//        if(!codes.empty())
+//            codes.clear();
+//        while(q.next())
+//            codes[q.value(0).toInt()] = q.value(1).toString();
+//        return true;
+//    }
+//    return false;
+//}
 
 /**
     获取所有子目id到子目名的哈希表
@@ -785,17 +785,17 @@ bool BusiUtil::getAllSubSName(QHash<int,QString>& names)
  * @param names
  * @return
  */\
-bool BusiUtil::getAllSndSubNameList(QStringList& names)
-{
-    QSqlQuery q;
-    QString s = QString("select %1 from %2 order by %3")
-            .arg(fld_ni_name).arg(tbl_nameItem).arg(fld_ni_lname);
-    if(!q.exec(s))
-        return false;
-    while(q.next())
-        names.append(q.value(0).toString());
-    return true;
-}
+//bool BusiUtil::getAllSndSubNameList(QStringList& names)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select %1 from %2 order by %3")
+//            .arg(fld_ni_name).arg(tbl_nameItem).arg(fld_ni_lname);
+//    if(!q.exec(s))
+//        return false;
+//    while(q.next())
+//        names.append(q.value(0).toString());
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::getAllSubSCode
@@ -803,20 +803,20 @@ bool BusiUtil::getAllSndSubNameList(QStringList& names)
  * @param codes
  * @return
  */
-bool BusiUtil::getAllSubSCode(QHash<int, QString> &codes)
-{
-    QSqlQuery q;
-    QString s = QString("select %1.id,%1.%2 from %1 join %3 where %1.%4 = %3.id")
-            .arg(tbl_ssub).arg(fld_ssub_code).arg(tbl_nameItem).arg(fld_ssub_nid);
-    if(!q.exec(s)){
-        QMessageBox::information(0, QObject::tr("提示信息"),
-                                 QString(QObject::tr("不能获取所有子科目哈希表")));
-        return false;
-    }
-    while(q.next())
-        codes[q.value(0).toInt()] = q.value(1).toString();
-    return true;
-}
+//bool BusiUtil::getAllSubSCode(QHash<int, QString> &codes)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select %1.id,%1.%2 from %1 join %3 where %1.%4 = %3.id")
+//            .arg(tbl_ssub).arg(fld_ssub_code).arg(tbl_nameItem).arg(fld_ssub_nid);
+//    if(!q.exec(s)){
+//        QMessageBox::information(0, QObject::tr("提示信息"),
+//                                 QString(QObject::tr("不能获取所有子科目哈希表")));
+//        return false;
+//    }
+//    while(q.next())
+//        codes[q.value(0).toInt()] = q.value(1).toString();
+//    return true;
+//}
 
 ///**
 // * @brief BusiUtil::getReqDetSubs
@@ -869,24 +869,24 @@ bool BusiUtil::getAllSubSLName(QHash<int,QString>& names)
  * @param isByView  是否只提取当前账户需要的科目
  * @return
  */
-bool BusiUtil::getAllFstSub(QList<int>& ids, QList<QString>& names, bool isByView)
-{
-    QString s;
-    QSqlQuery q;
-    if(isByView)
-        s = QString("select id,%1 from %2 where %3=1")
-                .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview);
-    else
-        s = QString("select id,%1 from %2").arg(fld_fsub_name).arg(tbl_fsub);
-    s.append(QString(" order by %1").arg(fld_fsub_subcode));
-    if(!q.exec(s))
-        return false;
-    while(q.next()){
-        ids.append(q.value(0).toInt());
-        names.append(q.value(1).toString());
-    }
-    return true;
-}
+//bool BusiUtil::getAllFstSub(QList<int>& ids, QList<QString>& names, bool isByView)
+//{
+//    QString s;
+//    QSqlQuery q;
+//    if(isByView)
+//        s = QString("select id,%1 from %2 where %3=1")
+//                .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview);
+//    else
+//        s = QString("select id,%1 from %2").arg(fld_fsub_name).arg(tbl_fsub);
+//    s.append(QString(" order by %1").arg(fld_fsub_subcode));
+//    if(!q.exec(s))
+//        return false;
+//    while(q.next()){
+//        ids.append(q.value(0).toInt());
+//        names.append(q.value(1).toString());
+//    }
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::getAllSubCode
@@ -895,18 +895,18 @@ bool BusiUtil::getAllFstSub(QList<int>& ids, QList<QString>& names, bool isByVie
  * @param isByView
  * @return
  */
-bool BusiUtil::getAllSubCode(QHash<int, QString> &codes, bool isByView)
-{
-    QString s = QString("select id,%1 from %2").arg(fld_fsub_subcode).arg(tbl_fsub);
-    QSqlQuery q;
-    if(isByView)
-        s.append(QString(" where %1=1").arg(fld_fsub_isview));
-    if(!q.exec(s))
-        return false;
-    while(q.next())
-        codes[q.value(0).toInt()] = q.value(1).toString();
-    return true;
-}
+//bool BusiUtil::getAllSubCode(QHash<int, QString> &codes, bool isByView)
+//{
+//    QString s = QString("select id,%1 from %2").arg(fld_fsub_subcode).arg(tbl_fsub);
+//    QSqlQuery q;
+//    if(isByView)
+//        s.append(QString(" where %1=1").arg(fld_fsub_isview));
+//    if(!q.exec(s))
+//        return false;
+//    while(q.next())
+//        codes[q.value(0).toInt()] = q.value(1).toString();
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::getSndSubInSpecFst
@@ -950,18 +950,18 @@ bool BusiUtil::getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& name
  * @param names
  * @return
  */
-bool BusiUtil::getOwnerSub(int oid, QHash<int, QString> &names)
-{
-    QSqlQuery q;
-    QString s = QString("select %1.id,%2.%3 from %1 join %2 where %1.%4 = %2.id "
-                "and %1.%5 = %6").arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ni_name)
-                .arg(fld_ssub_nid).arg(fld_ssub_fid).arg(oid);
-    if(!q.exec(s))
-        return false;
-    while(q.next())
-        names[q.value(0).toInt()] = q.value(1).toString();
-    return true;
-}
+//bool BusiUtil::getOwnerSub(int oid, QHash<int, QString> &names)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select %1.id,%2.%3 from %1 join %2 where %1.%4 = %2.id "
+//                "and %1.%5 = %6").arg(tbl_ssub).arg(tbl_nameItem).arg(fld_ni_name)
+//                .arg(fld_ssub_nid).arg(fld_ssub_fid).arg(oid);
+//    if(!q.exec(s))
+//        return false;
+//    while(q.next())
+//        names[q.value(0).toInt()] = q.value(1).toString();
+//    return true;
+//}
 
 
 
@@ -1012,36 +1012,36 @@ bool BusiUtil::getActionsInPz(int pid, QList<BusiActionData2 *> &busiActions)
  * @param defSubs
  * @return
  */
-bool BusiUtil::getDefaultSndSubs(QHash<int,int>& defSubs, int subSys)
-{
-    QString s;
-    QSqlQuery q1,q2;
-    int fs; //科目被使用的频度值或权重值
-    int fid,id;
+//bool BusiUtil::getDefaultSndSubs(QHash<int,int>& defSubs, int subSys)
+//{
+//    QString s;
+//    QSqlQuery q1,q2;
+//    int fs; //科目被使用的频度值或权重值
+//    int fid,id;
 
-    s = QString("select id from %1 where %2=%3 and %4=1")
-            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_isview);
-    if(!q1.exec())
-        return false;
-    while(q1.next()){
-        fid = q1.value(0).toInt();
-        s = QString("select id,%1 from %2 where %3=%4").arg(fld_ssub_weight)
-                .arg(tbl_ssub).arg(fld_ssub_fid).arg(fid);
-        if(!q2.exec(s))
-            return false;
-        fs=id=0;
-        //找出在某个一级科目下的最大使用频度值的明细科目id
-        while(q2.next()){
-            int tfs = q2.value(1).toInt();
-            if(fs < tfs){
-                fs = tfs;
-                id = q2.value(0).toInt();
-            }
-        }
-        defSubs[fid] = id;
-    }
+//    s = QString("select id from %1 where %2=%3 and %4=1")
+//            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_isview);
+//    if(!q1.exec())
+//        return false;
+//    while(q1.next()){
+//        fid = q1.value(0).toInt();
+//        s = QString("select id,%1 from %2 where %3=%4").arg(fld_ssub_weight)
+//                .arg(tbl_ssub).arg(fld_ssub_fid).arg(fid);
+//        if(!q2.exec(s))
+//            return false;
+//        fs=id=0;
+//        //找出在某个一级科目下的最大使用频度值的明细科目id
+//        while(q2.next()){
+//            int tfs = q2.value(1).toInt();
+//            if(fs < tfs){
+//                fs = tfs;
+//                id = q2.value(0).toInt();
+//            }
+//        }
+//        defSubs[fid] = id;
+//    }
 
-}
+//}
 
 /**
  * @brief BusiUtil::getSidToFid
@@ -1049,30 +1049,30 @@ bool BusiUtil::getDefaultSndSubs(QHash<int,int>& defSubs, int subSys)
  * @param sidToFids
  * @return
  */
-bool BusiUtil::getSidToFid(QHash<int, int> &sidToFids, int subSys)
-{
-    QSqlQuery q;
-    QString s;
+//bool BusiUtil::getSidToFid(QHash<int, int> &sidToFids, int subSys)
+//{
+//    QSqlQuery q;
+//    QString s;
 
-    s = QString("select id from %1 where %2=%3").arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
-    if(!q.exec(s))
-        return false;
-    QList<int> fids;
-    while(q.next())
-        fids<<q.value(0).toInt();
-    s = QString("select id,%1 from %2").arg(fld_ssub_fid).arg(tbl_ssub);
-    if(!q.exec(s))
-        return false;
-    int fid,id;
-    while(q.next()){
-        fid = q.value(1).toInt();
-        if(fids.contains(fid)){
-            id = q.value(0).toInt();
-            sidToFids[id] = fid;
-        }
-    }
-    return true;
-}
+//    s = QString("select id from %1 where %2=%3").arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
+//    if(!q.exec(s))
+//        return false;
+//    QList<int> fids;
+//    while(q.next())
+//        fids<<q.value(0).toInt();
+//    s = QString("select id,%1 from %2").arg(fld_ssub_fid).arg(tbl_ssub);
+//    if(!q.exec(s))
+//        return false;
+//    int fid,id;
+//    while(q.next()){
+//        fid = q.value(1).toInt();
+//        if(fids.contains(fid)){
+//            id = q.value(0).toInt();
+//            sidToFids[id] = fid;
+//        }
+//    }
+//    return true;
+//}
 
 bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, QList<BusiActionData2 *> dels)
 {
@@ -1964,7 +1964,7 @@ bool BusiUtil::genPzPrintDatas2(int y, int m, QList<PzPrintData2 *> &datas, QSet
     getAllSubFName(fsub);    //一级科目名
     getAllSubSLName(slsub); //二级科目全名
     getAllSubSName(ssub);   //二级科目简名
-    getAllUser(users);      //用户名
+    //getAllUser(users);      //用户名
     QHash<int,Double> rates;
     getRates2(y,m,rates);    //汇率
     rates[RMB] = 1.00;
@@ -2614,27 +2614,27 @@ bool BusiUtil::newFstToSnd(int fid, int sid, int& id)
  * @param clsCode   名称条目类别
  * @return
  */
-bool BusiUtil::newSndSubAndMapping(int fid, int& id, QString name,QString lname,
-                                   QString remCode, int clsCode)
-{
-    QSqlQuery q;
-    //在SecSubject表中创建新二级科目名称前，不进行检测是因为调用此函数前已经进行了相应的检测
-    QString s = QString("insert into %1(%2,%3,%4,%5) values('%6','%7','%8',%9)")
-            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(fld_ni_remcode)
-            .arg(fld_ni_class).arg(name).arg(lname).arg(remCode).arg(clsCode);
-    id = 0;
-    if(!q.exec(s))
-        return false;
+//bool BusiUtil::newSndSubAndMapping(int fid, int& id, QString name,QString lname,
+//                                   QString remCode, int clsCode)
+//{
+//    QSqlQuery q;
+//    //在SecSubject表中创建新二级科目名称前，不进行检测是因为调用此函数前已经进行了相应的检测
+//    QString s = QString("insert into %1(%2,%3,%4,%5) values('%6','%7','%8',%9)")
+//            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(fld_ni_remcode)
+//            .arg(fld_ni_class).arg(name).arg(lname).arg(remCode).arg(clsCode);
+//    id = 0;
+//    if(!q.exec(s))
+//        return false;
 
-    //回读此二级科目的id
-    s = QString("select last_insert_rowid()");
-    if(!q.exec(s))
-        return false;
-    if(!q.first())
-        return false;
-    int sid = q.value(0).toInt();
-    return newFstToSnd(fid,sid,id);
-}
+//    //回读此二级科目的id
+//    s = QString("select last_insert_rowid()");
+//    if(!q.exec(s))
+//        return false;
+//    if(!q.first())
+//        return false;
+//    int sid = q.value(0).toInt();
+//    return newFstToSnd(fid,sid,id);
+//}
 
 /**
  * @brief BusiUtil::getFstToSnd
@@ -2644,20 +2644,20 @@ bool BusiUtil::newSndSubAndMapping(int fid, int& id, QString name,QString lname,
  * @param id    二级科目id
  * @return
  */
-bool BusiUtil::getFstToSnd(int fid, int sid, int& id)
-{
-    QSqlQuery q;
-    QString s = QString("select id from %1 where %2 = %3 and %4 = %5")
-            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fid).arg(fld_ssub_nid).arg(sid);
-    if(!q.exec(s))
-        return false;
-    if(!q.first()){
-        id = 0;
-        return false;
-    }
-    id = q.value(0).toInt();
-    return true;
-}
+//bool BusiUtil::getFstToSnd(int fid, int nid, int& id)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select id from %1 where %2 = %3 and %4 = %5")
+//            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fid).arg(fld_ssub_nid).arg(nid);
+//    if(!q.exec(s))
+//        return false;
+//    if(!q.first()){
+//        id = 0;
+//        return false;
+//    }
+//    id = q.value(0).toInt();
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::isSndSubDisabled
@@ -2666,18 +2666,18 @@ bool BusiUtil::getFstToSnd(int fid, int sid, int& id)
  * @param enabled   是否被禁用（false：禁用，true：启用）
  * @return
  */
-bool BusiUtil::isSndSubDisabled(int id, bool &enabled)
-{
-    QSqlQuery q;
-    QString s = QString("select %1 from %2 where id=%3")
-            .arg(fld_ssub_enable).arg(tbl_ssub).arg(id);
-    if(!q.exec(s))
-        return false;
-    if(!q.first())
-        return false;
-    enabled = q.value(0).toBool();
-    return true;
-}
+//bool BusiUtil::isSndSubDisabled(int id, bool &enabled)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select %1 from %2 where id=%3")
+//            .arg(fld_ssub_enable).arg(tbl_ssub).arg(id);
+//    if(!q.exec(s))
+//        return false;
+//    if(!q.first())
+//        return false;
+//    enabled = q.value(0).toBool();
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::getSndSubNameForId
@@ -2687,21 +2687,21 @@ bool BusiUtil::isSndSubDisabled(int id, bool &enabled)
  * @param lname
  * @return
  */
-bool BusiUtil::getSndSubNameForId(int id, QString& name, QString& lname)
-{
-    QSqlQuery q;
-    QString s = QString("select %1.%2,%1.%3 from %4 join %1 "
-                "where (%1.id = %4.%5) and (%4.id = %6)")
-            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(tbl_ssub)
-            .arg(fld_ssub_nid).arg(id);
-    if(!q.exec(s))
-        return false;
-    if(q.first()){
-        name = q.value(0).toString();
-        lname = q.value(1).toString();
-    }
-    return true;
-}
+//bool BusiUtil::getSndSubNameForId(int id, QString& name, QString& lname)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select %1.%2,%1.%3 from %4 join %1 "
+//                "where (%1.id = %4.%5) and (%4.id = %6)")
+//            .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(tbl_ssub)
+//            .arg(fld_ssub_nid).arg(id);
+//    if(!q.exec(s))
+//        return false;
+//    if(q.first()){
+//        name = q.value(0).toString();
+//        lname = q.value(1).toString();
+//    }
+//    return true;
+//}
 
 
 
@@ -3602,44 +3602,44 @@ QString BusiUtil::genFiltStateForSpecPzCls(QList<int> pzClses)
 
 /**
  * @brief BusiUtil::delSpecPz
- *  删除指定年月的指定类别凭证
+ *  删除指定年月的指定大类别凭证
  * @param y
  * @param m
  * @param pzCls         凭证大类
  * @param pzCntAffected 删除的凭证数
  * @return
  */
-bool BusiUtil::delSpecPz(int y, int m, PzdClass pzCls, int 	&affected)
-{
-    QString s;
-    QSqlQuery q,q2;
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QList<PzClass> codes = getSpecClsPzCode(pzCls);
-    QSqlDatabase db = QSqlDatabase::database();
-    if(!db.transaction())
-        return false;
-    QList<int> ids;
-    for(int i = 0; i < codes.count(); ++i){
-        s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
-                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
-        q.exec(s);q.first();
-        ids<<q.value(0).toInt();
-    }
-    if(!db.commit())
-        return false;
-    if(!db.transaction())
-        return false;
-    affected = 0;
-    for(int i = 0; i < ids.count(); ++i){
-        s = QString("delete from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_pid).arg(ids.at(i));
-        q.exec(s);
-        s = QString("delete from %1 where id=%2").arg(tbl_pz).arg(ids.at(i));
-        q.exec(s);
-        affected += q.numRowsAffected();
-    }
-    return db.commit();
-}
+//bool BusiUtil::delSpecPz(int y, int m, PzdClass pzCls, int 	&affected)
+//{
+//    QString s;
+//    QSqlQuery q,q2;
+//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+//    ds.chop(3);
+//    QList<PzClass> codes = getSpecClsPzCode(pzCls);
+//    QSqlDatabase db = QSqlDatabase::database();
+//    if(!db.transaction())
+//        return false;
+//    QList<int> ids;
+//    for(int i = 0; i < codes.count(); ++i){
+//        s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
+//                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
+//        q.exec(s);q.first();
+//        ids<<q.value(0).toInt();
+//    }
+//    if(!db.commit())
+//        return false;
+//    if(!db.transaction())
+//        return false;
+//    affected = 0;
+//    for(int i = 0; i < ids.count(); ++i){
+//        s = QString("delete from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_pid).arg(ids.at(i));
+//        q.exec(s);
+//        s = QString("delete from %1 where id=%2").arg(tbl_pz).arg(ids.at(i));
+//        q.exec(s);
+//        affected += q.numRowsAffected();
+//    }
+//    return db.commit();
+//}
 
 /**
  * @brief BusiUtil::haveSpecClsPz
@@ -3649,32 +3649,32 @@ bool BusiUtil::delSpecPz(int y, int m, PzdClass pzCls, int 	&affected)
  * @param isExist
  * @return
  */
-bool BusiUtil::haveSpecClsPz(int y, int m, QHash<PzdClass, bool> &isExist)
-{
-    QSqlQuery q;
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QString s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6 or %4=%7)")
-            .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(Pzc_Jzhd_Bank)
-            .arg(Pzc_Jzhd_Ys).arg(Pzc_Jzhd_Yf);
-    if(!q.exec(s))
-        return false;
-    isExist[Pzd_Jzhd] = q.first();
+//bool BusiUtil::haveSpecClsPz(int y, int m, QHash<PzdClass, bool> &isExist)
+//{
+//    QSqlQuery q;
+//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+//    ds.chop(3);
+//    QString s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6 or %4=%7)")
+//            .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(Pzc_Jzhd_Bank)
+//            .arg(Pzc_Jzhd_Ys).arg(Pzc_Jzhd_Yf);
+//    if(!q.exec(s))
+//        return false;
+//    isExist[Pzd_Jzhd] = q.first();
 
-    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6)")
-                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
-                .arg(Pzc_JzsyIn).arg(Pzc_JzsyFei);
-    if(!q.exec(s))
-        return false;
-    isExist[Pzd_Jzsy] = q.first();
-    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
-                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
-                .arg(Pzc_Jzlr);
-    if(!q.exec(s))
-        return false;
-    isExist[Pzd_Jzlr] = q.first();
-    return true;
-}
+//    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6)")
+//                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+//                .arg(Pzc_JzsyIn).arg(Pzc_JzsyFei);
+//    if(!q.exec(s))
+//        return false;
+//    isExist[Pzd_Jzsy] = q.first();
+//    s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
+//                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+//                .arg(Pzc_Jzlr);
+//    if(!q.exec(s))
+//        return false;
+//    isExist[Pzd_Jzlr] = q.first();
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::setExtraState
@@ -3753,26 +3753,26 @@ bool BusiUtil::getExtraState(int y, int m)
  * @param affected  收影响的凭证条目
  * @return
  */
-bool BusiUtil::specPzClsInstat(int y, int m, PzdClass cls, int &affected)
-{
-    QSqlDatabase db = QSqlDatabase::database();
-    QSqlQuery q(db);
-    QString s;
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QList<PzClass> codes = getSpecClsPzCode(cls);
-    if(!db.transaction())
-        return false;
-    affected = 0;
-    for(int i = 0; i < codes.count(); ++i){
-        s = QString("update %1 set %2=%3 where (%4 like '%5%') and %6=%7")
-                .arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Instat)
-                .arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
-        q.exec(s);
-        affected += q.numRowsAffected();
-    }
-    return db.commit();
-}
+//bool BusiUtil::specPzClsInstat(int y, int m, PzdClass cls, int &affected)
+//{
+//    QSqlDatabase db = QSqlDatabase::database();
+//    QSqlQuery q(db);
+//    QString s;
+//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+//    ds.chop(3);
+//    QList<PzClass> codes = getSpecClsPzCode(cls);
+//    if(!db.transaction())
+//        return false;
+//    affected = 0;
+//    for(int i = 0; i < codes.count(); ++i){
+//        s = QString("update %1 set %2=%3 where (%4 like '%5%') and %6=%7")
+//                .arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Instat)
+//                .arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(codes.at(i));
+//        q.exec(s);
+//        affected += q.numRowsAffected();
+//    }
+//    return db.commit();
+//}
 
 /**
  * @brief BusiUtil::setAllPzState
@@ -3785,27 +3785,27 @@ bool BusiUtil::specPzClsInstat(int y, int m, PzdClass cls, int &affected)
  * @param user
  * @return
  */
-bool BusiUtil::setAllPzState(int y, int m, PzState state, PzState includeState , int &affected, User *user)
-{
-    QSqlQuery q;
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QString userField;
-    if(state == Pzs_Recording)
-        userField = fld_pz_ru;
-    else if(state == Pzs_Verify)
-        userField = fld_pz_vu;
-    else if(state == Pzs_Instat)
-        userField = fld_pz_bu;
-    QString s = QString("update %1 set %2=%3,%4=%5 where (%6 like '%7%') and %2=%8")
-            .arg(tbl_pz).arg(fld_pz_state).arg(state).arg(userField)
-            .arg(user->getUserId()).arg(fld_pz_date).arg(ds).arg(includeState);
-    affected = 0;
-    if(!q.exec(s))
-        return false;
-    affected = q.numRowsAffected();
-    return true;
-}
+//bool BusiUtil::setAllPzState(int y, int m, PzState state, PzState includeState , int &affected, User *user)
+//{
+//    QSqlQuery q;
+//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+//    ds.chop(3);
+//    QString userField;
+//    if(state == Pzs_Recording)
+//        userField = fld_pz_ru;
+//    else if(state == Pzs_Verify)
+//        userField = fld_pz_vu;
+//    else if(state == Pzs_Instat)
+//        userField = fld_pz_bu;
+//    QString s = QString("update %1 set %2=%3,%4=%5 where (%6 like '%7%') and %2=%8")
+//            .arg(tbl_pz).arg(fld_pz_state).arg(state).arg(userField)
+//            .arg(user->getUserId()).arg(fld_pz_date).arg(ds).arg(includeState);
+//    affected = 0;
+//    if(!q.exec(s))
+//        return false;
+//    affected = q.numRowsAffected();
+//    return true;
+//}
 
 
 /**
@@ -4537,81 +4537,81 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
     参数  exas：科目余额, exaDirs：科目方向  （这两个参数的键是科目id * 10 +　币种代码）
          sums：科目各币种累计余额，dirs：科目各币种累计余额的方向（这两个参数的键是科目id）
 */
-bool BusiUtil::calSumByMt(QHash<int,double> exas, QHash<int,int>exaDirs,
-                       QHash<int,double>& sums, QHash<int,int>& dirs,
-                       QHash<int,double> rates)
-{
-    QHashIterator<int,double> it(exas);
-    int id,mt;
-    double v;
-    //基本思路是借方　－　贷方，并根据差值的符号来判断余额方向
-    while(it.hasNext()){
-        it.next();
-        id = it.key() / 10;
-        mt = it.key() % 10;        
-        v = it.value() * rates.value(mt);
-        //v = QString::number(v,'f',2).toDouble(); //执行四舍五入，规避多一分问题
-        if(exaDirs.value(it.key()) == DIR_P)
-            //continue;
-            sums[id] = 0;
-        else if(exaDirs.value(it.key()) == DIR_J)
-            sums[id] += v;
-        else
-            sums[id] -= v;
-    }
-    QHashIterator<int,double> i(sums);
-    while(i.hasNext()){
-        i.next();
-        //执行四舍五入，规避多一分问题
-        //sums[i.key()] = QString::number(i.value(),'f',2).toDouble();
-        if(i.value() == 0)
-            dirs[i.key()] = DIR_P;
-        else if(i.value() > 0)
-            dirs[i.key()] = DIR_J;
-        else{
-            sums[i.key()] = -sums.value(i.key());
-            dirs[i.key()] = DIR_D;
-        }
-    }
-}
+//bool BusiUtil::calSumByMt(QHash<int,double> exas, QHash<int,int>exaDirs,
+//                       QHash<int,double>& sums, QHash<int,int>& dirs,
+//                       QHash<int,double> rates)
+//{
+//    QHashIterator<int,double> it(exas);
+//    int id,mt;
+//    double v;
+//    //基本思路是借方　－　贷方，并根据差值的符号来判断余额方向
+//    while(it.hasNext()){
+//        it.next();
+//        id = it.key() / 10;
+//        mt = it.key() % 10;
+//        v = it.value() * rates.value(mt);
+//        //v = QString::number(v,'f',2).toDouble(); //执行四舍五入，规避多一分问题
+//        if(exaDirs.value(it.key()) == DIR_P)
+//            //continue;
+//            sums[id] = 0;
+//        else if(exaDirs.value(it.key()) == DIR_J)
+//            sums[id] += v;
+//        else
+//            sums[id] -= v;
+//    }
+//    QHashIterator<int,double> i(sums);
+//    while(i.hasNext()){
+//        i.next();
+//        //执行四舍五入，规避多一分问题
+//        //sums[i.key()] = QString::number(i.value(),'f',2).toDouble();
+//        if(i.value() == 0)
+//            dirs[i.key()] = DIR_P;
+//        else if(i.value() > 0)
+//            dirs[i.key()] = DIR_J;
+//        else{
+//            sums[i.key()] = -sums.value(i.key());
+//            dirs[i.key()] = DIR_D;
+//        }
+//    }
+//}
 
-bool BusiUtil::calSumByMt2(QHash<int,Double> exas, QHash<int,int>exaDirs,
-                           QHash<int,Double>& sums, QHash<int,int>& dirs,
-                           QHash<int,Double> rates)
-{
-    QHashIterator<int,Double> it(exas);
-    int id,mt;
-    Double v;
-    //基本思路是借方　－　贷方，并根据差值的符号来判断余额方向
-    while(it.hasNext()){
-        it.next();
-        id = it.key() / 10;
-        mt = it.key() % 10;
-        if(mt == RMB)
-            v = it.value();
-        else
-            v = it.value() * rates.value(mt);
-        if(exaDirs.value(it.key()) == DIR_P)
-            //continue;
-            sums[id] = 0;
-        else if(exaDirs.value(it.key()) == DIR_J)
-            sums[id] += v;
-        else
-            sums[id] -= v;
-    }
-    QHashIterator<int,Double> i(sums);
-    while(i.hasNext()){
-        i.next();
-        if(i.value() == 0)
-            dirs[i.key()] = DIR_P;
-        else if(i.value() > 0)
-            dirs[i.key()] = DIR_J;
-        else{
-            sums[i.key()].changeSign();
-            dirs[i.key()] = DIR_D;
-        }
-    }
-}
+//bool BusiUtil::calSumByMt2(QHash<int,Double> exas, QHash<int,int>exaDirs,
+//                           QHash<int,Double>& sums, QHash<int,int>& dirs,
+//                           QHash<int,Double> rates)
+//{
+//    QHashIterator<int,Double> it(exas);
+//    int id,mt;
+//    Double v;
+//    //基本思路是借方　－　贷方，并根据差值的符号来判断余额方向
+//    while(it.hasNext()){
+//        it.next();
+//        id = it.key() / 10;
+//        mt = it.key() % 10;
+//        if(mt == RMB)
+//            v = it.value();
+//        else
+//            v = it.value() * rates.value(mt);
+//        if(exaDirs.value(it.key()) == DIR_P)
+//            //continue;
+//            sums[id] = 0;
+//        else if(exaDirs.value(it.key()) == DIR_J)
+//            sums[id] += v;
+//        else
+//            sums[id] -= v;
+//    }
+//    QHashIterator<int,Double> i(sums);
+//    while(i.hasNext()){
+//        i.next();
+//        if(i.value() == 0)
+//            dirs[i.key()] = DIR_P;
+//        else if(i.value() > 0)
+//            dirs[i.key()] = DIR_J;
+//        else{
+//            sums[i.key()].changeSign();
+//            dirs[i.key()] = DIR_D;
+//        }
+//    }
+//}
 
 /**
  * @brief BusiUtil::getFidToFldName
@@ -4789,61 +4789,61 @@ bool BusiUtil::getOutMtInBank(QList<int>& ids, QList<int>& mt)
  * @param lname     全称
  * @return
  */
-bool BusiUtil::getSNameForId(int sid, QString& name, QString& lname)
-{
-    QSqlQuery q;
-    QString s = QString("select %1,%2 from %3 where id = %4")
-            .arg(fld_ni_name).arg(fld_ni_lname).arg(tbl_nameItem).arg(sid);
-    if(!q.exec(s))
-        return false;
-    if(q.first()){
-        name = q.value(0).toString();
-        lname = q.value(1).toString();
-    }
-    return true;
-}
+//bool BusiUtil::getSNameForId(int sid, QString& name, QString& lname)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select %1,%2 from %3 where id = %4")
+//            .arg(fld_ni_name).arg(fld_ni_lname).arg(tbl_nameItem).arg(sid);
+//    if(!q.exec(s))
+//        return false;
+//    if(q.first()){
+//        name = q.value(0).toString();
+//        lname = q.value(1).toString();
+//    }
+//    return true;
+//}
 
 //保存账户信息到账户文件（中的AccountInfos表中）
-bool BusiUtil::saveAccInfo(AccountBriefInfo* accInfo)
-{
-    QSqlQuery q;
-    QString s;
+//bool BusiUtil::saveAccInfo(AccountBriefInfo* accInfo)
+//{
+//    QSqlQuery q;
+//    QString s;
 
-    s = QString("select id from AccountInfos where code = '%1'")
-            .arg(accInfo->code);
+//    s = QString("select id from AccountInfos where code = '%1'")
+//            .arg(accInfo->code);
+////    if(q.exec(s) && q.first()){
+////        int id = q.value(0).toInt();
+////        s = QString("update AccountInfos set code='%1',baseTime='%2',usedSubId=%3,"
+////                    "sname='%4',lname='%5',lastTime='%6',desc='%7' where id=%8")
+////                .arg(accInfo->code).arg(accInfo->baseTime).arg(accInfo->usedSubSys)
+////                /*.arg(accInfo->usedRptType)*/.arg(accInfo->accName)
+////                .arg(accInfo->accLName).arg(accInfo->lastTime)
+////                .arg(accInfo->desc).arg(id);
+////    }
+////    else{
+////        s = QString("insert into AccountInfos(code,baseTime,usedSubId,sname,"
+////                    "lname,lastTime,desc) values('%1','%2',%3,'%4','%5','%6','%7')")
+////                .arg(accInfo->code).arg(accInfo->baseTime).arg(accInfo->usedSubSys)
+////                /*.arg(accInfo->usedRptType)*/.arg(accInfo->accName)
+////                .arg(accInfo->accLName).arg(accInfo->lastTime).arg(accInfo->desc);
+////    }
+
 //    if(q.exec(s) && q.first()){
 //        int id = q.value(0).toInt();
-//        s = QString("update AccountInfos set code='%1',baseTime='%2',usedSubId=%3,"
-//                    "sname='%4',lname='%5',lastTime='%6',desc='%7' where id=%8")
-//                .arg(accInfo->code).arg(accInfo->baseTime).arg(accInfo->usedSubSys)
-//                /*.arg(accInfo->usedRptType)*/.arg(accInfo->accName)
-//                .arg(accInfo->accLName).arg(accInfo->lastTime)
-//                .arg(accInfo->desc).arg(id);
+//        s = QString("update AccountInfos set code='%1',"
+//                    "sname='%2',lname='%3' where id=%4")
+//                .arg(accInfo->code).arg(accInfo->sname)
+//                .arg(accInfo->lname).arg(id);
 //    }
 //    else{
-//        s = QString("insert into AccountInfos(code,baseTime,usedSubId,sname,"
-//                    "lname,lastTime,desc) values('%1','%2',%3,'%4','%5','%6','%7')")
-//                .arg(accInfo->code).arg(accInfo->baseTime).arg(accInfo->usedSubSys)
-//                /*.arg(accInfo->usedRptType)*/.arg(accInfo->accName)
-//                .arg(accInfo->accLName).arg(accInfo->lastTime).arg(accInfo->desc);
+//        s = QString("insert into AccountInfos(code,sname,lname) "
+//                    "values('%1','%2','%3')")
+//                .arg(accInfo->code).arg(accInfo->sname)
+//                .arg(accInfo->lname);
 //    }
-
-    if(q.exec(s) && q.first()){
-        int id = q.value(0).toInt();
-        s = QString("update AccountInfos set code='%1',"
-                    "sname='%2',lname='%3' where id=%4")
-                .arg(accInfo->code).arg(accInfo->sname)
-                .arg(accInfo->lname).arg(id);
-    }
-    else{
-        s = QString("insert into AccountInfos(code,sname,lname) "
-                    "values('%1','%2','%3')")
-                .arg(accInfo->code).arg(accInfo->sname)
-                .arg(accInfo->lname);
-    }
-    bool r = q.exec(s);
-    return r;
-}
+//    bool r = q.exec(s);
+//    return r;
+//}
 
 //读取银行帐号
 //bool BusiUtil::readAllBankAccont(QHash<int,BankAccount*>& banks)
@@ -4968,8 +4968,8 @@ bool BusiUtil::genDtfyPz(int y,int m)
 }
 
 //引入其他模块产生的凭证
-bool BusiUtil::impPzFromOther(int y,int m, QSet<OtherModCode> mods)
-{
+//bool BusiUtil::impPzFromOther(int y,int m, QSet<OtherModCode> mods)
+//{
 //    PzsState state;
 //    getPzsState(y,m,state);
 //    if((state != Ps_Stat1) && (state != Ps_Stat3)){
@@ -5000,11 +5000,11 @@ bool BusiUtil::impPzFromOther(int y,int m, QSet<OtherModCode> mods)
 //            return false;
 //    }
 //    return true;
-}
+//}
 
 //取消引入的由其他模块产生的凭证
-bool BusiUtil::antiImpPzFromOther(int y, int m, QSet<OtherModCode> mods)
-{
+//bool BusiUtil::antiImpPzFromOther(int y, int m, QSet<OtherModCode> mods)
+//{
 //    PzsState state;
 //    getPzsState(y,m,state);
 //    if((state < Ps_ImpOther) && (state >= Ps_JzsyPre)){
@@ -5037,8 +5037,8 @@ bool BusiUtil::antiImpPzFromOther(int y, int m, QSet<OtherModCode> mods)
 //        else
 //            return false;
 //    }
-    return true;
-}
+//    return true;
+//}
 
 //取消固定资产管理模块引入的凭证
 bool BusiUtil::antiGdzcPz(int y, int m)
@@ -5074,14 +5074,14 @@ bool BusiUtil::isOtherPzCls(PzClass pzc)
 }
 
 //判断其他模块是否需要在指定年月产生引入凭证，如果是，则置req为true
-bool BusiUtil::reqGenImpOthPz(int y,int m, bool& req)
-{
-    //任一模块需要产生引入凭证则置req为true，目前仅考虑固定资产和待摊费用
-    if(reqGenGdzcPz(y,m,req) && reqGenDtfyPz(y,m,req))
-        return true;
-    else
-        return false;
-}
+//bool BusiUtil::reqGenImpOthPz(int y,int m, bool& req)
+//{
+//    //任一模块需要产生引入凭证则置req为true，目前仅考虑固定资产和待摊费用
+//    if(reqGenGdzcPz(y,m,req) && reqGenDtfyPz(y,m,req))
+//        return true;
+//    else
+//        return false;
+//}
 
 //判断固定资产管理模块是否需要产生凭证
 bool BusiUtil::reqGenGdzcPz(int y,int m, bool& req)

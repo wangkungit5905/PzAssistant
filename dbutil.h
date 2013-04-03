@@ -89,8 +89,11 @@ public:
     //服务函数
     bool getFS_Id_name(QList<int> &ids, QList<QString> &names, int subSys = 1);
 
+    //凭证集相关
     bool getPzsState(int y,int m,PzsState& state);
     bool setPzsState(int y,int m,PzsState state);
+    bool setExtraState(int y, int m, bool isVolid);
+    bool getExtraState(int y, int m);
     bool getRates(int y, int m, QHash<int,Double>& rates);
     bool saveRates(int y,int m, QHash<int,Double>& rates);
 
@@ -101,6 +104,12 @@ public:
     bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
     bool saveActionsInPz(int pid, QList<BusiActionData2*>& busiActions,
                                     QList<BusiActionData2*> dels = QList<BusiActionData2*>());
+    bool delSpecPz(int y, int m, PzdClass pzCls, int &affected);
+    QList<PzClass> getSpecClsPzCode(PzdClass cls);
+    bool haveSpecClsPz(int y, int m, QHash<PzdClass,bool>& isExist);
+    bool specPzClsInstat(int y, int m, PzdClass cls, int &affected);
+    bool setAllPzState(int y, int m, PzState state, PzState includeState,
+                                  int &affected, User* user);
 
     //访问子窗口的位置、大小等信息
     bool getSubWinInfo(int winEnum, SubWindowDim* &info, QByteArray* &otherInfo);

@@ -119,100 +119,100 @@ public:
     /**
         判断科目余额的借贷方向，1：借方，0：平，-1：贷方，-2：无定义（可能对于此科目类型还未作处理）
     */
-    static int getDirSubExa(double v, int pid)
-    {
+//    static int getDirSubExa(double v, int pid)
+//    {
 
 
-        if(v == 0)
-            return 0;
-        if(v > 0){
-            if(pset.contains(pid))
-                return 1;
-            else if(nset.contains(pid))
-                return -1;
-            else
-                return -2;
-        }
-        else{
-            if(pset.contains(pid))
-                return -1;
-            else if(nset.contains(pid))
-                return 1;
-            else
-                return -2;
-        }
-    }
+//        if(v == 0)
+//            return 0;
+//        if(v > 0){
+//            if(pset.contains(pid))
+//                return 1;
+//            else if(nset.contains(pid))
+//                return -1;
+//            else
+//                return -2;
+//        }
+//        else{
+//            if(pset.contains(pid))
+//                return -1;
+//            else if(nset.contains(pid))
+//                return 1;
+//            else
+//                return -2;
+//        }
+//    }
 
-    /**
-        判断明细科目余额的借贷方向，1：借方，0：平，-1：贷方
-    */
-    static int getDirSubDetExa(double v, int sid)
-    {
-        if(v == 0)
-            return 0;
-        if(v > 0){
-            if(spset.contains(sid))
-                return 1;
-            else if(snset.contains(sid))
-                return -1;
-            else
-                return -2;
-        }
-        else{
-            if(spset.contains(sid))
-                return -1;
-            else if(snset.contains(sid))
-                return 1;
-            else
-                return -2;
-        }
-    }
+//    /**
+//        判断明细科目余额的借贷方向，1：借方，0：平，-1：贷方
+//    */
+//    static int getDirSubDetExa(double v, int sid)
+//    {
+//        if(v == 0)
+//            return 0;
+//        if(v > 0){
+//            if(spset.contains(sid))
+//                return 1;
+//            else if(snset.contains(sid))
+//                return -1;
+//            else
+//                return -2;
+//        }
+//        else{
+//            if(spset.contains(sid))
+//                return -1;
+//            else if(snset.contains(sid))
+//                return 1;
+//            else
+//                return -2;
+//        }
+//    }
 
-    /**
-        判断总账科目余额的借贷方向---文本版
-    */
-    static QString getSubExaDir(double v, int pid)
-    {
-        int dir = getDirSubExa(v,pid);
-        if(dir == 1)
-            return QString(QObject::tr("借"));
-        else if(dir == -1)
-            return QString(QObject::tr("贷"));
-        else if(dir == 0)
-            return QString(QObject::tr("平"));
-        else
-            return QString(QObject::tr("？"));
-    }
+//    /**
+//        判断总账科目余额的借贷方向---文本版
+//    */
+//    static QString getSubExaDir(double v, int pid)
+//    {
+//        int dir = getDirSubExa(v,pid);
+//        if(dir == 1)
+//            return QString(QObject::tr("借"));
+//        else if(dir == -1)
+//            return QString(QObject::tr("贷"));
+//        else if(dir == 0)
+//            return QString(QObject::tr("平"));
+//        else
+//            return QString(QObject::tr("？"));
+//    }
 
-    /**
-        判断明细科目余额的借贷方向---文本版
-    */
-    static QString getSubDetExaDir(double v, int sid)
-    {
-        int dir = getDirSubExa(v,sid);
-        if(dir == 1)
-            return QString(QObject::tr("借"));
-        else if(dir == -1)
-            return QString(QObject::tr("贷"));
-        else if(dir == 0)
-            return QString(QObject::tr("平"));
-        else
-            return QString(QObject::tr("？"));
-    }
+//    /**
+//        判断明细科目余额的借贷方向---文本版
+//    */
+//    static QString getSubDetExaDir(double v, int sid)
+//    {
+//        int dir = getDirSubExa(v,sid);
+//        if(dir == 1)
+//            return QString(QObject::tr("借"));
+//        else if(dir == -1)
+//            return QString(QObject::tr("贷"));
+//        else if(dir == 0)
+//            return QString(QObject::tr("平"));
+//        else
+//            return QString(QObject::tr("？"));
+//    }
 
-    /**
-        获取所有用户名
-    */
-    static void getAllUser(QHash<int,QString>& users)
-    {
-        //
-    }
+//    /**
+//        获取所有用户名
+//    */
+//    static void getAllUser(QHash<int,QString>& users)
+//    {
+//        //
+//    }
 
     static bool getRates2(int y,int m, QHash<int,Double>& rates, int mainMt = RMB);
     static bool saveRates2(int y,int m, QHash<int,Double>& rates, int mainMt = RMB);
 
 
-    static bool getFstSubCls(QHash<int,QString>& clsNames,int subSys = 1);
+    //static bool getFstSubCls(QHash<int,QString>& clsNames,int subSys = 1);
 
 
 
@@ -264,14 +264,14 @@ public:
     static bool getIdByCode(int& id, QString code, int subSys = 1);
     static bool getSidByName(QString fname, QString sname, int& id, int subSys = 1);
     static bool getIdByName(int& id, QString name, int subSys = 1);
-    static bool getIdsByCls(QList<int>& ids, int cls, bool isByView, int subSys = 1);
+    //static bool getIdsByCls(QList<int>& ids, int cls, bool isByView, int subSys = 1);
     static bool getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names, bool isAll = true, int subSys = 1);
 
 
 
-    static bool getOwnerSub(int oid, QHash<int,QString>& names);
-    static bool getDefaultSndSubs(QHash<int,int>& defSubs, int subSys = 1);
-    static bool getSidToFid(QHash<int,int>& sidToFids, int subSys = 1);
+    //static bool getOwnerSub(int oid, QHash<int,QString>& names);
+    //static bool getDefaultSndSubs(QHash<int,int>& defSubs, int subSys = 1);
+    //static bool getSidToFid(QHash<int,int>& sidToFids, int subSys = 1);
 
 
     /**
@@ -287,12 +287,12 @@ public:
     /**
         获取所有总目id到总目代码的哈希表
     */
-    static bool getAllSubFCode(QHash<int,QString>& codes, bool isByView = true);
+    //static bool getAllSubFCode(QHash<int,QString>& codes, bool isByView = true);
 
 
-    static  bool getAllFstSub(QList<int>& ids, QList<QString>& names, bool isByView = true);
+    //static  bool getAllFstSub(QList<int>& ids, QList<QString>& names, bool isByView = true);
 
-    static bool getAllSubCode(QHash<int,QString>& codes, bool isByView = true);
+    //static bool getAllSubCode(QHash<int,QString>& codes, bool isByView = true);
 
 
     /**
@@ -309,9 +309,9 @@ public:
     /**
         获取所有SecSubjects表中的二级科目名列表
     */
-    static bool getAllSndSubNameList(QStringList& names);
+    //static bool getAllSndSubNameList(QStringList& names);
 
-    static bool getAllSubSCode(QHash<int,QString>& codes);
+    //static bool getAllSubSCode(QHash<int,QString>& codes);
 
 
     //static bool getReqDetSubs(QList<int>& ids);
@@ -361,13 +361,13 @@ public:
     /**
         计算科目各币种合计余额及其方向
     */
-    static bool calSumByMt(QHash<int,double> exas, QHash<int,int>exaDirs,
-                           QHash<int,double>& sums, QHash<int,int>& dirs,
-                           QHash<int,double> rates);
+//    static bool calSumByMt(QHash<int,double> exas, QHash<int,int>exaDirs,
+//                           QHash<int,double>& sums, QHash<int,int>& dirs,
+//                           QHash<int,double> rates);
 
-    static bool calSumByMt2(QHash<int,Double> exas, QHash<int,int>exaDirs,
-                           QHash<int,Double>& sums, QHash<int,int>& dirs,
-                           QHash<int,Double> rates);
+//    static bool calSumByMt2(QHash<int,Double> exas, QHash<int,int>exaDirs,
+//                           QHash<int,Double>& sums, QHash<int,int>& dirs,
+//                           QHash<int,Double> rates);
 
     static bool getFidToFldName(QHash<int,QString>& names);
 
@@ -477,13 +477,13 @@ public:
         参数 fid：所属的一级科目id，id 新的二级科目与一级科目的映射条目的id，name：二级科目名，
             lname：二级科目全称，remCode：科目助记符，clsCode：科目名称所属类别代码
     */
-    static bool newSndSubAndMapping(int fid, int& id, QString name, QString lname, QString remCode, int clsCode);
+    //static bool newSndSubAndMapping(int fid, int& id, QString name, QString lname, QString remCode, int clsCode);
 
-    static bool getFstToSnd(int fid, int sid, int& id);
-    static bool isSndSubDisabled(int id, bool& enabled);
+    //static bool getFstToSnd(int fid, int nid, int& id);
+    //static bool isSndSubDisabled(int id, bool& enabled);
 
     //获取指定id（FSAgent表的id字段）的二级科目名称
-    static bool getSndSubNameForId(int id, QString& name, QString& lname);
+    //static bool getSndSubNameForId(int id, QString& name, QString& lname);
 
     //获取凭证集内最大的可用凭证号
     static int getMaxPzNum(int y, int m);
@@ -502,10 +502,10 @@ public:
     //按凭证日期，重新设置凭证集内的凭证号
     //static bool assignPzNum(int y, int m);
 
-    static bool getSNameForId(int sid, QString& name, QString& lname);
+    //static bool getSNameForId(int sid, QString& name, QString& lname);
 
     //保存账户信息到账户文件（中的AccountInfos表中）
-    static bool saveAccInfo(AccountBriefInfo* accInfo);
+    //static bool saveAccInfo(AccountBriefInfo* accInfo);
 
     //读取银行帐号
     //static bool readAllBankAccont(QHash<int,BankAccount*>& banks);
@@ -514,11 +514,11 @@ public:
     static bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
 
     //引入其他模块产生的凭证
-    static bool impPzFromOther(int y,int m, QSet<OtherModCode> mods);
+    //static bool impPzFromOther(int y,int m, QSet<OtherModCode> mods);
     //取消引入的由其他模块产生的凭证
-    static bool antiImpPzFromOther(int y, int m, QSet<OtherModCode> mods);
+    //static bool antiImpPzFromOther(int y, int m, QSet<OtherModCode> mods);
     //其他模块是否需要生成指定年月的引入类凭证
-    static bool reqGenImpOthPz(int y,int m, bool& req);
+    //static bool reqGenImpOthPz(int y,int m, bool& req);
 
     //创建结转汇兑损益凭证
     static bool genForwordEx2(int y, int m, User* user, int state = Pzs_Recording);
@@ -548,13 +548,13 @@ public:
 
     //获取所有在二级科目类别表中名为“固定资产类”的科目（已归并到Gdzc类）
     static QList<PzClass> getSpecClsPzCode(PzdClass cls);
-    static bool delSpecPz(int y, int m, PzdClass pzCls, int &affected);
-    static bool haveSpecClsPz(int y, int m, QHash<PzdClass,bool>& isExist);
+    //static bool delSpecPz(int y, int m, PzdClass pzCls, int &affected);
+    //static bool haveSpecClsPz(int y, int m, QHash<PzdClass,bool>& isExist);
     static bool setExtraState(int y, int m, bool isVolid);
     static bool getExtraState(int y, int m);
-    static bool specPzClsInstat(int y, int m, PzdClass cls, int &affected);
-    static bool setAllPzState(int y, int m, PzState state, PzState includeState,
-                              int &affected, User* user = curUser);
+    //static bool specPzClsInstat(int y, int m, PzdClass cls, int &affected);
+    //static bool setAllPzState(int y, int m, PzState state, PzState includeState,
+    //                          int &affected, User* user = curUser);
 
 private:
     //为查询处于指定状态的某些类别的凭证生成过滤子句

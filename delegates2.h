@@ -13,6 +13,11 @@
 
 #include "common.h"
 
+class SubjectManager;
+class FirstSubject;
+class SecondSubject;
+class SubjectNameItem;
+
 /**
     为列表项提供整数到字符串的映射转换
  */
@@ -63,7 +68,7 @@ public:
         TAG  = 6    //
     };
 
-    DetExtItemDelegate(QObject *parent = 0);
+    DetExtItemDelegate(SubjectManager* smg, QObject *parent = 0);
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                           const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -86,6 +91,7 @@ signals:
 
 private:
     int fid;   //当前选定的一级科目id
+    SubjectManager* smg;
 };
 
 
@@ -109,7 +115,7 @@ public:
         NUM     = 9    //业务活动在凭证中的序号列
     };
 
-    ActionEditItemDelegate(QObject *parent = 0);
+    ActionEditItemDelegate(SubjectManager* smg,QObject *parent = 0);
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                           const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -140,7 +146,8 @@ private:
     int witch;  //代理当前编辑的是业务活动的哪个列
     bool isReadOnly; //表格是否只读的
     int rows;        //表格的有效行数，这个是为了对无效行不创建编辑器(应该包含最末尾到用于添加新业务活动到行)
-    //QStringList names; //二级科目名称列表，用于输入二级科目名称时，提供一个输入完成器    
+    //QStringList names; //二级科目名称列表，用于输入二级科目名称时，提供一个输入完成器
+    SubjectManager* smg;
 };
 
 
@@ -199,7 +206,7 @@ private:
     QListView* listview;   //智能提示列表框，用来供用户选择科目
     QSqlQueryModel* model; //提取科目作为Listview的数据模型（FirSubjects表）
     QString* keys;   //接收到的字母或数字键（数字表示科目代码，字母表示科目助记符）
-
+    QSqlDatabase db;
 };
 
 //编辑和显示明细科目
@@ -207,7 +214,7 @@ class SndSubComboBox : public QComboBox
 {
     Q_OBJECT
 public:
-    SndSubComboBox(int pid, QWidget *parent = 0);
+    SndSubComboBox(int pid, SubjectManager* smg, QWidget *parent = 0);
     ~SndSubComboBox();
     void setRowColNum(int row, int col);
 
@@ -223,8 +230,8 @@ signals:
     void editNextItem(int row, int col);   //这一信号仅用于设置明细科目余额值的表中
 
 private:
-    bool findSubMapper(int fid, int sid, int& id);
-    bool findSubName(QString name, int& sid);
+    //bool findSubMapper(int fid, int sid, int& id);
+    //bool findSubName(QString name, int& sid);
 
     int pid;   //所属的总账科目id
     int row,col; //编辑器所处的行列位置
@@ -234,6 +241,11 @@ private:
     int rows;   //用以保存smodel的行数，因为smodel.rowCount()方法不一定返回正确的行数，因为模型类的实现一次不会返回所有行
     QString* keys;   //接收到的字母或数字键（数字表示科目代码，字母表示科目助记符）
     QStringList snames;//二级科目名称列表，用于输入二级科目名称时，提供一个输入完成器
+    QSqlDatabase db;
+    SubjectManager* smg;
+    FirstSubject* fsub;
+    SecondSubject* ssub;
+    SubjectNameItem* ni;
 };
 
 //编辑和显示币种

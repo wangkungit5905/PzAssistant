@@ -8,13 +8,13 @@
 #include "common.h"
 #include "utils.h"
 #include "subject.h"
-//#include "dbutil.h"
+#include "dbutil.h"
 
-InspectPzErrorThread::InspectPzErrorThread(int y, int m, QSqlDatabase db,
-                                           QObject *parent):
-    QThread(parent),db(db),year(y),month(m)
+InspectPzErrorThread::InspectPzErrorThread(int y, int m, Account* account, QObject *parent):
+    QThread(parent),year(y),month(m),account(account)
 {
-
+    db = account->getDbUtil()->getDb();
+    smg = account->getSubjectManager();
 }
 
 
@@ -220,7 +220,8 @@ void InspectPzErrorThread::run()
  */
 bool InspectPzErrorThread::inspectMtError(int fsid, int ssid, int mt)
 {
-    if(!BusiUtil::isAccMt(fsid) && mt != RMB)
+    FirstSubject* fsub = smg->getFstSubject(fsid);
+    if(fsub->isUseForeignMoney() && account->getMasterMt()->code())
         return false;
     return true;
 }
@@ -319,8 +320,8 @@ bool InspectPzErrorThread::inspectDirEngage(int fsid, int dir, PzClass pzc, QStr
 }
 
 //////////////////////////////ViewPzSetErrorForm///////////////////////////////////
-ViewPzSetErrorForm::ViewPzSetErrorForm(int y, int m, QSqlDatabase db, QWidget *parent) : QDialog(parent),
-    ui(new Ui::ViewPzSetErrorForm)
+ViewPzSetErrorForm::ViewPzSetErrorForm(int y, int m, Account* account, QWidget *parent) :
+    QDialog(parent),ui(new Ui::ViewPzSetErrorForm),account(account)
 {
     ui->setupUi(this);
     QSettings setting("./config/infos/errors.ini", QSettings::IniFormat);
@@ -355,7 +356,7 @@ ViewPzSetErrorForm::ViewPzSetErrorForm(int y, int m, QSqlDatabase db, QWidget *p
     ui->tw->setColumnHidden(5, true);
     ui->tw->setColumnWidth(3,200);
 
-    t = new InspectPzErrorThread(y,m,db);
+    t = new InspectPzErrorThread(y,m,account);
     connect(t,SIGNAL(adviceProgressStep(int,int)),this,SLOT(viewStep(int,int)));
     connect(t,SIGNAL(finished()),this,SLOT(inspcetPzErrEnd()));
     ui->btnInspect->setEnabled(false);

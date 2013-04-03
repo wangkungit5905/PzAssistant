@@ -320,15 +320,22 @@ public:
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
     static QHash<int,QStringList>& getAllNICls(){return nameItemCls;}
     static SubjectNameItem* getNameItem(int nid){return nameItems.value(nid);}
+    static SubjectNameItem* getNameItem(QString name);
+    static QHash<int,SubjectNameItem*>& getAllNI(){return nameItems;}
+    static bool containNI(QString name);
 
+    QHash<int,QString>& getFstSubClass(){return fstSubCls;}
     //按科目id获取科目对象的方法
     FirstSubject* getFstSubject(int id){fstSubHash.value(id);}
     SecondSubject* getSndSubject(int id){return sndSubs.value(id);}
+    QHash<int,FirstSubject*>& getAllFstSubHash(){return fstSubHash;}
+    QHash<int,SecondSubject*>& getAllSndSubHash(){return sndSubs;}
 
     //获取特种科目的方法
     FirstSubject* getCashSub(){return cashSub;}
     FirstSubject* getBankSub(){return bankSub;}
     FirstSubject* getGdzcSub(){return gdzcSub;}
+    FirstSubject* getLjzjSub(){return ljzjSub;}
     FirstSubject* getCwfySub(){return cwfySub;}
     FirstSubject* getDtfySub(){return dtfySub;}
     FirstSubject* getBnlrSub(){return bnlrSub;}

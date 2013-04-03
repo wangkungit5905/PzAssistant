@@ -10,6 +10,8 @@
 #include "utils.h"
 #include "dialog2.h"
 #include "global.h"
+#include "subject.h"
+#include "dbutil.h"
 
 
 //////////////////////////////iTosItemDelegate/////////////////////////////
@@ -273,16 +275,21 @@ void SummaryEdit::focusOutEvent(QFocusEvent* e)
 
 /////////////////////////////FstSubComboBox//////////////////////////
 
-FstSubComboBox::FstSubComboBox(/*QHash<int,QString>* subNames,*/ QWidget *parent) : QComboBox(parent)
+FstSubComboBox::FstSubComboBox(QWidget *parent) : QComboBox(parent)
 {
     QList<int>ids;        //总账科目id（它是以科目代码顺序出现的）
-    QList<QString> names; //总账科目名
-    BusiUtil::getAllFstSub(ids,names);
+    //QList<QString> names; //总账科目名
+    //BusiUtil::getAllFstSub(ids,names);
+    SubjectManager* smg = curAccount->getSubjectManager();
+    ids = smg->getAllFstSubHash().keys();
+    qSort(ids.begin(),ids.end());
     for(int i = 0; i < ids.count(); ++i)
-        addItem(names[i], ids[i]);
+        addItem(smg->getFstSubject(ids.at(i))->getName(), ids.at(i));
 
+    db = curAccount->getDbUtil()->getDb();
     model = new QSqlQueryModel;
-    model->setQuery(QString("select * from %1 where %2=1").arg(tbl_fsub).arg(fld_fsub_isview));
+    model->setQuery(QString("select * from %1 where %2=1")
+                    .arg(tbl_fsub).arg(fld_fsub_isview),db);
     keys = new QString;
     //listview = new QListView(this);//这样作将把listview限制在单元格内
     listview = new QListView(parent);
@@ -329,7 +336,7 @@ void FstSubComboBox::keyPressEvent(QKeyEvent* e)
             //model->sort(FSTSUB_REMCODE);
             isDigit = false;
             model->setQuery(QString("select * from %1 where %2=1 order by %3")
-                            .arg(tbl_fsub).arg(fld_fsub_isview).arg(fld_fsub_remcode));
+                            .arg(tbl_fsub).arg(fld_fsub_isview).arg(fld_fsub_remcode),db);
             i = 0;
             listview->setMinimumWidth(width());
             listview->setMaximumWidth(width());
@@ -357,7 +364,7 @@ void FstSubComboBox::keyPressEvent(QKeyEvent* e)
         isDigit = true;
         if(keys->size() == 1){
             model->setQuery(QString("select * from %1 where %2=1 order by %3")
-                            .arg(tbl_fsub).arg(fld_fsub_isview).arg(fld_fsub_subcode));
+                            .arg(tbl_fsub).arg(fld_fsub_isview).arg(fld_fsub_subcode),db);
             i = 0;
             listview->setMinimumWidth(width());
             listview->setMaximumWidth(width());
@@ -456,15 +463,15 @@ void FstSubComboBox::keyPressEvent(QKeyEvent* e)
 
 
 //////////////////////////SndSubComboBox//////////////////////////
-SndSubComboBox::SndSubComboBox(int pid, QWidget *parent) : QComboBox(parent)
+SndSubComboBox::SndSubComboBox(int pid, SubjectManager *smg, QWidget *parent) :
+    QComboBox(parent),pid(pid),smg(smg)
 {
-    this->pid = pid;
-    QList<int> ids;
-    QList<QString> names;
+    db = smg->getAccount()->getDbUtil()->getDb();
+    fsub = NULL;
     if(pid != 0){
-        BusiUtil::getSndSubInSpecFst(pid, ids, names, false);
-        for(int i = 0; i < ids.count(); ++i)
-            addItem(names[i], ids[i]);
+        fsub = smg->getFstSubject(pid);
+        foreach(SecondSubject* ssub, smg->getFstSubject(pid)->getChildSubs())
+            addItem(ssub->getName(),ssub->getId());
     }
 //显然，只有设置了一级科目，才能显示可用的二级科目
 //    else{
@@ -484,12 +491,12 @@ SndSubComboBox::SndSubComboBox(int pid, QWidget *parent) : QComboBox(parent)
                         "from %1 join %6 on %1.%3 = %6.id order by %1.%4")
             .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
             .arg(fld_ssub_weight).arg(tbl_nameItem).arg(fld_ni_name);
-    model->setQuery(s);
+    model->setQuery(s,db);
     keys = new QString;
     listview = new QListView(parent);
 
     //应该使用取自SecSubjects表的model
-    smodel = new QSqlTableModel;
+    smodel = new QSqlTableModel(parent,db);
     smodel->setTable(tbl_nameItem);
     smodel->setSort(NI_REMCODE, Qt::AscendingOrder);
     listview->setModel(smodel);
@@ -505,10 +512,12 @@ SndSubComboBox::SndSubComboBox(int pid, QWidget *parent) : QComboBox(parent)
     //}
     //rows = smodel->rowCount();
 
-    QSqlQuery q;
-    bool r = q.exec(QString("select count() from %1").arg(tbl_nameItem));
-    r = q.first();
-    rows = q.value(0).toInt();
+//    QSqlQuery q(db);
+//    bool r = q.exec(QString("select count() from %1").arg(tbl_nameItem));
+//    r = q.first();
+//    rows = q.value(0).toInt();
+
+    rows = smg->getAllNI().count();
 
     listview->setFixedHeight(150); //最好是设置一个与父窗口的高度合适的尺寸
     //QPoint globalP = mapToGlobal(parent->pos());
@@ -539,7 +548,7 @@ void SndSubComboBox::keyPressEvent(QKeyEvent* e)
 {
     static int i = 0;
     static bool isDigit = true;  //true：输入的是科目的数字代码，false：科目的助记符    
-    int sid;   //在SndSubClass表中的ID
+    int nid;   //名称条目id
     int index;    
     int idx,c;
 
@@ -605,7 +614,7 @@ void SndSubComboBox::keyPressEvent(QKeyEvent* e)
     }
     //如果是其他编辑键
     else if(listview->isVisible() || (keys->size() > 0)){
-        int id; //FSAgent表的id值
+        int sid; //子目id值（SndSubjects表id列）
         switch(keyCode){
         case Qt::Key_Backspace:  //退格键，则维护键盘字符缓存，并进行重新定位
             keys->chop(1);
@@ -656,23 +665,26 @@ void SndSubComboBox::keyPressEvent(QKeyEvent* e)
         case Qt::Key_Return:  //回车键
         case Qt::Key_Enter:
             index = listview->currentIndex().row();
-            sid = smodel->data(smodel->index(index, 0)).toInt();
+            nid = smodel->data(smodel->index(index, 0)).toInt();
+            ni = smg->getNameItem(nid);
             //如果在当前一级科目下没有使用当前选择的名称条目的二级科目，则触发信号用选择的名称创建二级科目
-            if(!BusiUtil::getFstToSnd(pid, sid, id)){
+            //if(!BusiUtil::getFstToSnd(pid, nid, id)){
+            if(!fsub->containChildSub(ni)){
                 listview->hide();
                 keys->clear();
                 emit dataEditCompleted(2,true);
-                emit newMappingItem(pid, sid, row, col);                
+                emit newMappingItem(pid, nid, row, col);
             }
             else{
+                ssub = fsub->getChildSub(ni);
                 listview->hide();
                 keys->clear();
-                bool dis = false;
-                BusiUtil::isSndSubDisabled(id,dis);
-                if(!dis)
-                    emit sndSubDisabled(id);
+                //bool dis = false;
+                //BusiUtil::isSndSubDisabled(sid,dis);
+                if(!ssub->isEnabled())
+                    emit sndSubDisabled(sid);
                 else{
-                    setCurrentIndex(findData(id));
+                    setCurrentIndex(findData(sid));
                     emit dataEditCompleted(2,true);
                     emit editNextItem(row,col);
                 }
@@ -689,24 +701,29 @@ void SndSubComboBox::keyPressEvent(QKeyEvent* e)
             if(name != ""){
                 int sid;
                 //如果名称条目是新的，则要在当前一级科目下创建采用该名称条目的二级科目
-                if(!findSubName(name,sid)){
+                //if(!findSubName(name,sid)){
+                ni = SubjectManager::getNameItem(name);
+                if(!ni){
                     emit dataEditCompleted(2,true);
                     emit newSndSubject(pid, name, row, col);
                 }
                 else{ //如果名称条目已存在，则检查是否在当前一级科目下有采用该名称的二级科目
-                    int id = 0;
-                    BusiUtil::getFstToSnd(pid,sid,id);
-                    if(id == 0){ //如果没有则采用该名称条目创建新的二级科目
+                    //int id = 0;
+                    //BusiUtil::getFstToSnd(pid,sid,id);
+                    //if(id == 0){ //如果没有则采用该名称条目创建新的二级科目
+                    ssub = fsub->getChildSub(ni);
+                    if(!ssub){
                         emit dataEditCompleted(2,true);
-                        emit newMappingItem(pid,sid,row,col);
+                        emit newMappingItem(pid,ni->getId(),row,col);
                     }
                     else{
-                        bool dis = false;
-                        BusiUtil::isSndSubDisabled(id,dis);
-                        if(!dis)
-                            emit sndSubDisabled(id);
+                        //bool dis = false;
+                        //BusiUtil::isSndSubDisabled(id,dis);
+                        //if(!dis)
+                        if(!ssub->isEnabled())
+                            emit sndSubDisabled(ssub->getId());
                         else{
-                            setCurrentIndex(findData(id));
+                            setCurrentIndex(findData(ssub->getId()));
                             emit dataEditCompleted(2,true);
                         }
 
@@ -724,39 +741,39 @@ void SndSubComboBox::keyPressEvent(QKeyEvent* e)
 }
 
 //在this.model中查找是否有此一级和二级科目的对应条目
-bool SndSubComboBox::findSubMapper(int fid, int sid, int& id)
-{
-    int c = model->rowCount();
-    bool founded = false;
+//bool SndSubComboBox::findSubMapper(int fid, int sid, int& id)
+//{
+//    int c = model->rowCount();
+//    bool founded = false;
 
-    if(c > 0){
-        int i = 0;
-        while((i < c) && !founded){
-            int fv = model->data(model->index(i,1)).toInt();
-            int sv = model->data(model->index(i, 2)).toInt();
-            if((fv == fid) && (sv == sid)){
-                founded = true;
-                id = model->data(model->index(i,0)).toInt();
-            }
-            i++;
-        }
-    }
-    return founded;
-}
+//    if(c > 0){
+//        int i = 0;
+//        while((i < c) && !founded){
+//            int fv = model->data(model->index(i,1)).toInt();
+//            int sv = model->data(model->index(i, 2)).toInt();
+//            if((fv == fid) && (sv == sid)){
+//                founded = true;
+//                id = model->data(model->index(i,0)).toInt();
+//            }
+//            i++;
+//        }
+//    }
+//    return founded;
+//}
 
 //在二级科目表SecSubjects中查找是否存在名称为name的二级科目
-bool SndSubComboBox::findSubName(QString name, int& sid)
-{
-    QSqlQuery q;
-    QString s = QString("select id from %1 where %2 = '%3'")
-            .arg(tbl_nameItem).arg(fld_ni_name).arg(name);
-    if(q.exec(s) && q.first()){
-        sid = q.value(0).toInt();
-        return true;
-    }
-    else
-        return false;
-}
+//bool SndSubComboBox::findSubName(QString name, int& sid)
+//{
+//    QSqlQuery q;
+//    QString s = QString("select id from %1 where %2 = '%3'")
+//            .arg(tbl_nameItem).arg(fld_ni_name).arg(name);
+//    if(q.exec(s) && q.first()){
+//        sid = q.value(0).toInt();
+//        return true;
+//    }
+//    else
+//        return false;
+//}
 
 
 /////////////////////////////MoneyTypeComboBox///////////////////////
@@ -931,8 +948,8 @@ void TagEdit::DescEdited(const QString &text)
 
 
 ////////////////////////////////ActionEditItemDelegate/////////////////
-ActionEditItemDelegate::ActionEditItemDelegate(QObject *parent):
-    QItemDelegate(parent)
+ActionEditItemDelegate::ActionEditItemDelegate(SubjectManager *smg, QObject *parent):
+    QItemDelegate(parent),smg(smg)
 {
     isReadOnly = false;
 }
@@ -979,7 +996,7 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
             int pid = index.model()->data(index.model()->index(index.row(),
                            col - 1), Qt::EditRole).toInt();
             if(pid != 0){
-                SndSubComboBox* editor = new SndSubComboBox(pid, parent);
+                SndSubComboBox* editor = new SndSubComboBox(pid,smg,parent);
                 //editor->setCompleter(new QCompleter(names, editor));
                 editor->setRowColNum(index.row(), col);
                 connect(editor, SIGNAL(dataEditCompleted(int,bool)),
@@ -1181,7 +1198,8 @@ void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
 
 
 //////////////////////////////DetExtItemDelegate//////////////////////////
-DetExtItemDelegate::DetExtItemDelegate(QObject *parent):QItemDelegate(parent)
+DetExtItemDelegate::DetExtItemDelegate(SubjectManager *smg, QObject *parent):
+    QItemDelegate(parent),smg(smg)
 {
 
 }
@@ -1192,7 +1210,7 @@ QWidget* DetExtItemDelegate::createEditor(QWidget *parent, const QStyleOptionVie
     int col = index.column();
     int row = index.row();
     if(col == SUB){
-        SndSubComboBox* editor = new SndSubComboBox(fid, parent);
+        SndSubComboBox* editor = new SndSubComboBox(fid,smg,parent);
         editor->setRowColNum(row,col);
         //connect(editor, SIGNAL(editNextItem(int,int)),
         //        this,SLOT(editNextItem(int,int)));

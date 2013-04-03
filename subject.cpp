@@ -518,6 +518,33 @@ void SecondSubject::setEnabled(bool en)
 }
 
 ////////////////////////////SubjectManager////////////////////////////////////////////
+/**
+ * @brief SubjectManager::getNameItem
+ *  返回名称条目的简称与name相等的名称对象
+ * @param name
+ * @return
+ */
+SubjectNameItem *SubjectManager::getNameItem(QString name)
+{
+    QHashIterator<int,SubjectNameItem*> it(nameItems);
+    while(it.hasNext()){
+        if(name == it.value()->getShortName())
+            return it.value();
+    }
+    return NULL;
+}
+
+bool SubjectManager::containNI(QString name)
+{
+    QHashIterator<int,SubjectNameItem*> it(nameItems);
+    while(it.hasNext()){
+        if(name == it.value()->getShortName())
+            return true;
+    }
+    return false;
+}
+
+
 SubjectManager::SubjectManager(Account *account, int subSys):
     account(account),subSys(subSys)
 {
@@ -608,5 +635,8 @@ SecondSubject *SubjectManager::addSndSubject(FirstSubject *fsub, SubjectNameItem
     sndSubs[ssub->getId()] = ssub;
     return ssub;
 }
+
+
+
 
 

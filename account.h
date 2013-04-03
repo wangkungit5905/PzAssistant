@@ -142,7 +142,8 @@ public:
 
     PzSetMgr* getPzSet();
     void colsePzSet();
-    SubjectManager* getSubjectManager(int subSys = 1);
+    SubjectManager* getSubjectManager(int subSys = 0);
+    //SubjectManager* getSubjectManager();
 
     bool getRates(int y, int m, QHash<int, Double> &rates);
     bool setRates(int y, int m, QHash<int, Double> &rates);

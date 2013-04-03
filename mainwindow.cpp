@@ -751,8 +751,8 @@ void MainWindow::closePzs()
     if(curPzModel)
         delete curPzModel;
 
-    BusiUtil::setPzsState(cursy,cursm,curPzSetState);
-    BusiUtil::setExtraState(cursy,cursm,isExtraVolid);
+    dbUtil->setPzsState(cursy,cursm,curPzSetState);
+    dbUtil->setExtraState(cursy,cursm,isExtraVolid);
     isExtraVolid = false;
     curPzModel = NULL;
     isOpenPzSet = false;
@@ -1752,8 +1752,8 @@ void MainWindow::refreshShowPzsState()
             curPzSetState = Ps_AllVerified;
     }
     if(cursy != 0 && cursy !=0){
-        BusiUtil::setPzsState(cursy,cursm,curPzSetState);   //保存凭证集状态
-        BusiUtil::setExtraState(cursy,cursm,isExtraVolid);  //保存余额状态
+        dbUtil->setPzsState(cursy,cursm,curPzSetState);   //保存凭证集状态
+        dbUtil->setExtraState(cursy,cursm,isExtraVolid);  //保存余额状态
     }
     ui->statusbar->setPzSetState(curPzSetState);
     ui->statusbar->setExtraState(isExtraVolid);
@@ -2330,7 +2330,7 @@ void MainWindow::on_actAllVerify_triggered()
     }
 
     int affectedRows;
-    BusiUtil::setAllPzState(cursy,cursm,Pzs_Verify,Pzs_Recording,affectedRows);
+    dbUtil->setAllPzState(cursy,cursm,Pzs_Verify,Pzs_Recording,affectedRows,curUser);
     dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     refreshShowPzsState();
     showPzNumsAffected(affectedRows);
@@ -2356,7 +2356,7 @@ void MainWindow::on_actAllInstat_triggered()
     }
 
     int affectedRows;
-    BusiUtil::setAllPzState(cursy,cursm,Pzs_Instat,Pzs_Verify,affectedRows);
+    dbUtil->setAllPzState(cursy,cursm,Pzs_Instat,Pzs_Verify,affectedRows,curUser);
     dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
     refreshShowPzsState();
     showPzNumsAffected(affectedRows);
@@ -2549,7 +2549,7 @@ void MainWindow::on_actAntiJz_triggered()
         return;
     }
     QHash<PzdClass,bool> isExists;
-    BusiUtil::haveSpecClsPz(cursy,cursm,isExists);
+    dbUtil->haveSpecClsPz(cursy,cursm,isExists);
     AntiJzDialog dlg(isExists,this);
     bool isAnti = false;
     if(QDialog::Accepted == dlg.exec()){
@@ -2558,15 +2558,15 @@ void MainWindow::on_actAntiJz_triggered()
         int affeced = 0;
         if(isExists.value(Pzd_Jzlr)){
             isAnti = true;
-            BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzlr,affeced);
+            dbUtil->delSpecPz(cursy,cursm,Pzd_Jzlr,affeced);
         }
         if(isExists.value(Pzd_Jzsy)){
             isAnti = true;
-            BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzsy,affeced);
+            dbUtil->delSpecPz(cursy,cursm,Pzd_Jzsy,affeced);
         }
         if(isExists.value(Pzd_Jzhd)){
             isAnti = true;
-            BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzhd,affeced);
+            dbUtil->delSpecPz(cursy,cursm,Pzd_Jzhd,affeced);
         }
         if(affeced > 0){
             isExtraVolid = false;
@@ -2846,7 +2846,7 @@ bool MainWindow::jzsy()
     int count;
     BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
     if(count < 2){
-        BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzsy,count);
+        dbUtil->delSpecPz(cursy,cursm,Pzd_Jzsy,count);
         dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
         isExtraVolid = false;
         refreshShowPzsState();
@@ -2854,7 +2854,7 @@ bool MainWindow::jzsy()
 
     if(!BusiUtil::genForwordPl2(cursy,cursm,curUser)) //创建结转凭证
         return false;
-    BusiUtil::specPzClsInstat(cursy,cursm,Pzd_Jzsy,count); //将结转凭证入账
+    dbUtil->specPzClsInstat(cursy,cursm,Pzd_Jzsy,count); //将结转凭证入账
     pzInstat+=count;
     pzAmount+=count;
     isExtraVolid = false;
@@ -2908,7 +2908,7 @@ bool MainWindow::jzhdsy()
     rates[USD] = Double(rate);
     int affected;
     curAccount->setRates(yy,mm,rates);
-    BusiUtil::delSpecPz(cursy,cursm,Pzd_Jzhd,affected);
+    dbUtil->delSpecPz(cursy,cursm,Pzd_Jzhd,affected);
     if(affected > 0){
         dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
         refreshShowPzsState();
@@ -2916,7 +2916,7 @@ bool MainWindow::jzhdsy()
 
     if(!BusiUtil::genForwordEx2(cursy,cursm,curUser))
         return false;
-    BusiUtil::specPzClsInstat(cursy,cursm,Pzd_Jzhd,affected);
+    dbUtil->specPzClsInstat(cursy,cursm,Pzd_Jzhd,affected);
     pzInstat+=affected;
     pzAmount+=affected;
     isExtraVolid = false;
@@ -3043,7 +3043,7 @@ void MainWindow::on_actPzErrorInspect_triggered()
         w = static_cast<ViewPzSetErrorForm*>(subWindows.value(VIEWPZSETERROR)->widget());
     }
     else{
-        w = new ViewPzSetErrorForm(cursy,cursm,curAccount->getDbUtil()->getDb());
+        w = new ViewPzSetErrorForm(cursy,cursm,curAccount);
         MyMdiSubWindow* sw = new MyMdiSubWindow;
         sw->setWidget(w);
         ui->mdiArea->addSubWindow(sw);

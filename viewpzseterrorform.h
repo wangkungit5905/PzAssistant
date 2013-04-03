@@ -6,6 +6,9 @@
 
 #include "commdatastruct.h"
 
+class Account;
+class SubjectManager;
+
 namespace Ui {
 class ViewPzSetErrorForm;
 }
@@ -14,8 +17,7 @@ class InspectPzErrorThread : public QThread
 {
     Q_OBJECT
 public:
-    InspectPzErrorThread(int y, int m, QSqlDatabase db = QSqlDatabase::database(),
-                         QObject * parent = 0);
+    InspectPzErrorThread(int y, int m, Account *account, QObject * parent = 0);
     void run();
     bool isErrExist(){return !es.empty();}
     QList<PingZhengError*> getErrors(){return es;}
@@ -28,7 +30,9 @@ private:
     bool inspectMtError(int fsid, int ssid, int mt);
     bool inspectDirEngage(int fsid, int dir, PzClass pzc, QString& eStr);
 private:
+    Account* account;
     QSqlDatabase db;
+    SubjectManager* smg;
     int year,month;
     QList<PingZhengError*> es;
 };
@@ -38,7 +42,7 @@ class ViewPzSetErrorForm : public QDialog
     Q_OBJECT
     
 public:
-    explicit ViewPzSetErrorForm(int y, int m, QSqlDatabase db = QSqlDatabase::database(), QWidget *parent = 0);
+    explicit ViewPzSetErrorForm(int y, int m, Account* account, QWidget *parent = 0);
     ~ViewPzSetErrorForm();
     void setErrors(QList<PingZhengError*> es);
 
@@ -61,6 +65,7 @@ private:
     QHash<int,QString> wInfos,eInfos; //警告、错误等级别的各种错误描述文本
     int curLevel;
     InspectPzErrorThread* t;
+    Account *account;
 };
 
 #endif // VIEWPZSETERRORFORM_H

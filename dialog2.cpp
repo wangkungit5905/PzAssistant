@@ -144,67 +144,6 @@ QString BASummaryForm::getData()
 }
 
 /////////////////////汇率设定对话框//////////////////////////////////////////
-RateSetDialog::RateSetDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::RateSetDialog)
-{
-    ui->setupUi(this);
-}
-
-RateSetDialog::RateSetDialog(int witch, QWidget* parent) :
-    QDialog(parent),
-    ui(new Ui::RateSetDialog)
-{
-    ui->setupUi(this);
-    this->witch = witch;
-    QHash<int,QString> mnames;
-    BusiUtil::getMTName(mnames);
-    mnames.remove(RMB);
-    QHashIterator<int,QString> i(mnames);
-    while(i.hasNext()){
-        i.next();
-        ui->cmbMt->addItem(i.value(),i.key());
-    }
-
-    ui->cmbMt->setCurrentIndex(0);
-}
-
-RateSetDialog::~RateSetDialog()
-{
-    delete ui;
-}
-
-void RateSetDialog::setCurRates(QHash<int,double>* rates)
-{
-    crates = rates;
-    int mtCode = ui->cmbMt->itemData(ui->cmbMt->currentIndex()).toInt();
-    ui->edtCurRate->setText(QString::number(crates->value(mtCode), 'f', 2));
-}
-
-void RateSetDialog::setEndRates(QHash<int,double>* rates)
-{
-    if(witch == 2){
-        erates = rates;
-        int mtCode = ui->cmbMt->itemData(ui->cmbMt->currentIndex()).toInt();
-        ui->edtEndRate->setText(QString::number(erates->value(mtCode), 'f', 2));
-    }
-}
-
-//当用户在汇率框中改变了汇率后调用
-void RateSetDialog::rateChanged()
-{
-    //是期末汇率改变了
-    if(sender() == ui->edtEndRate){
-        double rate = ui->edtEndRate->text().toDouble();
-        (*erates)[curMt] = rate;
-    }
-}
-
-//当用户选择一个币种时
-void RateSetDialog::curMtChanged(int index)
-{
-    curMt = ui->cmbMt->itemData(index).toInt();
-}
 
 //////////////////显示科目余额（本期统计）对话框（新）///////////////////////////////////////////
 ViewExtraDialog::ViewExtraDialog(int y, int m, QByteArray* sinfo, QWidget *parent) :
@@ -217,6 +156,7 @@ ViewExtraDialog::ViewExtraDialog(int y, int m, QByteArray* sinfo, QWidget *paren
     dataModel = NULL;
     imodel = NULL;
     dbUtil = curAccount->getDbUtil();
+    smg = curAccount->getSubjectManager();
 
     //初始化自定义的层次式表头
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
@@ -1111,9 +1051,15 @@ void ViewExtraDialog::viewRates()
     ui->edtEndRate->setText(eRates.value(mt).toString());
 }
 
-//分别合计所有科目的各币种合计值
-//参数exasR、exaDirsR表示科目余额及其方向（键为科目id*10+币种代码，值为以本币计的余额值及其方向）
-//   sumsR、dirsR表示合计后的余额及其方向（键为科目id，值为以本币计的合计后的余额值及其方向）
+/**
+ * @brief ViewExtraDialog::calSumByMt
+ *  分别合计所有科目的各币种合计值
+ * @param exasR     科目余额（键为科目id*10+币种代码，值为以本币计的余额值及其方向）
+ * @param exaDirsR  余额方向
+ * @param sumsR     合计后的余额（键为科目id，值为以本币计的合计后的余额值及其方向）
+ * @param dirsR     合计后的余额方向
+ * @param witch     1：表示一级科目，2：二级科目
+ */
 void ViewExtraDialog::calSumByMt(QHash<int, Double> exasR,
                                  QHash<int, int> exaDirsR,
                                  QHash<int, Double> &sumsR,
@@ -1121,6 +1067,8 @@ void ViewExtraDialog::calSumByMt(QHash<int, Double> exasR,
 {
     QHashIterator<int,Double> it(exasR);
     int id;
+    FirstSubject* fsub; SecondSubject* ssub;
+
     //基本思路是借方　－　贷方，并根据差值的符号来判断余额方向
     while(it.hasNext()){
         it.next();
@@ -1143,13 +1091,25 @@ void ViewExtraDialog::calSumByMt(QHash<int, Double> exasR,
     while(i.hasNext()){
         i.next();
         id = i.key();
+        if(witch == 1){
+            fsub = smg->getFstSubject(id);
+            ssub = NULL;
+        }
+        else{
+            ssub = smg->getSndSubject(id);
+            fsub = ssub->getParent();
+        }
         if(i.value() == 0)
             dirsR[id] = DIR_P;
         else if(i.value() > 0){
-            if(witch == 1)
-                isIn = BusiUtil::isInSub(id);
-            else
-                isIn = BusiUtil::isInSSub(id);
+            //if(witch == 1)
+                //isIn = BusiUtil::isInSub(id);
+            //    isIn = (smg->isSySubject(id) && !fsub->getJdDir());
+            //else{
+                //isIn = BusiUtil::isInSSub(id);
+            //    isIn = (smg->isSySubject(fsub->getId()) && !fsub->getJdDir());
+            //}
+            isIn = (smg->isSySubject(fsub->getId()) && !fsub->getJdDir());
             //如果是收入类科目，要将它固定为贷方
             if(isIn){
                 sumsR[id].changeSign();
@@ -1160,10 +1120,11 @@ void ViewExtraDialog::calSumByMt(QHash<int, Double> exasR,
             }
         }
         else{
-            if(witch == 1)
-                isFei = BusiUtil::isFeiSub(id);
-            else
-                isFei = BusiUtil::isFeiSSub(id);
+            //if(witch == 1)
+            //    isFei = BusiUtil::isFeiSub(id);
+            //else
+            //    isFei = BusiUtil::isFeiSSub(id);
+            isFei = (smg->isSySubject(fsub->getId()) && fsub->getJdDir());
             //如果是费用类科目，要将它固定为借方
             if(isFei){
                 dirsR[id] = DIR_J;
@@ -1573,7 +1534,11 @@ void ViewExtraDialog::genDatas(){
                     QList<int> sids;
                     if(sid == 0){
                         QHash<int,QString> ssNames; //子目id到名称的映射
-                        BusiUtil::getOwnerSub(ids[i],ssNames); //某总目下所有子目的id列表
+                        foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs()){
+                            ssNames[ssub->getId()] = ssub->getName();
+                        }
+
+                        //BusiUtil::getOwnerSub(ids[i],ssNames); //某总目下所有子目的id列表
                         sids = ssNames.keys();
                         qSort(sids.begin(),sids.end());
                     }
@@ -1678,7 +1643,9 @@ void ViewExtraDialog::genDatas(){
                     QList<int> sids;
                     if(sid == 0){
                         QHash<int,QString> ssNames; //子目id到名称的映射
-                        BusiUtil::getOwnerSub(ids[i],ssNames); //某总目下所有子目的id列表
+                        //BusiUtil::getOwnerSub(ids[i],ssNames); //某总目下所有子目的id列表
+                        foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs())
+                            ssNames[ssub->getId()] = ssub->getName();
                         sids = ssNames.keys();
                         qSort(sids.begin(),sids.end());
                     }
@@ -1774,11 +1741,29 @@ void ViewExtraDialog::genDatas(){
 void ViewExtraDialog::initHashs()
 {
 
-    BusiUtil::getAllSubCode(idToCode);
-    BusiUtil::getAllSubFName(idToName);
-    BusiUtil::getAllSubSName(sidToName);
-    BusiUtil::getAllSubSCode(sidToCode);
-    BusiUtil::getMTName(allMts);
+//    BusiUtil::getAllSubCode(idToCode);
+//    BusiUtil::getAllSubFName(idToName);
+//    BusiUtil::getAllSubSName(sidToName);
+//    BusiUtil::getAllSubSCode(sidToCode);
+//    BusiUtil::getMTName(allMts);
+
+    QHashIterator<int,FirstSubject*> it(smg->getAllFstSubHash());
+    while(it.hasNext()){
+        it.next();
+        idToName[it.key()] = it.value()->getName();
+        idToCode[it.key()] = it.value()->getCode();
+    }
+    QHashIterator<int,SecondSubject*> ii(smg->getAllSndSubHash());
+    while(ii.hasNext()){
+        ii.next();
+        sidToName[ii.key()] = ii.value()->getName();
+        sidToCode[ii.key()] = ii.value()->getCode();
+    }
+    QHashIterator<int,Money*> im(curAccount->getAllMoneys());
+    while(im.hasNext()){
+        im.next();
+        allMts[im.key()] = im.value()->name();
+    }
 
     curAccount->getRates(y,m,sRates);
     sRates[RMB] = 1.00;
@@ -1987,13 +1972,14 @@ SetupBaseDialog2::SetupBaseDialog2(Account *account, QWidget *parent) :
 
     year = account->getBaseYear();
     month = account->getBaseMonth();
+    smg = account->getSubjectManager(account->getStartSuite()->subSys);
+    dbUtil = account->getDbUtil();
     initTable();
     initTree();
     ui->dateEdit->setDate(QDate(year,month,1));
 
-    BusiUtil::readExtraByMonth2(year,month,fExts,fExtDirs,sExts,sExtDirs);
-    bool exist;
-    BusiUtil::readExtraByMonth4(year,month,fRExts,sRExts,exist);
+    dbUtil->readExtraForPm(year,month,fExts,fExtDirs,sExts,sExtDirs);
+    dbUtil->readExtraForMm(year,month,fRExts,sRExts);
     initDatas();
     refresh();
     installDataInspect();
@@ -2017,7 +2003,7 @@ void SetupBaseDialog2::closeDlg()
 void SetupBaseDialog2::initTable()
 {
     if(!curAccount->getRates(year,month,rates))
-            return;
+        return;
     //获取账户所采用的所有外币
     foreach(Money* mt, account->getWaiMt()){
         QVariant v; v.setValue<Money*>(mt);
@@ -2025,16 +2011,25 @@ void SetupBaseDialog2::initTable()
     }
     ui->cmbMts->setCurrentIndex(0);
 
-    BusiUtil::getFstSubCls(fstClass);      //一级科目类别
-    BusiUtil::getAllSubFName(fstSubNames); //一级科目名
-    BusiUtil::getAllSubCode(fstSubCodes);  //一级科目代码
-    BusiUtil::getMTName(mts);              //获取币种代码
-    BusiUtil::getSidToFid(sidTofids);      //获取二级科目id到一级科目id的反向映射表
+
+    //BusiUtil::getFstSubCls(fstClass);      //一级科目类别
+    fstClass = smg->getFstSubClass();
+    //BusiUtil::getAllSubFName(fstSubNames); //一级科目名
+    //BusiUtil::getAllSubCode(fstSubCodes);  //一级科目代码
+    foreach(FirstSubject* fsub, smg->getAllFstSubHash()){
+        fstSubNames[fsub->getId()] = fsub->getName();
+        fstSubCodes[fsub->getId()] = fsub->getCode();
+    }
+
+    //BusiUtil::getMTName(mts);              //获取币种代码
+    foreach(Money* mt, account->getAllMoneys())
+        mts[mt->code()] = mt->name();
+    //BusiUtil::getSidToFid(sidTofids);      //获取二级科目id到一级科目id的反向映射表
     dirs[DIR_J] = tr("借");
     dirs[DIR_D] = tr("贷");
     dirs[DIR_P] = tr("平");
 
-    dlgt = new DetExtItemDelegate;
+    dlgt = new DetExtItemDelegate(smg,this);
     ui->tvDetails->setItemDelegate(dlgt);
     connect(dlgt, SIGNAL(newMapping(int,int,int,int)),
             this,SLOT(newMapping(int,int,int,int)));
@@ -2143,7 +2138,9 @@ void SetupBaseDialog2::initDatas(int witch)
             it->next();
             int id = it->key() / 10;
             //需要获取该二级科目id所属的一级科目的id值
-            int fid = sidTofids.value(id);
+            //int fid = sidTofids.value(id);
+            int fid = smg->getSndSubject(id)->getParent()->getId();
+            //FirstSubject* fsub = smg->getFstSubject(fid);
             if(!sDatas.contains(fid))
                 sDatas[fid] = QList<DetExtData*>();
             sItem = new DetExtData;
@@ -2243,7 +2240,7 @@ void SetupBaseDialog2::on_btnAdd_clicked()
         sdata->subId = 0;
         sdata->v = 0.00;
         sdata->rv = 0.00;
-        sdata->dir = DIR_P;
+        sdata->dir = MDIR_P;
         sdata->mt = RMB;
         sdata->tag = false;
         sdata->desc = "";
@@ -2299,7 +2296,7 @@ void SetupBaseDialog2::on_btnDel_clicked()
 
 void SetupBaseDialog2::cellChanged(int row, int column)
 {
-    int dir;
+    MoneyDirection dir;
     BAMoneyValueItem* item;
     bool req = false; //是否需要刷新显示一级科目的余额值
     int index = ui->tvDetails->item(row,DetExtItemDelegate::INDEX)
@@ -2317,7 +2314,7 @@ void SetupBaseDialog2::cellChanged(int row, int column)
     case DetExtItemDelegate::MV:
         data->v = ui->tvDetails->item(row,column)->data(Qt::EditRole).toDouble();
         if(data->v == 0.00){ //如果值为0，则设置方向为平
-            data->dir = DIR_P;
+            data->dir = MDIR_P;
             QAbstractItemModel* m = ui->tvDetails->model();
             m->setData(m->index(row,DetExtItemDelegate::DIR),DIR_P);
         }
@@ -2335,7 +2332,7 @@ void SetupBaseDialog2::cellChanged(int row, int column)
         req = true;
         break;
     case DetExtItemDelegate::DIR:
-        dir = ui->tvDetails->item(row,column)->data(Qt::EditRole).toInt();
+        dir = (MoneyDirection)ui->tvDetails->item(row,column)->data(Qt::EditRole).toInt();
         data->dir = dir;
         item = (BAMoneyValueItem*)ui->tvDetails->item(row,2);
         item->setDir(dir);
@@ -2365,17 +2362,19 @@ void SetupBaseDialog2::cellChanged(int row, int column)
 void SetupBaseDialog2::newMapping(int fid, int nid, int row, int col)
 {
     QString name,lname;
-    if(!BusiUtil::getSNameForId(nid,name,lname))
-        return;
-    int subSys = curAccount->getCurSuite()->subSys;
-    SubjectManager* sm = curAccount->getSubjectManager(subSys);
+    name = smg->getNameItem(nid)->getShortName();
+    lname = smg->getNameItem(nid)->getLongName();
+    //if(!BusiUtil::getSNameForId(nid,name,lname))
+    //    return;
+    //int subSys = curAccount->getCurSuite()->subSys;
+    //SubjectManager* sm = curAccount->getSubjectManager(subSys);
     QString s = tr("在当前一级科目%1下创建新的二级科目%2")
-            .arg(sm->getFstSubject(fid)->getName()).arg(name);
+            .arg(smg->getFstSubject(fid)->getName()).arg(name);
     if(QMessageBox::Yes == QMessageBox::question(this,tr("确认消息"),s,
                   QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){
-        FirstSubject* fsub = sm->getFstSubject(fid);
-        SubjectNameItem* ni = sm->getNameItem(nid);
-        SecondSubject* ssub = sm->addSndSubject(fsub,ni);
+        FirstSubject* fsub = smg->getFstSubject(fid);
+        SubjectNameItem* ni = smg->getNameItem(nid);
+        SecondSubject* ssub = smg->addSndSubject(fsub,ni);
         ui->tvDetails->item(row,col)->setData(Qt::EditRole, ssub->getId());
         ui->tvDetails->edit(ui->tvDetails->model()->index(row,col+1));//将输入焦点移到右边栏
     }
@@ -2394,21 +2393,19 @@ void SetupBaseDialog2::newMapping(int fid, int nid, int row, int col)
  */
 void SetupBaseDialog2::newSndSub(int fid, QString name, int row, int col)
 {
-    int subSys = curAccount->getStartSuite()->subSys;
-    SubjectManager* sm = curAccount->getSubjectManager(subSys);
     QString s = tr("在当前一级科目%1下创建新的二级科目%2")
-            .arg(sm->getFstSubject(fid)->getName()).arg(name);
+            .arg(smg->getFstSubject(fid)->getName()).arg(name);
     if(QMessageBox::Yes == QMessageBox::question(this,tr("确认消息"),s,
                   QMessageBox::Yes|QMessageBox::No,QMessageBox::Yes)){
-        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,sm,this);
+        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fid,smg,this);
         dlg->setName(name);
         if(dlg->exec() == QDialog::Accepted){
             QString sname = dlg->getSName();
             QString lname = dlg->getLName();
             QString remCode = dlg->getRemCode();
             int clsCode = dlg->getSubCalss();
-            SubjectNameItem* ni = sm->addNameItem(sname,lname,remCode,clsCode);
-            SecondSubject* ssub = sm->addSndSubject(sm->getFstSubject(fid),ni);
+            SubjectNameItem* ni = smg->addNameItem(sname,lname,remCode,clsCode);
+            SecondSubject* ssub = smg->addSndSubject(smg->getFstSubject(fid),ni);
             ui->tvDetails->item(row,col)->setData(Qt::EditRole, ssub->getId());
             ui->tvDetails->edit(ui->tvDetails->model()->index(row,col+1));//将输入焦点移到右边栏
         }
@@ -2452,7 +2449,7 @@ void SetupBaseDialog2::reCalFstExt()
     //按币种和借贷方向计算合计值（将借方和贷方分别进行累计，然后按借贷的差值决定方向）
     QHash<int,Double> jsums,dsums; //分别是某个币种借方和贷方的合计值（键为币种代码）
     QHash<int,Double> jrsums,drsums; //以人民币计的借贷方合计值
-    QHash<int,int>    dirs;  //借贷汇总后新的一级科目余额的方向（键为币种代码）
+    QHash<int,MoneyDirection> dirs;  //借贷汇总后新的一级科目余额的方向（键为币种代码）
     int mt,dir;
     Double v,rv;
 
@@ -2490,11 +2487,11 @@ void SetupBaseDialog2::reCalFstExt()
         v = jsums.value(it.key()) - dsums.value(it.key());
         rv = jrsums.value(it.key()) - drsums.value(it.key());
         if(v == 0)
-            dirs[it.key()] = DIR_P;
+            dirs[it.key()] = MDIR_P;
         else if(v > 0)
-            dirs[it.key()] = DIR_J;
+            dirs[it.key()] = MDIR_J;
         else{
-            dirs[it.key()] = DIR_D;
+            dirs[it.key()] = MDIR_D;
             v.changeSign();           //取其绝对值
             rv.changeSign();
         }
@@ -2538,7 +2535,7 @@ void SetupBaseDialog2::on_btnSave_clicked()
     //构造新的余额值和方向集
     QHash<int,Double> fSums,sSums;   //总科目和明细科目值集（原币计）
     QHash<int,Double> fRSums,sRSums; //总科目和明细科目值集（本币计）
-    QHash<int,int> fDirs,sDirs;      //总科目和明细科目方向
+    QHash<int,MoneyDirection> fDirs,sDirs;      //总科目和明细科目方向
 
     int key;
 
@@ -2571,9 +2568,11 @@ void SetupBaseDialog2::on_btnSave_clicked()
     }
 
     //保存
-    BusiUtil::savePeriodBeginValues2(year, month, fSums, fDirs,
-                                     sSums, sDirs); //保存原币期初余额
-    BusiUtil::savePeriodEndValues(year,month,fRSums,sRSums);   //保存本币期初余额
+    //BusiUtil::savePeriodBeginValues2(year, month, fSums, fDirs,
+    //                                 sSums, sDirs); //保存原币期初余额
+    //BusiUtil::savePeriodEndValues(year,month,fRSums,sRSums);   //保存本币期初余额
+    dbUtil->saveExtraForPm(year,month,fSums,fDirs,sSums,sDirs);
+    dbUtil->saveExtraForMm(year,month,fRSums,sRSums);
     isDirty = false;
     ui->btnSave->setEnabled(isDirty);
 }

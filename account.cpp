@@ -10,17 +10,17 @@
 #include "logs/Logger.h"
 #include "version.h"
 #include "subject.h"
+#include "PzSet.h"
 
 QSqlDatabase* Account::db;
 
 Account::Account(QString fname)
 {
-    curPzSet = NULL;
-	isReadOnly = false;
+    isReadOnly = false;
     accInfos.fileName = fname;
     if(!init())
         QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("账户在初始化时发生错误！"));
-
+    pzSetMgr = new PzSetMgr(this);
 }
 
 Account::~Account()
@@ -127,6 +127,22 @@ QList<int> Account::getSuites()
      if(!accInfos.suites.empty()){
          accInfos.suites.last()->isCur = true;
          return accInfos.suites.last();
+     }
+     return NULL;
+ }
+
+ /**
+  * @brief Account::getSuite
+  * 获取指定年份的帐套对象
+  * @param y
+  * @return
+  */
+ Account::AccountSuiteRecord *Account::getSuite(int y)
+ {
+     foreach(AccountSuiteRecord* as, accInfos.suites){
+         if(as->year == y){
+             return as;
+         }
      }
      return NULL;
  }
@@ -247,21 +263,20 @@ int Account::getBaseMonth()
 
 
 //获取凭证集对象
-PzSetMgr* Account::getPzSet()
-{
+//PzSetMgr* Account::getPzSet()
+//{
     //if(accInfos.suiteLastMonths.value(accInfos.curSuite) == 0)
     //    return NULL;
     //if(!curPzSet)
     //    curPzSet = new PzSetMgr(accInfos.curSuite,accInfos.suiteLastMonths.value(accInfos.curSuite),user,*db);
     //return curPzSet;
-}
+//}
 
 //关闭凭证集
 void Account::colsePzSet()
 {
-    curPzSet->close();
-    delete curPzSet;
-    curPzSet = NULL;
+    pzSetMgr->close();
+    pzSetMgr = NULL;
 }
 
 /**
@@ -275,8 +290,10 @@ SubjectManager *Account::getSubjectManager(int subSys)
     int ssCode;
     if(subSys == 0)
         ssCode = getCurSuite()->subSys;
+    else
+        ssCode = subSys;
     if(!smgs.contains(ssCode))
-        smgs[subSys] = new SubjectManager(this,ssCode);
+        smgs[ssCode] = new SubjectManager(this,ssCode);
     return smgs.value(ssCode);
 }
 
@@ -289,6 +306,10 @@ SubjectManager *Account::getSubjectManager(int subSys)
 bool Account::getRates(int y, int m, QHash<int, Double> &rates)
 {
     return dbUtil->getRates(y,m,rates);
+}
+
+bool Account::getRates(int y, int m, QHash<Money*, Double> &rates)
+{
 }
 
 bool Account::setRates(int y, int m, QHash<int, Double> &rates)

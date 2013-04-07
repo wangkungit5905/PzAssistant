@@ -17,6 +17,7 @@
 #include "pz.h"
 #include "subject.h"
 #include "dbutil.h"
+#include "PzSet.h"
 
 
 //tem

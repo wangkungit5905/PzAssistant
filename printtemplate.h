@@ -15,9 +15,8 @@
 
 #include "printUtils.h"
 #include "HierarchicalHeaderView.h"
-//#include "dialog3.h"
 
-
+class BusiAction;
 
 enum PrintPageType{
     COMMONPAGE = 1,    //通用表格模板，即其表格视图类使用默认的表头，数据使用标准的数据模型
@@ -35,16 +34,17 @@ public:
     explicit PzPrintTemplate(QWidget *parent = 0);
     ~PzPrintTemplate();
 
+    void setMasterMoneyType(Money* mt){mmt = mt;}
     void setCompany(QString name);
     void setPzDate(QDate date);
     void setAttNums(int num);
-    void setPzNum(QString num);
-    void setBaList(QList<BaData2*> baLst);
+    void setPzNum(int num);
+    void setBaList(QList<BusiAction *> &bas);
     void setJDSums(Double jsum, Double dsum);
     void setProducer(QString name);
     void setVerify(QString name);
     void setBookKeeper(QString name);
-    void setRates(QHash<int, Double> rates);
+    void setRates(QHash<int, Double> &rates);
 
     void resize(const QSize& size);
     void resize(int w, int h);
@@ -57,7 +57,7 @@ private:
     //QHash<int,QString> mtNames; //币种代码到币种名称的映射
     QHash<int,Double> rates;    //汇率
     QList<double> wr; //列宽比率
-
+    Money* mmt;     //本币对象
 
 
 };

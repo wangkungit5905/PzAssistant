@@ -12,17 +12,8 @@
 
 
 
-////利用QTableView.render()方法来完成实际的打印任务的代理类
-//class PrintView : public QTableView
-//{
-//    Q_OBJECT
-
-//public:
-//    PrintView();
-
-//public Q_SLOTS:
-//    void print(QPrinter *printer);
-//};
+class PingZheng;
+class Account;
 
 
 //完成打印表格任务的实用类
@@ -69,9 +60,9 @@ private:
 class PrintPzUtils : public QObject{
     Q_OBJECT
 public:
-    PrintPzUtils();
-    PrintPzUtils(QPrinter* printer);
-    void setPzDatas(QList<PzPrintData2*> datas);
+    //PrintPzUtils(Account* account);
+    PrintPzUtils(Account* account, QPrinter* printer);
+    void setPzDatas(QList<PingZheng*> pzs);
     void setCompanyName(QString name);
     void setRates(QHash<int,Double> rates);
 
@@ -83,10 +74,10 @@ private:
 
     QPrinter* printer;
     int pageW,pageH;         //可打印区域的宽和高
-    QList<PzPrintData2*> datas;    //凭证数据集合
+    QList<PingZheng*> pzs;   //凭证数据集合
     QString company;         //凭证的单位名称
     QHash<int,Double> rates; //汇率
-
+    Account* account;
     //qreal LEFTMARGIN,TOPMARGIN,RIGHTMARGIN,BUTTOMMARGIN;
 };
 #endif // PRINTUTILS_H

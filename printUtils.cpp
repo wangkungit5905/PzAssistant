@@ -8,20 +8,8 @@
 #include "printtemplate.h"
 #include "common.h"
 #include "global.h"
-
-
-////////////PrintView/////////////////////////////////////////////
-//PrintView::PrintView()
-//{
-//    setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-//    setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-//}
-
-//void PrintView::print(QPrinter *printer)
-//{
-//    resize(printer->width(), printer->height());
-//    render(printer);
-//}
+#include "pz.h"
+#include "account.h"
 
 ////////////////PrintUtils////////////////////////////////////////
 
@@ -276,19 +264,20 @@ void PrintUtils::formatTableTitle(int rows, QTableView* tv)
 //}
 
 ////////////////////////PrintPzUtils/////////////////////////////////////
-PrintPzUtils::PrintPzUtils()
-{
-    QPrintDialog dlg;
-    if(QMessageBox::Accepted == dlg.exec()){
-        printer = dlg.printer();
-    }
-    else
-       printer = NULL;
+//PrintPzUtils::PrintPzUtils(Account *account):account(account)
+//{
+
+//    QPrintDialog dlg;
+//    if(QMessageBox::Accepted == dlg.exec()){
+//        printer = dlg.printer();
+//    }
+//    else
+//       printer = NULL;
 
 
-}
+//}
 
-PrintPzUtils::PrintPzUtils(QPrinter* printer)
+PrintPzUtils::PrintPzUtils(Account *account, QPrinter* printer):account(account)
 {
     this->printer = printer;
 }
@@ -315,11 +304,11 @@ void PrintPzUtils::print(QPrinter* printer)
 
 
         QPainter paint(printer);
-        if(datas.count() < 3)
+        if(pzs.count() < 3)
             printPage(&paint,0);
         else{
             printPage(&paint,0);
-            for(int i = 2; i < datas.count(); i+=2){
+            for(int i = 2; i < pzs.count(); i+=2){
                 printPage(&paint,i,true);
             }
         }
@@ -344,30 +333,26 @@ void PrintPzUtils::printPage(QPainter* paint, int index, bool newPage)
     if(newPage)
         printer->newPage();
     PzPrintTemplate* p1;
+    PingZheng* pz;
     int x=0;int y=0;
     QString name;
     for(int i = index; i < index+2; ++i){
-        if(i < datas.count()){
+        if(i < pzs.count()){
             p1 = new PzPrintTemplate;
+            p1->setMasterMoneyType(account->getMasterMt());
             p1->setRates(rates);
-            p1->setCompany(company);               //单位名称
-            p1->setPzDate(datas[i]->date);         //凭证日期
-            p1->setAttNums(datas[i]->attNums);     //附件数
-            p1->setPzNum(datas[i]->pzNum);         //凭证号
-            if(datas[i]->producer != 0)
-                p1->setProducer(allUsers.value(datas[i]->producer)->getName());   //制单者
-            else
-                p1->setProducer("");
-            if(datas[i]->verify != 0)
-                p1->setVerify(allUsers.value(datas[i]->verify)->getName());       //审核者
-            else
-                p1->setVerify("");
-            if(datas[i]->bookKeeper != 0)
-                p1->setBookKeeper(allUsers.value(datas[i]->bookKeeper)->getName());//记账者
-            else
-                p1->setBookKeeper("");
-            p1->setBaList(datas[i]->baLst);
-            p1->setJDSums(datas[i]->jsum, datas[i]->dsum);
+            p1->setCompany(account->getLName());   //单位名称
+            pz = pzs.at(i);
+            p1->setPzDate(pz->getDate2());   //凭证日期
+            p1->setAttNums(pz->encNumber());     //附件数
+            p1->setPzNum(pz->number());         //凭证号
+            p1->setProducer(pz->recordUser()?pz->recordUser()->getName():"");
+            p1->setVerify(pz->verifyUser()?pz->verifyUser()->getName():"");
+            p1->setBookKeeper(pz->bookKeeperUser()?pz->bookKeeperUser()->getName():"");
+
+            //p1->setBaList(pzs[i]->baLst);
+            p1->setBaList(pz->baList());
+            p1->setJDSums(pz->jsum(), pz->dsum());
             p1->resize(pageW,pageH/2-MIDGAP/2);
             if(PzPrintTemplate::TvHeight == 0){
                 p1->render(&pixmap);
@@ -383,15 +368,24 @@ void PrintPzUtils::printPage(QPainter* paint, int index, bool newPage)
             paint->drawLine(QPoint(0,y),QPoint(pageW,y));
             y += MIDGAP/2;
             paint->restore();
-
         }
     }
 
 }
 
-void PrintPzUtils::setPzDatas(QList<PzPrintData2 *> datas)
+/**
+ * @brief PrintPzUtils::setPzDatas
+ *  设置要打印的凭证对象列表
+ * @param pzs
+ */
+void PrintPzUtils::setPzDatas(QList<PingZheng*> pzs)
 {
-    this->datas = datas;
+    this->pzs = pzs;
+    //这里为了简化，因为打印凭证一般都是在一个凭证集内的凭证，所有它们的汇率都是相同的
+    PingZheng* pz = pzs.first();
+    if(!pz)
+        return;
+    account->getRates(pz->getDate2().year(),pz->getDate2().month(),rates);
 }
 
 void PrintPzUtils::setCompanyName(QString name)

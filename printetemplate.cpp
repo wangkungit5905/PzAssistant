@@ -4,6 +4,7 @@
 #include "printtemplate.h"
 #include "utils.h"
 #include "common.h"
+#include "pz.h"
 
 int PzPrintTemplate::TvHeight = 0;  //初始的业务活动表格高度为0
 
@@ -78,7 +79,7 @@ void PzPrintTemplate::setTvHeight()
 }
 
 //设置汇率
-void PzPrintTemplate::setRates(QHash<int,Double> rates)
+void PzPrintTemplate::setRates(QHash<int, Double> &rates)
 {
     this->rates = rates;
 }
@@ -104,13 +105,13 @@ void PzPrintTemplate::setAttNums(int num)
 }
 
 //设置凭证号
-void PzPrintTemplate::setPzNum(QString num)
+void PzPrintTemplate::setPzNum(int num)
 {
-    ui->lblPzNum->setText(num);
+    ui->lblPzNum->setText(QString::number(num));
 }
 
 //设置业务活动
-void PzPrintTemplate::setBaList(QList<BaData2 *> baLst)
+void PzPrintTemplate::setBaList(QList<BusiAction*>& bas)
 {
     QTableWidgetItem* item;
     Double v; //借贷金额及合计数
@@ -136,21 +137,24 @@ void PzPrintTemplate::setBaList(QList<BaData2 *> baLst)
     ui->tview->setItem(0,5,item);
 
     //填制业务活动数据
-    for(int i = 0; i < baLst.count(); ++i){
-        ui->tview->setItem(i+1,0,new QTableWidgetItem(baLst[i]->summary)); //摘要
-        ui->tview->setItem(i+1,1,new QTableWidgetItem(baLst[i]->subject)); //科目
+    BusiAction* ba;
+    for(int i = 0; i < bas.count(); ++i){
+        ba = bas.at(i);
+        ui->tview->setItem(i+1,0,new QTableWidgetItem(ba->getSummary())); //摘要
+        ui->tview->setItem(i+1,1,new QTableWidgetItem(tr("%1——%2")
+                                                      .arg(ba->getFirstSubject()->getName())
+                                                      .arg(ba->getSecondSubject()->getName()))); //科目
 
-        if(baLst[i]->mt != RMB){
-            ui->tview->setItem(i+1,4,new QTableWidgetItem(baLst[i]->v.toString())); //外币金额
-            ui->tview->setItem(i+1,5,new QTableWidgetItem(rates.value(baLst[i]->mt).toString())); //汇率
-            v = baLst[i]->v * rates.value(baLst[i]->mt);
+        if(ba->getMt() != mmt){
+            ui->tview->setItem(i+1,4,new QTableWidgetItem(ba->getValue().toString())); //外币金额
+            ui->tview->setItem(i+1,5,new QTableWidgetItem(rates.value(ba->getMt()->code()).toString())); //汇率
+            v = ba->getValue() * rates.value(ba->getMt()->code());
         }
         else
-            v = baLst[i]->v;
+            v = ba->getValue();
 
-        if(baLst[i]->dir == DIR_J) //借方
+        if(ba->getDir() == MDIR_J) //借方
             ui->tview->setItem(i+1,2,new QTableWidgetItem(v.toString()));//借方金额
-
         else
             ui->tview->setItem(i+1,3,new QTableWidgetItem(v.toString()));//贷方金额
 

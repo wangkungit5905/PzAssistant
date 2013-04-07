@@ -129,6 +129,7 @@ public:
     AccountSuiteRecord* getStartSuite(){return accInfos.suites.first();}
     AccountSuiteRecord* getEndSuite(){return accInfos.suites.last();}
     AccountSuiteRecord* getCurSuite();
+    AccountSuiteRecord* getSuite(int y);
     void setCurSuite(int y);
     bool getSuiteMonthRange(int y, int& sm,int& em);
     bool containSuite(int y);
@@ -140,12 +141,13 @@ public:
     int getBaseYear();
     int getBaseMonth();
 
-    PzSetMgr* getPzSet();
+    PzSetMgr* getPzSet(){return pzSetMgr;}
     void colsePzSet();
     SubjectManager* getSubjectManager(int subSys = 0);
     //SubjectManager* getSubjectManager();
 
     bool getRates(int y, int m, QHash<int, Double> &rates);
+    bool getRates(int y, int m, QHash<Money*, Double> &rates);
     bool setRates(int y, int m, QHash<int, Double> &rates);
 
     QDateTime getLastAccessTime(){return QDateTime::fromString(accInfos.lastAccessTime,Qt::ISODate);}
@@ -166,7 +168,7 @@ private:
     //ReportType reportType; //账户所用的报表类型
 
     QList<BankAccount*> bankAccounts;
-    PzSetMgr* curPzSet;      //当前凭证集
+    PzSetMgr* pzSetMgr;      //凭证集对象
     QHash<int,SubjectManager*> smgs; //科目管理对象（键为科目系统代码）
 	bool isReadOnly;         //是否只读模式
 

@@ -1954,102 +1954,102 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
     return true;
 }
 
-bool BusiUtil::genPzPrintDatas2(int y, int m, QList<PzPrintData2 *> &datas, QSet<int> pznSet)
-{
-    QSqlQuery q,q2;
-    QString s;
+//bool BusiUtil::genPzPrintDatas2(int y, int m, QList<PzPrintData2 *> &datas, QSet<int> pznSet)
+//{
+//    QSqlQuery q,q2;
+//    QString s;
 
-    //获取所有一级、二级科目的名称表和用户名称表
-    QHash<int,QString> fsub,ssub,slsub,users;
-    getAllSubFName(fsub);    //一级科目名
-    getAllSubSLName(slsub); //二级科目全名
-    getAllSubSName(ssub);   //二级科目简名
-    //getAllUser(users);      //用户名
-    QHash<int,Double> rates;
-    getRates2(y,m,rates);    //汇率
-    rates[RMB] = 1.00;
+//    //获取所有一级、二级科目的名称表和用户名称表
+//    QHash<int,QString> fsub,ssub,slsub,users;
+//    getAllSubFName(fsub);    //一级科目名
+//    getAllSubSLName(slsub); //二级科目全名
+//    getAllSubSName(ssub);   //二级科目简名
+//    //getAllUser(users);      //用户名
+//    QHash<int,Double> rates;
+//    getRates2(y,m,rates);    //汇率
+//    rates[RMB] = 1.00;
 
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    s = QString("select * from PingZhengs where date like '%1%' "
-                "order by number").arg(ds);
-    bool r = q.exec(s);
-    while(q.next()){
-        int pzNum = q.value(PZ_NUMBER).toInt();   //凭证号
-        if((pznSet.count() == 0) || pznSet.contains(pzNum)){
-            //获取该凭证的业务活动数
-            int pid = q.value(0).toInt();
-            s = QString("select count() from BusiActions where pid = %1").arg(pid);
-            if(!q2.exec(s))
-                return false;
-            q2.first();
-            int bac = q2.value(0).toInt(); //该凭证包含的业务活动数
-            //计算将此凭证完全打印出来需要几张凭证
-            int pzc;
-            if((bac % MAXROWS) == 0)
-                pzc = bac / MAXROWS;
-            else
-                pzc = bac / MAXROWS + 1;
+//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+//    ds.chop(3);
+//    s = QString("select * from PingZhengs where date like '%1%' "
+//                "order by number").arg(ds);
+//    bool r = q.exec(s);
+//    while(q.next()){
+//        int pzNum = q.value(PZ_NUMBER).toInt();   //凭证号
+//        if((pznSet.count() == 0) || pznSet.contains(pzNum)){
+//            //获取该凭证的业务活动数
+//            int pid = q.value(0).toInt();
+//            s = QString("select count() from BusiActions where pid = %1").arg(pid);
+//            if(!q2.exec(s))
+//                return false;
+//            q2.first();
+//            int bac = q2.value(0).toInt(); //该凭证包含的业务活动数
+//            //计算将此凭证完全打印出来需要几张凭证
+//            int pzc;
+//            if((bac % MAXROWS) == 0)
+//                pzc = bac / MAXROWS;
+//            else
+//                pzc = bac / MAXROWS + 1;
 
-            //获取业务活动
-            s = QString("select * from BusiActions where pid = %1").arg(pid);
-            if(!q2.exec(s))
-                return false;
+//            //获取业务活动
+//            s = QString("select * from BusiActions where pid = %1").arg(pid);
+//            if(!q2.exec(s))
+//                return false;
 
-            Double jsum = 0.00,dsum = 0.00; //借贷合计值
-            for(int i = 0; i < pzc; ++i){
-                PzPrintData2* pd = new PzPrintData2;
-                pd->date = q.value(PZ_DATE).toDate();     //凭证日期
-                pd->attNums = q.value(PZ_ENCNUM).toInt(); //附件数
-                if(pzc == 1)
-                    pd->pzNum = QString::number(pzNum);
-                else{
-                    pd->pzNum = QString::number(pzNum) + '-' + QString("%1/%2").arg(i+1).arg(pzc);
-                }
-                QList<BaData2*> baList;
-                int num = 0; //已提取的业务活动数
+//            Double jsum = 0.00,dsum = 0.00; //借贷合计值
+//            for(int i = 0; i < pzc; ++i){
+//                PzPrintData2* pd = new PzPrintData2;
+//                pd->date = q.value(PZ_DATE).toDate();     //凭证日期
+//                pd->attNums = q.value(PZ_ENCNUM).toInt(); //附件数
+//                if(pzc == 1)
+//                    pd->pzNum = QString::number(pzNum);
+//                else{
+//                    pd->pzNum = QString::number(pzNum) + '-' + QString("%1/%2").arg(i+1).arg(pzc);
+//                }
+//                QList<BaData2*> baList;
+//                int num = 0; //已提取的业务活动数
 
-                while((num < MAXROWS) && (q2.next())){
-                    num++;
-                    BaData2* bd = new BaData2;
-                    QString summary = q2.value(BACTION_SUMMARY).toString();
-                    int idx = summary.indexOf('<');
-                    if(idx != -1)
-                        summary.chop(summary.count()- idx);
-                    bd->summary = summary;
-                    bd->dir = q2.value(BACTION_DIR).toInt();
-                    bd->mt = q2.value(BACTION_MTYPE).toInt();
-                    if(bd->dir == DIR_J){
-                        bd->v = Double(q2.value(BACTION_JMONEY).toDouble());
-                        jsum += bd->v * rates.value(bd->mt);
-                    }
-                    else{
-                        bd->v = Double(q2.value(BACTION_DMONEY).toDouble());
-                        dsum += bd->v * rates.value(bd->mt);
-                    }
-                    int fid = q2.value(BACTION_FID).toInt();
-                    int sid = q2.value(BACTION_SID).toInt();
-                    if(slsub.value(sid) == "") //如果二级科目没有全名，则用简名代替
-                        bd->subject = fsub.value(fid) + QObject::tr("——") + ssub.value(sid);
-                    else
-                        bd->subject = fsub.value(fid) + QObject::tr("——") + slsub.value(sid);
-                    baList.append(bd);
-                }
-                pd->baLst = baList;
-                pd->jsum = jsum;
-                pd->dsum = dsum;
-                pd->producer = q.value(PZ_RUSER).toInt();    //制单者
-                pd->verify = q.value(PZ_VUSER).toInt();      //审核者
-                pd->bookKeeper = q.value(PZ_BUSER).toInt();  //记账者
-                //pd->producer = allUsers.value(q2.value(PZ_RUSER).toInt())->getName();  //制单者
-                //pd->verify = allUsers.value(q2.value(PZ_VUSER).toInt())->getName();    //审核者
-                //pd->bookKeeper = allUsers.value(q2.value(PZ_BUSER).toInt())->getName();//记账者
-                datas.append(pd);
-            }
-        }
-    }
-    return true;
-}
+//                while((num < MAXROWS) && (q2.next())){
+//                    num++;
+//                    BaData2* bd = new BaData2;
+//                    QString summary = q2.value(BACTION_SUMMARY).toString();
+//                    int idx = summary.indexOf('<');
+//                    if(idx != -1)
+//                        summary.chop(summary.count()- idx);
+//                    bd->summary = summary;
+//                    bd->dir = q2.value(BACTION_DIR).toInt();
+//                    bd->mt = q2.value(BACTION_MTYPE).toInt();
+//                    if(bd->dir == DIR_J){
+//                        bd->v = Double(q2.value(BACTION_JMONEY).toDouble());
+//                        jsum += bd->v * rates.value(bd->mt);
+//                    }
+//                    else{
+//                        bd->v = Double(q2.value(BACTION_DMONEY).toDouble());
+//                        dsum += bd->v * rates.value(bd->mt);
+//                    }
+//                    int fid = q2.value(BACTION_FID).toInt();
+//                    int sid = q2.value(BACTION_SID).toInt();
+//                    if(slsub.value(sid) == "") //如果二级科目没有全名，则用简名代替
+//                        bd->subject = fsub.value(fid) + QObject::tr("——") + ssub.value(sid);
+//                    else
+//                        bd->subject = fsub.value(fid) + QObject::tr("——") + slsub.value(sid);
+//                    baList.append(bd);
+//                }
+//                pd->baLst = baList;
+//                pd->jsum = jsum;
+//                pd->dsum = dsum;
+//                pd->producer = q.value(PZ_RUSER).toInt();    //制单者
+//                pd->verify = q.value(PZ_VUSER).toInt();      //审核者
+//                pd->bookKeeper = q.value(PZ_BUSER).toInt();  //记账者
+//                //pd->producer = allUsers.value(q2.value(PZ_RUSER).toInt())->getName();  //制单者
+//                //pd->verify = allUsers.value(q2.value(PZ_VUSER).toInt())->getName();    //审核者
+//                //pd->bookKeeper = allUsers.value(q2.value(PZ_BUSER).toInt())->getName();//记账者
+//                datas.append(pd);
+//            }
+//        }
+//    }
+//    return true;
+//}
 
 /**
     结转损益（将损益类科目结转至本年利润）
@@ -2586,22 +2586,22 @@ bool BusiUtil::genForwordEx2(int y, int m, User *user, int state)
  * @param id    新建的子目id
  * @return
  */
-bool BusiUtil::newFstToSnd(int fid, int sid, int& id)
-{
-    QSqlQuery q;
-    QString s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,1,1)")
-            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_weight)
-            .arg(fld_ssub_enable).arg(fid).arg(sid);
-    if(!q.exec(s))
-        return false;
-    s = QString("select last_insert_rowid()");
-    if(!q.exec(s))
-        return false;
-    if(!q.first())
-        return false;
-    id = q.value(0).toInt();
-    return true;
-}
+//bool BusiUtil::newFstToSnd(int fid, int sid, int& id)
+//{
+//    QSqlQuery q;
+//    QString s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,1,1)")
+//            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_weight)
+//            .arg(fld_ssub_enable).arg(fid).arg(sid);
+//    if(!q.exec(s))
+//        return false;
+//    s = QString("select last_insert_rowid()");
+//    if(!q.exec(s))
+//        return false;
+//    if(!q.first())
+//        return false;
+//    id = q.value(0).toInt();
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::newSndSubAndMapping
@@ -4923,35 +4923,35 @@ bool BusiUtil::getOutMtInBank(QList<int>& ids, QList<int>& mt)
  * @param count 指定的凭证大类必须具有的凭证数（返回值大于0，则表示凭证不齐全）
  * @return
  */
-bool BusiUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
-{
-    QSqlQuery q;
-    QList<PzClass> pzClses;
-    if(pzCls == Pzd_Jzhd)
-        pzClses<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
-    else if(pzCls == Pzd_Jzsy)
-        pzClses<<Pzc_JzsyIn<<Pzc_JzsyFei;
-    else if(pzCls == Pzd_Jzlr)
-        pzClses<<Pzc_Jzlr;
-    count = pzClses.count();
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QString s = QString("select %1 from %2 where %3 like '%4%'")
-            .arg(fld_pz_class).arg(tbl_pz).arg(fld_pz_date).arg(ds)/*.arg(fld_pz_number)*/;
-    if(!q.exec(s))
-        return false;
-    PzClass cls;
-    while(q.next()){
-        cls = (PzClass)q.value(0).toInt();
-        if(pzClses.contains(cls)){
-            pzClses.removeOne(cls);
-            count--;
-        }
-        if(count==0)
-            break;
-    }
-    return true;
-}
+//bool BusiUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
+//{
+//    QSqlQuery q;
+//    QList<PzClass> pzClses;
+//    if(pzCls == Pzd_Jzhd)
+//        pzClses<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+//    else if(pzCls == Pzd_Jzsy)
+//        pzClses<<Pzc_JzsyIn<<Pzc_JzsyFei;
+//    else if(pzCls == Pzd_Jzlr)
+//        pzClses<<Pzc_Jzlr;
+//    count = pzClses.count();
+//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+//    ds.chop(3);
+//    QString s = QString("select %1 from %2 where %3 like '%4%'")
+//            .arg(fld_pz_class).arg(tbl_pz).arg(fld_pz_date).arg(ds)/*.arg(fld_pz_number)*/;
+//    if(!q.exec(s))
+//        return false;
+//    PzClass cls;
+//    while(q.next()){
+//        cls = (PzClass)q.value(0).toInt();
+//        if(pzClses.contains(cls)){
+//            pzClses.removeOne(cls);
+//            count--;
+//        }
+//        if(count==0)
+//            break;
+//    }
+//    return true;
+//}
 
 //生成固定资产折旧凭证
 bool BusiUtil::genGdzcZjPz(int y,int m)
@@ -5238,24 +5238,24 @@ bool BusiUtil::getSubRange(int sfid,int ssid,int efid,int esid,
 }
 
 //指定id的凭证是否处于指定的年月内
-bool BusiUtil::isPzInMonth(int y, int m, int pzid, bool& isIn)
-{
-    QSqlQuery q;
-    QString s;
-    bool r;
+//bool BusiUtil::isPzInMonth(int y, int m, int pzid, bool& isIn)
+//{
+//    QSqlQuery q;
+//    QString s;
+//    bool r;
 
-    s = QString("select date from PingZhengs where id = %1").arg(pzid);
-    if(!q.exec(s) || !q.first())
-        return false;
-    s = q.value(0).toString();
-    int year = s.left(4).toInt();
-    int month = s.mid(5,2).toInt();
-    if((year == y) && (month == m))
-        isIn = true;
-    else
-        isIn = false;
-    return true;
-}
+//    s = QString("select date from PingZhengs where id = %1").arg(pzid);
+//    if(!q.exec(s) || !q.first())
+//        return false;
+//    s = q.value(0).toString();
+//    int year = s.left(4).toInt();
+//    int month = s.mid(5,2).toInt();
+//    if((year == y) && (month == m))
+//        isIn = true;
+//    else
+//        isIn = false;
+//    return true;
+//}
 
 //获取指定一级科目是否需要按币种进行分别核算
 bool BusiUtil::isAccMt(int fid)
@@ -5283,17 +5283,17 @@ bool BusiUtil::isAccMtS(int sid)
  * @param cls
  * @return
  */
-QList<PzClass> BusiUtil::getSpecClsPzCode(PzdClass cls)
-{
-    QList<PzClass> codes;
-    if(cls == Pzd_Jzhd)
-        codes<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
-    else if(cls == Pzd_Jzsy)
-        codes<<Pzc_JzsyIn<<Pzc_JzsyFei;
-    else if(cls == Pzd_Jzlr)
-        codes<<Pzc_Jzlr;
-    return codes;
-}
+//QList<PzClass> BusiUtil::getSpecClsPzCode(PzdClass cls)
+//{
+//    QList<PzClass> codes;
+//    if(cls == Pzd_Jzhd)
+//        codes<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+//    else if(cls == Pzd_Jzsy)
+//        codes<<Pzc_JzsyIn<<Pzc_JzsyFei;
+//    else if(cls == Pzd_Jzlr)
+//        codes<<Pzc_Jzlr;
+//    return codes;
+//}
 
 //获取所有在二级科目类别表中名为“固定资产类”的科目
 //bool BusiUtil::getGdzcSubClass(QHash<int,QString>& names)

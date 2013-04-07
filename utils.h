@@ -460,7 +460,7 @@ public:
                                 QHash<int, Double> &rates);
 
     //生成欲打印凭证的数据集合
-    static bool genPzPrintDatas2(int y, int m, QList<PzPrintData2*> &datas, QSet<int> pznSet = QSet<int>());
+    //static bool genPzPrintDatas2(int y, int m, QList<PzPrintData2*> &datas, QSet<int> pznSet = QSet<int>());
 
 
     //获取指定年月指定类别的凭证id
@@ -470,7 +470,7 @@ public:
     //static bool delActionsInPz(int pzId);
 
     //在FSAgent表中创建新的一二级科目的映射条目
-    static bool newFstToSnd(int fid, int sid, int& id);
+    //static bool newFstToSnd(int fid, int sid, int& id);
 
     /**
         创建新的二级科目名称，并建立与指定一级科目的对应关系
@@ -511,7 +511,7 @@ public:
     //static bool readAllBankAccont(QHash<int,BankAccount*>& banks);
 
     //static bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
-    static bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
+    //static bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
 
     //引入其他模块产生的凭证
     //static bool impPzFromOther(int y,int m, QSet<OtherModCode> mods);
@@ -533,7 +533,7 @@ public:
                             QList<int>& fids,QHash<int,QList<int> >& sids);
 
     //指定id的凭证是否处于指定的年月内
-    static bool isPzInMonth(int y, int m, int pzid, bool& isIn);
+    //static bool isPzInMonth(int y, int m, int pzid, bool& isIn);
 
     //获取指定一级科目是否需要按币种进行分别核算
     static bool isAccMt(int fid);
@@ -547,7 +547,7 @@ public:
     static bool isInSSub(int sid){return inSIds.contains(sid);}
 
     //获取所有在二级科目类别表中名为“固定资产类”的科目（已归并到Gdzc类）
-    static QList<PzClass> getSpecClsPzCode(PzdClass cls);
+    //static QList<PzClass> getSpecClsPzCode(PzdClass cls);
     //static bool delSpecPz(int y, int m, PzdClass pzCls, int &affected);
     //static bool haveSpecClsPz(int y, int m, QHash<PzdClass,bool>& isExist);
     static bool setExtraState(int y, int m, bool isVolid);

@@ -1,144 +1,817 @@
+#include <QHash>
+#include <QSqlRecord>
+
 #include "pz.h"
 #include "tables.h"
 #include "global.h"
-#include "utils.h"
-#include "otherModule.h"
-#include "dbutil.h"
+#include "PzSet.h"
+
+
+//////////////////////////BusiAction////////////////////////////////////
+void BusiAction::setParent(PingZheng *p)
+{
+    if(parent != p){
+        parent = p;
+        witchEdited |= ES_BA_PARENT;
+        parent->witchEdited |= ES_PZ_BACTION;
+    }
+}
+
+void BusiAction::setSummary(QString s)
+{
+    QString su = s.trimmed();
+    if(summary != su){
+        summary = su;
+        witchEdited |= ES_BA_SUMMARY;
+        parent->witchEdited |= ES_PZ_BACTION;
+    }
+}
+
+void BusiAction::setFirstSubject(FirstSubject *fsub)
+{
+    if(this->fsub != fsub){
+        this->fsub = fsub;
+        witchEdited |= ES_BA_FSUB;
+        parent->witchEdited |= ES_PZ_BACTION;
+    }
+}
+
+void BusiAction::setSecondSubject(SecondSubject *ssub)
+{
+    if(this->ssub != ssub){
+        this->ssub = ssub;
+        witchEdited |= ES_BA_SSUB;
+        parent->witchEdited |= ES_PZ_BACTION;
+    }
+}
+
+void BusiAction::setMt(Money *mt)
+{
+    if(this->mt != mt){
+        this->mt = mt;
+        witchEdited |= ES_BA_MT;
+        if(mt)
+            parent->calSum();
+        parent->witchEdited |= ES_PZ_BACTION;
+        /*
+        //因为币种变了，所有要调整币值
+        QHash<int,Double> rates;
+        rates = parent->parent()->getRates(parent->parent());*/
+    }
+}
+
+void BusiAction::setValue(Double value)
+{
+    if(v != value){
+        v = value;
+        witchEdited |= ES_BA_VALUE;
+        parent->calSum();
+        parent->witchEdited |= ES_PZ_BACTION;
+    }
+}
+
+void BusiAction::setDir(MoneyDirection direct)
+{
+    if(dir != direct){
+        dir = direct;
+        witchEdited |= ES_BA_DIR | ES_BA_VALUE;
+        parent->calSum();
+        parent->witchEdited |= ES_PZ_BACTION;
+    }
+}
+
+void BusiAction::setNumber(int number)
+{
+    if(num != number){
+        num = number;
+        witchEdited |= ES_BA_NUMBER;
+        parent->witchEdited |= ES_PZ_BACTION;
+    }
+}
+
+//bool BusiAction::operator ==(const BusiAction other)
+//{
+//    if(md == other.md)
+//        return true;
+//    else
+//        return false;
+//}
+
 
 /////////////////PingZheng/////////////////////////////////////////
-PingZheng::PingZheng(User* user, QSqlDatabase db):user(user),db(db)
-{
-    eState = NEW;
-}
+PingZheng::PingZheng(PzSetMgr *parent):ID(0),p(parent),witchEdited(ES_PZ_INIT),
+    isDeleted(false),encNum(0),ru(NULL),vu(NULL),bu(NULL){md=PZMD++;}
 
-PingZheng::PingZheng(int id,QString date,int pnum,int znum,double js,double ds,
-          PzClass pcls,int encnum,PzState state,User* vu,User* ru, User* bu,
-                     User* user,QSqlDatabase db)
+PingZheng::PingZheng(int id, QString date, int pnum, int znum, Double js, Double ds,
+          PzClass pcls, int encnum, PzState state, User* vu, User* ru, User* bu, PzSetMgr* parent)
     :ID(id),date(date),pnum(pnum),znum(znum),js(js),ds(ds),pzCls(pcls),
-      encNum(encnum),state(state),vu(vu),ru(ru),bu(bu),user(user),db(db)
+      encNum(encnum),state(state),vu(vu),ru(ru),bu(bu),witchEdited(ES_PZ_INIT),
+      isDeleted(false),p(parent)
 {
-    eState = INIT;
+    md=PZMD++;
 }
 
-PingZheng::PingZheng(PzData* data,User* puser,QSqlDatabase db):
-    ID(data->pzId),date(data->date),pnum(data->pzNum),znum(data->pzZbNum),
-    js(data->jsum),ds(data->dsum),pzCls(data->pzClass),encNum(data->attNums),
-    state(data->state),vu(data->verify),ru(data->producer),bu(data->bookKeeper),
-    db(db)
+//PingZheng::PingZheng(PzData2* data,User* puser,QSqlDatabase db):
+//    ID(data->pzId),date(data->date),pnum(data->pzNum),znum(data->pzZbNum),
+//    js(data->jsum),ds(data->dsum),pzCls(data->pzClass),encNum(data->attNums),
+//    state(data->state),vu(data->verify),ru(data->producer),bu(data->bookKeeper),
+//    witchEdited(ES_PZ_INIT),isDeleted(false)
+//{
+//}
+
+
+
+//保存凭证的会计分录的顺序
+//bool PingZheng::saveBaOrder()
+//{
+//    QSqlQuery q(db);
+//    QString s;
+
+//    for(int i = 0; i < baLst.count(); ++i){
+//        s = QString("update %1 set %2=%3 where id=%4")
+//                .arg(tbl_ba).arg(fld_ba_number).arg(i+1).arg(baLst[i]->id);
+//        if(!q.exec(s))
+//            return false;
+//    }
+//    return true;
+//}
+
+//保存全新的凭证（已经有了对应的记录，只是未保存凭证的账面信息和会计分录部分）
+//bool PingZheng::saveNewPz()
+//{
+//    QSqlQuery q(db);
+//    QString s;
+
+//    s = QString("update %1 set %2='%3',%4=%5,%6=%7,%8=%9,%10=%11,%12=%13,"
+//                "%14=%15,%16=%17,%18=%19,")
+//            .arg(tbl_pz).arg(fld_pz_date).arg(date).arg(fld_pz_number).arg(pnum)
+//            .arg(fld_pz_zbnum).arg(znum).arg(fld_pz_jsum).arg(js.getv())
+//            .arg(fld_pz_dsum).arg(ds.getv()).arg(fld_pz_class).arg(pzCls)
+//            .arg(fld_pz_encnum).arg(encNum).arg(fld_pz_state).arg(state)
+//            .arg(fld_pz_ru).arg(ru->getUserId());
+//    if(vu == NULL)
+//        s.append(QString("%1=0,").arg(fld_pz_vu));
+//    else
+//        s.append(QString("%1=%2,").arg(fld_pz_vu).arg(vu->getUserId()));
+//    if(bu == NULL)
+//        s.append(QString("%1=0,").arg(fld_pz_bu));
+//    else
+//        s.append(QString("%1=%2,").arg(fld_pz_bu).arg(bu->getUserId()));
+//    s.chop(1);
+//    s.append(QString(" where id=%1").arg(ID));
+//    if(!q.exec(s))
+//        return false;
+
+//    //保存会计分录
+//    BusiActionData2* ba;
+//    int num = 0;
+//    for(int i = 0; i < baLst.count(); ++i){
+//        ba = baLst[i];
+//        if(ba->state == BusiActionData2::BLANK)
+//            continue;
+//        ++num;
+//        if(ba->dir == DIR_J)
+//            s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
+//                        "values(%11,'%12',%13,%14,%15,%16,0,%17,%18)")
+//                    .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary)
+//                    .arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_ba_mt)
+//                    .arg(fld_ba_jv).arg(fld_ba_dv).arg(fld_ba_dir).arg(fld_ba_number)
+//                    .arg(ID).arg(ba->summary).arg(ba->fid).arg(ba->sid)
+//                    .arg(ba->mt).arg(ba->v.getv()).arg(ba->dir).arg(num);
+//        else
+//            s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
+//                        "values(%11,'%12',%13,%14,%15,0,%16,%17,%18)")
+//                    .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary)
+//                    .arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_ba_mt)
+//                    .arg(fld_ba_jv).arg(fld_ba_dv).arg(fld_ba_dir).arg(fld_ba_number)
+//                    .arg(ID).arg(ba->summary).arg(ba->fid).arg(ba->sid)
+//                    .arg(ba->mt).arg(ba->v.getv()).arg(ba->dir).arg(num);
+//        if(!q.exec(s))
+//            return false;
+//        ba->state == BusiActionData2::INIT;
+//    }
+//    eState = PZINIT;
+//    editStates.fill(false,PzEditBitNum);
+//    return true;
+//}
+
+//保存凭证的信息数据部分
+//bool PingZheng::saveInfoPart()
+//{
+//    QSqlQuery q(db);
+//    QString s;
+
+//    s = QString("update %1 set %2='%3',%4=%5,%6=%7,%8=%9,"
+//                "%10=%11,%12=%13,%14=%15,")
+//            .arg(tbl_pz).arg(fld_pz_date).arg(date).arg(fld_pz_number).arg(pnum)
+//            .arg(fld_pz_zbnum).arg(znum).arg(fld_pz_class).arg(pzCls)
+//            .arg(fld_pz_encnum).arg(encNum).arg(fld_pz_state).arg(state)
+//            .arg(fld_pz_ru).arg(ru->getUserId());
+//    if(vu == NULL)
+//        s.append(QString("%1=0,").arg(fld_pz_vu));
+//    else
+//        s.append(QString("%1=%2,").arg(fld_pz_vu).arg(vu->getUserId()));
+//    if(bu == NULL)
+//        s.append(QString("%1=0,").arg(fld_pz_bu));
+//    else
+//        s.append(QString("%1=%2,").arg(fld_pz_bu).arg(bu->getUserId()));
+//    s.chop(1);
+//    s.append(QString(" where id=%1").arg(ID));
+//    if(!q.exec(s))
+//        return false;
+
+//    //保存会计分类的摘要部分（凭证的信息部分，在会计分录中只涉及到会计分录的摘要）
+//    BusiActionData2* ba;
+//    for(int i = 0; i < baLst.count(); ++i){
+//        ba = baLst[i];
+//        if(ba->state == BusiActionData2::EDITED){
+//            s = QString("update %1 set %2='%3' where id=%4")
+//                    .arg(tbl_ba).arg(fld_ba_summary).arg(ba->summary).arg(ba->id);
+//            if(!q.exec(s))
+//                return false;
+//            ba->state = BusiActionData2::INIT;
+//        }
+//    }
+//    return true;
+//}
+
+//保存凭证的金额部分（会计分录的添加、移除，改变会计分录的科目、币种、方向和金额）
+//也包含了对凭证的信息部分内容的保存
+//bool PingZheng::saveContent()
+//{
+//    QSqlQuery q(db);
+//    QString s;
+
+//    s = QString("update %1 set ").arg(tbl_pz);
+//    if(editStates.testBit(DATE))
+//        s.append(QString("%1='%2',").arg(fld_pz_date).arg(date));
+//    if(editStates.testBit(PZNUM))
+//        s.append(QString("%1=%2,").arg(fld_pz_number).arg(pnum));
+//    if(editStates.testBit(ZBNUM))
+//        s.append(QString("%1=%2,").arg(fld_pz_zbnum).arg(znum));
+//    if(editStates.testBit(ENCNUM))
+//        s.append(QString("%1=%2,").arg(fld_pz_encnum).arg(encNum));
+//    if(editStates.testBit(JSUM))
+//        s.append(QString("%1=%2,").arg(fld_pz_jsum).arg(js.getv()));
+//    if(editStates.testBit(DSUM))
+//        s.append(QString("%1=%2,").arg(fld_pz_dsum).arg(ds.getv()));
+//    if(editStates.testBit(PZSTATE))
+//        s.append(QString("%1=%2,").arg(fld_pz_state).arg(state));
+//    if(editStates.testBit(RUSER))
+//        s.append(QString("%1=%2,").arg(fld_pz_ru).arg(ru->getUserId()));
+//    if(editStates.testBit(VUSER)){
+//        if(vu == NULL)
+//            s.append(QString("%1=0,").arg(fld_pz_vu));
+//        else
+//            s.append(QString("%1=%2,").arg(fld_pz_vu).arg(vu->getUserId()));
+//    }
+//    if(editStates.testBit(BUSER)){
+//        if(bu == NULL)
+//            s.append(QString("%1=0,").arg(fld_pz_bu));
+//        else
+//            s.append(QString("%1=%2,").arg(fld_pz_bu).arg(bu->getUserId()));
+//    }
+//    s.chop(1);
+//    s.append(QString(" where id=%1").arg(ID));
+//    if(!q.exec(s))
+//        return false;
+//    //保存凭证的会计分录
+//    BusiActionData2* ba;
+//    int num=0;
+//    for(int i = 0; i < baLst.count(); ++i){
+//        ba = baLst[i];
+//        if(ba->state == BusiActionData2::BLANK) //忽略空白行
+//            continue;
+//        if(ba->state == BusiActionData2::INIT){  //初始行不用保存
+//            ++num;
+//            continue;
+//        }
+//        else{
+//            ++num;
+//            if(ba->state == BusiActionData2::NEW){
+//                if(ba->dir == DIR_J)
+//                    s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
+//                                "values(%11,'%12',%13,%14,%15,%16,0,%17,%18)")
+//                            .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary)
+//                            .arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_ba_mt)
+//                            .arg(fld_ba_jv).arg(fld_ba_dv).arg(fld_ba_dir).arg(fld_ba_number)
+//                            .arg(ID).arg(ba->summary).arg(ba->fid).arg(ba->sid)
+//                            .arg(ba->mt).arg(ba->v.getv()).arg(ba->dir).arg(num);
+//                else
+//                    s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
+//                                "values(%11,'%12',%13,%14,%15,0,%16,%17,%18)")
+//                            .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary)
+//                            .arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_ba_mt)
+//                            .arg(fld_ba_jv).arg(fld_ba_dv).arg(fld_ba_dir).arg(fld_ba_number)
+//                            .arg(ID).arg(ba->summary).arg(ba->fid).arg(ba->sid)
+//                            .arg(ba->mt).arg(ba->v.getv()).arg(ba->dir).arg(num);
+//            }
+//            else if(ba->state == BusiActionData2::EDITED){
+//                s = QString("update %1 set ").arg(tbl_ba);
+//                if(ba->editStates.testBit(BusiActionData2::SUMMARY))
+//                    s.append(QString("%1='%2',").arg(fld_ba_summary).arg(ba->summary));
+//                if(ba->editStates.testBit(BusiActionData2::FSUB))
+//                    s.append(QString("%1=%2,").arg(fld_ba_fid).arg(ba->fid));
+//                if(ba->editStates.testBit(BusiActionData2::SSUB))
+//                    s.append(QString("%1=%2,").arg(fld_ba_sid).arg(ba->sid));
+//                if(ba->editStates.testBit(BusiActionData2::MT))
+//                    s.append(QString("%1=%2,").arg(fld_ba_mt).arg(ba->mt));
+//                if(ba->editStates.testBit(BusiActionData2::VALUE)){
+//                    if(ba->dir == DIR_J)
+//                        s.append(QString("%1=%2,%3=0,").arg(fld_ba_jv).arg(ba->v.getv())
+//                                 .arg(fld_ba_dv));
+//                    else
+//                        s.append(QString("%1=0,%2=%3,").arg(fld_ba_jv).arg(fld_ba_dv)
+//                                 .arg(ba->v.getv()));
+//                }
+//                if(ba->editStates.testBit(BusiActionData2::NUMBER))
+//                    s.append(QString("%1=%2,").arg(fld_ba_number).arg(num));
+//                s.chop(1);
+//                s.append(QString(" where id=%1").arg(ba->id));
+//            }
+//            if(!q.exec(s))
+//                return false;
+//            ba->state = BusiActionData2::INIT;
+//        }
+//    }
+
+//    //移除被删除的会计分录
+//    for(int i = 0; i < delLst.count(); ++i){
+//        s = QString("delete from %1 where id=%2")
+//                .arg(tbl_ba).arg(delLst[i]->id);
+//        if(!q.exec(s))
+//            return false;
+//    }
+//    eState = PZINIT;
+//    editStates.fill(false,PzEditBitNum);
+//    return true;
+//}
+
+//bool PingZheng::update()
+//{
+//    //如果是全新的凭证
+//    if(eState == PZNEW)
+//        return saveNewPz();
+//    //如果是金额部分发生了改变，则要保存所有两部分
+//    else if(eState == PZEDITED)
+//        return saveContent();
+//    //如果只是凭证的信息字段内容发生了改变，则无需保存会计分录的数据
+//    //else if(eState == PZINFOEDITED)
+//    //    return saveInfoPart();
+//    //如果只是会计分录的顺序发生改变，则只需重新设置会计分录的顺序
+//    //if(eState == PZORDERCHANGED)
+//    //    return saveBaOrder();
+//}
+
+/**
+ * @brief PingZheng::appendBlank 添加空白分录
+ * @return
+ */
+BusiAction* PingZheng::appendBlank()
 {
-//    ID = data->pzId;
-//    date = data->date;
-//    pnum = data->pzNum;
-//    znum = data->pzZbNum;
-//    js = data->jsum;
-//    ds = data->dsum;
-//    pzCls = data->pzClass;
-//    encNum = data->attNums;
-//    state = data->state;
-//    vu = data->verify;
-//    ru = data->producer;
-//    bu = data->bookKeeper;
-//    user = puser;
-//    this->db = db;
+    BusiAction* ba = new BusiAction;
+    ba->setParent(this);
+    baLst<<ba;
+    ba->setNumber(baLst.count());
+    witchEdited |= ES_PZ_BACTION;
+    curBa = ba;
+    return ba;
 }
 
-bool PingZheng::save()
+/**
+ * @brief PingZheng::append
+ * @param ba
+ * @param isUpdate：当加入会计分录后，是否更新借贷合计值（js,ds），默认为更新
+ *        此参数为假，往往使用在凭证集的打开方法内部，凭证对象的初始化阶段
+ * @return
+ * 添加会计分录
+ */
+bool PingZheng::append(BusiAction *ba, bool isUpdate)
 {
-    QSqlQuery q(db);
-    QString s;
-
-    if(ID == 0){
-        s = "insert into PingZhengs() values()";
-        if(!q.exec(s))
-            return false;
-        s = "select id from PingZhengs";
-        if(!q.exec(s))
-            return false;
-        if(!q.last())
-            return false;
-        ID = q.value(0).toInt();
+    if(!ba){
+        LOG_ERROR(QObject::tr("BusiAction object is NULL!"));
+        return false;
     }
-    return update();
-
-}
-
-bool PingZheng::update()
-{
-    QSqlQuery q(db);
-    QString s;
-
-    //保存凭证数据
-    s = QString("update PingZhengs(date,number,zbNum,jsum,dsum,isForward,"
-                "encNum,pzState,vuid,ruid,buid) values('%1',%2,"
-                "%3,%4,%5,%6,%7,%8,%9,%10,%11) where id=%12")
-            .arg(date).arg(pnum).arg(znum).arg(js).arg(ds).arg(pzCls)
-            .arg(encNum).arg(state).arg(vu->getUserId())
-            .arg(ru->getUserId()).arg(bu->getUserId()).arg(ID);
-    if(!q.exec(s))
+    if(hasBusiAction(ba))
         return false;
 
-    //保存凭证的会计分录
-    BusiActionData* ba;
-    //保存有效的会计分录
-    for(int i = 0; i < baLst.count(); ++i){
-        ba = baLst[i];
-        if(ba->state == BusiActionData::NEW){
-            if(ba->dir == DIR_J)
-                s = QString("insert into BusiActions(pid,summary,firSubID,"
-                            "secSubID,moneyType,jMoney,dMoney,dir,NumInPz) "
-                            "values(%1,'%2',%3,%4,%5,%6,0,%7,%8)").arg(ID)
-                        .arg(ba->summary).arg(ba->fid).arg(ba->sid).arg(ba->mt)
-                        .arg(ba->v).arg(ba->dir).arg(i);
-            else
-                s = QString("insert into BusiActions(pid,summary,firSubID,"
-                            "secSubID,moneyType,jMoney,dMoney,dir,NumInPz) "
-                            "values(%1,'%2',%3,%4,%5,0,%6,%7,%8)").arg(ID)
-                        .arg(ba->summary).arg(ba->fid).arg(ba->sid).arg(ba->mt)
-                        .arg(ba->v).arg(ba->dir).arg(i);
+    ba->setParent(this);
+    baLst<<ba;
+    if(isUpdate){
+        if(ba->dir == DIR_J){
+            js += ba->v;
+            witchEdited |= ES_PZ_JSUM;
         }
-        else if(ba->state == BusiActionData::EDITED){
-            if(ba->dir == DIR_J)
-                s = QString("update BusiActions set summary='%1',firSubID=%2,secSubID=%3,"
-                            "moneyType=%4,jMoney=%5,dMoney=0,dir=%6,NumInPz=%7 where id=%8")
-                        .arg(ba->summary).arg(ba->fid).arg(ba->sid).arg(ba->mt)
-                        .arg(ba->v).arg(DIR_J).arg(i).arg(ba->id);
-            else
-                s = QString("update BusiActions set summary='%1',firSubID=%2,secSubID=%3,"
-                            "moneyType=%4,jMoney=0,dMoney=%5,dir=%6,NumInPz=%7 where id=%8")
-                        .arg(ba->summary).arg(ba->fid).arg(ba->sid).arg(ba->mt)
-                        .arg(ba->v).arg(DIR_D).arg(i).arg(ba->id);
+        else{
+            ds += ba->v;
+            witchEdited |= ES_PZ_DSUM;
         }
-        else if(ba->state == BusiActionData::NUMCHANGED)
-            s = QString("update BusiActions set NumInPz=%1 where id=%2").arg(i).arg(ba->id);
-        if(!q.exec(s))
-            return false;
+        witchEdited |= ES_PZ_BACTION;
+        curBa = ba;
     }
-
-    //移除被删除的会计分录
-    for(int i = 0; i < delLst.count(); ++i){
-        s = QString("delete from BusiActions where id=%1").arg(delLst[i]->id);
-        if(!q.exec(s))
-            return false;
-    }
+    ba->setNumber(baLst.count());
     return true;
 }
 
-PingZheng* load(int id,QSqlDatabase db)
-{
 
+/**
+ * @brief PingZheng::insert
+ * @param index
+ * @param bd
+ * 插入会计分录
+ */
+bool PingZheng::insert(int index,BusiAction *ba)
+{
+    if(!ba){
+        LOG_ERROR(QObject::tr("BusiAction object is NULL!"));
+        return false;
+    }
+    if(hasBusiAction(ba))
+        return false;
+    if(baDels.contains(ba)){
+        baDels.removeOne(ba);
+        ba->setDelete(false);
+    }
+    else
+        ba->setParent(this);
+
+    int idx;
+    if(index >= baLst.count()){
+        idx = baLst.count();
+    }
+    else if(index < 0)
+        idx = 0;
+    else
+        idx = index;
+
+    ba->setNumber(idx+1);
+    baLst.insert(idx,ba);
+    if(ba->dir == DIR_J){
+        js += ba->v;
+        witchEdited |= ES_PZ_JSUM;
+    }
+    else{
+        ds += ba->v;
+        witchEdited |= ES_PZ_DSUM;
+    }
+    for(int i = idx; i < baLst.count(); ++i)
+        baLst.at(i)->setNumber(i + 1);
+    witchEdited |= ES_PZ_BACTION;
+    return true;
 }
 
-PingZheng* create(User* user,QSqlDatabase db)
+/**
+ * @brief PingZheng::remove  移除会计分录
+ * @param index
+ */
+bool PingZheng::remove(int index)
 {
+    if(index >= baLst.count() || index < 0){
+        LOG_ERROR(QObject::tr("when remove BusiAction object in PingZheng object(id:%1,pnum:%2) index overflow!")
+                  .arg(ID).arg(pnum));
+        return false;
+    }
+    BusiAction *ba = baLst.takeAt(index);
+    if(index < baLst.count()-1)
+        for(int i = index; i < baLst.count(); ++i)
+            baLst.at(i)->setNumber(index+1);
+    if(ba->dir == DIR_J){
+        js -= ba->v;
+        witchEdited |= ES_PZ_JSUM;
+    }
+    else{
+        ds -= ba->v;
+        witchEdited |= ES_PZ_DSUM;
+    }
+    witchEdited |= ES_PZ_BACTION;
 
+    ba->setDelete(true);
+    baDels<<ba;
+    return true;
 }
 
-PingZheng* create(QString date,int pnum,int znum,double js,double ds,
-                             PzClass pcls,int encnum,PzState state,User* vu,
-                             User* ru, User* bu,User* user,QSqlDatabase db)
+/**
+ * @brief PingZheng::remove 移除指定会计分录对象
+ * @param ba
+ * @return
+ */
+bool PingZheng::remove(BusiAction *ba)
 {
+    int idx;
+    for(idx = 0; idx < baLst.count(); ++idx){
+        if(baLst.at(idx) == ba)
+            break;
+    }
+    if(idx == baLst.count()) //未找到
+        return false;
 
+    baLst.takeAt(idx);
+    ba->setDelete(true);
+    baDels<<ba;
+
+    if(baList().empty())
+        curBa = NULL;
+    else if( baLst.count() == 1)
+        curBa = baLst.at(0);
+    else if(idx == baLst.count())
+        curBa = baLst.at(idx-1);
+    else
+        curBa = baLst.at(idx);
+
+    if(idx < baLst.count()-1)
+        for(int i = idx; i < baLst.count(); ++i)
+            baLst.at(i)->setNumber(idx+1);
+    if(ba->dir == DIR_J){
+        js -= ba->v;
+        witchEdited |= ES_PZ_JSUM;
+    }
+    else{
+        ds -= ba->v;
+        witchEdited |= ES_PZ_DSUM;
+    }
+    witchEdited |= ES_PZ_BACTION;
+    return true;
 }
+
+/**
+ * @brief PingZheng::restore
+ * 恢复被删除的会计分录对象（会计分录被删除后未执行保存操作，则此对象仍保留在删除队列中）
+ * @param ba
+ * @return true：成功，false：对象不存在
+ */
+bool PingZheng::restore(BusiAction *ba)
+{
+    for(int i = 0; i < baDels.count(); ++i){
+        if(*baDels.at(i) == *ba){
+            baDels.takeAt(i);
+            insert(ba->getNumber()-1,ba);
+            return true;
+        }
+    }
+    curBa = ba;
+    return false;
+}
+
+/**
+ * @brief PingZheng::take
+ * 提取会计分录对象
+ * @param index
+ * @return
+ */
+BusiAction *PingZheng::take(int index)
+{
+    if(index >= baLst.count() || index < 0){
+        LOG_ERROR(QObject::tr("when remove BusiAction object in PingZheng object(id:%1,pnum:%2) index overflow!")
+                  .arg(ID).arg(pnum));
+        return NULL;
+    }
+    BusiAction *ba = baLst.takeAt(index);
+    if(index < baLst.count()-1)
+        for(int i = index; i < baLst.count(); ++i)
+            baLst.at(i)->setNumber(index+1);
+    if(ba->dir == DIR_J){
+        js -= ba->v;
+        witchEdited |= ES_PZ_JSUM;
+    }
+    else{
+        ds -= ba->v;
+        witchEdited |= ES_PZ_DSUM;
+    }
+    witchEdited |= ES_PZ_BACTION;
+
+    return ba;
+}
+
+//（参数：row ，nums：）
+/**
+ * @brief PingZheng::moveUp 向上移动会计分录
+ * @param row  要移动的会计分录的起始行号
+ * @param nums 要移动的行数
+ * @return
+ */
+bool PingZheng::moveUp(int row, int nums)
+{
+    if(row < 0 || row >= baLst.count()){
+        LOG_ERROR(QObject::tr("when move up BusiAction object in PingZheng object(id:%1,pnum:%2) start row index overflow!")
+                  .arg(ID).arg(pnum));
+        return false;
+    }
+    if(row-nums < 0){
+        LOG_ERROR(QObject::tr("when move up BusiAction object in PingZheng object(id:%1,pnum:%2) end row index overflow!")
+                  .arg(ID).arg(pnum));
+        return false;
+    }
+    if(nums < 1){
+        LOG_ERROR(QObject::tr("when move up BusiAction object in PingZheng object(id:%1,pnum:%2) rows less than 1!")
+                  .arg(ID).arg(pnum));
+        return false;
+    }
+
+    int i;
+    for(i = row; i > row-nums; i--){
+        baLst.at(i-1)->setNumber(i+1);
+        baLst.swap(i-1,i);
+    }
+    baLst.at(i)->setNumber(row-nums+1);
+    witchEdited |= ES_PZ_BACTION;
+    return true;
+}
+
+//
+/**
+ * @brief PingZheng::moveDown 向下移动会计分录
+ * @param row   要移动的会计分录的起始行号
+ * @param nums  要移动的行数
+ * @return
+ */
+bool PingZheng::moveDown(int row, int nums)
+{
+    if(row < 0 || row >= baLst.count()){
+        LOG_ERROR(QObject::tr("when move down BusiAction object in PingZheng object(id:%1,pnum:%2) start row index overflow!")
+                  .arg(ID).arg(pnum));
+        return false;
+    }
+    if(row+nums > baLst.count()+1){
+        LOG_ERROR(QObject::tr("when move down BusiAction object in PingZheng object(id:%1,pnum:%2) end row index overflow!")
+                  .arg(ID).arg(pnum));
+        return false;
+    }
+    if(nums < 1){
+        LOG_ERROR(QObject::tr("when move down BusiAction object in PingZheng object(id:%1,pnum:%2) rows less than 1!")
+                  .arg(ID).arg(pnum));
+        return false;
+    }
+
+    for(int i = row; i < row+nums; ++i){
+        baLst.at(i+1)->setNumber(i+1);
+        baLst.swap(i,i+1);
+    }
+    baLst.at(row+nums)->setNumber(row+nums+1);
+    return true;
+}
+
+//移除会计分录列表中末尾的连续空白会计分录
+//void PingZheng::removeTailBlank()
+//{
+//    bool con = true;
+//    int i = baLst.count()-1;
+//    while(con && i>-1){
+//        if(baLst[i]->state == BusiActionData2::BLANK){
+//            baLst.removeAt(i);
+//            i--;
+//        }
+//        else
+//            con = false;
+//    }
+//}
+
+/**
+ * @brief PingZheng::hasBusiAction
+ * 是否存在同一个BusiAction对象
+ * @param ba
+ * @return
+ */
+bool PingZheng::hasBusiAction(BusiAction *ba)
+{
+    //避免同一个分录对象多次加入到同一个凭证对象内
+    foreach(BusiAction* b,baLst){
+        if(*b == *ba)
+            return true;
+//        if(b->getId() == ba->getId()){
+//            LOG_ERROR(QObject::tr("The PingZheng object(id:%1,pnum:%2) has same BusiAction object(id:%3)")
+//                      .arg(ID).arg(pnum).arg(ba->getId()));
+//            return true;
+//        }
+    }
+    return false;
+}
+
+/**
+ * @brief PingZheng::calSum 求借贷双方的合计值
+ */
+void PingZheng::calSum()
+{
+    if(!p)
+        return;
+    Money* mmt = p->getAccount()->getMasterMt();
+    QDate d = QDate::fromString(date,Qt::ISODate);
+    int y = d.year(); int m = d.month();
+    QHash<Money*,Double> rates;
+    p->getAccount()->getRates(y,m,rates);
+    Double jv = 0.0, dv = 0.0;
+    foreach(BusiAction* ba, baLst){
+        if(ba->getDir() == DIR_J){
+            if(ba->getMt() == mmt)
+                jv += ba->getValue();
+            else
+                jv += ba->getValue() * rates.value(ba->getMt());
+        }
+        else{
+            if(ba->getMt() == mmt)
+                dv += ba->getValue();
+            else
+                dv += ba->getValue() * rates.value(ba->getMt());
+        }
+    }
+    if(js != jv){
+        js = jv;
+        witchEdited |= ES_PZ_JSUM;
+    }
+    if(ds != dv){
+        ds = dv;
+        witchEdited |= ES_PZ_DSUM;
+    }
+}
+
+//PingZheng* PingZheng::load(int id,QSqlDatabase db)
+//{
+//    QSqlQuery q(db);
+//    QString s;
+
+//    //读取凭证信息数据
+//    s = QString("select * from %1 where id=%2").arg(tbl_pz).arg(id);
+//    if(!q.exec(s) || !q.first())
+//        return NULL;
+//    PzData2 pd;
+//    pd.pzId = id;
+//    pd.date = q.value(PZ_DATE).toString();
+//    pd.pzNum = q.value(PZ_NUMBER).toInt();
+//    pd.pzZbNum = q.value(PZ_ZBNUM).toInt();
+//    pd.jsum = Double(q.value(PZ_JSUM).toDouble());
+//    pd.dsum = Double(q.value(PZ_DSUM).toDouble());
+//    pd.pzClass = (PzClass)q.value(PZ_CLS).toInt();
+//    pd.attNums = q.value(PZ_ENCNUM).toInt();
+//    pd.state = (PzState)q.value(PZ_PZSTATE).toInt();
+//    pd.verify = allUsers.value(q.value(PZ_VUSER).toInt());
+//    pd.producer = allUsers.value(q.value(PZ_RUSER).toInt());
+//    pd.bookKeeper = allUsers.value(q.value(PZ_BUSER).toInt());
+
+//    //读取凭证所处月份的汇率
+//    QHash<int,Double> rates;
+//    QDate d = QDate::fromString(pd.date,Qt::ISODate);
+//    int y = d.year();
+//    int m = d.month();
+//    if(!Money::getRate(y,m,rates,db))
+//        return NULL;
+
+//    //读取凭证所属会计分录
+//    s = QString("select * from %1 where %2=%3 order by %4")
+//            .arg(tbl_ba).arg(fld_ba_pid).arg(id).arg(fld_ba_number);
+//    if(!q.exec(s))
+//        return NULL;
+//    QList<BusiActionData2*> baLst;
+//    BusiActionData2* bd;
+//    Double js,ds;
+//    int mmt = curAccount->getMasterMt(); //母币代码
+//    while(q.next()){
+//        bd = new BusiActionData2;
+//        bd->summary = q.value(BACTION_SUMMARY).toString();
+//        bd->fid = q.value(BACTION_FID).toInt();
+//        bd->sid = q.value(BACTION_SID).toInt();
+//        bd->mt = q.value(BACTION_MTYPE).toInt();
+//        bd->dir = q.value(BACTION_DIR).toInt();
+//        if(bd->dir == DIR_J){
+//            bd->v = Double(q.value(BACTION_JMONEY).toDouble());
+//            if(bd->mt == mmt)
+//                js += bd->v;
+//            else
+//                js += (bd->v * rates.value(bd->mt));
+//        }
+//        else{
+//            bd->v = Double(q.value(BACTION_DMONEY).toDouble());
+//            if(bd->mt == mmt)
+//                ds += bd->v;
+//            else
+//                ds += (bd->v * rates.value(bd->mt));
+//        }
+//        bd->num = q.value(BACTION_NUMINPZ).toInt();
+//        baLst<<bd;
+//    }
+//    //如果统计的借贷合计值与表中读取的值不同，要考虑将其报告给用户，并提供纠错功能
+//    if(pd.jsum != js){
+//        pd.jsum = js;
+//        pd.editState = PZEDITED;
+//    }
+//    if(pd.dsum != ds){
+//        pd.dsum = ds;
+//        pd.editState = PZEDITED;
+//    }
+//    PingZheng* pz = new PingZheng(&pd,curUser,db);
+//    pz->setBaList(baLst);
+//    return pz;
+//}
+
+//PingZheng* create(User* user,QSqlDatabase db)
+//{
+
+//}
+
+//PingZheng* create(QString date,int pnum,int znum,double js,double ds,
+//                             PzClass pcls,int encnum,PzState state,User* vu,
+//                             User* ru, User* bu,User* user,QSqlDatabase db)
+//{
+
+//}
 
 
 //凭证排序函数
@@ -156,526 +829,3 @@ bool byZbNumLessThan(PingZheng* p1, PingZheng* p2)
 {
     return p1->ZbNumber() < p2->ZbNumber();
 }
-
-/////////////////PzSetMgr///////////////////////////////////////////
-PzSetMgr::PzSetMgr(int y, int m, User* user, QSqlDatabase db):
-    y(y),m(m),user(user),db(db)
-{
-    isOpened = false;
-    isReStat = false;
-    isReSave = false;
-    maxPzNum = 0;
-    maxZbNum = 0;
-}
-
-//打开凭证集
-bool PzSetMgr::open()
-{
-    QSqlQuery q(db),q1(db);
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QString s = QString("select * from PingZhengs where date like '%1%'").arg(ds);
-    isOpened = q.exec(s);
-    if(!isOpened){
-        state = Ps_NoOpen;
-        return false;
-    }
-
-    PingZheng* pz;
-    QList<BusiActionData*> bs;
-    BusiActionData* bd;
-    int id,pnum,znum,encnum;
-    QString d;
-    PzClass pzCls;
-    PzState pzState;
-    User *vu,*ru,*bu;
-    double jsum,dsum;
-    while(q.next()){
-        id = q.value(0).toInt();
-        d = q.value(PZ_DATE).toString();
-        pnum = q.value(PZ_NUMBER).toInt();
-        znum = q.value(PZ_ZBNUM).toInt();
-        jsum = q.value(PZ_JSUM).toDouble();
-        dsum = q.value(PZ_DSUM).toDouble();
-        pzCls = (PzClass)q.value(PZ_CLS).toInt();
-        encnum = q.value(PZ_ENCNUM).toInt();
-        pzState = (PzState)q.value(PZ_PZSTATE).toInt();
-        vu = allUsers.value(q.value(PZ_VUSER).toInt());
-        ru = allUsers.value(q.value(PZ_RUSER).toInt());
-        bu = allUsers.value(q.value(PZ_BUSER).toInt());
-
-        pz = new PingZheng(id,d,pnum,znum,jsum,dsum,pzCls,encnum,pzState,
-                           vu,ru,bu,curUser,db);
-
-        QString as = QString("select * from BusiActions where pid=%1").arg(pz->id());
-        if(!q1.exec(as)){
-            state = Ps_NoOpen;
-            return false;
-        }
-        while(q1.next()){
-            bd = new BusiActionData;
-            bd->id = q1.value(0).toInt();
-            bd->pid = q1.value(BACTION_PID).toInt();
-            bd->summary = q1.value(BACTION_SUMMARY).toString();
-            bd->fid = q1.value(BACTION_FID).toInt();
-            bd->sid = q1.value(BACTION_SID).toInt();
-            bd->mt = q1.value(BACTION_MTYPE).toInt();
-            bd->dir = q1.value(BACTION_DIR).toInt();
-            if(bd->dir == DIR_J)
-                bd->v = q1.value(BACTION_JMONEY).toDouble();
-            else
-                bd->v = q1.value(BACTION_DMONEY).toDouble();
-            bd->state = BusiActionData::INIT;
-            bs<<bd;
-        }
-        pz->setBaList(bs);
-        pz->setEditState(PingZheng::INIT);
-        bs.clear();
-        pds<<pz;
-    }
-
-    if(!dbUtil->getPzsState(y,m,state)){
-        state = Ps_NoOpen;
-        if(!BusiUtil::setPzsState(y,m,state))
-            return false;
-    }
-    maxPzNum = pds.count() + 1;
-    maxZbNum = 0;
-    for(int i = 0; i < pds.count(); ++i)
-        if(maxZbNum < pds[i]->number())
-            maxZbNum = pds[i]->number();
-    maxZbNum++;
-
-    return true;
-}
-
-void PzSetMgr::close()
-{
-    save();
-    state = Ps_NoOpen;
-    maxPzNum = 0;
-    maxZbNum = 0;
-}
-
-bool PzSetMgr::isOpen()
-{
-    return isOpened;
-}
-
-//获取凭证总数（也即已用的最大凭证号）
-int PzSetMgr::getPzCount()
-{
-    return maxPzNum-1;
-}
-
-//获取最大可用凭证自编号
-int PzSetMgr::getMaxZbNum()
-{
-//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-//    ds.chop(3);
-//    QString fs = QString("date like '%1%'").arg(ds);
-//    QSqlQuery q(db);
-//    QString s = QString("select max(number) from PingZhengs where ")
-//            .append(fs);
-//    q.exec(s);
-//    if(q.first())
-//        return q.value(0).toInt() + 1;
-//    else
-//        return 1;
-    return maxZbNum;
-}
-
-//重置凭证号
-bool PzSetMgr::resetPzNum(int by)
-{
-    //1：表示按日期顺序，2：表示按自编号顺序
-    if(by == 1){
-        qSort(pds.begin(),pds.end(),byDateLessThan);
-        for(int i = 0; i < pds.count(); ++i){
-            pds[i]->setNumber(i+1);
-            pds[i]->setEditState(PingZheng::INFOEDITED);
-        }
-        return true;
-    }
-    if(by == 2){
-        qSort(pds.begin(),pds.end(),byZbNumLessThan);
-        for(int i = 0; i < pds.count(); ++i){
-            pds[i]->setNumber(i+1);
-            pds[i]->setEditState(PingZheng::INFOEDITED);
-        }
-        return true;
-    }
-    else
-        return false;
-
-//    QSqlQuery q(db),q1(db);
-//    QString s;
-
-//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-//    ds.chop(3);
-//    if(by == 1) //按凭证日期
-//        s = QString("select id from PingZhengs where "
-//                    "date like '%1%' order by date").arg(ds);
-//    else  if(by == 2)      //按自编号
-//        s = QString("select id from PingZhengs where "
-//                    "date like '%1%' order by zbNum").arg(ds);
-//    else
-//        return false;
-//    if(!q.exec(s))
-//        return false;
-//    int id, num = 1;
-//    while(q.next()){
-//        id = q.value(0).toInt();
-//        s = QString("update PingZhengs set number=%1 where id=%2").arg(num++).arg(id);
-//        if(!q1.exec(s))
-//            return false;
-//    }
-//    model->select();
-//    return true;
-}
-
-//根据凭证集内的每个凭证的状态来确定凭证集的状态
-bool PzSetMgr::determineState()
-{
-//    //（此刷新动作主要使凭证状态从录入态转到审核态）
-//    //执行此函数的时机是，用户修改了凭证状态（而非凭证的其他数据）
-//    bool ori = false;  //初始态（任一手工录入凭证处于录入状态时，它为真）
-//    bool handV = true; //所有手工录入凭证处于审核或入账状态时，它为真
-//    bool handE = false;//手工录入凭证是否存在
-
-//    bool imp = false;  //引入态（任一自动引入的凭证还未审核或入账时，它为真）
-//    bool impV = true;  //引入审核态（所有自动引入的凭证都已审核或入账时，它为真）
-//    bool impE = false; //引入凭证是否存在
-
-//    bool jzhd = false;  //结转汇兑态（任一结转汇兑损益的凭证处于录入态时，它为真）
-//    bool jzhdV = true;  //结转汇兑审核态（所有结转汇兑损益的凭证已审核或入账时，它为真）
-//    bool jzhdE = false; //结转汇兑损益的凭证是否存在
-
-
-//    bool jzsy = false; //结转损益态（任一结转损益的凭证处于录入态时，它为真）
-//    bool jzsyV = true; //结转损益审核态（所有结转损益的凭证处于已审核或入账时，它为真）
-//    bool jzsyE = false;//结转损益的凭证是否存在
-
-//    bool jzlr = false; //结转本年利润态（结转本年利润的凭证处于录入态时，它为真）
-//    bool jzlrV = true; //结转本年利润态（结转本年利润的凭证已审核或入账时，它为真）
-//    bool jzlrE = false;//结转本年利润的凭证是否存在
-
-//    PzsState oldPs, newPs = Ps_Rec;  //原先保存的和新的凭证集状态
-//    if(!state(oldPs)){
-//        qDebug() << "Don't get current pingzheng set state!!";
-//        return false;
-//    }
-//    if(oldPs == Ps_Jzed)  //如果已结账，则不用继续
-//        return true;
-
-//    int state;
-//    int pzCls;
-//    for(int i = 0; i < model->rowCount(); ++i){
-//        state = model->data(model->index(i,PZ_PZSTATE)).toInt();
-//        pzCls = model->data(model->index(i,PZ_CLS )).toInt();
-
-//        if(state == Pzs_Repeal)
-//            continue;
-//        //如果是手工录入凭证
-//        if(pzCls == Pzc_Hand){
-//            handE = true;
-//            if(state == Pzs_Recording){
-//                ori = true;
-//                handV = false;
-//                break;
-//            }
-//        }
-//        //如果是其他模块引入的凭证
-//        else if(BusiUtil::isImpPzCls(pzCls)){
-//            impE = true;
-//            if(state == Pzs_Recording){
-//                imp = true;
-//                impV = false;
-//                break;
-//            }
-//        }
-//        //如果是结转汇兑损益的凭证
-//        else if(BusiUtil::isJzhdPzCls(pzCls)){
-//            jzhdE = true;
-//            if(state == Pzs_Recording){
-//                jzhd = true;
-//                jzhdV = false;
-//                break;
-//            }
-//        }
-//        //如果是结转损益的凭证
-//        else if(BusiUtil::isJzsyPzCls(pzCls)){
-//            jzsyE = true;
-//            if(state == Pzs_Recording){
-//                jzsy = true;
-//                jzsyV = false;
-//                break;
-//            }
-//        }
-//        //如果是结转本年利润的凭证
-//        else if((pzCls == Pzc_Jzlr)){
-//            jzlrE = true;
-//            if(state == Pzs_Recording){
-//                jzlr = true;
-//                jzlrV = false;
-//                break;
-//            }
-//        }
-//    }
-
-//    //根据凭证的扫描情况以及凭证集的先前状态，决定新状态
-//    if(ori)
-//        newPs = Ps_Rec;
-//    else if(imp)
-//        newPs = Ps_ImpOther;
-//    else if(jzhd)
-//        newPs = Ps_Jzhd;
-//    else if(jzsy)
-//        newPs = Ps_Jzsy;
-//    else if(jzlr)
-//        newPs = Ps_Jzbnlr;
-
-//    else if((oldPs == Ps_Jzbnlr)  && jzlrV && jzlrE)   //如果已经审核了结转本年利润凭证
-//        newPs = Ps_JzbnlrV;
-//    else if((oldPs == Ps_Jzsy) && jzsyV && jzsyE) //如果结转损益凭证都进行了审核
-//        newPs = Ps_JzsyV;
-//    else if((oldPs == Ps_Jzhd) && jzhdV && jzhdE) //如果结转汇兑损益凭证都进行了审核
-//        newPs = Ps_JzhdV;
-//    else if((oldPs == Ps_ImpOther) && impV && impE) //如果引入的其他凭证都审核通过
-//        newPs = Ps_ImpV;
-//    else if((oldPs == Ps_Rec) && handV && handE) //如果所有手工录入的凭证都审核通过
-//        newPs = Ps_HandV;
-
-//    setstate(newPs);
-}
-
-//返回凭证集状态
-PzsState PzSetMgr::getState()
-{
-    return state;
-}
-
-//设置凭证集状态
-void PzSetMgr::setstate(PzsState state)
-{
-    this->state = state;
-    //return BusiUtil::setPzsState(y,m,state);
-}
-
-//保存当期余额
-bool PzSetMgr::PzSetMgr::saveExtra()
-{
-    //保存当期余额之前，需要判断是否需要再次计算当期余额
-    //（比如在凭证集打开后，进行了会影响当期余额的编辑操作）
-    //return BusiUtil::savePeriodBeginValues(y,m,endExtra,endDir,
-    //                                       endDetExtra,endDetDir,state,false);
-    return true;
-}
-
-//读取当期余额（读取的是最近一次保存到余额表中的数据）
-bool PzSetMgr::readExtra()
-{
-    endExtra.clear();
-    endDetExtra.clear();
-    endDir.clear();
-    endDetDir.clear();
-
-    //if(!BusiUtil::readExtraByMonth(y,m,endExtra,endDir,endDetExtra,endDetDir))
-    //    return false;
-
-}
-
-//读取期初（前期）余额
-bool PzSetMgr::readPreExtra()
-{
-    preExtra.clear();
-    preDetExtra.clear();
-    int yy,mm;
-    if(m == 1){
-        yy = y - 1;
-        mm = 12;
-    }
-    else{
-        yy = y;
-        mm = m - 1;
-    }
-    return BusiUtil::readExtraByMonth2(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
-}
-
-//添加空白凭证
-bool PzSetMgr::appendBlankPz(PzData* pd)
-{
-    if(!isOpened)
-        return false;
-
-}
-
-//插入凭证，参数ecode错误代码（1：凭证号越界，2：自编号冲突）
-bool PzSetMgr::insert(PzData* pd,int& ecode)
-{
-    //插入凭证要保证凭证集内凭证号和自编号的连贯性要求
-    //凭证号必须从1开始，顺序增加，中间不能间断，自编号必须保证唯一性
-    if(pd->pzNum > maxPzNum){
-        ecode = 1;
-        return false;
-    }
-    if(isZbNumConflict(pd->pzZbNum)){
-        ecode = 2;
-        return false;
-    }
-
-}
-
-//自编号是否冲突
-bool PzSetMgr::isZbNumConflict(int num)
-{
-    for(int i = 0; i < pds.count(); ++i){
-        int zn = pds[i]->ZbNumber();
-        if(num == zn)
-            return true;
-    }
-    return false;
-}
-
-//移除凭证
-bool PzSetMgr::remove(int pzNum)
-{
-
-}
-
-//保存凭证
-bool PzSetMgr::savePz()
-{
-
-}
-
-//保存凭证集
-bool PzSetMgr::save()
-{
-
-}
-
-//创建当期固定资产折旧凭证
-bool PzSetMgr::crtGdzcPz()
-{
-
-}
-
-//创建在指定年月中引入待摊费用的凭证
-bool PzSetMgr::crtDtfyImpPz(int y,int m,QList<PzData*> pzds)
-{
-    //前置条件判定
-    //...
-
-    if(!Dtfy::genImpPzData(y,m,pzds,user)){
-        if(!pzds.empty()){
-            for(int i = 0; i < pzds.count(); ++i)
-                delete pzds[i];
-            pzds.clear();
-        }
-        return false;
-    }
-
-    if(pzds.empty()){
-        QMessageBox::information(0,QObject::tr("提示信息"),QObject::tr("未发现要引入的待摊费用"));
-        return true;
-    }
-    for(int i = 0; i < pzds.count(); ++i){
-        PingZheng pz(pzds[i],user,db);
-        pz.save();
-        delete pzds[i];
-    }
-    pzds.clear();
-    return true;
-}
-
-//创建当期计提待摊费用凭证
-bool PzSetMgr::crtDtfyTxPz()
-{
-    return Dtfy::createTxPz(y,m,user);
-}
-
-//删除当期计提待摊费用凭证
-bool PzSetMgr::delDtfyPz()
-{
-    return Dtfy::repealTxPz(y,m);
-}
-
-//创建当期结转汇兑损益凭证
-bool PzSetMgr::crtJzhdsyPz()
-{
-
-}
-
-//创建当期结转损益凭证（将损益类科目余额结转至本年利润）
-bool PzSetMgr::crtJzsyPz()
-{
-
-}
-
-//创建当期结转利润凭证（将本年利润科目的余额结转至利润分配）
-bool PzSetMgr::crtJzlyPz()
-{
-
-}
-
-//结账
-void PzSetMgr::finishAccount()
-{
-
-}
-
-//获取凭证集的数据模型，提供给凭证编辑窗口
-CustomRelationTableModel* PzSetMgr::getModel()
-{
-
-}
-
-//统计本期发生额
-bool PzSetMgr::stat()
-{
-
-}
-
-//统计指定年月凭证集的本期发生额
-bool PzSetMgr::stat(int y, int m)
-{
-
-}
-
-//获取当期明细账数据
-bool PzSetMgr::getDetList()
-{
-
-}
-
-//获取指定月份区间的明细账数据
-bool PzSetMgr::getDetList(int y, int sm, int em)
-{
-
-}
-
-//获取当期总账数据
-bool PzSetMgr::getTotalList()
-{
-    return true;
-}
-
-//获取指定月份区间的总账数据
-bool PzSetMgr::getTotalList(int y,int sm, int em)
-{
-    return true;
-}
-
-//查找凭证
-bool PzSetMgr::find()
-{
-
-}
-
-//在指定月份区间内查找凭证
-bool PzSetMgr::find(int y, int sm, int em)
-{
-
-}
-

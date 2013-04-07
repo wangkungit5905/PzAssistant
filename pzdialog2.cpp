@@ -235,8 +235,8 @@ void PzDialog2::initAction()
         if(curPzClass == Pzc_Hand || curPzClass == Pzc_JzsyIn || curPzClass == Pzc_JzsyFei
           || curPzClass == Pzc_Jzlr  || !isCollapseJz){
             delegate->setVolidRows(numActions);
-            int subSys = curAccount->getCurSuite()->subSys;
-            SubjectManager* smg = curAccount->getSubjectManager(subSys);
+            //int subSys = curAccount->getCurSuite()->subSys;
+            //SubjectManager* smg = curAccount->getSubjectManager(subSys);
             for(int i = 0; i < busiActions.count(); ++i){
                 ui->twActions->appendRow();  //添加一个有效行
                 BASummaryItem* smItem = new BASummaryItem(busiActions[i]->summary, smg);

@@ -31,6 +31,7 @@
 #include "logs/logview.h"
 #include "version.h"
 #include "subject.h"
+#include "PzSet.h"
 
 #include "completsubinfodialog.h"
 
@@ -719,7 +720,7 @@ void MainWindow::openPzs()
 
        if(!dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount))
            sqlWarning();
-       isExtraVolid = BusiUtil::getExtraState(cursy,cursm);
+       isExtraVolid = dbUtil->getExtraState(cursy,cursm);
        refreshShowPzsState();
 	   ui->statusbar->setPzSetDate(cursy,cursm);
        refreshTbrVisble();
@@ -864,10 +865,7 @@ void MainWindow::viewSubjectExtra()
 void MainWindow::openSpecPz(int pid,int bid)
 {
     //根据凭证是否属于当前月份来决定是否用凭证编辑窗口还是用历史凭证显示窗口打开
-    bool isIn;
-    if(!BusiUtil::isPzInMonth(cursy,cursm,pid,isIn))
-        return;
-    if(isIn){
+    if(dbUtil->isContainPz(cursy,cursm,pid)){
         if(!subWindows.contains(PZEDIT)) //如果凭证编辑窗口还未打开，则先打开
             editPzs();
         PzDialog2* dlg = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
@@ -1792,7 +1790,7 @@ void MainWindow::on_actCurStat_triggered()
         return;
     }
     //为了使本期统计得以正确执行，必须将主窗口记录的凭证集状态保存到账户中
-    BusiUtil::setPzsState(cursy,cursm,curPzSetState);
+    dbUtil->setPzsState(cursy,cursm,curPzSetState);
     ViewExtraDialog* dlg;
     if(subWindows.contains(PZSTAT)){
         dlg = static_cast<ViewExtraDialog*>(subWindows.value(PZSTAT)->widget());
@@ -1976,44 +1974,45 @@ void MainWindow::on_actPrint_triggered()
     psDlg->setCurPzn(curPzn);
     if(psDlg->exec() == QDialog::Accepted){
         QSet<int> pznSet;
-        int range = psDlg->getPrintPzSet(pznSet);//获取打印范围
+        /*int range = */psDlg->getPrintPzSet(pznSet);//获取打印范围
         int mode = psDlg->getPrintMode();        //获取打印模式
-        QHash<int,Double> rates;
-        curAccount->getRates(cursy,cursm,rates);        //获取汇率
-        QString lname = curAccount->getLName();
+        //QHash<int,Double> rates;
+        //curAccount->getRates(cursy,cursm,rates);        //获取汇率
+        //QString lname = curAccount->getLName();
 
         QPrinter printer;
         QPrintDialog* dlg = new QPrintDialog(&printer); //获取所选的打印机
         if(dlg->exec() == QDialog::Accepted){
             QPrintPreviewDialog* preview;
             printer.setOrientation(QPrinter::Portrait);
-            QList<PzPrintData2*> datas; //获取凭证数据
-            if(range == 0)
-                BusiUtil::genPzPrintDatas2(cursy,cursm,datas);
-            else{
-                if(range == 1){//当前凭证
-                    if(curPzn == 0)
-                        return;
-                    QSet<int> set;
-                    set.insert(curPzn);
-                    BusiUtil::genPzPrintDatas2(cursy,cursm,datas,set);
-                }
-                else{ //自选凭证
-                    BusiUtil::genPzPrintDatas2(cursy,cursm,datas,pznSet);
-                }
-            }
+            QList<PingZheng*> pzs; //获取凭证数据
+            pzs = curAccount->getPzSet()->getPzSpecRange(cursy,cursm,pznSet);
+//            if(range == 0)
+//                BusiUtil::genPzPrintDatas2(cursy,cursm,pzs);
+//            else{
+//                if(range == 1){//当前凭证
+//                    if(curPzn == 0)
+//                        return;
+//                    QSet<int> set;
+//                    set.insert(curPzn);
+//                    BusiUtil::genPzPrintDatas2(cursy,cursm,pzs,set);
+//                }
+//                else{ //自选凭证
+//                    BusiUtil::genPzPrintDatas2(cursy,cursm,pzs,pznSet);
+//                }
+//            }
 
-            PrintPzUtils* view = new PrintPzUtils(&printer);
-            view->setRates(rates);
-            view->setPzDatas(datas);
+            PrintPzUtils* view = new PrintPzUtils(curAccount,&printer);
+            //view->setRates(rates);
+            view->setPzDatas(pzs);
             //去除账户名称中的括弧及其内部的内容
-            int idx = lname.indexOf(tr("（"));
-            if(idx != -1)
-                lname.chop(lname.count() - idx);
-            view->setCompanyName(lname);
+//            int idx = lname.indexOf(tr("（"));
+//            if(idx != -1)
+//                lname.chop(lname.count() - idx);
+//            view->setCompanyName(lname);
 
             switch(mode){
-            case 1: //输出地打印机
+            case 1: //输出到打印机
                 view->print(&printer);
                 break;
 
@@ -2464,7 +2463,7 @@ void MainWindow::on_actJzbnlr_triggered()
     }
     //损益类凭证必须已经结转了
     int count;
-    BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
+    dbUtil->inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
     if(count > 0){
         QMessageBox::warning(this, tr("提示信息"), tr("在结转本年利润前，必须先结转损益类科目到本年利润！"));
         return;
@@ -2525,7 +2524,7 @@ void MainWindow::on_actEndAcc_triggered()
                                                     tr("结账后，将不能再次对凭证集进行修改，确认要结账吗？"),
                                                     QMessageBox::Yes | QMessageBox::No)){
         curPzSetState = Ps_Jzed;
-        BusiUtil::setPzsState(cursy,cursm,Ps_Jzed);
+        dbUtil->setPzsState(cursy,cursm,Ps_Jzed);
         refreshShowPzsState();
         refreshActEnanble();
         return;
@@ -2588,7 +2587,7 @@ void MainWindow::on_actAntiEndAcc_triggered()
         QMessageBox::information(this, tr("提示信息"), tr("还未结账"));
         return;
     }
-    BusiUtil::setPzsState(cursy,cursm,/*Ps_Stat5*/Ps_Rec);
+    dbUtil->setPzsState(cursy,cursm,/*Ps_Stat5*/Ps_Rec);
     allPzToRecording(cursy,cursm);
     isExtraVolid = false;
     dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
@@ -2835,7 +2834,7 @@ bool MainWindow::jzsy()
     //汇率不等，则检查是否执行了结转汇兑损益
     if(sRates.value(USD) != eRates.value(USD)){
         int count;
-        BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzhd,count);
+        dbUtil->inspectJzPzExist(cursy,cursm,Pzd_Jzhd,count);
         if(count != 0){
             QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证有误！"));
             return true;
@@ -2844,7 +2843,7 @@ bool MainWindow::jzsy()
 
     //删除先前存在的结转凭证，这是因为要取得结转前的正确余额
     int count;
-    BusiUtil::inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
+    dbUtil->inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
     if(count < 2){
         dbUtil->delSpecPz(cursy,cursm,Pzd_Jzsy,count);
         dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);

@@ -1916,7 +1916,12 @@ void PrintSelectDialog::remove(int num)
     pznSet.remove(num);
 }
 
-//获取欲打印的凭证号集合（返回值 0：所有凭证，1：当前凭证，2：自选凭证）
+/**
+ * @brief PrintSelectDialog::getPrintPzSet
+ *  获取欲打印的凭证号集合
+ * @param pznSet
+ * @return 0：所有凭证，1：当前凭证，2：自选凭证
+ */
 int PrintSelectDialog::getPrintPzSet(QSet<int>& pznSet)
 {
     if((ui->rdoCur->isChecked()) && (ui->edtCur->text() != "")){

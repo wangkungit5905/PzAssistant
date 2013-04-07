@@ -219,46 +219,46 @@ struct TotalAccountData2{
 
 
 //表示凭证中的单项业务活动的数据结构
-struct BaData{
-    QString summary; //摘要
-    QString subject; //科目
-    int  dir;        //借贷方向
-    int mt;          //币种代码
-    double v;        //金额
-};
+//struct BaData{
+//    QString summary; //摘要
+//    QString subject; //科目
+//    int  dir;        //借贷方向
+//    int mt;          //币种代码
+//    double v;        //金额
+//};
 
-struct BaData2{
-    QString summary; //摘要
-    QString subject; //科目
-    int  dir;        //借贷方向
-    int mt;          //币种代码
-    Double v;        //金额
-};
+//struct BaData2{
+//    QString summary; //摘要
+//    QString subject; //科目
+//    int  dir;        //借贷方向
+//    int mt;          //币种代码
+//    Double v;        //金额
+//};
 
 //打印凭证时，每张凭证需包含的数据
-struct PzPrintData{
-    QDate date;           //凭证日期
-    int attNums;          //附件数
-    QString pzNum;        //凭证号
-    QString pzZbNum;      //自编号
-    QList<BaData*> baLst; //凭证业务活动列表
-    double jsum,dsum;     //借贷合计值
-    int producer;     //制单者
-    int verify;       //审核者
-    int bookKeeper;   //记账者
-};
+//struct PzPrintData{
+//    QDate date;           //凭证日期
+//    int attNums;          //附件数
+//    QString pzNum;        //凭证号
+//    QString pzZbNum;      //自编号
+//    QList<BaData*> baLst; //凭证业务活动列表
+//    double jsum,dsum;     //借贷合计值
+//    int producer;     //制单者
+//    int verify;       //审核者
+//    int bookKeeper;   //记账者
+//};
 
-struct PzPrintData2{
-    QDate date;           //凭证日期
-    int attNums;          //附件数
-    QString pzNum;        //凭证号
-    QString pzZbNum;      //自编号
-    QList<BaData2*> baLst; //凭证业务活动列表
-    Double jsum,dsum;     //借贷合计值
-    int producer;     //制单者
-    int verify;       //审核者
-    int bookKeeper;   //记账者
-};
+//struct PzPrintData2{
+//    QDate date;           //凭证日期
+//    int attNums;          //附件数
+//    QString pzNum;        //凭证号
+//    QString pzZbNum;      //自编号
+//    QList<BaData2*> baLst; //凭证业务活动列表
+//    Double jsum,dsum;     //借贷合计值
+//    int producer;     //制单者
+//    int verify;       //审核者
+//    int bookKeeper;   //记账者
+//};
 
 //包含业务活动数据的结构
 struct BusiActionData{

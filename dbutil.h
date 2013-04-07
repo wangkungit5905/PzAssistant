@@ -17,6 +17,7 @@ const QString AccConnName = "Account";
 
 class SubjectManager;
 class FirstSubject;
+class PingZheng;
 
 class DbUtil
 {
@@ -96,6 +97,9 @@ public:
     bool getExtraState(int y, int m);
     bool getRates(int y, int m, QHash<int,Double>& rates);
     bool saveRates(int y,int m, QHash<int,Double>& rates);
+    bool loadPzSet(int y, int m, QList<PingZheng*> &pzs, PzSetMgr *parent);
+    bool isContainPz(int y, int m, int pid);
+    bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);    
 
     //凭证相关
     bool assignPzNum(int y, int m);

@@ -7,6 +7,8 @@
 #include "tables.h"
 #include "logs/Logger.h"
 #include "subject.h"
+#include "pz.h"
+#include "PzSet.h"
 
 DbUtil::DbUtil()
 {
@@ -772,7 +774,7 @@ bool DbUtil::setExtraState(int y, int m, bool isVolid)
     //余额的有效性状态只记录在“余额指针表”中保存本币余额的那条记录里
     QSqlQuery q(db);
     QString s = QString("update %1 set %2=%3 where %4=%5 and %6=%7 and %8=%9")
-            .arg(tbl_nse_point).arg(fld_nse_sid).arg(isVolid?1:0).arg(fld_nse_year)
+            .arg(tbl_nse_point).arg(fld_nse_state).arg(isVolid?1:0).arg(fld_nse_year)
             .arg(y).arg(fld_nse_month).arg(m).arg(fld_nse_mt).arg(masterMt);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -945,6 +947,153 @@ bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
     }
     return true;
 }
+
+/**
+ * @brief DbUtil::loadPzSet
+ *  装载指定年月的凭证
+ * @param y
+ * @param m
+ * @param pzs
+ * @return
+ */
+bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
+{
+    QSqlQuery q(db),q1(db);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select * from %1 where %2 like '%3%'")
+            .arg(tbl_pz).arg(fld_pz_date).arg(ds);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    Account* account = parent->getAccount();
+    int subSys = account->getSuite(y)->subSys;
+    SubjectManager* smg = account->getSubjectManager(subSys);
+    QHash<int,Money*> mts = account->getAllMoneys();
+    PingZheng* pz;
+    QList<BusiAction*> bs;
+    BusiAction* ba;
+    int id,pid,pnum,znum,encnum,num;
+    MoneyDirection dir;
+    QString d,summary;
+    PzClass pzCls;
+    PzState pzState;
+    User *vu,*ru,*bu;
+    Double jsum,dsum;
+    FirstSubject* fsub;
+    SecondSubject* ssub;
+    Double v;
+    Money* mt;
+    while(q.next()){
+        id = q.value(0).toInt();
+        d = q.value(PZ_DATE).toString();
+        pnum = q.value(PZ_NUMBER).toInt();
+        znum = q.value(PZ_ZBNUM).toInt();
+        jsum = q.value(PZ_JSUM).toDouble();
+        dsum = q.value(PZ_DSUM).toDouble();
+        pzCls = (PzClass)q.value(PZ_CLS).toInt();
+        encnum = q.value(PZ_ENCNUM).toInt();
+        pzState = (PzState)q.value(PZ_PZSTATE).toInt();
+        vu = allUsers.value(q.value(PZ_VUSER).toInt());
+        ru = allUsers.value(q.value(PZ_RUSER).toInt());
+        bu = allUsers.value(q.value(PZ_BUSER).toInt());
+
+        pz = new PingZheng(id,d,pnum,znum,jsum,dsum,pzCls,encnum,pzState,
+                           vu,ru,bu,parent);
+
+        QString as = QString("select * from %1 where %2=%3 order by %4")
+                .arg(tbl_ba).arg(fld_ba_pid).arg(pz->id()).arg(fld_ba_number);
+        if(!q1.exec(as)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q1.next()){
+            id = q1.value(0).toInt();
+            pid = q1.value(BACTION_PID).toInt();
+            summary = q1.value(BACTION_SUMMARY).toString();
+            fsub = smg->getFstSubject(q1.value(BACTION_FID).toInt());
+            ssub = smg->getSndSubject(q1.value(BACTION_SID).toInt());
+            mt = mts.value(q1.value(BACTION_MTYPE).toInt());
+            dir = (MoneyDirection)q1.value(BACTION_DIR).toInt();
+            if(dir == DIR_J)
+                v = q1.value(BACTION_JMONEY).toDouble();
+            else
+                v = q1.value(BACTION_DMONEY).toDouble();
+            num = q1.value(BACTION_NUMINPZ).toInt();
+            //ba->state = BusiActionData::INIT;
+            ba = new BusiAction(id,pz,summary,fsub,ssub,mt,dir,v,num);
+            pz->baLst<<ba;
+        }
+        pzs<<pz;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::isContainPz
+ *  在指定年月的凭证集内是否包含了指定id的凭证
+ * @param y
+ * @param m
+ * @param pid   凭证id
+ * @return      true：包含，false：不包含
+ */
+bool DbUtil::isContainPz(int y, int m, int pid)
+{
+    QSqlQuery q(db);
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select id from %1 where id=%2 and %3 like '%4%'")
+            .arg(tbl_pz).arg(pid).arg(fld_pz_date).arg(ds);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return q.first();
+}
+
+/**
+ * @brief DbUtil::inspectJzPzExist
+ *  检查指定类别的凭证是否存在、是否齐全
+ * @param y
+ * @param m
+ * @param pzCls 凭证大类别
+ * @param count 指定的凭证大类必须具有的凭证数（返回值大于0，则表示凭证不齐全）
+ * @return
+ */
+bool DbUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
+{
+    QSqlQuery q(db);
+    QList<PzClass> pzClses;
+    if(pzCls == Pzd_Jzhd)
+        pzClses<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+    else if(pzCls == Pzd_Jzsy)
+        pzClses<<Pzc_JzsyIn<<Pzc_JzsyFei;
+    else if(pzCls == Pzd_Jzlr)
+        pzClses<<Pzc_Jzlr;
+    count = pzClses.count();
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select %1 from %2 where %3 like '%4%'")
+            .arg(fld_pz_class).arg(tbl_pz).arg(fld_pz_date).arg(ds)/*.arg(fld_pz_number)*/;
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    PzClass cls;
+    while(q.next()){
+        cls = (PzClass)q.value(0).toInt();
+        if(pzClses.contains(cls)){
+            pzClses.removeOne(cls);
+            count--;
+        }
+        if(count==0)
+            break;
+    }
+    return true;
+}
+
 
 /**
  * @brief DbUtil::assignPzNum

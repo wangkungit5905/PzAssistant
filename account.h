@@ -57,7 +57,7 @@ public:
      */
     struct AccountSuiteRecord{
         int id;
-        int year,lastMonth; //帐套所属年份、最后打开月份
+        int year,recentMonth; //帐套所属年份、最后打开月份
         int startMonth,endMonth; //开始月份和结束月份
         int subSys;         //帐套采用的科目系统代码
         QString name;       //帐套名
@@ -74,7 +74,7 @@ public:
         QString code,sname,lname;           //账户代码、简称和全称
         Money* masterMt;                       //本币代码
         QList<Money*> waiMts;                  //外币代码表
-        QString startDate,endDate;          //记账起止时间
+        //QString startDate,endDate;          //记账起止时间
         QList<AccountSuiteRecord*> suites;        //帐套列表
         QString lastAccessTime;             //账户最后访问时间
         QString dbVersion;                  //账户文件版本号
@@ -108,10 +108,10 @@ public:
     void addWaiMt(Money *mt);
     void delWaiMt(Money *mt);
     QString getWaiMtStr();
-    QDate getStartTime(){return QDate::fromString(accInfos.startDate,Qt::ISODate);}
-    void setStartTime(QDate date){accInfos.startDate = date.toString(Qt::ISODate);}
-    QDate getEndTime(){return QDate::fromString(accInfos.endDate,Qt::ISODate);}
-    void setEndTime(QDate date){accInfos.endDate = date.toString(Qt::ISODate);}
+    QDate getStartTime();/*{return QDate::fromString(accInfos.startDate,Qt::ISODate);}*/
+    //void setStartTime(QDate date);/*{accInfos.startDate = date.toString(Qt::ISODate);}*/
+    QDate getEndTime();/*{return QDate::fromString(accInfos.endDate,Qt::ISODate);}*/
+    void setEndTime(QDate date);/*{accInfos.endDate = date.toString(Qt::ISODate);}*/
 
     //日志相关
     QString getAllLogs();
@@ -140,6 +140,7 @@ public:
 
     int getBaseYear();
     int getBaseMonth();
+    void getVersion(int &mv,int &sv);
 
     PzSetMgr* getPzSet(){return pzSetMgr;}
     void colsePzSet();

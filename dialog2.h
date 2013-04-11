@@ -86,7 +86,7 @@ public:
 //    } stateInfo2;
 
 
-    explicit ViewExtraDialog(int y = 2011, int m = 5, QByteArray* sinfo = NULL, QWidget *parent = 0);
+    explicit ViewExtraDialog(Account* account, int y = 2011, int m = 5, QByteArray* sinfo = NULL, QWidget *parent = 0);
     ~ViewExtraDialog();
     void setDate(int y, int m);
     void setState(QByteArray* info);
@@ -124,18 +124,13 @@ private slots:
 
 private:
     void viewRates();
-    void calSumByMt(QHash<int,Double> exasR, QHash<int,int>exaDirsR,
-                    QHash<int,Double>& sumsR, QHash<int,int>& dirsR,
+    void calSumByMt(QHash<int,Double> exasR, QHash<int, MoneyDirection> exaDirsR,
+                    QHash<int,Double>& sumsR, QHash<int, MoneyDirection> &dirsR,
                     int witch = 1);
     void viewTable();
     void genHeaderDatas();
     void genDatas();
     void initHashs();
-    void genSheetHeader(BasicExcel* xls, int sn = 0);
-    void genSheetDatas(BasicExcel* xls, int sn = 0);
-    void addToEndExtra(int key,double v,int curDir,
-                       QHash<int,double> preExa,QHash<int,int>preExaDir,
-                       QHash<int,double> endExa,QHash<int,int>endExaDir);
     void printCommon(PrintTask task, QPrinter* printer);
 
 
@@ -150,37 +145,33 @@ private:
     QStandardItemModel* headerModel;    //表头数据模型
     QStandardItemModel* dataModel; //表格内容数据模型
 
-    //------------------------------------
-    //QList<qint16> colPrtWidths;     //打印模板中的表格列宽度值
-    //QPrinter::Orientation pageOrientation;  //打印模板的页面方向
-    //PageMargin margins;  //页面边距
 
-    //---------------------------------------
-
-    QHash<int,QString> idToCode, sidToCode; //一二级科目id到科目代码的映射
-    QHash<int,QString> idToName, sidToName; //一二级科目id到科目名称的映射
+    QHash<int,FirstSubject*> allFSubs;
+    QHash<int,SecondSubject*> allSSubs;
     QHash<int,Double> sRates,eRates; //期初、期末汇率表
-    QHash<int,QString> allMts;      //所有币种代码到币种名称的映射
+    QHash<int,Money*> allMts;      //所有币种代码到币种名称的映射
+    QList<int> mts; //外币代码列表（用于保持外币金额显示的一致顺序）取代上面4个列表
 
     //数据表（键为科目id * 10 + 币种代码）
     QHash<int,Double> preExa, preDetExa;                    //期初余额（以原币计）
     QHash<int,Double> preExaR, preDetExaR;                  //期初余额（以本币计）
-    QHash<int,int>    preExaDir,preDetExaDir;               //期初余额方向（以原币计）
-    QHash<int,int>    preExaDirR,preDetExaDirR;             //期初余额方向（以本币计）
+    QHash<int,MoneyDirection>    preExaDir,preDetExaDir;               //期初余额方向（以原币计）
+    QHash<int,MoneyDirection>    preExaDirR,preDetExaDirR;             //期初余额方向（以本币计）
     QHash<int,Double> curJHpn, curJDHpn, curDHpn, curDDHpn; //当期借贷发生额（以原币计）
     QHash<int,Double> curJHpnR, curJDHpnR, curDHpnR, curDDHpnR; //当期借贷发生额（以本币计）
     QHash<int,Double> endExa, endDetExa;                    //期末余额（以原币计）
     QHash<int,Double> endExaR, endDetExaR;                  //期末余额（以本币计）
-    QHash<int,int>    endExaDir,endDetExaDir;               //期末余额方向（以原币计）
-    QHash<int,int>    endExaDirR,endDetExaDirR;             //期末余额方向（以本币计）
+    QHash<int,MoneyDirection>    endExaDir,endDetExaDir;               //期末余额方向（以原币计）
+    QHash<int,MoneyDirection>    endExaDirR,endDetExaDirR;             //期末余额方向（以本币计）
 
-    //QList<int> /*mts,mts,mts*//*,mts*/; //分别是期初栏、当期借、贷方发生额栏、期末余额栏的外币代码列表
-    QList<int> mts; //外币代码列表（用于保持外币金额显示的一致顺序）取代上面4个列表
     QMenu* mnuPrint; //附加在打印按钮上的菜单
 
     SubjectComplete *fcom, *scom;  //一二级科目选择框使用的完成器
-    int fid,sid; //当前选择的一二级科目id
+    FirstSubject* fsub;     //当前选择的一二级科目对象
+    SecondSubject* ssub;
     bool isCanSave; //是否可以保存余额（基于当前的凭证集状态）
+
+    Account* account;
     DbUtil* dbUtil;
     SubjectManager* smg;
 };

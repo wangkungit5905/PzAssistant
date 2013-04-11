@@ -21,12 +21,16 @@ const QString fld_accs_subSys    = "subSys";       //帐套所用的科目系统
 const QString fld_accs_isCur     = "isCurrent";    //是否是当前帐套（integer）
 const QString fld_accs_recentMonth = "recentMonth";//最近打开月份
 const QString fld_accs_name      = "name";         //帐套名（text）
+const QString fld_accs_startMonth= "startMonth";   //帐套开始月份
+const QString fld_accs_endMonth  = "endMonth";     //帐套结束月份
 //字段索引
 const int ACCS_YEAR         = 1;
 const int ACCS_SUBSYS       = 2;
 const int ACCS_ISCUR        = 3;
 const int ACCS_RECENTMONTH  = 4;
 const int ACCS_NAME         = 5;
+const int ACCS_STARTMONTH   = 6;
+const int ACCS_ENDMONTH     = 7;
 
 
 

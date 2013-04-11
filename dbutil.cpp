@@ -9,6 +9,8 @@
 #include "subject.h"
 #include "pz.h"
 #include "PzSet.h"
+#include "utils.h"
+//#include "account.h"
 
 DbUtil::DbUtil()
 {
@@ -53,6 +55,32 @@ bool DbUtil::setFilename(QString fname)
         qDebug()<<db.lastError();
         return false;
     }
+    return init();
+}
+
+bool DbUtil::init()
+{
+    //QSqlQuery q(db);
+
+    //初始化余额指针索引表 （基于这样一个事实，通常不会读取多个年、月份的余额值，因此既然是缓存表，则有使用需求的才被缓存）
+//    QString s = QString("select * from %1").arg(tbl_nse_point);
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    int id,y,m,mt,key;
+//    while(q.next()){
+//        id = q.value(0).toInt();
+//        y = q.value(NSE_POINT_YEAR).toInt();
+//        m = q.value(NSE_POINT_MONTH).toInt();
+//        mt = q.value(NSE_POINT_MT).toInt();
+//    }
+//    key = _genKeyForExtraPoint(y,m,mt);
+//    if(key == 0){
+//        LOG_ERROR("extra point value have error!");
+//        return false;
+//    }
+//    extraPoints[key] = id;
     return true;
 }
 
@@ -127,26 +155,29 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
         case LNAME:
             infos.lname = q.value(1).toString();
             break;
-        case MASTERMT:
+        //case MASTERMT:
             //infos->accInfos.masterMt = infos->moneys.value(q.value(1).toInt());
-            break;
-        case WAIMT:
+        //    break;
+        //case WAIMT:
             //sl.clear();
             //sl = q.value(1).toString().split(",");
             //foreach(QString v, sl)
             //    infos->accInfos.waiMts<<infos->moneys.value(v.toInt());
-            break;
-        case STIME:
-            infos.startDate = q.value(1).toString();
-            break;
-        case ETIME:
-            infos.endDate = q.value(1).toString();
-            break;
+            //break;
+        //case STIME:
+            //infos.startDate = q.value(1).toString();
+            //break;
+        //case ETIME:
+            //infos.endDate = q.value(1).toString();
+            //break;
         case LOGFILE:
             infos.logFileName = q.value(1).toString();
             break;
         case DBVERSION:
             infos.dbVersion = q.value(1).toString();
+            sl = infos.dbVersion.split(".");
+            mv = sl.first().toInt();
+            sv = sl.last().toInt();
             break;
         }
     }
@@ -157,34 +188,39 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
         infos.logFileName = fileName;
         infos.logFileName = infos.logFileName.replace(".dat",".log");
     }
-    if(infos.endDate.isEmpty()){
-        QDate d = QDate::currentDate();
-        int y = d.year();
-        int m = d.month();
-        int sd = 1;
-        int ed = d.daysInMonth();
-        infos.startDate = QDate(y,m,sd).toString(Qt::ISODate);
-        infos.endDate = QDate(y,m,ed).toString(Qt::ISODate);
-    }
-    if(infos.endDate.isEmpty()){
-        QDate d = QDate::fromString(infos.startDate,Qt::ISODate);
-        int days = d.daysInMonth();
-        d.setDate(d.year(),d.month(),days);
-        infos.endDate = d.toString(Qt::ISODate);
-    }
+//    if(infos.endDate.isEmpty()){
+//        QDate d = QDate::currentDate();
+//        int y = d.year();
+//        int m = d.month();
+//        int sd = 1;
+//        int ed = d.daysInMonth();
+//        //infos.startDate = QDate(y,m,sd).toString(Qt::ISODate);
+//        //infos.endDate = QDate(y,m,ed).toString(Qt::ISODate);
+//    }
+//    if(infos.endDate.isEmpty()){
+//        QDate d = QDate::fromString(infos.startDate,Qt::ISODate);
+//        int days = d.daysInMonth();
+//        d.setDate(d.year(),d.month(),days);
+//        infos.endDate = d.toString(Qt::ISODate);
+//    }
 
     //读取账户的帐套信息
     if(!readAccountSuites(infos.suites))
         return false;
     //完善帐套的起止月份
-    infos.suites.first()->startMonth = QDate::fromString(infos.startDate).month();
-    infos.suites.last()->endMonth = QDate::fromString(infos.endDate).month();
-    if(infos.suites.count() > 2){   //中间年份的起止月份都是1-12月
-        for(int i = 1; i < infos.suites.count()-1; ++i){
-            infos.suites.at(i)->startMonth = 1;
-            infos.suites.at(i)->endMonth = 12;
-        }
-    }
+//    Account::AccountSuiteRecord* asr;
+//    asr = infos.suites.first();
+//    asr->startMonth = QDate::fromString(infos.startDate,Qt::ISODate).month();
+//    asr->endMonth = 12;
+//    asr = infos.suites.last();
+//    asr->startMonth = 1;
+//    asr->endMonth = QDate::fromString(infos.endDate,Qt::ISODate).month();
+//    if(infos.suites.count() > 2){   //中间年份的起止月份都是1-12月
+//        for(int i = 1; i < infos.suites.count()-1; ++i){
+//            infos.suites.at(i)->startMonth = 1;
+//            infos.suites.at(i)->endMonth = 12;
+//        }
+//    }
     return true;
 }
 
@@ -210,10 +246,10 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
     //未实现Money类的操作符重载
     //if(infos.masterMt != oldInfos.masterMt && !saveAccInfoPiece(MASTERMT,QString::number(infos.masterMt)))
     //    return false;
-    if(infos.startDate != oldInfos.startDate && !saveAccInfoPiece(STIME,infos.startDate))
-        return false;
-    if(infos.endDate != oldInfos.endDate && !saveAccInfoPiece(ETIME,infos.endDate))
-        return false;
+    //if(infos.startDate != oldInfos.startDate && !saveAccInfoPiece(STIME,infos.startDate))
+    //    return false;
+    //if(infos.endDate != oldInfos.endDate && !saveAccInfoPiece(ETIME,infos.endDate))
+    //    return false;
     if(infos.lastAccessTime != oldInfos.lastAccessTime && !saveAccInfoPiece(LASTACCESS,infos.lastAccessTime))
         return false;
     if(infos.dbVersion != oldInfos.dbVersion && !saveAccInfoPiece(DBVERSION,infos.dbVersion))
@@ -381,6 +417,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
         int uid = q.value(SSUB_CREATOR).toInt();
         ssub = new SecondSubject(fsub,id,smg->nameItems.value(sid),code,weight,isEnable,crtTime,disTime,allUsers.value(uid));
         smg->sndSubs[id] = ssub;
+        fsub->addChildSub(ssub);
         if(ssub->getWeight() == DEFALUTSUBFS)
             fsub->setDefaultSubject(ssub);
     }
@@ -603,6 +640,8 @@ bool DbUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &veri
 bool DbUtil::readExtraForPm(int y, int m, QHash<int, Double> &fsums, QHash<int, MoneyDirection> &fdirs,
                             QHash<int, Double> &ssums, QHash<int, MoneyDirection> &sdirs)
 {
+    if(!isNewExtraAccess())
+        BusiUtil::readExtraByMonth2(y,m,fsums,fdirs,ssums,sdirs);
     if(!_readExtraForPm(y,m,fsums,fdirs))
         return false;
     if(!_readExtraForPm(y,m,ssums,sdirs,false))
@@ -628,10 +667,37 @@ bool DbUtil::readExtraForPm(int y, int m, QHash<int, Double> &fsums, QHash<int, 
  */
 bool DbUtil::readExtraForMm(int y, int m, QHash<int, Double> &fsums, QHash<int, Double> &ssums)
 {
+    if(isNewExtraAccess()){
+        QHash<int,MoneyDirection> fdirs,sdirs;
+        //读取以本币计的余额（先从SubjectExtras和detailExtras表读取科目的原币余额值，将其中的外币乘以汇率转换为本币）
+        if(!BusiUtil::readExtraByMonth3(y,m,fsums,fdirs,ssums,sdirs))
+            return false;
+        //从SubjectMmtExtras和detailMmtExtras表读取本币形式的余额，仅包含外币部分）
+        bool exist;
+        QHash<int,Double> fsumRs,ssumRs;
+        if(!BusiUtil::readExtraByMonth4(y,m,fsumRs,ssumRs,exist))
+            return false;
+        //用精确值代替直接从原币币转换来的外币值
+        if(exist){
+            QHashIterator<int,Double>* it = new QHashIterator<int,Double>(fsumRs);
+            while(it->hasNext()){
+                it->next();
+                fsums[it->key()] = it->value();
+            }
+            it = new QHashIterator<int,Double>(ssumRs);
+            while(it->hasNext()){
+                it->next();
+                ssums[it->key()] = it->value();
+            }
+        }
+        return true;
+    }
+
     if(!_readExtraForMm(y,m,fsums))
         return false;
     if(!_readExtraForMm(y,m,ssums,false))
         return false;
+    //_replaeAccurateExtra();
     return true;
 }
 
@@ -648,6 +714,9 @@ bool DbUtil::readExtraForMm(int y, int m, QHash<int, Double> &fsums, QHash<int, 
  */
 bool DbUtil::saveExtraForPm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, MoneyDirection> &fdirs, const QHash<int, Double> &ssums, const QHash<int, MoneyDirection> &sdirs)
 {
+    if(isNewExtraAccess())
+        return BusiUtil::savePeriodBeginValues2(y,m,fsums,fdirs,ssums,sdirs,false);
+
     if(!_saveExtrasForPm(y,m,fsums,fdirs))
         return false;
     if(!_saveExtrasForPm(y,m,ssums,sdirs,false))
@@ -666,6 +735,9 @@ bool DbUtil::saveExtraForPm(int y, int m, const QHash<int, Double> &fsums, const
  */
 bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, Double> &ssums)
 {
+    if(!isNewExtraAccess())
+        return BusiUtil::savePeriodEndValues(y,m,fsums,ssums);
+
     if(!_saveExtrasForMm(y,m,fsums))
         return false;
     if(!_saveExtrasForMm(y,m,ssums,false))
@@ -708,6 +780,8 @@ bool DbUtil::getFS_Id_name(QList<int> &ids, QList<QString> &names, int subSys)
  */
 bool DbUtil::getPzsState(int y, int m, PzsState &state)
 {
+    if(!isNewExtraAccess())
+        return BusiUtil::getPzsState(y,m,state);
     QSqlQuery q(db);
     if(y==0 && m==0){
         state = Ps_NoOpen;
@@ -737,6 +811,9 @@ bool DbUtil::getPzsState(int y, int m, PzsState &state)
  */
 bool DbUtil::setPzsState(int y, int m, PzsState state)
 {
+    if(!isNewExtraAccess())
+        return BusiUtil::setPzsState(y,m,state);
+
     QSqlQuery q(db);
     //首先检测是否存在对应记录
     QString s = QString("select %1 from %2 where (%3=%4) and (%5=%6)")
@@ -771,6 +848,9 @@ bool DbUtil::setPzsState(int y, int m, PzsState state)
  */
 bool DbUtil::setExtraState(int y, int m, bool isVolid)
 {
+    if(!isNewExtraAccess())
+        return BusiUtil::setExtraState(y,m,isVolid);
+
     //余额的有效性状态只记录在“余额指针表”中保存本币余额的那条记录里
     QSqlQuery q(db);
     QString s = QString("update %1 set %2=%3 where %4=%5 and %6=%7 and %8=%9")
@@ -802,6 +882,9 @@ bool DbUtil::setExtraState(int y, int m, bool isVolid)
  */
 bool DbUtil::getExtraState(int y, int m)
 {
+    if(!isNewExtraAccess())
+        return BusiUtil::getExtraState(y,m);
+
     QSqlQuery q(db);
     QString s = QString("select %1 from %2 where %3=%4 and %5=%6 and %7=%8")
             .arg(fld_nse_state).arg(tbl_nse_point).arg(fld_nse_year)
@@ -1646,9 +1729,11 @@ bool DbUtil::readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
         as->id = q.value(0).toInt();
         as->year = q.value(ACCS_YEAR).toInt();
         as->subSys = q.value(ACCS_SUBSYS).toInt();
-        as->lastMonth = q.value(ACCS_RECENTMONTH).toInt();
+        as->recentMonth = q.value(ACCS_RECENTMONTH).toInt();
         as->isCur = q.value(ACCS_ISCUR).toBool();
         as->name = q.value(ACCS_NAME).toString();
+        as->startMonth = q.value(ACCS_STARTMONTH).toInt();
+        as->endMonth = q.value(ACCS_ENDMONTH).toInt();
         suites<<as;
     }
     return true;
@@ -1660,7 +1745,7 @@ bool DbUtil::readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
  * @param suites
  * @return
  */
-bool DbUtil::saveAccountSuites(QList<Account::AccountSuiteRecord *> suites)
+bool DbUtil::saveAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
 {
     QString s;
     QSqlQuery q(db);
@@ -1679,13 +1764,13 @@ bool DbUtil::saveAccountSuites(QList<Account::AccountSuiteRecord *> suites)
             s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,'%9',%10,%11)")
                     .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
                     .arg(fld_accs_name).arg(fld_accs_recentMonth).arg(fld_accs_isCur)
-                    .arg(as->year).arg(as->subSys).arg(as->name).arg(as->lastMonth)
+                    .arg(as->year).arg(as->subSys).arg(as->name).arg(as->recentMonth)
                     .arg(as->isCur?1:0);
         else if(*as != *(oldHash.value(as->id)))
             s = QString("update %1 set %2=%3,%4=%5,%6='%7',%8=%9,%10=%11 where id=%12")
                     .arg(tbl_accSuites).arg(fld_accs_year).arg(as->year)
                     .arg(fld_accs_subSys).arg(as->subSys).arg(fld_accs_name)
-                    .arg(as->name).arg(fld_accs_recentMonth).arg(as->lastMonth)
+                    .arg(as->name).arg(fld_accs_recentMonth).arg(as->recentMonth)
                     .arg(fld_accs_isCur).arg(as->isCur?1:0).arg(as->id);
 
         if(!s.isEmpty()){
@@ -1712,8 +1797,37 @@ bool DbUtil::saveAccountSuites(QList<Account::AccountSuiteRecord *> suites)
 bool DbUtil::_readExtraPoint(int y, int m, QHash<int, int>& mtHashs)
 {
     QSqlQuery q(db);
+    QString s;
+
+    //首先查找余额指针缓存表内是否存在，如果存在，则直接从缓存表中读取，否则从数据库的指针表中读取
+    //因为传入的参数“mtHashs”是一个空表，不能对他迭代，但又不知道数据库中到底保存了哪些币种
+    //对应的余额，所有由于还缺少一个币种的获取机制，且暂缓实施这一缓存机制
+//    QHashIterator<int,int> it(mtHashs);
+//    int key,id;
+//    while(it.hasNext()){
+//        it.next();
+//        key = _genKeyForExtraPoint(y,m,it.key());
+//        if(key == 0)
+//            return false;
+//        if(!extraPoints.contains(key)){
+//            s = QString("select id from %1 where %2=%3 and %4=%5 and %6=%7")
+//                    .arg(tbl_nse_point).arg(fld_nse_year).arg(y)
+//                    .arg(fld_nse_month).arg(m).arg(fld_nse_mt).arg(it.key());
+//            if(!q.exec(s))
+//                return false;
+//            if(!q.first()){
+//                continue;
+//            }
+//            id = q.value(0).toInt();
+//            mtHashs[it.key()] = id;
+//            extraPoints[key] = id;
+//        }
+//        else
+//            mtHashs[it.key()] = extraPoints.value(key);
+//    }
+
     //1、首先取得保存指定年月余额值的指针id
-    QString s = QString("select id,%1 from %2 where %3=%4 and %5=%6")
+    s = QString("select id,%1 from %2 where %3=%4 and %5=%6")
             .arg(fld_nse_mt).arg(tbl_nse_point)
             .arg(fld_nse_year).arg(y).arg(fld_nse_month).arg(m);
     if(!q.exec(s))
@@ -1819,6 +1933,25 @@ bool DbUtil::_readExtraForMm(int y, int m, QHash<int, Double> &sums, bool isFst)
         }
     }
     return true;
+}
+
+/**
+ * @brief DbUtil::_replaeAccurateExtra
+ *  用精确值替换直接从原币转换为本币的值
+ *  此函数用于那些需要按币种进行分别核算的科目，这些科目的外币余额往往有原币和本币形式，
+ *  但它们之间不是精确地符合当前的汇率比率（即不能简单地用原币余额值乘以汇率得到本币余额值）
+ *  而是要用从本币余额表中读取值来替换转换而来的值
+ * @param sums      本币余额值表
+ * @param asums     替换后的余额值表
+ */
+void DbUtil::_replaeAccurateExtra(QHash<int, Double> &sums, QHash<int, Double> &asums)
+{
+
+    QHashIterator<int,Double> it(asums);
+    while(it.hasNext()){
+        it.next();
+        sums[it.key()] = it.value();
+    }
 }
 
 /**
@@ -2037,6 +2170,24 @@ bool DbUtil::_saveExtrasForMm(int y, int m, const QHash<int, Double> &sums, bool
         return false;
     }
     return true;
+}
+
+/**
+ * @brief DbUtil::_genKeyForExtraPoint
+ *  生成由年份、月份和币种构成的复合键，用来索引余额指针表
+ * @param y
+ * @param m
+ * @param mt
+ * @return
+ */
+int DbUtil::_genKeyForExtraPoint(int y, int m, int mt)
+{
+    if(m < 1 || m > 12 || mt < 1 || mt > 9)
+        return 0;
+    if(m < 10)
+        return y*1000+m*100+mt;
+    else if(m > 9 && m <= 12)
+        return y*1000+m*10+mt;
 }
 
 void DbUtil::crtGdzcTable()

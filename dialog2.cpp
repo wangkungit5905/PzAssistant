@@ -143,20 +143,17 @@ QString BASummaryForm::getData()
     return s;
 }
 
-/////////////////////汇率设定对话框//////////////////////////////////////////
-
 //////////////////显示科目余额（本期统计）对话框（新）///////////////////////////////////////////
-ViewExtraDialog::ViewExtraDialog(int y, int m, QByteArray* sinfo, QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::ViewExtraDialog)
+ViewExtraDialog::ViewExtraDialog(Account* account, int y, int m, QByteArray* sinfo, QWidget *parent) :
+    QDialog(parent),ui(new Ui::ViewExtraDialog),y(y),m(m),account(account)
 {
     ui->setupUi(this);
 
     headerModel = NULL;
     dataModel = NULL;
     imodel = NULL;
-    dbUtil = curAccount->getDbUtil();
-    smg = curAccount->getSubjectManager();
+    dbUtil = account->getDbUtil();
+    smg = account->getSubjectManager();
 
     //初始化自定义的层次式表头
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
@@ -166,9 +163,9 @@ ViewExtraDialog::ViewExtraDialog(int y, int m, QByteArray* sinfo, QWidget *paren
     ui->tview->setHorizontalHeader(hv);
 
     //初始化货币代码列表，并使它们以一致的顺序显示
-    mts = allMts.keys();
-    qSort(mts.begin(),mts.end()); //为了使人民币总是第一个
-    mts.removeOne(RMB);
+    mts = account->getAllMoneys().keys();
+    mts.removeOne(account->getMasterMt()->code());
+    qSort(mts.begin(),mts.end()); //为了使人民币总是第一个    
 
     //添加按钮菜单
     mnuPrint = new QMenu;
@@ -179,25 +176,24 @@ ViewExtraDialog::ViewExtraDialog(int y, int m, QByteArray* sinfo, QWidget *paren
     ui->btnPrt->setMenu(mnuPrint);
 
     //初始化一级科目组合框
-    QSqlQuery q;
-    q.exec(QString("select id,%1 from %2 where %3=1")
-           .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview));
     ui->cmbFstSub->addItem(tr("所有"),0);
-    while(q.next())
-        ui->cmbFstSub->addItem(q.value(1).toString(),q.value(0).toInt());
+    FSubItrator* fsubIt = smg->getFstSubItrator();
+    QVariant v;
+    while(fsubIt->hasNext()){
+        fsubIt->next();
+        v.setValue<FirstSubject*>(fsubIt->value());
+        ui->cmbFstSub->addItem(fsubIt->value()->getName(),v);
+    }
     ui->cmbSndSub->addItem(tr("所有"),0);
-    fid = 0;sid = 0;
+    fsub = NULL; ssub = NULL;
     fcom = new SubjectComplete;
     scom = new SubjectComplete(SndSubject);
     ui->cmbFstSub->setCompleter(fcom);
     ui->cmbSndSub->setCompleter(scom);
 
-    this->y = y;
-    this->m = m;
     ui->lbly->setText(QString::number(y));
     ui->lblm->setText(QString::number(m));
 
-    //initHashs();
     setState(sinfo);
     setDate(y,m);
 
@@ -349,55 +345,16 @@ void ViewExtraDialog::setState(QByteArray* info)
     }
 
     //恢复表格格式选择和是否显示明细科目的选择
-    if(stateInfo.tFormat == COMMON){
+    if(stateInfo.tFormat == COMMON)
         ui->rdoJe->setChecked(true);
-        //for(int i = 0; i < stateInfo.colWidths[COMMON].count(); ++i)
-        //    ui->tview->setColumnWidth(i,stateInfo.colWidths[COMMON][i]);
-    }
-    else{
+    else
         ui->rdoJe->setChecked(false);
-        //for(int i = 0; i < stateInfo.colWidths[THREERAIL].count(); ++i)
-        //    ui->tview->setColumnWidth(i,stateInfo.colWidths[THREERAIL][i]);
-    }
+
     ui->chkIsDet->setChecked(stateInfo.viewDetails);
     ui->cmbSndSub->setEnabled(stateInfo.viewDetails);
 
     connect(ui->rdoJe,SIGNAL(toggled(bool)),this,SLOT(onTableFormatChanged(bool)));
     connect(ui->chkIsDet,SIGNAL(toggled(bool)),this,SLOT(onDetViewChanged(bool)));
-
-
-
-
-
-
-//    if(!isInit){
-//        if(ui->rdoJe->isChecked())
-//            stateInfo.tFormat = COMMON;
-//        else
-//            stateInfo.tFormat = THREERAIL;
-//        stateInfo.viewDetails = ui->chkIsDet->isChecked();
-//        for(int i = 0; i < ui->tview->colorCount(); ++i)
-//            stateInfo.colWidths[stateInfo.tFormat].append(ui->tview->columnWidth(i));
-//    }
-//    else{
-//        disconnect(ui->rdoJe,SIGNAL(toggled(bool)),this,SLOT(onTableFormatChanged(bool)));
-//        disconnect(ui->chkIsDet,SIGNAL(toggled(bool)),this,SLOT(onDetViewChanged(bool)));
-//        //stateInfo = info->value<ViewExtraDialog::StateInfo>();
-//        ui->chkIsDet->setChecked(stateInfo.viewDetails);
-//        if(stateInfo.tFormat == COMMON)
-//            ui->rdoJe->setChecked(true);
-//        else
-//            ui->rdoJe->setChecked(false);
-
-//        //初始化表stateInfo.colWidths
-//        //两种类型的表格宽度都要进行初始化（先初始化列表变量，再设置实际的表格宽度）
-//        //for(int i = 0; i < ui->tview->model()->columnCount(); ++i)
-//        //    ui->tview->setColumnWidth(stateInfo.colWidths.value(stateInfo.tFormat)[i],i);
-
-//        connect(ui->rdoJe,SIGNAL(toggled(bool)),this,SLOT(onTableFormatChanged(bool)));
-//        connect(ui->chkIsDet,SIGNAL(toggled(bool)),this,SLOT(onDetViewChanged(bool)));
-//    }
-//    viewTable();
 }
 
 //保存表格状态
@@ -417,7 +374,6 @@ QByteArray* ViewExtraDialog::getState()
 
     i8 = stateInfo.tFormat;
     out<<i8;
-    //stateInfo.viewDetails = ui->chkIsDet->isChecked();
     out<<stateInfo.viewDetails;
     i8 = 8;
     out<<i8;   //通用格式为8列
@@ -449,444 +405,22 @@ QByteArray* ViewExtraDialog::getState()
     return info;
 }
 
-//bool ViewExtraDialog::close()
-//{
-//    int i = 0;
-//    return QDialog::close();
-//}
-
 //当表格的列宽改变时
 void ViewExtraDialog::colWidthChanged(int logicalIndex, int oldSize, int newSize)
 {
     stateInfo.colWidths[stateInfo.tFormat][logicalIndex] = newSize;
-    int i = 0;
 }
 
-
-//重新显示表格数据（要根据用户选择的显示模式和表格模式来重新生成数据并显示）
-//void ViewExtraDialog::viewAgain()
-//{
-
-//}
-
-//生产表头，参数sn：表格在Workbook中的序号
-void ViewExtraDialog::genSheetHeader(BasicExcel* xls, int sn)
-{
-//#ifdef Q_OS_LINUX
-//    BasicExcelWorksheet* sheet = xls->GetWorksheet(sn);
-//    XLSFormatManager fmt_mgr(*xls);
-//    ExcelFont font_bold;
-//    font_bold._weight = FW_BOLD; // 700
-
-//    CellFormat fmt_bold(fmt_mgr);
-//    fmt_bold.set_font(font_bold);
-
-//    BasicExcelCell* cell;
-//    //金额式
-//    if(ui->rdoJe->isChecked()){
-//        //科目编码
-//        cell = sheet->Cell(0, 0);
-//        //这些代码可行，我已经将这些代码移植到BasicExcelCell类的新方法中
-//        //int n = tr("科目编码").count()+1;
-//        //wchar_t v[n];
-//        //tr("科目编码").toWCharArray(v);
-//        //v[n-1] =0;
-//        //cell->Set(v);
-
-//        cell->Set(tr("科目编码"));
-//        //这个代码在linux下要崩溃，不知何故
-//        //const wchar_t *v = reinterpret_cast<const wchar_t *>(tr("科目编码").utf16());
-//        //cell->Set(v);
-
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 1);
-//        cell->Set(tr("科目名称"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 2);
-//        cell->Set(tr("方向"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 3);
-//        cell->Set(tr("期初金额"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 4);
-//        cell->Set(tr("本期借方发生"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 5);
-//        cell->Set(tr("本期贷方发生"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 6);
-//        cell->Set(tr("方向"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 7);
-//        cell->Set(tr("期末金额"));
-//        cell->SetFormat(fmt_bold);
-//    }
-//    else{//外币金额式
-//        int cidx ; //列索引
-//        cell = sheet->Cell(0, 0);
-//        cell->Set(tr("科目编码"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 1);
-//        cell->Set(tr("科目名称"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 2);
-//        cell->Set(tr("方向"));
-//        cell->SetFormat(fmt_bold);
-//        cell = sheet->Cell(0, 3);
-//        cell->Set(tr("期初金额"));
-//        cell->SetFormat(fmt_bold);
-//        cidx = 3 + mts.count() + 1;
-//        cell = sheet->Cell(0, cidx);
-//        cell->Set(tr("本期借方发生"));
-//        cell->SetFormat(fmt_bold);
-//        cidx += (mts.count() + 1);
-//        cell = sheet->Cell(0, cidx);
-//        cell->Set(tr("本期贷方发生"));
-//        cell->SetFormat(fmt_bold);
-//        cidx += (mts.count() + 1);
-//        cell = sheet->Cell(0, cidx);
-//        cell->Set(tr("方向"));
-//        cell->SetFormat(fmt_bold);
-//        cidx++;
-//        cell = sheet->Cell(0, cidx);
-//        cell->Set(tr("期末金额"));
-//        cell->SetFormat(fmt_bold);
-//        cidx = 3;
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->Cell(1,cidx++);
-//            cell->Set(allMts.value(mts[i]));
-//            cell->SetFormat(fmt_bold);
-//        }
-//        cell = sheet->Cell(1,cidx++);
-//        cell->Set(tr("金额"));
-//        cell->SetFormat(fmt_bold);
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->Cell(1,cidx++);
-//            cell->Set(allMts.value(mts[i]));
-//            cell->SetFormat(fmt_bold);
-//        }
-//        cell = sheet->Cell(1,cidx++);
-//        cell->Set(tr("金额"));
-//        cell->SetFormat(fmt_bold);
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->Cell(1,cidx++);
-//            cell->Set(allMts.value(mts[i]));
-//            cell->SetFormat(fmt_bold);
-//        }
-//        cell = sheet->Cell(1,cidx++);
-//        cell->Set(tr("金额"));
-//        cell->SetFormat(fmt_bold);
-//        cidx++;
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->Cell(1,cidx++);
-//            cell->Set(allMts.value(mts[i]));
-//            cell->SetFormat(fmt_bold);
-//        }
-//        cell = sheet->Cell(1,cidx);
-//        cell->Set(tr("金额"));
-//        cell->SetFormat(fmt_bold);
-
-//        //合并单元格
-//        cidx = 3;
-//        sheet->MergeCells(0,cidx,1,mts.count()+1);
-//        cidx += (mts.count() + 1);
-//        sheet->MergeCells(0,cidx,1,mts.count()+1);
-//        cidx += mts.count()+1;
-//        sheet->MergeCells(0,cidx,1,mts.count()+1);
-//        cidx += mts.count() + 2;
-//        sheet->MergeCells(0,cidx,1,mts.count()+1);
-//    }
-//#endif
-
-//#ifdef Q_OS_WIN
-//    sn++; //sheets.Items集合对象是基于1的。
-//    BasicExcelWorksheet* sheet = xls->GetWorksheet(sn);
-//    BasicExcelCell* cell;
-//    //金额式
-//    if(ui->rdoJe->isChecked()){
-//        cell = sheet->cell(0, 0);
-//        cell->Set(tr("科目编码"));
-//        cell = sheet->cell(0, 1);
-//        cell->Set(tr("科目名称"));
-//        cell = sheet->cell(0, 2);
-//        cell->Set(tr("方向"));
-//        cell = sheet->cell(0, 3);
-//        cell->Set(tr("期初金额"));
-//        cell = sheet->cell(0, 4);
-//        cell->Set(tr("本期借方发生"));
-//        cell = sheet->cell(0, 5);
-//        cell->Set(tr("本期贷方发生"));
-//        cell = sheet->cell(0, 6);
-//        cell->Set(tr("方向"));
-//        cell = sheet->cell(0, 7);
-//        cell->Set(tr("期末金额"));
-//    }
-//    else{//外币金额式
-//        int cidx ; //列索引
-//        cell = sheet->cell(0, 0);
-//        cell->Set(tr("科目编码"));
-//        cell = sheet->cell(0, 1);
-//        cell->Set(tr("科目名称"));
-//        cell = sheet->cell(0, 2);
-//        cell->Set(tr("方向"));
-//        cell = sheet->cell(0, 3);
-//        cell->Set(tr("期初金额"));
-//        cidx = 3 + mts.count() + 1;
-//        cell = sheet->cell(0, cidx);
-//        cell->Set(tr("本期借方发生"));
-//        cidx += (mts.count() + 1);
-//        cell = sheet->cell(0, cidx);
-//        cell->Set(tr("本期贷方发生"));
-//        cidx += (mts.count() + 1);
-//        cell = sheet->cell(0, cidx);
-//        cell->Set(tr("方向"));
-//        cidx++;
-//        cell = sheet->cell(0, cidx);
-//        cell->Set(tr("期末金额"));
-//        cidx = 3;
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->cell(1,cidx++);
-//            cell->Set(mts.value(mts[i]));
-//        }
-//        cell = sheet->cell(1,cidx++);
-//        cell->Set(tr("金额"));
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->cell(1,cidx++);
-//            cell->Set(mts.value(mts[i]));
-//        }
-//        cell = sheet->cell(1,cidx++);
-//        cell->Set(tr("金额"));
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->cell(1,cidx++);
-//            cell->Set(mts.value(mts[i]));
-//        }
-//        cell = sheet->cell(1,cidx++);
-//        cell->Set(tr("金额"));
-//        cidx++;
-//        for(int i = 0; i < mts.count(); ++i){
-//            cell = sheet->cell(1,cidx++);
-//            cell->Set(mts.value(mts[i]));
-//        }
-//        cell = sheet->cell(1,cidx);
-//        cell->Set(tr("金额"));
-
-//        //合并单元格
-//        cidx = 3;
-//        sheet->mergeCells(0,0,2,1);
-//        sheet->mergeCells(0,1,2,1);
-//        sheet->mergeCells(0,2,2,1);
-//        sheet->mergeCells(0,cidx,1,mts.count()+1);
-//        cidx += (mts.count() + 1);
-//        sheet->mergeCells(0,cidx,1,mts.count()+1);
-//        cidx += mts.count()+1;
-//        sheet->mergeCells(0,cidx,1,mts.count()+1);
-//        cidx += mts.count() + 2;
-//        sheet->mergeCells(0,cidx,1,mts.count()+1);
-//    }
-//#endif
-}
-
-void ViewExtraDialog::genSheetDatas(BasicExcel* xls, int sn)
-{
-//#ifdef Q_OS_LINUX
-//    BasicExcelWorksheet* sheet = xls->GetWorksheet(sn);
-//    //XLSFormatManager fmt_mgr(*xls);
-//    BasicExcelCell* cell;
-
-//    //直接从模型中读取数据到excel文件
-//    double v;
-//    QString code,name,preDir,endDir;
-//    //金额式
-//    if(ui->rdoJe->isChecked()){
-//        for(int i = 1; i < model->rowCount(); ++i){
-//            code = model->data(model->index(i,0)).toString();
-//            sheet->Cell(i, 0)->Set(code);
-//            name = model->data(model->index(i,1)).toString();
-//            sheet->Cell(i, 1)->Set(name);
-//            preDir = model->data(model->index(i, 2)).toString();
-//            sheet->Cell(i,2)->Set(preDir);
-//            v = model->data(model->index(i,3)).toDouble();
-//            sheet->Cell(i,3)->Set(v);
-//            //sheet->Cell(i,3)->Set(QString::number(v,'f',2));
-//            v = model->data(model->index(i,4)).toDouble();
-//            sheet->Cell(i,4)->Set(v);
-//            v = model->data(model->index(i,5)).toDouble();
-//            sheet->Cell(i,5)->Set(v);
-//            endDir = model->data(model->index(i,6)).toString();
-//            sheet->Cell(i,6)->Set(endDir);
-//            v = model->data(model->index(i,7)).toDouble();
-//            sheet->Cell(i,7)->Set(v);
-//        }
-//    }
-//    else{ //外币金额式
-//        for(int i = 2; i < model->rowCount(); ++i){
-//            code = model->data(model->index(i,0)).toString();
-//            sheet->Cell(i, 0)->Set(code);
-//            name = model->data(model->index(i,1)).toString();
-//            sheet->Cell(i, 1)->Set(name);
-//            preDir = model->data(model->index(i, 2)).toString();
-//            sheet->Cell(i,2)->Set(preDir);
-//            int c = 3; //列索引
-//            //期初部分
-//            for(int j = 0; j <= preMt.count(); ++j){
-//                v = model->data(model->index(i,c)).toDouble();
-//                sheet->Cell(i,c++)->Set(v);
-//            }
-//            //本期部分
-//            for(int j = 0; j <= curJMt.count(); ++j){
-//                v = model->data(model->index(i,c)).toDouble();
-//                sheet->Cell(i,c++)->Set(v);
-//            }
-//            for(int j = 0; j <= curDMt.count(); ++j){
-//                v = model->data(model->index(i,c)).toDouble();
-//                sheet->Cell(i,c++)->Set(v);
-//            }
-//            preDir = model->data(model->index(i, c)).toString();
-//            sheet->Cell(i,c++)->Set(preDir);
-//            for(int j = 0; j <= endMt.count(); ++j){
-//                v = model->data(model->index(i,c)).toDouble();
-//                sheet->Cell(i,c++)->Set(v);
-//            }
-//        }
-//    }
-//#endif
-
-//#ifdef Q_OS_WIN
-//    sn++;
-//    BasicExcelWorksheet* sheet = xls->GetWorksheet(sn);
-//    //XLSFormatManager fmt_mgr(*xls);
-//    BasicExcelCell* cell;
-
-//    //直接从模型中读取数据到excel文件
-//    double v;
-//    QString code,name,preDir,endDir;
-//    //金额式
-//    if(ui->rdoJe->isChecked()){
-//        for(int i = 1; i < dataModel->rowCount(); ++i){
-//            code = dataModel->data(dataModel->index(i,0)).toString();
-//            sheet->cell(i, 0)->Set(code);
-//            name = dataModel->data(dataModel->index(i,1)).toString();
-//            sheet->cell(i, 1)->Set(name);
-//            preDir = dataModel->data(dataModel->index(i, 2)).toString();
-//            sheet->cell(i,2)->Set(preDir);
-//            v = dataModel->data(dataModel->index(i,3)).toDouble();
-//            if(v != 0)
-//                sheet->cell(i,3)->Set(v);
-//            //sheet->cell(i,3)->Set(QString::number(v,'f',2));
-//            v = dataModel->data(dataModel->index(i,4)).toDouble();
-//            if(v != 0)
-//                sheet->cell(i,4)->Set(v);
-//            v = dataModel->data(dataModel->index(i,5)).toDouble();
-//            if(v != 0)
-//                sheet->cell(i,5)->Set(v);
-//            endDir = dataModel->data(dataModel->index(i,6)).toString();
-//            sheet->cell(i,6)->Set(endDir);
-//            v = dataModel->data(dataModel->index(i,7)).toDouble();
-//            if(v != 0)
-//                sheet->cell(i,7)->Set(v);
-//        }
-//    }
-//    else{ //外币金额式
-//        for(int i = 2; i < dataModel->rowCount(); ++i){
-//            code = dataModel->data(dataModel->index(i,0)).toString();
-//            sheet->cell(i, 0)->Set(code);
-//            name = dataModel->data(dataModel->index(i,1)).toString();
-//            sheet->cell(i, 1)->Set(name);
-//            preDir = dataModel->data(dataModel->index(i, 2)).toString();
-//            sheet->cell(i,2)->Set(preDir);
-//            int c = 3; //列索引
-//            //期初部分
-//            for(int j = 0; j <= mts.count(); ++j){
-//                v = dataModel->data(dataModel->index(i,c)).toDouble();
-//                if(v != 0)
-//                    sheet->cell(i,c++)->Set(v);
-//                else
-//                    c++;
-//            }
-//            //本期部分
-//            for(int j = 0; j <= mts.count(); ++j){
-//                v = dataModel->data(dataModel->index(i,c)).toDouble();
-//                if(v != 0)
-//                    sheet->cell(i,c++)->Set(v);
-//                else
-//                    c++;
-//            }
-//            for(int j = 0; j <= mts.count(); ++j){
-//                v = dataModel->data(dataModel->index(i,c)).toDouble();
-//                if(v != 0)
-//                    sheet->cell(i,c++)->Set(v);
-//                else
-//                    c++;
-//            }
-//            preDir = dataModel->data(dataModel->index(i, c)).toString();
-//            sheet->cell(i,c++)->Set(preDir);
-//            for(int j = 0; j <= mts.count(); ++j){
-//                v = dataModel->data(dataModel->index(i,c)).toDouble();
-//                if(v != 0)
-//                    sheet->cell(i,c++)->Set(v);
-//                else
-//                    c++;
-//            }
-//        }
-//    }
-//#endif
-}
-
-//将当前某个科目的发生额加期初对应余额，计算期末余额及其方向
-//参数： key（科目id * 10 + 币种），v（当前指定科目的发生额），curDir（发生的方向）
-void ViewExtraDialog::addToEndExtra(int key,double v,int curDir,
-                                    QHash<int,double> preExa,QHash<int,int>preExaDir,
-                                    QHash<int,double> endExa,QHash<int,int>endExaDir)
-{
-    if(preExaDir.value(key) == DIR_P){ //期初为平（也包括期初没有），则直接加到期末余额
-        endExa[key] = v;
-        endExaDir[key] = curDir;
-    }
-    else if(preExaDir.value(key) == DIR_J){   //期初为借方
-        if(curDir == DIR_J){ //期初余额与当期发生额同为借方
-            endExa[key] = preExa.value(key) + v;
-            endExaDir[key] = DIR_J;
-        }
-        else{ //期初为借方，当期发生额为贷方
-            endExa[key] = preExa.value(key) - v;
-            if(endExa.value(key) == 0)
-                endExaDir[key] = DIR_P;
-            else if(endExa.value(key) > 0)
-                endExaDir[key] = DIR_J;
-            else{
-                endExa[key] = -endExa.value(key);
-                endExaDir[key] = DIR_D;
-            }
-        }
-    }
-    else{   //期初为贷方
-        if(curDir == DIR_D){  //期初余额与当期发生额同为贷方
-            endExa[key] = preExa.value(key) + v;
-            endExaDir[key] = DIR_D;
-        }
-        else{ //当期发生额为借方
-            endExa[key] = v - preExa[key];
-            if(endExa.value(key) == 0)
-                endExaDir[key] = DIR_P;
-            else if(endExa.value(key) > 0)
-                endExaDir[key] = DIR_J;
-            else{
-                endExa[key] = -endExa.value(key);
-                endExaDir[key] = DIR_D;
-            }
-        }
-    }
-}
-
-
-
-//保存当前余额数据到数据库中
+/**
+ * @brief ViewExtraDialog::save
+ *  保存当前余额数据到数据库中
+ */
 void ViewExtraDialog::save()
 {
 	if(curAccount->getReadOnly())
         return;
     QHash<int,Double> oldF,oldS;    //前期余额值
-    QHash<int,int> oldFDir,oldSDir; //前期余额方向
+    QHash<int,MoneyDirection> oldFDir,oldSDir; //前期余额方向
     BusiUtil::readExtraByMonth2(y,m,oldF,oldFDir,oldS,oldSDir);
     BusiUtil::savePeriodBeginValues2(y,m,endExa,endExaDir,endDetExa,endDetExaDir,false);
     BusiUtil::savePeriodEndValues(y,m,endExaR,endDetExaR);//以本币计的外币余额
@@ -896,10 +430,14 @@ void ViewExtraDialog::save()
     ui->btnClose->setEnabled(true);
 }
 
-//当选择一个总账科目时，初始化可用的明细科目
+/**
+ * @brief ViewExtraDialog::onSelFstSub
+ *  当选择一个总账科目时，初始化可用的明细科目
+ * @param index
+ */
 void ViewExtraDialog::onSelFstSub(int index)
 {
-    fid = ui->cmbFstSub->itemData(index).toInt();
+    fsub = ui->cmbFstSub->itemData(index).value<FirstSubject*>();
     disconnect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     if(index == 0){
         ui->cmbSndSub->clear();
@@ -908,31 +446,36 @@ void ViewExtraDialog::onSelFstSub(int index)
     }
     else{
         ui->cmbSndSub->setEnabled(true);
-        //获取当前一级科目的id
-        QString s = QString("select FSAgent.id,SecSubjects.subName"
-                            " from FSAgent join SecSubjects on "
-                            "SecSubjects.id = FSAgent.sid where fid = %1").arg(fid);
         ui->cmbSndSub->clear();
         ui->cmbSndSub->addItem(tr("所有"),0);
-        QSqlQuery q;
-        q.exec(s);
-        while(q.next())
-            ui->cmbSndSub->addItem(q.value(1).toString(),q.value(0).toInt());
-        scom->setPid(fid);
+        QVariant v;
+        foreach(SecondSubject* sub, fsub->getChildSubs()){
+            v.setValue<SecondSubject*>(sub);
+            ui->cmbSndSub->addItem(sub->getName(),v);
+        }
+        scom->setPid(fsub->getId());
     }
-    sid = 0;
+    ssub = NULL;
     connect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     viewTable();
 }
 
-//当用户选择一个二级科目时，显示指定二级科目的统计数据
+/**
+ * @brief ViewExtraDialog::onSelSndSub
+ *  当用户选择一个二级科目时，显示指定二级科目的统计数据
+ * @param index
+ */
 void ViewExtraDialog::onSelSndSub(int index)
 {
-    sid = ui->cmbSndSub->itemData(index).toInt();
+    ssub = ui->cmbSndSub->itemData(index).value<SecondSubject*>();
     viewTable();
 }
 
-//用户选择了一种表格格式
+/**
+ * @brief ViewExtraDialog::onTableFormatChanged
+ *  用户选择了一种表格格式
+ * @param checked
+ */
 void ViewExtraDialog::onTableFormatChanged(bool checked)
 {
     if(checked)
@@ -942,7 +485,11 @@ void ViewExtraDialog::onTableFormatChanged(bool checked)
     viewTable();
 }
 
-//用户需要或不需要显示明细科目
+/**
+ * @brief ViewExtraDialog::onDetViewChanged
+ *  用户选择需不需要显示明细科目
+ * @param checked
+ */
 void ViewExtraDialog::onDetViewChanged(bool checked)
 {
     stateInfo.viewDetails = checked;
@@ -950,7 +497,12 @@ void ViewExtraDialog::onDetViewChanged(bool checked)
     viewTable();
 }
 
-//打印通用操作
+/**
+ * @brief ViewExtraDialog::printCommon
+ *  打印通用操作
+ * @param task
+ * @param printer
+ */
 void ViewExtraDialog::printCommon(PrintTask task, QPrinter* printer)
 {
     HierarchicalHeaderView* thv = new HierarchicalHeaderView(Qt::Horizontal);
@@ -961,7 +513,6 @@ void ViewExtraDialog::printCommon(PrintTask task, QPrinter* printer)
     //创建打印模板实例
     QList<int> colw(stateInfo.colPriWidths.value(stateInfo.tFormat));
     PrintTemplateStat* pt = new PrintTemplateStat(m,thv,&colw);
-    //PrintTemplateTz* pt = new PrintTemplateTz(m,thv,&colw);
     pt->setAccountName(curAccount->getLName());
     pt->setCreator(curUser->getName());
     pt->setPrintDate(QDate::currentDate());
@@ -995,10 +546,12 @@ void ViewExtraDialog::printCommon(PrintTask task, QPrinter* printer)
 
     delete thv;
     delete m;
-    //delete pt;
 }
 
-//打印表格
+/**
+ * @brief ViewExtraDialog::on_actPrint_triggered
+ *  打印表格
+ */
 void ViewExtraDialog::on_actPrint_triggered()
 {
     QPrinter* printer= new QPrinter(QPrinter::PrinterResolution);
@@ -1006,25 +559,21 @@ void ViewExtraDialog::on_actPrint_triggered()
     delete printer;
 }
 
-//打印预览
+/**
+ * @brief ViewExtraDialog::on_actPreview_triggered
+ *  打印预览
+ */
 void ViewExtraDialog::on_actPreview_triggered()
 {
     QPrinter* printer= new QPrinter(QPrinter::HighResolution);
     printCommon(PREVIEW, printer);
     delete printer;
-
-//    HierarchicalHeaderView* thv = new HierarchicalHeaderView(Qt::Horizontal);
-//    ProxyModelWithHeaderModels* m = new ProxyModelWithHeaderModels;
-//    m->setModel(dataModel);
-//    m->setHorizontalHeaderModel(headerModel);
-
-//    //创建打印模板实例
-//    QList<int> colw(stateInfo.colPriWidths.value(stateInfo.tFormat));
-//    PrintTemplateStat* pt = new PrintTemplateStat(m,thv,&colw);
-//    pt->show();
 }
 
-//打印到pdf文件
+/**
+ * @brief ViewExtraDialog::on_actToPDF_triggered
+ *  打印到pdf文件
+ */
 void ViewExtraDialog::on_actToPDF_triggered()
 {
     QPrinter* printer= new QPrinter(QPrinter::ScreenResolution);
@@ -1032,23 +581,29 @@ void ViewExtraDialog::on_actToPDF_triggered()
     delete printer;
 }
 
-//显示期初和期末汇率
+/**
+ * @brief ViewExtraDialog::viewRates
+ *  显示期初和期末汇率
+ */
 void ViewExtraDialog::viewRates()
 {
     QHashIterator<int,Double> it(sRates);
+    QVariant v;
+    Money* mt;
     while(it.hasNext()){
         it.next();
-        if(it.key() != RMB){
-            ui->cmbStartRate->addItem(allMts.value(it.key()),it.key());
-            ui->cmbEndRate->addItem(allMts.value(it.key()),it.key());
+        mt = allMts.value(it.key());
+        if(mt != account->getMasterMt()){
+            v.setValue<Money*>(mt);
+            ui->cmbStartRate->addItem(mt->name(),v);
+            ui->cmbEndRate->addItem(mt->name(),v);
         }
     }
     ui->cmbStartRate->setCurrentIndex(0);
     ui->cmbEndRate->setCurrentIndex(0);
-    int mt;
-    mt = ui->cmbStartRate->itemData(0).toInt();
-    ui->edtStartRate->setText(sRates.value(mt).toString());
-    ui->edtEndRate->setText(eRates.value(mt).toString());
+    mt = ui->cmbStartRate->itemData(0).value<Money*>();
+    ui->edtStartRate->setText(sRates.value(mt->code()).toString());
+    ui->edtEndRate->setText(eRates.value(mt->code()).toString());
 }
 
 /**
@@ -1061,9 +616,9 @@ void ViewExtraDialog::viewRates()
  * @param witch     1：表示一级科目，2：二级科目
  */
 void ViewExtraDialog::calSumByMt(QHash<int, Double> exasR,
-                                 QHash<int, int> exaDirsR,
+                                 QHash<int, MoneyDirection> exaDirsR,
                                  QHash<int, Double> &sumsR,
-                                 QHash<int, int> &dirsR, int witch)
+                                 QHash<int, MoneyDirection> &dirsR, int witch)
 {
     QHashIterator<int,Double> it(exasR);
     int id;
@@ -1073,13 +628,13 @@ void ViewExtraDialog::calSumByMt(QHash<int, Double> exasR,
     while(it.hasNext()){
         it.next();
         id = it.key() / 10;
-        if(exaDirsR.value(it.key()) == DIR_P){
+        if(exaDirsR.value(it.key()) == MDIR_P){
             if(sumsR.contains(id))
                 continue;
             else
                 sumsR[id] = 0;
         }
-        else if(exaDirsR.value(it.key()) == DIR_J)
+        else if(exaDirsR.value(it.key()) == MDIR_J)
             sumsR[id] += it.value();
         else
             sumsR[id] -= it.value();
@@ -1100,41 +655,30 @@ void ViewExtraDialog::calSumByMt(QHash<int, Double> exasR,
             fsub = ssub->getParent();
         }
         if(i.value() == 0)
-            dirsR[id] = DIR_P;
+            dirsR[id] = MDIR_P;
         else if(i.value() > 0){
-            //if(witch == 1)
-                //isIn = BusiUtil::isInSub(id);
-            //    isIn = (smg->isSySubject(id) && !fsub->getJdDir());
-            //else{
-                //isIn = BusiUtil::isInSSub(id);
-            //    isIn = (smg->isSySubject(fsub->getId()) && !fsub->getJdDir());
-            //}
             isIn = (smg->isSySubject(fsub->getId()) && !fsub->getJdDir());
             //如果是收入类科目，要将它固定为贷方
             if(isIn){
                 sumsR[id].changeSign();
-                dirsR[id] = DIR_D;
+                dirsR[id] = MDIR_D;
             }
             else{
-                dirsR[id] = DIR_J;
+                dirsR[id] = MDIR_J;
             }
         }
         else{
-            //if(witch == 1)
-            //    isFei = BusiUtil::isFeiSub(id);
-            //else
-            //    isFei = BusiUtil::isFeiSSub(id);
             isFei = (smg->isSySubject(fsub->getId()) && fsub->getJdDir());
             //如果是费用类科目，要将它固定为借方
             if(isFei){
-                dirsR[id] = DIR_J;
+                dirsR[id] = MDIR_J;
                 //为什么不需要更改金额符号，是因为对于一般的科目是根据符号来判断科目的余额方向
                 //但对费用类科目，我们认为即使是负数也将其定为借方（因为运算法则是借方-贷方，方向任为借方）
                 //sumsR[id].changeSign();
             }
             else{
                 sumsR[id].changeSign();
-                dirsR[id] = DIR_D;
+                dirsR[id] = MDIR_D;
             }
         }
     }
@@ -1179,7 +723,6 @@ void ViewExtraDialog::on_actToExcel_triggered()
 //在表格中显示统计的数据（本期发生额及其余额）
 void ViewExtraDialog::viewTable()
 {
-    //dataModel->clear();
     genHeaderDatas();
     genDatas();
 
@@ -1201,7 +744,7 @@ void ViewExtraDialog::viewTable()
             ,this, SLOT(colWidthChanged(int,int,int)));
 
     //决定保存按钮的启用状态
-	if(curAccount->getReadOnly()){
+    if(account->getReadOnly()){
         ui->btnSave->setEnabled(false);
         return;
     }
@@ -1209,7 +752,7 @@ void ViewExtraDialog::viewTable()
     PzsState state;
     dbUtil->getPzsState(y,m,state);
     isCanSave = (state == Ps_AllVerified);
-    ui->btnSave->setEnabled((fid == 0) && (sid == 0) && isCanSave);
+    ui->btnSave->setEnabled(!fsub && !ssub && isCanSave);
 }
 
 //生成表头数据
@@ -1252,7 +795,7 @@ void ViewExtraDialog::genHeaderDatas()
         mitem = new QStandardItem(tr("期初金额"));
         l1<<mitem;
         for(int i = 0; i < mts.count(); ++i){
-            item = new QStandardItem(allMts.value(mts[i])); //3 期初金额（外币）
+            item = new QStandardItem(allMts.value(mts.at(i))->name()); //3 期初金额（外币）
             l2<<item;
             mitem->appendColumn(l2);
             l2.clear();
@@ -1265,7 +808,7 @@ void ViewExtraDialog::genHeaderDatas()
         mitem = new QStandardItem(tr("本期借方发生"));
         l1<<mitem;
         for(int i = 0; i < mts.count(); ++i){
-            item = new QStandardItem(allMts.value(mts[i])); //5 借方（外币）
+            item = new QStandardItem(allMts.value(mts.at(i))->name()); //5 借方（外币）
             l2<<item;
             mitem->appendColumn(l2);
             l2.clear();
@@ -1278,7 +821,7 @@ void ViewExtraDialog::genHeaderDatas()
         mitem = new QStandardItem(tr("本期贷方发生"));
         l1<<mitem;
         for(int i = 0; i < mts.count(); ++i){
-            item = new QStandardItem(allMts.value(mts[i])); //7 贷方（外币）
+            item = new QStandardItem(allMts.value(mts.at(i))->name()); //7 贷方（外币）
             l2<<item;
             mitem->appendColumn(l2);
             l2.clear();
@@ -1294,7 +837,7 @@ void ViewExtraDialog::genHeaderDatas()
         mitem = new QStandardItem(tr("期末金额"));
         l1<<mitem;
         for(int i = 0; i < mts.count(); ++i){
-            item = new QStandardItem(allMts.value(mts[i])); //10 余额（外币）
+            item = new QStandardItem(allMts.value(mts.at(i))->name()); //10 余额（外币）
             l2<<item;
             mitem->appendColumn(l2);
             l2.clear();
@@ -1308,127 +851,11 @@ void ViewExtraDialog::genHeaderDatas()
     l1.clear();
 }
 
-//生成表头数据
-//void ViewExtraDialog::genHeaderDatas()
-//{
-//    QList<QStandardItem*> items;
-//    QStandardItem *item1,*item2,*item3,*item4,*item5,*item6,*item7,*item8;
-//    dataModel->clear();
 
-//    //设置表头
-//    if(ui->rdoJe->isChecked()){ //金额式
-//        item1 = new QStandardItem(tr("科目编码"));
-//        item2 = new QStandardItem(tr("科目名称"));
-//        item3 = new QStandardItem(tr("方向"));
-//        item4 = new QStandardItem(tr("期初金额"));
-//        item5 = new QStandardItem(tr("本期借方发生"));
-//        item6 = new QStandardItem(tr("本期贷方发生"));
-//        item7 = new QStandardItem(tr("方向"));
-//        item8 = new QStandardItem(tr("期末金额"));
-//        items<<item1<<item2<<item3<<item4<<item5<<item6<<item7<<item8;
-//        for(int i = 0; i < items.count(); ++i)
-//            items[i]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-//        dataModel->appendRow(items);
-//    }
-//    else{ //外币金额式
-//        //表头第一行
-//        item1 = new QStandardItem(tr("科目编码"));
-//        item2 = new QStandardItem(tr("科目名称"));
-//        item3 = new QStandardItem(tr("方向"));
-//        items<<item1<<item2<<item3;
-
-//        int prec,curjc,curdc,endc; //分别是4个总栏的外币数
-//        prec = preMt.count();
-//        curjc = curJMt.count();
-//        curdc = curDMt.count();
-//        endc = endMt.count();
-//        item1 = new QStandardItem(tr("期初余额"));
-//        items<<item1;
-//        for(int i = 0; i<prec; ++i){
-//            item1 = new QStandardItem;
-//            items<<item1;
-//        }
-//        item1 = new QStandardItem(tr("当期借方发生额"));;
-//        items<<item1;
-//        for(int i = 0; i<curjc; ++i){
-//            item1 = new QStandardItem;
-//            items<<item1;
-//        }
-//        item1 = new QStandardItem(tr("当期贷方发生额"));
-//        items<<item1;
-//        for(int i = 0; i<curdc; ++i){
-//            item1 = new QStandardItem;
-//            items<<item1;
-//        }
-//        item1 = new QStandardItem(tr("方向"));
-//        items<<item1;
-//        item1 = new QStandardItem(tr("期末余额"));
-//        items<<item1;
-//        for(int i = 0; i<curdc; ++i){
-//            item1 = new QStandardItem;
-//            items<<item1;
-//        }
-//        for(int i = 0; i<items.count(); ++i)
-//            items[i]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-
-//        dataModel->appendRow(items);
-//        items.clear();
-
-
-//        //表头第二行
-//        item1 = new QStandardItem;
-//        items<<item1<<item1<<item1;
-//        for(int i = 0; i<prec; ++i){
-//            item1 = new QStandardItem(allMts.value(preMt[i]));
-//            items<<item1;
-//        }
-//        item1 = new QStandardItem(tr("金额"));
-//        items<<item1;
-//        for(int i = 0; i<curjc; ++i){
-//            item1 = new QStandardItem(allMts.value(curJMt[i]));
-//            items<<item1;
-//        }
-//        item1 = new QStandardItem(tr("金额"));
-//        items<<item1;
-//        for(int i = 0; i<curdc; ++i){
-//            item1 = new QStandardItem(allMts.value(curDMt[i]));
-//            items<<item1;
-//        }
-//        item1 = new QStandardItem(tr("金额"));
-//        items<<item1;
-//        item1 = new QStandardItem(tr("方向"));
-//        items<<item1;
-//        for(int i = 0; i<endc; ++i){
-//            item1 = new QStandardItem(allMts.value(endMt[i]));
-//            items<<item1;
-//        }
-//        item1 = new QStandardItem(tr("金额"));
-//        items<<item1;
-
-//        for(int i = 0; i<items.count(); ++i)
-//            items[i]->setTextAlignment(Qt::AlignHCenter | Qt::AlignVCenter);
-//        dataModel->appendRow(items);
-//        items.clear();
-
-//        //合并表头的某些单元格
-//        ui->tview->setSpan(0,0,2,1);//科目编码
-//        ui->tview->setSpan(0,1,2,1);//科目名称
-//        ui->tview->setSpan(0,2,2,1);//期初方向
-//        int cp = 3; //列索引
-//        ui->tview->setSpan(0,cp,1,prec+1);//期初余额
-//        cp += (prec+1);
-//        ui->tview->setSpan(0,cp,1,curjc+1);//当期借方
-//        cp += (curjc+1);
-//        ui->tview->setSpan(0,cp,1,curdc+1);//当前贷方
-//        cp += (curdc+1);
-//        ui->tview->setSpan(0,cp,2,1);
-//        cp++;
-//        ui->tview->setSpan(0,cp,1,endc+1); //期末余额
-
-//    }
-//}
-
-//生成统计数据
+/**
+ * @brief ViewExtraDialog::genDatas
+ *  生成统计数据
+ */
 void ViewExtraDialog::genDatas(){
 
     if(dataModel)
@@ -1441,19 +868,19 @@ void ViewExtraDialog::genDatas(){
 
     //因为需要以科目代码的顺序来显示科目余额，因此，必须先获取此科目id序列
     QList<int> ids;
-    if(fid == 0)
+    if(!fsub)
         for(int i = 1; i < ui->cmbFstSub->count(); ++i)
-            ids<<ui->cmbFstSub->itemData(i).toInt();
+            ids<<ui->cmbFstSub->itemData(i).value<FirstSubject*>()->getId();
     else
-        ids<<fid;
+        ids<<fsub->getId();
 
     //这些hash表表示的是各个科目下的各币种按本币计的合计金额
     //本来各币种分开核算，那么键就要考虑币种因数，而这些hash的key为总账或明细账科目id
     QHash<int,Double> spreExa, spreDetExa; //期初余额
-    QHash<int,int> spreExaDir, spreDetExaDir; //期初余额方向
+    QHash<int,MoneyDirection> spreExaDir, spreDetExaDir; //期初余额方向
     QHash<int,Double> scurJHpn, scurJDHpn, scurDHpn, scurDDHpn; //当期借贷发生额
     QHash<int,Double> sendExa, sendDetExa; //期末余额
-    QHash<int,int> sendExaDir, sendDetExaDir; //期末余额方向
+    QHash<int,MoneyDirection> sendExaDir, sendDetExaDir; //期末余额方向
 
 
     //将期初总账科目各币种余额累加--生成总账科目本位币余额
@@ -1499,31 +926,33 @@ void ViewExtraDialog::genDatas(){
     calSumByMt(endDetExaR,endDetExaDirR,sendDetExa,sendDetExaDir,2);
 
     //显示数据
+    FirstSubject* fs; SecondSubject* ss;
+    Double jsums;Double dsums;  //借、贷合计值
     if(ui->rdoJe->isChecked()){ //金额式
-        //输出数据
-        Double jsums;Double dsums;  //借、贷合计值
+        //输出数据               
         for(int i = 0; i < ids.count(); ++i){
-            if(sendExa.contains(ids[i])){
+            if(sendExa.contains(ids.at(i))){
                 //共8列
-                item = new ApStandardItem(idToCode.value(ids[i])); //0 科目代码
+                fs = allFSubs.value(ids[i]);
+                item = new ApStandardItem(fs->getCode()); //0 科目代码
                 items<<item;
-                item = new ApStandardItem(idToName.value(ids[i])); //1 科目名称
+                item = new ApStandardItem(fs->getName()); //1 科目名称
                 items<<item;
-                item = new ApStandardItem(dirStr(spreExaDir.value(ids[i]))); //2 期初方向
+                item = new ApStandardItem(dirStr(spreExaDir.value(ids.at(i)))); //2 期初方向
                 items<<item;
-                item = new ApStandardItem(spreExa.value(ids[i])); //3 期初金额
+                item = new ApStandardItem(spreExa.value(ids.at(i))); //3 期初金额
                 items<<item;
-                v = scurJHpn.value(ids[i]); //4 本期借方发生
+                v = scurJHpn.value(ids.at(i)); //4 本期借方发生
                 jsums += v;
                 item = new ApStandardItem(v);
                 items<<item;
-                v = scurDHpn.value(ids[i]);//5 本期贷方发生
+                v = scurDHpn.value(ids.at(i));//5 本期贷方发生
                 dsums += v;
                 item = new ApStandardItem(v);
                 items<<item;
-                item = new ApStandardItem(dirStr(sendExaDir.value(ids[i])));//6 期末方向
+                item = new ApStandardItem(dirStr(sendExaDir.value(ids.at(i))));//6 期末方向
                 items<<item;
-                item = new ApStandardItem(sendExa.value(ids[i]));//7 期末余额
+                item = new ApStandardItem(sendExa.value(ids.at(i)));//7 期末余额
                 items<<item;
 
                 dataModel->appendRow(items);
@@ -1532,38 +961,36 @@ void ViewExtraDialog::genDatas(){
                 //如果需要显示明细科目的余额及其本期发生额，则
                 if(ui->chkIsDet->isChecked()){
                     QList<int> sids;
-                    if(sid == 0){
+                    if(!ssub){
                         QHash<int,QString> ssNames; //子目id到名称的映射
-                        foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs()){
+                        foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs())
                             ssNames[ssub->getId()] = ssub->getName();
-                        }
-
-                        //BusiUtil::getOwnerSub(ids[i],ssNames); //某总目下所有子目的id列表
                         sids = ssNames.keys();
                         qSort(sids.begin(),sids.end());
                     }
                     else
-                        sids<<sid;
+                        sids<<ssub->getId();
                     for(int j = 0; j < sids.count(); ++j){
-                        if(sendDetExa.contains(sids[j])){
-                            item = new ApStandardItem(idToCode.value(ids[i])+sidToCode.value(sids[j]));//0 科目代码
+                        if(sendDetExa.contains(sids.at(j))){
+                            ss = allSSubs.value(sids.at(j));
+                            item = new ApStandardItem(fs->getCode() + ss->getCode());//0 科目代码
                             items.append(item);
-                            item = new ApStandardItem(sidToName.value(sids[j]));//1 科目名称
+                            item = new ApStandardItem(ss->getName());//1 科目名称
                             items.append(item);
-                            item = new ApStandardItem(dirStr(spreDetExaDir.value(sids[j])));//2 期初方向
+                            item = new ApStandardItem(dirStr(spreDetExaDir.value(sids.at(j))));//2 期初方向
                             items.append(item);
-                            v = spreDetExa.value(sids[j]); //3 期初金额
+                            v = spreDetExa.value(sids.at(j)); //3 期初金额
                             item = new ApStandardItem(v);
                             items<<item;
-                            v = scurJDHpn.value(sids[j]);//4 本期借方发生（所有币种类型的发生额合计）
+                            v = scurJDHpn.value(sids.at(j));//4 本期借方发生（所有币种类型的发生额合计）
                             item = new ApStandardItem(v);
                             items<<item;
-                            v = scurDDHpn.value(sids[j]); //5 本期贷方发生
+                            v = scurDDHpn.value(sids.at(j)); //5 本期贷方发生
                             item = new ApStandardItem(v);
                             items<<item;
-                            item = new ApStandardItem(dirStr(sendDetExaDir.value(sids[j])));//6 期末方向
+                            item = new ApStandardItem(dirStr(sendDetExaDir.value(sids.at(j))));//6 期末方向
                             items.append(item);
-                            v = sendDetExa.value(sids[j]);//7 期末余额
+                            v = sendDetExa.value(sids.at(j));//7 期末余额
                             item = new ApStandardItem(v);
                             items<<item;
 
@@ -1587,23 +1014,23 @@ void ViewExtraDialog::genDatas(){
     }
     else{//外币金额式（共12列）
         QHash<int,Double> curJSums,curDSums;   //本期借贷方合计值（按币种合计，key为币种代码）
-        Double jsums; Double dsums; //本期借贷方合计值（各币种合计值）
         for(int i = 0; i < ids.count(); ++i){
-            if(sendExa.contains(ids[i])){
-                item = new ApStandardItem(idToCode.value(ids[i])); //0 科目代码
+            if(sendExa.contains(ids.at(i))){
+                fs = allFSubs.value(ids.at(i));
+                item = new ApStandardItem(fs->getCode()); //0 科目代码
                 items<<item;
-                item = new ApStandardItem(idToName.value(ids[i]));//1 科目名称
+                item = new ApStandardItem(fs->getName());//1 科目名称
                 items<<item;
-                item = new ApStandardItem(dirStr(spreExaDir.value(ids[i])));//2 期初方向
+                item = new ApStandardItem(dirStr(spreExaDir.value(ids.at(i))));//2 期初方向
                 items<<(item);
                 for(int k = 0; k<mts.count(); ++k){
-                    item = new ApStandardItem(preExa.value(ids[i]*10+mts[k])); //3 期初金额（外币部分）
+                    item = new ApStandardItem(preExa.value(ids.at(i)*10+mts.at(k))); //3 期初金额（外币部分）
                     items<<item;
                 }
-                item = new ApStandardItem(spreExa.value(ids[i]));//4 期初金额（总额部分）
+                item = new ApStandardItem(spreExa.value(ids.at(i)));//4 期初金额（总额部分）
                 items<<item;
                 for(int k = 0; k<mts.count(); ++k){
-                    v = curJHpn.value(ids[i]*10+mts[k]); //5 本期借方发生（外币部分）
+                    v = curJHpn.value(ids.at(i)*10+mts.at(k)); //5 本期借方发生（外币部分）
                     curJSums[mts.value(k)] += v;
                     item = new ApStandardItem(v);
                     items<<item;
@@ -1613,25 +1040,25 @@ void ViewExtraDialog::genDatas(){
                 item = new ApStandardItem(v);
                 items.append(item);
                 for(int k = 0; k<mts.count(); ++k){
-                    v = curDHpn.value(ids[i]*10+mts[k]);
-                    curDSums[mts[k]] += v;
+                    v = curDHpn.value(ids.at(i)*10+mts.at(k));
+                    curDSums[mts.at(k)] += v;
                     item = new ApStandardItem(v);//7 本期贷方发生（外币部分）
                     items<<item;
                 }
-                v = scurDHpn.value(ids[i]);//8 本期贷方发生（各币种合计总额部分）
+                v = scurDHpn.value(ids.at(i));//8 本期贷方发生（各币种合计总额部分）
                 dsums += v;
                 item = new ApStandardItem(v);
                 items.append(item);
-                item = new ApStandardItem(dirStr(sendExaDir.value(ids[i])));//9 期末方向
+                item = new ApStandardItem(dirStr(sendExaDir.value(ids.at(i))));//9 期末方向
                 items.append(item);
 
                 for(int k = 0; k<mts.count(); ++k){
-                    v = endExa.value(ids[i]*10+mts[k]);
+                    v = endExa.value(ids.at(i)*10+mts.at(k));
                     item = new ApStandardItem(v);//10 期末余额（外币部分）
                     items<<item;
                 }
 
-                v = sendExa.value(ids[i]); //11 期末余额（总额部分）
+                v = sendExa.value(ids.at(i)); //11 期末余额（总额部分）
                 item = new ApStandardItem(v);
                 items.append(item);
 
@@ -1641,34 +1068,34 @@ void ViewExtraDialog::genDatas(){
                 //如果需要显示明细科目的余额及其本期发生额，则
                 if(ui->chkIsDet->isChecked()){
                     QList<int> sids;
-                    if(sid == 0){
+                    if(!ssub){
                         QHash<int,QString> ssNames; //子目id到名称的映射
-                        //BusiUtil::getOwnerSub(ids[i],ssNames); //某总目下所有子目的id列表
                         foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs())
                             ssNames[ssub->getId()] = ssub->getName();
                         sids = ssNames.keys();
                         qSort(sids.begin(),sids.end());
                     }
                     else
-                        sids<<sid;
+                        sids<<ssub->getId();
                     for(int j = 0; j < sids.count(); ++j){
-                        if(sendDetExa.contains(sids[j])){
-                            item = new ApStandardItem(idToCode.value(ids[i])+sidToCode.value(sids[j]));//0 科目代码
+                        if(sendDetExa.contains(sids.at(j))){
+                            ss = allSSubs.value(sids.at(j));
+                            item = new ApStandardItem(fs->getCode()+ss->getCode());//0 科目代码
                             items<<item;
-                            item = new ApStandardItem(sidToName.value(sids[j]));//1 科目名称
+                            item = new ApStandardItem(ss->getName());//1 科目名称
                             items<<item;
-                            item = new ApStandardItem(dirStr(spreDetExaDir.value(sids[j])));//2 期初方向
+                            item = new ApStandardItem(dirStr(spreDetExaDir.value(sids.at(j))));//2 期初方向
                             items<<item;
                             for(int k = 0; k<mts.count(); ++k){
-                                v = preDetExa.value(sids[j]*10+mts[k]); //3 期初金额（外币部分）
+                                v = preDetExa.value(sids.at(j)*10+mts.at(k)); //3 期初金额（外币部分）
                                 item = new ApStandardItem(v);
                                 items<<item;
                             }
-                            v = spreDetExa.value(sids[j]);//4 期初金额（总额部分）
+                            v = spreDetExa.value(sids.at(j));//4 期初金额（总额部分）
                             item = new ApStandardItem(v);
                             items.append(item);
                             for(int k = 0; k<mts.count(); ++k){
-                                v = curJDHpn.value(sids[j]*10+mts[k]);
+                                v = curJDHpn.value(sids.at(j)*10+mts.at(k));
                                 item = new ApStandardItem(v);//5 本期借方发生（外币部分）
                                 items<<item;
                             }
@@ -1676,7 +1103,7 @@ void ViewExtraDialog::genDatas(){
                                 item = new ApStandardItem(v);
                             items.append(item);
                             for(int k = 0; k<mts.count(); ++k){
-                                v = curDDHpn.value(sids[j]*10+mts[k]);
+                                v = curDDHpn.value(sids.at(j)*10+mts.at(k));
                                 item = new ApStandardItem(v);//7 本期贷方发生（外币部分）
                                 items<<item;
                             }
@@ -1686,12 +1113,12 @@ void ViewExtraDialog::genDatas(){
                             item = new ApStandardItem(dirStr(sendDetExaDir.value(sids[j])));//9 期末方向
                             items.append(item);
                             for(int k = 0; k<mts.count(); ++k){
-                                v = endDetExa.value(sids[j]*10+mts[k]);//10 期末余额（外币部分）
+                                v = endDetExa.value(sids.at(j)*10+mts.at(k));//10 期末余额（外币部分）
                                 item = new ApStandardItem(v);
                                 items<<item;
                             }
                             //11 期末余额（总额部分）
-                            v = sendDetExa.value(sids[j]);
+                            v = sendDetExa.value(sids.at(j));
                             item = new ApStandardItem(v);
                             items.append(item);
 
@@ -1740,32 +1167,11 @@ void ViewExtraDialog::genDatas(){
 //初始化显示表格所需的数据哈希表
 void ViewExtraDialog::initHashs()
 {
+    allFSubs = smg->getAllFstSubHash();
+    allSSubs = smg->getAllSndSubHash();
+    allMts = account->getAllMoneys();
 
-//    BusiUtil::getAllSubCode(idToCode);
-//    BusiUtil::getAllSubFName(idToName);
-//    BusiUtil::getAllSubSName(sidToName);
-//    BusiUtil::getAllSubSCode(sidToCode);
-//    BusiUtil::getMTName(allMts);
-
-    QHashIterator<int,FirstSubject*> it(smg->getAllFstSubHash());
-    while(it.hasNext()){
-        it.next();
-        idToName[it.key()] = it.value()->getName();
-        idToCode[it.key()] = it.value()->getCode();
-    }
-    QHashIterator<int,SecondSubject*> ii(smg->getAllSndSubHash());
-    while(ii.hasNext()){
-        ii.next();
-        sidToName[ii.key()] = ii.value()->getName();
-        sidToCode[ii.key()] = ii.value()->getCode();
-    }
-    QHashIterator<int,Money*> im(curAccount->getAllMoneys());
-    while(im.hasNext()){
-        im.next();
-        allMts[im.key()] = im.value()->name();
-    }
-
-    curAccount->getRates(y,m,sRates);
+    account->getRates(y,m,sRates);
     sRates[RMB] = 1.00;
     int yy,mm;
     if(m == 12){
@@ -1776,7 +1182,7 @@ void ViewExtraDialog::initHashs()
         yy = y;
         mm = m+1;
     }
-    curAccount->getRates(yy,mm,eRates);
+    account->getRates(yy,mm,eRates);
     eRates[RMB] = 1.00;
 
     if(m == 1){
@@ -1790,8 +1196,10 @@ void ViewExtraDialog::initHashs()
 
     //读取以原币计的期初余额（包括本币和外币的余额）
     BusiUtil::readExtraByMonth2(yy,mm,preExa,preExaDir,preDetExa,preDetExaDir); //读取期初数
+    //dbUtil->readExtraForPm(yy,mm,preExa,preExaDir,preDetExa,preDetExaDir);
     //读取以本币计的期初余额（包括本币和外币的余额）
     BusiUtil::readExtraByMonth3(yy,mm,preExaR,preExaDirR,preDetExaR,preDetExaDirR); //读取期初数
+    //dbUtil->readExtraForMm()
     //读取外币期初余额（这些余额都以本币计，是每月发生统计后的精确值，且仅包含外币部分）
     bool exist;
     QHash<int,Double> es,eds;

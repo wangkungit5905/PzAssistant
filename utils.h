@@ -344,19 +344,19 @@ public:
 
     static bool calCurExtraByMonth2(int y,int m,
        QHash<int,Double> preExa, QHash<int,Double> preDetExa,     //期初余额
-       QHash<int,int> preExaDir, QHash<int,int> preDetExaDir,     //期初余额方向
+       QHash<int,MoneyDirection> preExaDir, QHash<int,MoneyDirection> preDetExaDir,     //期初余额方向
        QHash<int,Double> curJHpn, QHash<int,Double> curJDHpn,     //当期借方发生额
        QHash<int,Double> curDHpn, QHash<int,Double>curDDHpn,      //当期贷方发生额
        QHash<int,Double> &endExa, QHash<int,Double>&endDetExa,    //期末余额
-       QHash<int,int> &endExaDir, QHash<int,int> &endDetExaDir);  //期末余额方向
+       QHash<int,MoneyDirection> &endExaDir, QHash<int,MoneyDirection> &endDetExaDir);  //期末余额方向
 
     static bool calCurExtraByMonth3(int y,int m,
        QHash<int,Double> preExaR, QHash<int,Double> preDetExaR,     //期初余额
-       QHash<int,int> preExaDirR, QHash<int,int> preDetExaDirR,     //期初余额方向
+       QHash<int,MoneyDirection> preExaDirR, QHash<int,MoneyDirection> preDetExaDirR,     //期初余额方向
        QHash<int,Double> curJHpnR, QHash<int,Double> curJDHpnR,     //当期借方发生额
        QHash<int,Double> curDHpnR, QHash<int,Double>curDDHpnR,      //当期贷方发生额
        QHash<int,Double> &endExaR, QHash<int,Double>&endDetExaR,    //期末余额
-       QHash<int,int> &endExaDirR, QHash<int,int> &endDetExaDirR);  //期末余额方向
+       QHash<int,MoneyDirection> &endExaDirR, QHash<int,MoneyDirection> &endDetExaDirR);  //期末余额方向
 
     /**
         计算科目各币种合计余额及其方向
@@ -401,9 +401,9 @@ public:
     */
 
     static bool readExtraByMonth2(int y,int m, QHash<int,Double>& sums,
-           QHash<int,int>& fdirs, QHash<int,Double>& ssums, QHash<int,int>& sdirs);
+           QHash<int,MoneyDirection>& fdirs, QHash<int,Double>& ssums, QHash<int,MoneyDirection>& sdirs);
     static bool readExtraByMonth3(int y,int m, QHash<int,Double>& sumsR,
-           QHash<int,int>& fdirsR, QHash<int,Double>& ssumsR, QHash<int,int>& sdirsR);
+           QHash<int,MoneyDirection>& fdirsR, QHash<int,Double>& ssumsR, QHash<int,MoneyDirection>& sdirsR);
     static bool readExtraByMonth4(int y,int m, QHash<int,Double>& sumsR,
            QHash<int,Double>& ssumsR, bool &exist);
 
@@ -413,15 +413,15 @@ public:
 
     static bool readDetExtraForMt2(int y,int m, int sid, int mt, Double& v, int& dir);
 
-    static bool savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, int> newFDir,
-                                          QHash<int, Double> newS, QHash<int, int> newSDir,
+    static bool savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, MoneyDirection> newFDir,
+                                          QHash<int, Double> newS, QHash<int, MoneyDirection> newSDir,
                                           bool isSetup = true);
     static bool savePeriodEndValues(int y, int m, QHash<int, Double> newF, QHash<int, Double> newS);
 
 
     //
-    static bool calExtraAndDir(QHash<int,double> extra,QHash<int,int> extraDir,
-                               QHash<int,double> rate,double& mExtra,int& mDir);
+    //static bool calExtraAndDir(QHash<int,double> extra,QHash<int,int> extraDir,
+    //                           QHash<int,double> rate,double& mExtra,int& mDir);
     static bool calExtraAndDir2(QHash<int,Double> extra,QHash<int,int> extraDir,
                                QHash<int,Double> rate,Double& mExtra,int& mDir);
 
@@ -558,9 +558,9 @@ public:
 
 private:
     //为查询处于指定状态的某些类别的凭证生成过滤子句
-    static void genFiltState(QList<int> pzCls, PzState state, QString& s);
+    //static void genFiltState(QList<int> pzCls, PzState state, QString& s);
     //生成过滤出指定类别的凭证的条件语句
-    static QString genFiltStateForSpecPzCls(QList<int> pzClses);
+    //static QString genFiltStateForSpecPzCls(QList<int> pzClses);
 
     //固定资产管理模块是否需要产生凭证
     static bool reqGenGdzcPz(int y, int m, bool& req);

@@ -1803,7 +1803,7 @@ void MainWindow::on_actCurStat_triggered()
     SubWindowDim* winfo;
     QByteArray* sinfo;
     dbUtil->getSubWinInfo(PZSTAT,winfo,sinfo);
-    dlg = new ViewExtraDialog(cursy, cursm, sinfo, this );
+    dlg = new ViewExtraDialog(curAccount, cursy, cursm, sinfo, this );
     connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
     connect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
 
@@ -2858,7 +2858,7 @@ bool MainWindow::jzsy()
     pzAmount+=count;
     isExtraVolid = false;
     refreshShowPzsState();
-    ViewExtraDialog* vdlg = new ViewExtraDialog(cursy,cursm); //再次统计本期发生额并保存余额
+    ViewExtraDialog* vdlg = new ViewExtraDialog(curAccount,cursy,cursm); //再次统计本期发生额并保存余额
     connect(vdlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
     if(vdlg->exec() == QDialog::Rejected){
         disconnect(vdlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
@@ -2922,7 +2922,7 @@ bool MainWindow::jzhdsy()
     refreshShowPzsState();
 
     //统计结转汇兑损益后的本期发生额并保存余额
-    ViewExtraDialog* dlg = new ViewExtraDialog(cursy,cursm);
+    ViewExtraDialog* dlg = new ViewExtraDialog(curAccount,cursy,cursm);
     connect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
     dlg->setWindowFlags(Qt::CustomizeWindowHint);
     if(dlg->exec() == QDialog::Rejected){

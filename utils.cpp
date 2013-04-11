@@ -391,7 +391,7 @@ bool BusiUtil::init(QSqlDatabase db)
  * @return
  */
 bool BusiUtil::getRates2(int y, int m, QHash<int,Double>& rates, int mainMt){
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_moneyType).arg(fld_mt_code);
     if(!q.exec(s))
         return false;
@@ -439,7 +439,7 @@ bool BusiUtil::getRates2(int y, int m, QHash<int,Double>& rates, int mainMt){
  */
 bool BusiUtil::saveRates2(int y, int m, QHash<int, Double> &rates, int mainMt)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s,vs;
 
     QList<int> wbCodes;     //外币币种代码
@@ -530,7 +530,7 @@ bool BusiUtil::saveRates2(int y, int m, QHash<int, Double> &rates, int mainMt)
  */
 bool BusiUtil::getMTName(QHash<int, QString> &names)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
 
     s = QString("select %1,%2 from %3").arg(fld_mt_code).arg(fld_mt_name).arg(tbl_moneyType);
@@ -1184,30 +1184,30 @@ bool BusiUtil::saveActionsInPz2(int pid, QList<BusiActionData2 *> &busiActions, 
 //将各币种的余额汇总为用母币计的余额并确定余额方向
 //参数 extra，extraDir：余额及其方向，键为币种代码，rate：汇率
 //    mExtra，mDir：用母币计的余额值和方向
-bool BusiUtil::calExtraAndDir(QHash<int,double> extra,QHash<int,int> extraDir,
-                           QHash<int,double> rate,double& mExtra,int& mDir)
-{
-    mExtra = 0;
-    QHashIterator<int,double> i(extra);
-    while(i.hasNext()){ //计算期初总余额
-        i.next();
-        if(extraDir.value(i.key()) == DIR_P)
-            continue;
-        else if(extraDir.value(i.key()) == DIR_J)
-            mExtra += i.value() * rate.value(i.key());
-        else
-            mExtra -= i.value() * rate.value(i.key());
-    }
-    if(mExtra == 0)
-        mDir = DIR_P;
-    else if(mExtra > 0)
-        mDir = DIR_J;
-    else{
-        mDir = DIR_D;
-        mExtra = -mExtra;
-    }
-    return true;
-}
+//bool BusiUtil::calExtraAndDir(QHash<int,double> extra,QHash<int,int> extraDir,
+//                           QHash<int,double> rate,double& mExtra,int& mDir)
+//{
+//    mExtra = 0;
+//    QHashIterator<int,double> i(extra);
+//    while(i.hasNext()){ //计算期初总余额
+//        i.next();
+//        if(extraDir.value(i.key()) == DIR_P)
+//            continue;
+//        else if(extraDir.value(i.key()) == DIR_J)
+//            mExtra += i.value() * rate.value(i.key());
+//        else
+//            mExtra -= i.value() * rate.value(i.key());
+//    }
+//    if(mExtra == 0)
+//        mDir = DIR_P;
+//    else if(mExtra > 0)
+//        mDir = DIR_J;
+//    else{
+//        mDir = DIR_D;
+//        mExtra = -mExtra;
+//    }
+//    return true;
+//}
 
 /**
  * @brief BusiUtil::calExtraAndDir2
@@ -2074,7 +2074,7 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
     //基本步骤：
     //1、读取科目余额
     QHash<int,Double>extra,extraDet; //总账科目和明细账科目余额
-    QHash<int,int>extraDir,extraDetDir; //总账科目和明细账科目余额方向
+    QHash<int,MoneyDirection>extraDir,extraDetDir; //总账科目和明细账科目余额方向
     if(!readExtraByMonth2(y,m,extra,extraDir,extraDet,extraDetDir)){
         qDebug() << "Don't read subject extra !";
         return false;
@@ -2719,8 +2719,7 @@ bool BusiUtil::genForwordEx2(int y, int m, User *user, int state)
 bool BusiUtil::readExtraForSub2(int y, int m, int fid, QHash<int, Double> &v,
                                 QHash<int,Double>& wv, QHash<int, int> &dir)
 {
-    QSqlQuery q;
-    QString s1;
+    QSqlQuery q(db);
 
     //获取总账科目余额对应的字段名称
     QString s = QString("select %1 from %2 where id = %3")
@@ -2807,7 +2806,7 @@ bool BusiUtil::readExtraForDetSub2(int y, int m, int sid,
                                    QHash<int,Double>& wv,
                                    QHash<int, int> &dir)
 {
-    QSqlQuery q,q2;
+    QSqlQuery q(db),q2(db);
     QString s;
 
     //获取与该明细科目余额币种对应的总账科目的余额的记录id
@@ -2868,17 +2867,21 @@ bool BusiUtil::readExtraForDetSub2(int y, int m, int sid,
 }
 
 
+
 /**
-    从表SubjectExtras和SubjectExtraDirs读取指定月份的所有主、子科目余额及其方向
-    参数 sums：一级科目余额，ssums：明细科目余额，key：id x 10 + 币种代码
-    fdirs和sdirs为一二级科目余额的方向
-    ????要不要考虑凭证集的状态？？？
-*/
-
-
-bool BusiUtil::readExtraByMonth2(int y, int m, QHash<int, Double> &sums, QHash<int, int> &fdirs, QHash<int, Double> &ssums, QHash<int, int> &sdirs)
+ * @brief BusiUtil::readExtraByMonth2
+ *  读取老机制的余额（本币形式）
+ * @param y
+ * @param m
+ * @param sums      一级科目余额(key：id x 10 + 币种代码)
+ * @param fdirs     一级科目余额的方向
+ * @param ssums     明细科目余额
+ * @param sdirs     二级科目余额的方向
+ * @return
+ */
+bool BusiUtil::readExtraByMonth2(int y, int m, QHash<int, Double> &sums, QHash<int, MoneyDirection> &fdirs, QHash<int, Double> &ssums, QHash<int, MoneyDirection> &sdirs)
 {
-    QSqlQuery q,q2;
+    QSqlQuery q(db),q2(db);
     QSqlRecord rec;
     QString s;
 
@@ -2920,7 +2923,7 @@ bool BusiUtil::readExtraByMonth2(int y, int m, QHash<int, Double> &sums, QHash<i
         while(q2.next()){
             int sid = q2.value(DE_FSID).toInt(); //明细科目id
             ssums[sid*10+mt] = Double(q2.value(DE_VALUE).toDouble()); //余额值
-            sdirs[sid*10+mt] = q2.value(DE_DIR).toInt();      //方向
+            sdirs[sid*10+mt] = (MoneyDirection)q2.value(DE_DIR).toInt();      //方向
         }
     }
 
@@ -2941,7 +2944,7 @@ bool BusiUtil::readExtraByMonth2(int y, int m, QHash<int, Double> &sums, QHash<i
             int idx = rec.indexOf(i.value());
             int dir = q.value(idx).toInt();
             if(dir != 0)
-                fdirs[i.key()*10+mt] = dir;
+                fdirs[i.key()*10+mt] = (MoneyDirection)dir;
         }
     }
     return true;
@@ -2950,11 +2953,11 @@ bool BusiUtil::readExtraByMonth2(int y, int m, QHash<int, Double> &sums, QHash<i
 //读取科目余额，键为科目id*10+币种代码，但金额以本币计（即从表subjectExtra和detailExtra读取原币形式
 //的余额值，如果是外币就直接乘以汇率得出以本币计的余额值）
 bool BusiUtil::readExtraByMonth3(int y, int m, QHash<int, Double> &sumsR,
-                                 QHash<int, int> &fdirsR,
+                                 QHash<int, MoneyDirection> &fdirsR,
                                  QHash<int, Double> &ssumsR,
-                                 QHash<int, int> &sdirsR)
+                                 QHash<int, MoneyDirection> &sdirsR)
 {
-    QSqlQuery q,q2;
+    QSqlQuery q(db),q2(db);
     QSqlRecord rec;
     QString s;
 
@@ -3012,7 +3015,7 @@ bool BusiUtil::readExtraByMonth3(int y, int m, QHash<int, Double> &sumsR,
             if(isWb)
                 v = v * rates.value(mt);
             ssumsR[sid*10+mt] = v;
-            sdirsR[sid*10+mt] = q2.value(DE_DIR).toInt();      //方向
+            sdirsR[sid*10+mt] = (MoneyDirection)q2.value(DE_DIR).toInt();      //方向
         }
     }
 
@@ -3033,7 +3036,7 @@ bool BusiUtil::readExtraByMonth3(int y, int m, QHash<int, Double> &sumsR,
             int idx = rec.indexOf(i.value());
             int dir = q.value(idx).toInt();
             if(dir != 0)
-                fdirsR[i.key()*10+mt] = dir;
+                fdirsR[i.key()*10+mt] = (MoneyDirection)dir;
         }
     }
     return true;
@@ -3047,7 +3050,7 @@ bool BusiUtil::readExtraByMonth4(int y, int m, QHash<int, Double> &sumsR,
                                  QHash<int, Double> &ssumsR,
                                  bool& exist)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
 
     s = QString("select * from %1 where %2=%3 and %4=%5").arg(tbl_sem)
@@ -3066,7 +3069,7 @@ bool BusiUtil::readExtraByMonth4(int y, int m, QHash<int, Double> &sumsR,
     //读取主目余额
     //如果表中没有指定年月的余额记录（比如期初），则采用直接将外币余额值转换为本币的值
     if(!q.first()){
-        QHash<int,int> dirs;
+        QHash<int,MoneyDirection> dirs;
         if(!readExtraByMonth3(y,m,sumsR,dirs,ssumsR,dirs))
             return false;
         exist = false;
@@ -3197,9 +3200,9 @@ bool BusiUtil::readDetExtraForMt2(int y, int m, int sid, int mt, Double &v, int 
  * @param isSetup
  * @return
  */
-bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, int> newFDir, QHash<int, Double> newS, QHash<int, int> newSDir, bool isSetup)
+bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, MoneyDirection> newFDir, QHash<int, Double> newS, QHash<int, MoneyDirection> newSDir, bool isSetup)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
 
     QHash<int,QString> fldNames; //一级科目id到保存其余额的字段名
@@ -3231,7 +3234,7 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
 
     //读取老值集
     QHash<int, Double> oldF,oldS;   //余额
-    QHash<int,int>     odF, odS;    //方向
+    QHash<int,MoneyDirection> odF, odS;    //方向
     readExtraByMonth2(y,m,oldF,odF,oldS,odS);
 
     //初始化总账科目余额和方向的sql更新语句
@@ -3322,7 +3325,7 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
     }
 
     //2、处理明细账科目余额及方向
-    QSqlDatabase db = QSqlDatabase::database();
+    //QSqlDatabase db = QSqlDatabase::database();
     if(!db.transaction()){
         QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("在保存余额操作期间，启动事务失败！"));
         return false;
@@ -3392,7 +3395,7 @@ bool BusiUtil::savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHa
 bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
                                     QHash<int, Double> newS)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
 
     //保存主科目
@@ -3510,7 +3513,7 @@ bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
     }
 
     //保存子科目
-    QSqlDatabase db = QSqlDatabase::database();
+    //QSqlDatabase db = QSqlDatabase::database();
     if(!db.transaction()){
         QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("在保存余额操作期间，启动事务失败！"));
         return false;
@@ -3568,37 +3571,37 @@ bool BusiUtil::savePeriodEndValues(int y, int m, QHash<int, Double> newF,
 
 
 //为查询处于指定状态的某些类别的凭证生成过滤子句
-void BusiUtil::genFiltState(QList<int> pzCls, PzState state, QString& s)
-{
-    QString ts;
-    if(!pzCls.empty()){
-        for(int i = 0; i < pzCls.count(); ++i){
-            ts.append(QString("(isForward=%1) or ").arg(pzCls[i]));
-        }
-        ts.chop(4);
-        if(pzCls.count()>1)
-            s = QString("(%1) and (pzState=%2)").arg(ts).arg(state);
-        else
-            s = QString("%1 and (pzState=%2)").arg(ts).arg(state);
-    }
-}
+//void BusiUtil::genFiltState(QList<int> pzCls, PzState state, QString& s)
+//{
+//    QString ts;
+//    if(!pzCls.empty()){
+//        for(int i = 0; i < pzCls.count(); ++i){
+//            ts.append(QString("(isForward=%1) or ").arg(pzCls[i]));
+//        }
+//        ts.chop(4);
+//        if(pzCls.count()>1)
+//            s = QString("(%1) and (pzState=%2)").arg(ts).arg(state);
+//        else
+//            s = QString("%1 and (pzState=%2)").arg(ts).arg(state);
+//    }
+//}
 
 /**
  * @brief BusiUtil::genFiltStateForSpecPzCls
  *  生成过滤出指定类别的凭证的条件语句
  * @param pzClses
  */
-QString BusiUtil::genFiltStateForSpecPzCls(QList<int> pzClses)
-{
-    if(pzClses.empty())
-        return "";
-    QString sql;
-    for(int i = 0; i < pzClses.count(); ++i){
-        sql.append(QString("(%1=%2) or ").arg(fld_pz_class).arg(pzClses.at(i)));
-    }
-    sql.chop(4);
-    return sql;
-}
+//QString BusiUtil::genFiltStateForSpecPzCls(QList<int> pzClses)
+//{
+//    if(pzClses.empty())
+//        return "";
+//    QString sql;
+//    for(int i = 0; i < pzClses.count(); ++i){
+//        sql.append(QString("(%1=%2) or ").arg(fld_pz_class).arg(pzClses.at(i)));
+//    }
+//    sql.chop(4);
+//    return sql;
+//}
 
 /**
  * @brief BusiUtil::delSpecPz
@@ -3687,7 +3690,7 @@ QString BusiUtil::genFiltStateForSpecPzCls(QList<int> pzClses)
 bool BusiUtil::setExtraState(int y, int m, bool isVolid)
 {
     //记录外币余额的那条记录，不考虑用state字段来记录
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s = QString("select id from %1 where %2=%3 and %4=%5 and %6=%7")
             .arg(tbl_se).arg(fld_se_year).arg(y).arg(fld_se_month).arg(m)
             .arg(fld_se_mt).arg(RMB);
@@ -3733,7 +3736,7 @@ bool BusiUtil::setExtraState(int y, int m, bool isVolid)
  */
 bool BusiUtil::getExtraState(int y, int m)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s = QString("select %1 from %2 where %3=%4 and %5=%6 and %7=%8")
             .arg(fld_se_state).arg(tbl_se).arg(fld_se_year).arg(y).arg(fld_se_month)
             .arg(m).arg(fld_se_mt).arg(RMB);
@@ -3846,9 +3849,8 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
              QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
                                 bool& isSave, int& amount)
 {
-    QSqlQuery q,q2;
+    QSqlQuery q(db),q2(db);
     QString s;
-    bool r;
 
     //初始化汇率表
     QHash<int,Double>rates;
@@ -3886,7 +3888,7 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
     int pid,fid,sid,mtype;
     PzClass pzCls; //凭证类别
     Double jv,dv;  //业务活动的借贷金额
-    int dir;       //业务活动借贷方向
+    MoneyDirection dir;       //业务活动借贷方向
     bool isJzhdPz = false;
     while(q.next()){
         pid = q.value(0).toInt(); //凭证id
@@ -3909,9 +3911,9 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
             int key;
             sid = q2.value(BACTION_SID).toInt();
             mtype = q2.value(BACTION_MTYPE).toInt();
-            dir = q2.value(BACTION_DIR).toInt();
+            dir = (MoneyDirection)q2.value(BACTION_DIR).toInt();
 
-            if(dir == DIR_J){//发生在借方
+            if(dir == MDIR_J){//发生在借方
                 jv = Double(q2.value(BACTION_JMONEY).toDouble());
                 jSums[fid*10+mtype] += jv;
                 if(!dSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
@@ -3944,15 +3946,16 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
 //计算本期末余额（参数所涉及的金额都以本币计）
 bool BusiUtil::calCurExtraByMonth3(int y,int m,
        QHash<int,Double> preExaR, QHash<int,Double> preDetExaR,     //期初余额
-       QHash<int,int> preExaDirR, QHash<int,int> preDetExaDirR,     //期初余额方向
+       QHash<int,MoneyDirection> preExaDirR, QHash<int,MoneyDirection> preDetExaDirR,     //期初余额方向
        QHash<int,Double> curJHpnR, QHash<int,Double> curJDHpnR,     //当期借方发生额
        QHash<int,Double> curDHpnR, QHash<int,Double>curDDHpnR,      //当期贷方发生额
        QHash<int,Double> &endExaR, QHash<int,Double>&endDetExaR,    //期末余额
-       QHash<int,int> &endExaDirR, QHash<int,int> &endDetExaDirR)
+       QHash<int,MoneyDirection> &endExaDirR, QHash<int,MoneyDirection> &endDetExaDirR)
 {
     //第一步：计算总账科目余额
     Double v;
-    int dir,fid,sid;
+    MoneyDirection dir;
+    int fid,sid;
     QHashIterator<int,Double> cj(curJHpnR);
     while(cj.hasNext()){
         cj.next();
@@ -3961,15 +3964,15 @@ bool BusiUtil::calCurExtraByMonth3(int y,int m,
         //确定本期借贷相抵后的借贷方向
         v = curJHpnR[key] - curDHpnR[key];  //借方 - 贷方
         if(v > 0)
-            dir = DIR_J;
+            dir = MDIR_J;
         else if(v < 0){
-            dir = DIR_D;
+            dir = MDIR_D;
             v.changeSign();
         }
         else
-            dir = DIR_P;
+            dir = MDIR_P;
 
-        if(dir == DIR_P){ //本期借贷相抵（平）余额值和方向同期初
+        if(dir == MDIR_P){ //本期借贷相抵（平）余额值和方向同期初
             endExaR[key] = preExaR.value(key);
             endExaDirR[key] = preExaDirR.value(key);
         }
@@ -3980,7 +3983,7 @@ bool BusiUtil::calCurExtraByMonth3(int y,int m,
         else{
             Double tv;
             //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
-            if(dir == DIR_J)
+            if(dir == MDIR_J)
                 tv = v - preExaR.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
             else
                 tv = preExaR.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
@@ -3989,28 +3992,28 @@ bool BusiUtil::calCurExtraByMonth3(int y,int m,
                 if(isInSub(fid)){
                     tv.changeSign();
                     endExaR[key] = tv;
-                    endExaDirR[key] = DIR_D;
+                    endExaDirR[key] = MDIR_D;
                 }
                 else{
                     endExaR[key] = tv;
-                    endExaDirR[key] = DIR_J;
+                    endExaDirR[key] = MDIR_J;
                 }
             }
             else if(tv < 0){ //余额在贷方
                 //如果是费用类科目，要将它固定为借方
                 if(isFeiSub(fid)){
                     endExaR[key] = tv;
-                    endExaDirR[key] = DIR_J;
+                    endExaDirR[key] = MDIR_J;
                 }
                 else{
                     tv.changeSign();
                     endExaR[key] = tv;
-                    endExaDirR[key] = DIR_D;
+                    endExaDirR[key] = MDIR_D;
                 }
             }
             else{
                 endExaR[key] = 0;
-                endExaDirR[key] = DIR_P;
+                endExaDirR[key] = MDIR_P;
                 //或者可以考虑，将余额值为0的科目从hash表中移除
             }
         }
@@ -4025,13 +4028,13 @@ bool BusiUtil::calCurExtraByMonth3(int y,int m,
         sid = key/10;
         v = curJDHpnR[key] - curDDHpnR[key];
         if(v > 0)
-            dir = DIR_J;
+            dir = MDIR_J;
         else if(v < 0){
-            dir = DIR_D;
+            dir = MDIR_D;
             v.changeSign();
         }
         else
-            dir = DIR_P;
+            dir = MDIR_P;
 
         if(dir == DIR_P){ //本期借贷相抵（平）
             endDetExaR[key] = preDetExaR.value(key);
@@ -4044,7 +4047,7 @@ bool BusiUtil::calCurExtraByMonth3(int y,int m,
         else{
             Double tv;
             //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
-            if(dir == DIR_J)
+            if(dir == MDIR_J)
                 tv = v - preDetExaR.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
             else
                 tv = preDetExaR.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
@@ -4053,29 +4056,29 @@ bool BusiUtil::calCurExtraByMonth3(int y,int m,
                 if(isInSSub(sid)){
                     tv.changeSign();
                     endDetExaR[key] = tv;
-                    endDetExaDirR[key] = DIR_D;
+                    endDetExaDirR[key] = MDIR_D;
                 }
                 else{
                     endDetExaR[key] = tv;
-                    endDetExaDirR[key] = DIR_J;
+                    endDetExaDirR[key] = MDIR_J;
                 }
             }
             else if(tv < 0){ //余额在贷方
                 //如果是费用类科目，要将它固定为借方
                 if(isFeiSSub(sid)){
                     endDetExaR[key] = tv;
-                    endDetExaDirR[key] = DIR_J;
+                    endDetExaDirR[key] = MDIR_J;
                 }
                 else{
                     tv.changeSign();
                     endDetExaR[key] = tv;
-                    endDetExaDirR[key] = DIR_D;
+                    endDetExaDirR[key] = MDIR_D;
                 }
 
             }
             else{
                 endDetExaR[key] = 0;
-                endDetExaDirR[key] = DIR_P;
+                endDetExaDirR[key] = MDIR_P;
                 //或者可以考虑，将余额值为0的科目从hash表中移除
             }
         }
@@ -4230,15 +4233,16 @@ bool BusiUtil::calCurExtraByMonth(int y,int m,
 
 bool BusiUtil::calCurExtraByMonth2(int y,int m,
        QHash<int,Double> preExa, QHash<int,Double> preDetExa,     //期初余额
-       QHash<int,int> preExaDir, QHash<int,int> preDetExaDir,     //期初余额方向
+       QHash<int,MoneyDirection> preExaDir, QHash<int,MoneyDirection> preDetExaDir,     //期初余额方向
        QHash<int,Double> curJHpn, QHash<int,Double> curJDHpn,     //当期借方发生额
        QHash<int,Double> curDHpn, QHash<int,Double>curDDHpn,      //当期贷方发生额
        QHash<int,Double> &endExa, QHash<int,Double>&endDetExa,    //期末余额
-       QHash<int,int> &endExaDir, QHash<int,int> &endDetExaDir)  //期末余额方向
+       QHash<int,MoneyDirection> &endExaDir, QHash<int,MoneyDirection> &endDetExaDir)  //期末余额方向
 {
     //第一步：计算总账科目余额
     Double v;
-    int dir,fid;
+    MoneyDirection dir;
+    int fid;
     QHashIterator<int,Double> cj(curJHpn);
     while(cj.hasNext()){
         cj.next();
@@ -4247,15 +4251,15 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
         //确定本期借贷相抵后的借贷方向
         v = curJHpn[key] - curDHpn[key];  //借方 - 贷方
         if(v > 0)
-            dir = DIR_J;
+            dir = MDIR_J;
         else if(v < 0){
-            dir = DIR_D;
+            dir = MDIR_D;
             v.changeSign();
         }
         else
-            dir = DIR_P;
+            dir = MDIR_P;
 
-        if(dir == DIR_P){ //本期借贷相抵（平）余额值和方向同期初
+        if(dir == MDIR_P){ //本期借贷相抵（平）余额值和方向同期初
             endExa[key] = preExa.value(key);
             endExaDir[key] = preExaDir.value(key);
         }
@@ -4266,7 +4270,7 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
         else{
             Double tv;
             //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
-            if(dir == DIR_J)
+            if(dir == MDIR_J)
                 tv = v - preExa.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
             else
                 tv = preExa.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
@@ -4275,11 +4279,11 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
                 if(BusiUtil::isInSub(fid)){
                     tv.changeSign();
                     endExa[key] = tv;
-                    endExaDir[key] = DIR_D;
+                    endExaDir[key] = MDIR_D;
                 }
                 else{
                     endExa[key] = tv;
-                    endExaDir[key] = DIR_J;
+                    endExaDir[key] = MDIR_J;
                 }
 
             }
@@ -4288,18 +4292,18 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
                 if(BusiUtil::isFeiSub(fid)){
                     //tv.changeSign();
                     endExa[key] = tv;
-                    endExaDir[key] = DIR_J;
+                    endExaDir[key] = MDIR_J;
                 }
                 else{
                     tv.changeSign();
                     endExa[key] = tv;
-                    endExaDir[key] = DIR_D;
+                    endExaDir[key] = MDIR_D;
                 }
 
             }
             else{
                 endExa[key] = 0;
-                endExaDir[key] = DIR_P;
+                endExaDir[key] = MDIR_P;
             }
         }
     }
@@ -4314,15 +4318,15 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
         sid = key/10;
         v = curJDHpn[key] - curDDHpn[key];
         if(v > 0)
-            dir = DIR_J;
+            dir = MDIR_J;
         else if(v < 0){
-            dir = DIR_D;
+            dir = MDIR_D;
             v.changeSign();
         }
         else
-            dir = DIR_P;
+            dir = MDIR_P;
 
-        if(dir == DIR_P){ //本期借贷相抵（平）
+        if(dir == MDIR_P){ //本期借贷相抵（平）
             endDetExa[key] = preDetExa.value(key);
             endDetExaDir[key] = preDetExaDir.value(key);
         }
@@ -4333,7 +4337,7 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
         else{
             Double tv;
             //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
-            if(dir == DIR_J)
+            if(dir == MDIR_J)
                 tv = v - preDetExa.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
             else
                 tv = preDetExa.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
@@ -4342,11 +4346,11 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
                 if(isInSSub(sid)){
                     tv.changeSign();
                     endDetExa[key] = tv;
-                    endDetExaDir[key] = DIR_D;
+                    endDetExaDir[key] = MDIR_D;
                 }
                 else{
                     endDetExa[key] = tv;
-                    endDetExaDir[key] = DIR_J;
+                    endDetExaDir[key] = MDIR_J;
                 }
 
             }
@@ -4354,17 +4358,17 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
                 //如果是费用类科目，要将它固定为借方
                 if(isFeiSSub(sid)){
                     endDetExa[key] = tv;
-                    endDetExaDir[key] = DIR_J;
+                    endDetExaDir[key] = MDIR_J;
                 }
                 else{
                     tv.changeSign();
                     endDetExa[key] = tv;
-                    endDetExaDir[key] = DIR_D;
+                    endDetExaDir[key] = MDIR_D;
                 }
             }
             else{
                 endDetExa[key] = 0;
-                endDetExaDir[key] = DIR_P;
+                endDetExaDir[key] = MDIR_P;
             }
         }
     }
@@ -4406,7 +4410,7 @@ bool BusiUtil::calCurExtraByMonth2(int y,int m,
  */
 bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<int, Double> &dSums, QHash<int, Double> &sjSums, QHash<int, Double> &sdSums, bool &isSave, int &amount)
 {
-    QSqlQuery q,q2;
+    QSqlQuery q(db),q2(db);
     QString s;
 
     //初始化汇率表
@@ -4621,7 +4625,7 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
  */
 bool BusiUtil::getFidToFldName(QHash<int, QString> &names)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s = QString("select id,%1 from %2").arg(fld_fsub_subcode).arg(tbl_fsub);
     char c;
     if(!q.exec(s)){
@@ -4640,7 +4644,7 @@ bool BusiUtil::getFidToFldName(QHash<int, QString> &names)
 //获取凭证集内最大的可用凭证号
 int BusiUtil::getMaxPzNum(int y, int m)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
     bool r;
 
@@ -4659,7 +4663,7 @@ int BusiUtil::getMaxPzNum(int y, int m)
 //读取凭证集状态
 bool BusiUtil::getPzsState(int y,int m,PzsState& state)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     if(y==0 && m==0){
         state = Ps_NoOpen;
         return true;
@@ -4679,7 +4683,7 @@ bool BusiUtil::getPzsState(int y,int m,PzsState& state)
 //设置凭证集状态
 bool BusiUtil::setPzsState(int y,int m,PzsState state)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     //首先检测是否存在对应记录
     QString s = QString("select %1 from %2 where (%3=%4) and (%5=%6)")
             .arg(fld_pzss_state).arg(tbl_pzsStates).arg(fld_pzss_year)
@@ -4713,7 +4717,7 @@ bool BusiUtil::setPzsState(int y,int m,PzsState state)
  */
 bool BusiUtil::getOutMtInBank(QList<int>& ids, QList<int>& mt)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
 
     QHash<QString,int> mts;  //外币名称到币种代码的映射

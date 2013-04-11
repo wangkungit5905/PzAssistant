@@ -549,17 +549,18 @@ bool VMAccount::updateTo1_3()
     //5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
     emit upgradeStep(verNum,tr("第五步：创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化"),VUR_OK);
     s = QString("create table %1(id integer primary key, %2 integer, %3 integer, "
-                "%4 integer, %5 integer, %6 text)")
+                "%4 integer, %5 integer, %6 text, %7 integer, %8 integer)")
             .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
-            .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name);
+            .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name)
+            .arg(fld_accs_startMonth).arg(fld_accs_endMonth);
 
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("创建帐套表“%1”时发生错误！").arg(tbl_accSuites),VUR_ERROR);
         return false;
     }
     //读取帐套
-    s = QString("select %1 from %2 where %3=12")
-            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code);
+    s = QString("select %1 from %2 where %3=%4")
+            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(Account::SUITENAME);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在从表“AccountInfo”读取帐套信息时发生错误！"),VUR_ERROR);
         return false;
@@ -588,8 +589,8 @@ bool VMAccount::updateTo1_3()
     }
     emit upgradeStep(verNum,tr("成功转移帐套数据！"),VUR_OK);
 
-    s = QString("select %1 from %2 where %3=11")
-            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code);
+    s = QString("select %1 from %2 where %3=%4")
+            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(Account::CSUITE);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在读取最近打开帐套数据时发生错误！"),VUR_ERROR);
         return false;
@@ -604,16 +605,108 @@ bool VMAccount::updateTo1_3()
         emit upgradeStep(verNum,tr("在更新最近打开帐套时发生错误！"),VUR_ERROR);
         return false;
     }
-    emit upgradeStep(verNum,tr("成功更新最近打开帐套数据！"),VUR_OK);
+    emit upgradeStep(verNum,tr("成功更新最近打开帐套数据！"),VUR_OK);    
 
-    s = QString("delete from AccountInfo where code=11 or code=12");
+    s = QString("delete from %1 where %2=%3 or %2=%4").arg(tbl_accInfo)
+            .arg(fld_acci_code).arg(Account::CSUITE).arg(Account::SUITENAME);
     if(!q.exec(s)){
-        emit upgradeStep(verNum,tr("在从表“AccountInfo”中删除帐套信息时，发生错误！"),VUR_ERROR);
+        emit upgradeStep(verNum,tr("在从表“%1”中删除帐套信息时，发生错误！").arg(tbl_accInfo),VUR_ERROR);
         return false;
     }
-    emit upgradeStep(verNum,tr("从表“AccountInfo”中删除帐套信息！"),VUR_OK);
+    emit upgradeStep(verNum,tr("从表“%1”中删除帐套信息！").arg(tbl_accInfo),VUR_OK);
     s = "drop table AccountInfos";
     r = q.exec(s);
+
+    //将账户的起止时间也并入到帐套表
+    int sy,sm,ey,em;
+    ok = true;
+    s = QString("select %1 from %2 where %3=%4")
+            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(Account::STIME);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("读取账户开始时间时，发生错误！"),VUR_ERROR);
+        return false;
+    }
+    if(!q.first()){
+        emit upgradeStep(verNum,tr("遗失账户开始时间信息！"),VUR_ERROR);
+        return false;
+    }
+    QDate d = QDate::fromString(q.value(0).toString(),Qt::ISODate);
+    sy = d.year(),sm = d.month();
+
+    s = QString("select %1 from %2 where %3=%4")
+            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ETIME);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("读取账户结束时间时，发生错误！"),VUR_ERROR);
+        return false;
+    }
+    if(!q.first()){
+        emit upgradeStep(verNum,tr("遗失账户结束时间信息！"),VUR_ERROR);
+        return false;
+    }
+    d = QDate::fromString(q.value(0).toString(),Qt::ISODate);
+    ey = d.year(),em = d.month();
+    //只有一个帐套
+    if(sy == ey){
+        s = QString("update %1 set %2=%3,%4=%5 where %6=%7")
+                .arg(tbl_accSuites).arg(fld_accs_startMonth).arg(sm)
+                .arg(fld_accs_endMonth).arg(em).arg(fld_accs_year).arg(sy);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("更新帐套起止月份时发生错误！"),VUR_ERROR);
+            return false;
+        }
+        if(q.numRowsAffected() != 1){
+            emit upgradeStep(verNum,tr("没有更新帐套起止月份，请查看数据库表！"),VUR_WARNING);
+            ok = false;
+        }
+    }
+    //两个或以上帐套
+    else {
+        s = QString("update %1 set %2=%3,%4=12 where %5=%6")
+                .arg(tbl_accSuites).arg(fld_accs_startMonth).arg(sm)
+                .arg(fld_accs_endMonth).arg(fld_accs_year).arg(sy);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("更新帐套起始月份时发生错误！"),VUR_ERROR);
+            return false;
+        }
+        if(q.numRowsAffected() != 1){
+            emit upgradeStep(verNum,tr("没有更新帐套起始月份，请查看数据库表！"),VUR_WARNING);
+            ok = false;
+        }
+
+        s = QString("update %1 set %2=1,%3=%4 where %5=%6")
+                .arg(tbl_accSuites).arg(fld_accs_startMonth)
+                .arg(fld_accs_endMonth).arg(em).arg(fld_accs_year).arg(ey);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("更新帐套结束月份时发生错误！"),VUR_ERROR);
+            return false;
+        }
+        if(q.numRowsAffected() != 1){
+            emit upgradeStep(verNum,tr("没有更新帐套结束月份，请查看数据库表！"),VUR_WARNING);
+            ok = false;
+        }
+    }
+    //2个以上的帐套
+    if(ey - sy > 1){
+        s = QString("update %1 set %2=1,%3=12 where %4!=%5 and %4!=%6")
+                .arg(tbl_accSuites).arg(fld_accs_startMonth)
+                .arg(fld_accs_endMonth).arg(fld_accs_year).arg(sy).arg(ey);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("更新中间帐套起止月份时发生错误！"),VUR_ERROR);
+            return false;
+        }
+        if(q.numRowsAffected() == 0){
+            emit upgradeStep(verNum,tr("没有更新中间帐套起止月份，请查看数据库表！"),VUR_WARNING);
+            ok = false;
+        }
+    }
+
+    //从账户信息表中移除账户起止信息
+    s = QString("delete from %1 where %2=%3 or %2=%4")
+            .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::STIME).arg(Account::ETIME);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("从账户信息表中移除账户起止信息时发生错误"),VUR_ERROR);
+        return false;
+    }
 
     if(setCurVersion(1,3)){
         emit endUpgrade(verNum,tr("账户文件格式成功更新到1.3版本！"),VUR_OK);

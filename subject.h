@@ -102,8 +102,8 @@ public:
     void setUsage(QString s);
 
 
-    //子科目操作方法（按约定：添加子目用科目管理器使用的方法）
-    //bool addChildSub(SecondSubject* sub);
+    //子科目操作方法
+    void addChildSub(SecondSubject* sub);
     int getChildCount(){return childSubs.count();}
 
     //SecondSubject* addChildSub(SecondSubject* ssub);
@@ -154,6 +154,23 @@ Q_DECLARE_METATYPE(FirstSubject*)
 bool byNameThan_fs(FirstSubject *fs1, FirstSubject *fs2);
 bool bySubCodeThan_fs(FirstSubject *fs1, FirstSubject *fs2);
 bool byRemCodeThan_fs(FirstSubject *fs1, FirstSubject *fs2);
+
+/**
+ * @brief The FSubItrator class
+ *  以科目代码的顺序迭代出一级科目对象的简单迭代器类
+ */
+class FSubItrator{
+public:
+    FSubItrator(QHash<int,FirstSubject*> &fsubs);
+    bool hasNext();
+    FirstSubject* next();
+    int key();
+    FirstSubject* value();
+private:
+    QHash<int,FirstSubject*> fsubHash;
+    QList<int> ids; //一级科目的id列表（以科目代码的顺序）
+    int index;      //当前的迭代器指针索引位置
+};
 
 
 /**
@@ -330,6 +347,9 @@ public:
     SecondSubject* getSndSubject(int id){return sndSubs.value(id);}
     QHash<int,FirstSubject*>& getAllFstSubHash(){return fstSubHash;}
     QHash<int,SecondSubject*>& getAllSndSubHash(){return sndSubs;}
+
+    FSubItrator* getFstSubItrator(){return new FSubItrator(fstSubHash);}
+
 
     //获取特种科目的方法
     FirstSubject* getCashSub(){return cashSub;}

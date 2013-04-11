@@ -581,7 +581,7 @@ private:
     FirstSubject* fsub;
     int y,m;      //年，月
     QHash<int,Double> fsums,ssums; //一二级科目余额及其方向，键为科目id * 10 + 币种代码
-    QHash<int,int> fdirs,sdirs;
+    QHash<int,MoneyDirection> fdirs,sdirs;
     QList<int> mts;                //币种代码列表
     QStandardItemModel* model;
     Account* account;

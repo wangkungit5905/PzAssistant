@@ -68,6 +68,43 @@ QString Account::getWaiMtStr()
 }
 
 /**
+ * @brief Account::getStartTime
+ *  获取账户开始记账时间
+ * @return
+ */
+QDate Account::getStartTime()
+{
+    AccountSuiteRecord* asr = accInfos.suites.first();
+    return QDate(asr->year,asr->startMonth,1);
+}
+
+/**
+ * @brief Account::getEndTime
+ *  获取账户结束记账时间
+ * @return
+ */
+QDate Account::getEndTime()
+{
+    AccountSuiteRecord* asr = accInfos.suites.last();
+    QDate d = QDate(asr->year,asr->endMonth,1);
+    d.setDate(asr->year,asr->endMonth,d.daysInMonth());
+    return d;
+}
+
+/**
+ * @brief Account::setEndTime
+ *  设置账户结束记账时间
+ * @param date
+ */
+void Account::setEndTime(QDate date)
+{
+    AccountSuiteRecord* asr = accInfos.suites.last();
+    if(asr->year == date.year())
+        asr->endMonth = date.month();
+}
+
+
+/**
  * @brief Account::appendSuite
  *  添加帐套
  * @param y         帐套年份
@@ -80,7 +117,7 @@ void Account::appendSuite(int y, QString name, int curMonth,int subSys)
     foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y){
             as->name = name;
-            as->lastMonth = curMonth;
+            as->recentMonth = curMonth;
             as->subSys = subSys;
             as->isCur = true;
             return;
@@ -90,7 +127,7 @@ void Account::appendSuite(int y, QString name, int curMonth,int subSys)
     }
     AccountSuiteRecord* as = new AccountSuiteRecord;
     as->id = 0; as->year = y; as->name = name;
-    as->isCur = true; as->lastMonth = curMonth;
+    as->isCur = true; as->recentMonth = curMonth;
     as->startMonth = 1; as->endMonth = 1;as->subSys = subSys;
     int i = 0;
     while(i < accInfos.suites.count() && y > accInfos.suites.at(i)->year)
@@ -220,7 +257,7 @@ void Account::setCurMonth(int m)
 {
     foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->isCur)
-            as->lastMonth = m;
+            as->recentMonth = m;
     }
 }
 
@@ -233,7 +270,7 @@ int Account::getCurMonth()
 {
     foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->isCur)
-            return as->lastMonth;
+            return as->recentMonth;
     }
     return 0;
 }
@@ -241,24 +278,38 @@ int Account::getCurMonth()
 //获取账户期初年份（即开始记账的前一个月所处的年份）
 int Account::getBaseYear()
 {
-    QDate d = QDate::fromString(accInfos.startDate,Qt::ISODate);
-    int m = d.month();
-    int y = d.year();
-    if(m == 1)
-        return y-1;
+    if(accInfos.suites.isEmpty())
+        return 0;
+    AccountSuiteRecord* asr = accInfos.suites.first();
+    if(asr->startMonth == 1)
+        return asr->year-1;
     else
-        return y;
+        return asr->year;
 }
 
 //获取账户期初月份
 int Account::getBaseMonth()
 {
-    QDate d = QDate::fromString(accInfos.startDate,Qt::ISODate);
-    int m = d.month();
-    if(m == 1)
+    if(accInfos.suites.isEmpty())
+        return 0;
+    AccountSuiteRecord* asr = accInfos.suites.last();
+    if(asr->startMonth == 1)
         return 12;
     else
-        return m-1;
+        return asr->startMonth - 1;
+}
+
+/**
+ * @brief Account::getVersion
+ *  获取账户文件的版本号
+ * @param mv
+ * @param sv
+ */
+void Account::getVersion(int &mv, int &sv)
+{
+    QStringList sl = accInfos.dbVersion.split(".");
+    mv = sl.first().toInt();
+    sv = sl.last().toInt();
 }
 
 
@@ -421,7 +472,7 @@ bool Account::AccountSuiteRecord::operator !=(const AccountSuiteRecord& other)
 {
     if(year != other.year)
         return true;
-    else if(lastMonth != other.lastMonth)
+    else if(recentMonth != other.recentMonth)
         return true;
     else if(subSys != other.subSys)
         return true;

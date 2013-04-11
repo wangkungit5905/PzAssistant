@@ -5993,7 +5993,7 @@ void AccountPropertyDialog::save(bool confirm)
             //                           itemData(ui->cmbRptType->currentIndex()).toInt());
             if(bSTime){
                 QDate date = ui->datStart->date();
-                account->setStartTime(date);
+                //account->setStartTime(date);//开始记账时间应由创建第一个帐套时自动设置
             }
             if(bETime){
                 QDate date = ui->datEnd->date();

@@ -14,6 +14,8 @@
  */
 
 const QString AccConnName = "Account";
+const int nmv = 1;  //这是新老余额存储机制转换的衔接版本号
+const int nsv = 5;  //此版本号前使用老存储机制，此版本后（包括此版本）使用新存储机制
 
 class SubjectManager;
 class FirstSubject;
@@ -48,6 +50,7 @@ public:
     DbUtil();
     ~DbUtil();
     bool setFilename(QString fname);
+    bool init();
     void close();
 
     //账户信息相关
@@ -122,27 +125,35 @@ public:
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool readAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
-    bool saveAccountSuites(QList<Account::AccountSuiteRecord*> suites);
+    bool saveAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
 
     //余额相关辅助函数
     bool _readExtraPoint(int y, int m, QHash<int, int> &mtHashs);
     bool _readExtraForPm(int y, int m, QHash<int,Double> &sums, QHash<int,MoneyDirection> &dirs, bool isFst = true);
     bool _readExtraForMm(int y, int m, QHash<int,Double> &sums, bool isFst = true);
+    void _replaeAccurateExtra(QHash<int,Double> &sums, QHash<int,Double> &asums);
     bool _crtExtraPoint(int y, int m, int mt, int& pid);
     bool _saveExtrasForPm(int y, int m, const QHash<int,Double> &sums, const QHash<int,MoneyDirection> &dirs, bool isFst = true);
     bool _saveExtrasForMm(int y, int m, const QHash<int,Double> &sums, bool isFst = true);
+
+    //
+    int _genKeyForExtraPoint(int y, int m, int mt);
 
     //表格创建函数
     void crtGdzcTable();
 
     //
     void warn_transaction(ErrorCode witch, QString context);
+    bool isNewExtraAccess(){return (mv==nmv && sv>=nsv) || (mv>nmv);}//是否采用新余额存取机制
 
 private:
     QSqlDatabase db;
     int masterMt;   //母币代码（在访问余额状态时要用，因为该状态只保存在母币余额中）
     QString fileName;   //账户文件名
     QHash<InfoField,QString> pNames; //账户信息片段名称表
+    QHash<int,int> extraPoints;  //余额指针缓存表（键为余额的年、月和币种所构成的复合键（高4位是年份，中2位是月份，低1位是币种），值为SE_Point表的id）
+                                 //使用此变量是为了减少读取指针表的次数，现在暂缓实施
+    int mv,sv;  //账户文件版本号（临时保存，用于那些代理函数执行前的版本比较）
 };
 
 #endif // DBUTIL_H

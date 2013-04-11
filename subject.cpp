@@ -139,6 +139,20 @@ void FirstSubject::setUsage(QString s)
 
 /**
  * @brief FirstSubject::addChildSub
+ * @param sub
+ * @return
+ */
+void FirstSubject::addChildSub(SecondSubject *sub)
+{
+    if(!sub)
+        return;
+    if(childSubs.contains(sub))
+        return;
+    childSubs<<sub;
+}
+
+/**
+ * @brief FirstSubject::addChildSub
  *  利用已有的名称条目添加新子目
  * @param name      子目所使用的名称条目对象
  * @param Code      子目的代码
@@ -327,6 +341,43 @@ bool byRemCodeThan_ss(SecondSubject *ss1, SecondSubject *ss2)
 bool bySubNameThan_ss(SecondSubject *ss1, SecondSubject *ss2)
 {return ss1->getName() < ss2->getName();}
 
+
+
+//////////////////////////FSubItrator/////////////////////////////////////////////
+FSubItrator::FSubItrator(QHash<int, FirstSubject *> &fsubs):fsubHash(fsubs)
+{
+    QList<FirstSubject*> fsubObjs = fsubHash.values();
+    qSort(fsubObjs.begin(),fsubObjs.end(),bySubCodeThan_fs);
+    for(int i = 0; i < fsubObjs.count(); ++i)
+        ids<<fsubObjs.at(i)->getId();
+    index = -1;
+}
+
+bool FSubItrator::hasNext()
+{
+    return (index < ids.count()-1);
+}
+
+FirstSubject *FSubItrator::next()
+{
+    return fsubHash.value(ids.at(++index));
+}
+
+int FSubItrator::key()
+{
+    if(index > ids.count() - 1)
+        return 0;
+    else
+        return ids.at(index);
+}
+
+FirstSubject *FSubItrator::value()
+{
+    if(index > ids.count() - 1)
+        return NULL;
+    else
+        return fsubHash.value(ids.at(index));
+}
 
 
 //////////////////////////SubjectNameItem//////////////////////////////////////////
@@ -635,6 +686,7 @@ SecondSubject *SubjectManager::addSndSubject(FirstSubject *fsub, SubjectNameItem
     sndSubs[ssub->getId()] = ssub;
     return ssub;
 }
+
 
 
 

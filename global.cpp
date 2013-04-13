@@ -45,7 +45,7 @@ QHash<int,GdzcType*> allGdzcProductCls;
 QHash<int,QString> allGdzcSubjectCls;
 
 QSet<int> pzClsImps;
-QSet<int> pzClsJzhds;
+QSet<PzClass> pzClsJzhds;
 QSet<int> pzClsJzsys;
 QHash<PzState,QString> pzStates;
 
@@ -158,6 +158,9 @@ int appInit()
     pzClsJzhds.insert(Pzc_Jzhd_Bank);
     pzClsJzhds.insert(Pzc_Jzhd_Ys);
     pzClsJzhds.insert(Pzc_Jzhd_Yf);
+    pzClsJzhds.insert(Pzc_Jzhd_Yuf );
+    pzClsJzhds.insert(Pzc_Jzhd_Yus);
+    pzClsJzhds.insert(Pzc_Jzhd);
 
     pzClsJzsys.insert(Pzc_JzsyIn);
     pzClsJzsys.insert(Pzc_JzsyFei);

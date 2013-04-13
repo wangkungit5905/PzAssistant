@@ -23,15 +23,16 @@ public:
     bool open(int y, int m);
     void close();
 
-    int year(){return y;}
-    int month(){return m;}
+    int year(){return curY;}
+    int month(){return curM;}
     int getPzCount();
     int getMaxZbNum(){return maxZbNum;}
     bool resetPzNum(int by = 1);
     bool determineState();
-    PzsState getState();
-    void setstate(PzsState state);
-
+    PzsState getState(int curY=0, int curM=0);
+    void setstate(PzsState state, int y=0, int m=0);
+    bool getExtraState(int y=0,int m=0);
+    void setExtraState(bool state, int y=0,int m=0);
     bool getPzSet(int y, int m, QList<PingZheng *> &pzs);
     QList<PingZheng*> getPzSpecRange(int y ,int m, QSet<int> nums);
     bool contains(int y, int m, int pid);
@@ -89,12 +90,15 @@ private:
 
 
     ///////////////////////////////////////////////////////////////////////
-    int y, m;
+    int curY, curM;               //当前以只读方式打开的凭证集所属年月
     PzsState state;                         //凭证集状态
+
     int maxPzNum;                           //最大可用凭证号
     int maxZbNum;                           //最大可用自编号
 
     QHash<int,QList<PingZheng*> > pzSetHash;  //保存所有已经装载的凭证集（键为年月所构成的整数高4位表示年，低2为表示月）
+    QHash<int,PzsState> states; //凭证集状态（键同上）
+    QHash<int,bool> extraStates;//凭证集余额状态（键同上）
     Account* account;
     DbUtil* dbUtil;
     User* user;

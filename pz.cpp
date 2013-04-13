@@ -100,7 +100,7 @@ void BusiAction::setNumber(int number)
 
 /////////////////PingZheng/////////////////////////////////////////
 PingZheng::PingZheng(PzSetMgr *parent):ID(0),p(parent),witchEdited(ES_PZ_INIT),
-    isDeleted(false),encNum(0),ru(NULL),vu(NULL),bu(NULL){md=PZMD++;}
+    isDeleted(false),encNum(0),ru(NULL),vu(NULL),bu(NULL),oppoSub(NULL){md=PZMD++;}
 
 PingZheng::PingZheng(int id, QString date, int pnum, int znum, Double js, Double ds,
           PzClass pcls, int encnum, PzState state, User* vu, User* ru, User* bu, PzSetMgr* parent)
@@ -109,6 +109,7 @@ PingZheng::PingZheng(int id, QString date, int pnum, int znum, Double js, Double
       isDeleted(false),p(parent)
 {
     md=PZMD++;
+    oppoSub=NULL;
 }
 
 //PingZheng::PingZheng(PzData2* data,User* puser,QSqlDatabase db):

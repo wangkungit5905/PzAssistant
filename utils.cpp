@@ -15,7 +15,7 @@ QSet<int> BusiUtil::snset; //具有负借正贷特性的二级科目id集合
 QSet<int> fidByMt; //需要按币种进行明细统计功能的一级科目id集合（这是临时代码，这个信息需要在一级科目表中反映）
 
 QSet<int> BusiUtil::impPzCls;   //由其他模块引入的凭证类别代码集合
-QSet<int> BusiUtil::jzhdPzCls;  //由系统自动产生的结转汇兑损益凭证类别代码集合
+//QSet<int> BusiUtil::jzhdPzCls;  //由系统自动产生的结转汇兑损益凭证类别代码集合
 QSet<int> BusiUtil::jzsyPzCls;  //由系统自动产生的结转损益凭证类别代码集合
 QSet<int> BusiUtil::otherPzCls; //其他由系统产生并允许用户修改的凭证类别代码集合
 QSet<int> BusiUtil::accToMt;    //需要按币种核算的科目id集合
@@ -287,7 +287,7 @@ double ExpressParse::calValue(QString exp, QHash<QString, double>* vhash)
 /**
     类的初始化函数
 */
-bool BusiUtil::init(QSqlDatabase db)
+bool BusiUtil::init(QSqlDatabase& db)
 {
     BusiUtil::db = db;
     QSqlQuery q(db),q2(db);
@@ -302,6 +302,7 @@ bool BusiUtil::init(QSqlDatabase db)
             .arg(tbl_fsub).arg(fld_fsub_jddir).arg(fld_fsub_isview);
     if(!q.exec(s))
         return false;
+    pset.clear();
     while(q.next())
         pset.insert(q.value(0).toInt());
 
@@ -309,6 +310,7 @@ bool BusiUtil::init(QSqlDatabase db)
             .arg(tbl_fsub).arg(fld_fsub_jddir).arg(fld_fsub_isview);
     if(!q.exec(s))
         return false;
+    nset.clear();
     while(q.next())
         nset.insert(q.value(0).toInt());
 
@@ -316,6 +318,7 @@ bool BusiUtil::init(QSqlDatabase db)
     QList<int> ids;
     QList<QString> names;
     QSetIterator<int>* it = new QSetIterator<int>(pset);
+    spset.clear();
     while(it->hasNext()){
         fid = it->next();
         getSndSubInSpecFst(fid,ids,names);
@@ -326,6 +329,7 @@ bool BusiUtil::init(QSqlDatabase db)
     ids.clear();
     names.clear();
     it = new QSetIterator<int>(nset);
+    snset.clear();
     while(it->hasNext()){
         fid = it->next();
         getSndSubInSpecFst(fid,ids,names);
@@ -334,22 +338,28 @@ bool BusiUtil::init(QSqlDatabase db)
     }
 
     //初始化凭证类别代码集合
+    impPzCls.clear();
     impPzCls.insert(Pzc_GdzcZj);
     impPzCls.insert(Pzc_Dtfy);
 
-    jzhdPzCls.insert(Pzc_Jzhd_Bank);
-    jzhdPzCls.insert(Pzc_Jzhd_Ys);
-    jzhdPzCls.insert(Pzc_Jzhd_Yf);
+    //这些可以通过访问全局变量pzClsJzhds来获得
+//    jzhdPzCls.clear();
+//    jzhdPzCls.insert(Pzc_Jzhd_Bank);
+//    jzhdPzCls.insert(Pzc_Jzhd_Ys);
+//    jzhdPzCls.insert(Pzc_Jzhd_Yf);
 
+    jzsyPzCls.clear();
     jzsyPzCls.insert(Pzc_JzsyIn);
     jzsyPzCls.insert(Pzc_JzsyFei);
 
+    otherPzCls.clear();
     otherPzCls.insert(Pzc_Jzlr);
 
     //初始化需要按币种分别核算的科目的集合
     s = QString("select id from %1 where %2=1").arg(tbl_fsub).arg(fld_fsub_isUseWb);
     if(!q.exec(s))
         return false;
+    accToMt.clear();
     while(q.next())
         accToMt.insert(q.value(0).toInt());
 
@@ -359,6 +369,8 @@ bool BusiUtil::init(QSqlDatabase db)
     if(!q.exec(s))
         return false;
     int dir,sid;
+    feiIds.clear();inIds.clear();
+    feiSIds.clear();inSIds.clear();
     while(q.next()){
         fid = q.value(0).toInt();
         dir = q.value(1).toInt();
@@ -575,19 +587,19 @@ bool BusiUtil::getSubCodeByName(QString &code, QString name, int subSys)
  */
 bool BusiUtil::getIdByCode(int &id, QString code, int subSys)
 {
-        QSqlQuery q;
-        QString s = QString("select id from %1 where %2 = %3 and %4 = '%5'")
-                .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys)
-                .arg(fld_fsub_subcode).arg(code);
-        if(!q.exec(s))
-            return false;
-        if(!q.first()){
-            QMessageBox::information(0,QObject::tr("提示信息"),
-                                     QString(QObject::tr("未能找到科目代码%1")).arg(code));
-            return false;
-        }
-        id = q.value(0).toInt();
-        return true;
+    QSqlQuery q(db);
+    QString s = QString("select id from %1 where %2 = %3 and %4 = '%5'")
+            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys)
+            .arg(fld_fsub_subcode).arg(code);
+    if(!q.exec(s))
+        return false;
+    if(!q.first()){
+        QMessageBox::information(0,QObject::tr("提示信息"),
+                                 QString(QObject::tr("未能找到科目代码%1")).arg(code));
+        return false;
+    }
+    id = q.value(0).toInt();
+    return true;
 }
 
 /**
@@ -921,7 +933,7 @@ bool BusiUtil::getAllSubSLName(QHash<int,QString>& names)
 bool BusiUtil::getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names, bool isAll ,int subSys)
 {
     QString s;
-    QSqlQuery q;
+    QSqlQuery q(db);
 
     if(!ids.empty())
         ids.clear();
@@ -1630,14 +1642,15 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
     if(!q.exec(s))
         return false;
 
-    int mType,pzCls,id,fsubId;
+    int mType,id,fsubId;
+    PzClass pzCls;
     int cwfyId; //财务费用的科目id
     getIdByCode(cwfyId,"5503");
 
     while(q.next()){
         id = q.value(9).toInt();
         mType = q.value(7).toInt();  //业务发生的币种
-        pzCls = q.value(11).toInt();    //凭证类别
+        pzCls = (PzClass)q.value(11).toInt();    //凭证类别
         fsubId = q.value(9).toInt();    //会计分录所涉及的一级科目id
         //如果要提取所有选定主目，则跳过所有未选定主目
         if(fid == 0){
@@ -1652,8 +1665,8 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
         }
 
         //当前凭证是否是结转汇兑损益的凭证
-        bool isJzhdPz = pzCls == Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys
-                        || pzCls == Pzc_Jzhd_Yf;
+        bool isJzhdPz = pzClsJzhds.contains(pzCls)/*Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys
+                        || pzCls == Pzc_Jzhd_Yf*/;
         //如果是结转汇兑损益的凭证作特别处理
         if(isJzhdPz){
             if(mt == RMB && fid != cwfyId) //如果指定的是人民币，则跳过非财务费用方的会计分录
@@ -3058,8 +3071,8 @@ bool BusiUtil::readExtraByMonth4(int y, int m, QHash<int, Double> &sumsR,
     if(!q.exec(s))
         return false;
 
-    QList<int> mts = allMts.keys();
-    mts.removeOne(RMB);
+    //QList<int> mts = allMts.keys();
+    //mts.removeOne(RMB);
 
     QHash<int,QString> fldNames;  //键为科目代码，值为保存科目代码的字段名
     QList<int> ids;            //科目id列表
@@ -3081,8 +3094,8 @@ bool BusiUtil::readExtraByMonth4(int y, int m, QHash<int, Double> &sumsR,
             it->next();
             id = it->key()/10;
             mt = it->key()%10;
-            if(!mts.contains(mt) ||                          //不是外币
-                    (mts.contains(mt) && !fldNames.contains(id)))//是外币，但科目不要求按币种核算
+            if((mt == RMB) ||                          //不是外币
+                    ((mt != RMB) && !fldNames.contains(id)))//是外币，但科目不要求按币种核算
                 sumsR.remove(it->key());
         }
 
@@ -3098,8 +3111,8 @@ bool BusiUtil::readExtraByMonth4(int y, int m, QHash<int, Double> &sumsR,
             it->next();
             id = it->key()/10;
             mt = it->key()%10;
-            if(!mts.contains(mt) ||
-                (mts.contains(mt) && !sids.contains(id)))
+            if((mt == RMB) ||
+                    ((mt != RMB) && !sids.contains(id)))
                 ssumsR.remove(it->key());
         }
         return true;
@@ -3893,8 +3906,8 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
     while(q.next()){
         pid = q.value(0).toInt(); //凭证id
         pzCls = (PzClass)q.value(PZ_CLS).toInt();
-        isJzhdPz = pzCls == Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys ||
-                pzCls == Pzc_Jzhd_Yf;
+        isJzhdPz = pzClsJzhds.contains(pzCls)/*Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys ||
+                pzCls == Pzc_Jzhd_Yf*/;
         s = QString("select * from BusiActions where pid = %1").arg(pid);
         if(!q2.exec(s)){
             QMessageBox::information(0, QObject::tr("提示信息"),
@@ -4469,7 +4482,7 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
             //币种为本币，这是一个约定，由生成结转凭证的函数来保证，不能改变
             //如果要支持多种外币，则必须从会计分录中读取此条结转汇兑损益的会计分录所对应的
             //外币代码，目前，为了简化，外币只有美元项
-            if(pzCls == Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys || pzCls == Pzc_Jzhd_Yf){
+            if(pzClsJzhds.contains(pzCls)/*Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys || pzCls == Pzc_Jzhd_Yf*/){
                 //continue;
                 if(isAccMt(fid)){  //如果是银行、应收/应付方
                     dv = Double(q2.value(BACTION_DMONEY).toDouble());

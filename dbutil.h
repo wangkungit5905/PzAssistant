@@ -15,7 +15,7 @@
 
 const QString AccConnName = "Account";
 const int nmv = 1;  //这是新老余额存储机制转换的衔接版本号
-const int nsv = 5;  //此版本号前使用老存储机制，此版本后（包括此版本）使用新存储机制
+const int nsv = 6;  //此版本号前使用老存储机制，此版本后（包括此版本）使用新存储机制
 
 class SubjectManager;
 class FirstSubject;

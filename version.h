@@ -77,6 +77,8 @@ class VMAccount : public VMBase
 public:
     VMAccount(QString filename);
     ~VMAccount();
+    bool restoreConnect();
+    void closeConnect();
     bool backup(QString fname);
     bool restore(QString fname);
     bool perfectVersion();
@@ -92,10 +94,12 @@ private:
     bool updateTo1_3();
     bool updateTo1_4();
     bool updateTo1_5();
+    bool updateTo1_6();
     bool updateTo2_0();
     bool updateTo2_1();
 
     QHash<int,UpgradeFun_Acc> upgradeFuns;
+    QString fileName;
 };
 
 class VMAppConfig : public VMBase

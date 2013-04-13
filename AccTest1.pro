@@ -55,7 +55,8 @@ SOURCES += main.cpp\
     logs/AbstractAppender.cpp \
     version.cpp \
     subject.cpp \
-    PzSet.cpp
+    PzSet.cpp \
+    statutil.cpp
 
 HEADERS  += \
     connection.h \
@@ -106,7 +107,8 @@ HEADERS  += \
     logs/AbstractAppender.h \
     version.h \
     subject.h \
-    PzSet.h
+    PzSet.h \
+    statutil.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

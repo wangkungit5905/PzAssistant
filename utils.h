@@ -109,7 +109,7 @@ public:
     static QSqlDatabase db;     //为了能够让它暂时为我服务，给它一个数据连接对象而不是使用默认的连接
 
     //类的初始化函数
-    static bool init(QSqlDatabase db);
+    static bool init(QSqlDatabase &db);
 
     static bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
 

@@ -233,6 +233,8 @@ public:
            witchEdited |= ES_PZ_CLASS;
         }
     }
+    FirstSubject* getOppoSubject(){return oppoSub;}
+    void setOppoSubject(FirstSubject* sub){oppoSub=sub;}
     PzState getPzState(){return state;}
     void setPzState(PzState s)
     {
@@ -324,7 +326,7 @@ private:
     BusiAction* curBa;                  //当前会计分录对象
     PingZhengEditStates witchEdited;    //凭证哪个部分被编辑的标志
     bool isDeleted;                     //是否被删除的标记
-
+    FirstSubject* oppoSub;              //结转汇兑损益类凭证的对方科目
 
     friend class PzSetMgr;
     friend class BusiAction;

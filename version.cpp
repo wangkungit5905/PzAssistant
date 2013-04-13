@@ -8,6 +8,8 @@
 #include "version.h"
 #include "global.h"
 #include "tables.h"
+#include "utils.h"
+#include "dbutil.h"
 
 #include "ui_versionmanager.h"
 
@@ -99,19 +101,15 @@ bool VMBase::_inspectVerBeforeUpdate(int mv, int sv)
  * @brief VMAccount::VMAccount
  * @param filename  账户文件名
  */
-VMAccount::VMAccount(QString filename)
+VMAccount::VMAccount(QString filename):fileName(filename)
 {
-    db = QSqlDatabase::addDatabase("QSQLITE", VM_ACCOUNT);
-    db.setDatabaseName(DatabasePath+filename);
-    if(!db.open()){
-        LOG_ERROR(tr("在升级账户“%1”时，不能打开数据库连接！").arg(filename));
-        canUpgrade = false;
+    if(!restoreConnect())
         return;
-    }
     //appendVersion(1,1,VMAccount::up);
     appendVersion(1,2,NULL);
     appendVersion(1,3,&VMAccount::updateTo1_3);
     appendVersion(1,4,&VMAccount::updateTo1_4);
+    appendVersion(1,5,&VMAccount::updateTo1_5);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -125,9 +123,36 @@ VMAccount::VMAccount(QString filename)
 
 VMAccount::~VMAccount()
 {
+    closeConnect();
+}
+
+/**
+ * @brief VMAccount::restoreConnect
+ *  建立与账户数据库的连接
+ * @return
+ */
+bool VMAccount::restoreConnect()
+{
+    db = QSqlDatabase::addDatabase("QSQLITE", VM_ACCOUNT);
+    db.setDatabaseName(DatabasePath+fileName);
+    if(!db.open()){
+        LOG_ERROR(tr("在升级账户“%1”时，不能打开数据库连接！").arg(fileName));
+        canUpgrade = false;
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief VMAccount::closeConnect
+ *  关闭与账户数据库的连接
+ */
+void VMAccount::closeConnect()
+{
     db.close();
     QSqlDatabase::removeDatabase(VM_ACCOUNT);
 }
+
 
 /**
  * @brief VMAccount::backup
@@ -907,22 +932,227 @@ bool VMAccount::updateTo1_4()
 }
 
 /**
+ * @brief VMAccount::updateTo1_6
+ *  任务描述：
+ *  1、将选项表示结转银行存款、应收账款和应付账款的结转凭证归为一个结转汇兑损益类别
+ * @return
+ */
+bool VMAccount::updateTo1_6()
+{
+//    QSqlQuery q(db);
+//    QString s = QString("update %1 set %2=%3 where %2=%4 or %2=%5 or %2=%6")
+//            .arg(tbl_pz).arg(fld_pz_class).arg(Pzc_Jzhd).arg(Pzc_Jzhd_Bank)
+//            .arg(Pzc_Jzhd_Ys).arg(Pzc_Jzhd_Yf);
+//    int verNum = 1.5;
+//    if(!db.transaction()){
+//        emit upgradeStep(verNum,tr("在更新到1.5版本时，启动事务失败！"),VUR_ERROR);
+//        return false;
+//    }
+//    q.exec(s);
+//    int nums = q.numRowsAffected();
+//    if(!db.commit()){
+//        emit upgradeStep(verNum,tr("在更新到1.5版本时，提交事务失败！"),VUR_ERROR);
+//        return false;
+//    }
+//    emit upgradeStep(verNum,tr("共更改 % 张凭证！").arg(nums),VUR_OK);
+//    if(setCurVersion(1,6)){
+//        emit upgradeStep(verNum,tr("成功更新到版本%1").arg(verNum),VUR_OK);
+//        return true;
+//    }
+//    else{
+//        emit upgradeStep(verNum,tr("成功更新到版本%1，但不能正确设置版本号！").arg(verNum),VUR_WARNING);
+//        return false;
+//    }
+}
+
+/**
  * @brief VMAccount::updateTo1_5
  *  任务描述：将余额转移到新表系中
  * @return
  */
 bool VMAccount::updateTo1_5()
 {
-    //注意：如果同一个数据库建立了多个连接，则只有读操作不会产生冲突，而写操作提交事务会失败
-    //因此，我们先利用VMAccount类的数据库连接读取余额数据到内存中，再关闭此连接。并利用DbUtil类的连接
-    //将余额写入数据库中。
-    //1、建立一个到账户数据库的默认连接（即没有连接名称）
-    //1、首先获取要转移的余额的年份范围
-    //2、再根据账户的记账起止时间确定要转移的月份范围（创建一个整形数组，每一项的高4位代表年份，低2为代表月份）
-    //3、利用Busiutil类读取余额数据到一个hash表中（键为上面的整形数组元素，置为余额hash表）
-    //  这些余额hash表包含3大类，（一二级科目）余额值、（一二级科目）余额方向、（一二级科目）本币形式的余额值
-    //4、关闭默认数据库连接
-    //5、调用DbUtil类将这些余额保存到数据库中
+    //因为读取余额的操作要分别使用由BusiUtil和DbUtil类提供的函数，所以必须关闭由VMAccount类使用的连接
+    //并在操作完成后恢复
+    int verNum = 105;
+    emit startUpgrade(verNum,tr("开始更新到版本“1.5”..."));
+
+    closeConnect();
+    DbUtil* dbUtil = new DbUtil;
+    if(!dbUtil->setFilename(fileName)){
+        emit upgradeStep(verNum,tr("无法建立与账户文件的数据库连接！"),VUR_ERROR);
+        return false;
+    }
+    db = dbUtil->getDb();
+    BusiUtil::init(db);
+
+    //1、创建一个需要进行转移的凭证集月份列表
+//    if(!db.transaction()){
+//        emit upgradeStep(verNum,tr("启动事务失败！"),VUR_ERROR);
+//        return false;
+//    }
+
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_accSuites);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在读取账户帐套时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    int year,sm,em;
+    QList<int> suiteMonthes;
+    while(q.next()){
+        year = q.value(ACCS_YEAR).toInt();
+        sm = q.value(ACCS_STARTMONTH).toInt();
+        em = q.value(ACCS_ENDMONTH).toInt();
+        for(;sm<=em;++sm)
+            suiteMonthes<<year*100+sm;
+    }
+    year = suiteMonthes.first() / 100;
+    sm = suiteMonthes.first() % 100;
+    if(sm == 1){
+        year--;
+        sm = 12;
+    }
+    else{
+        sm--;
+    }
+    suiteMonthes.push_front(year*100+sm); //账户的期初余额的年月
+    emit upgradeStep(verNum,tr("共需要转移 %1 个凭证集的余额数据！").arg(suiteMonthes.count()),VUR_OK);
+
+    //2、读取并转储
+    QHash<int,Double> fes,des/*,feRs,deRs*/; //一二级科目的原币余额和本币余额
+    QHash<int,MoneyDirection> feDirs,deDirs; //一二级科目的余额方向
+    int y,m;
+    bool state;
+    for(int i = 0; i < suiteMonthes.count();++i){
+        year = suiteMonthes.at(i);
+        y = year/100;
+        m = year%100;
+        if(!BusiUtil::readExtraByMonth2(y,m,fes,feDirs,des,deDirs)){
+            emit upgradeStep(verNum,tr("在读取“%1年%2月”的原币余额时，发生错误！").arg(y).arg(m),VUR_ERROR);
+            return false;
+        }
+        if(!dbUtil->saveExtraForPm(y,m,fes,feDirs,des,deDirs)){
+            emit upgradeStep(verNum,tr("在保存“%1年%2月”的原币余额时，发生错误！").arg(y).arg(m),VUR_ERROR);
+            return false;
+        }
+        emit upgradeStep(verNum,tr("成功转移“%1年%2月”的原币余额！").arg(y).arg(m),VUR_OK);
+        fes.clear();des.clear();
+        bool exist;
+        if(!BusiUtil::readExtraByMonth4(y,m,fes,des,exist)){
+            emit upgradeStep(verNum,tr("在读取“%1年%2月”的本币余额时，发生错误！").arg(y).arg(m),VUR_ERROR);
+            return false;
+        }
+        if(!dbUtil->saveExtraForMm(y,m,fes,des)){
+            emit upgradeStep(verNum,tr("在保存“%1年%2月”的本币余额时，发生错误！").arg(y).arg(m),VUR_ERROR);
+            return false;
+        }
+        emit upgradeStep(verNum,tr("成功转移“%1年%2月”的本币余额！").arg(y).arg(m),VUR_OK);
+        fes.clear();des.clear();feDirs.clear();deDirs.clear();
+    }
+    emit upgradeStep(verNum,tr("成功转移所有的余额数据！").arg(y).arg(m),VUR_OK);
+    suiteMonthes.clear();
+
+    //3、转移余额状态信息
+    //首先依据凭证集的状态如果是结账的，则余额肯定有效，如果没有结账，
+    //则再从余额表中读取余额状态，因为记录余额状态的字段是后来才添加的，先前年月的凭证集
+    //不能正确反映其真实的余额状态
+    //（1）处理结账的凭证集状态
+    s = QString("select %1,%2 from %3 where %4=%5")
+            .arg(fld_pzss_year).arg(fld_pzss_month).arg(tbl_pzsStates)
+            .arg(fld_pzss_state).arg(Ps_Jzed);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("从凭证集状态表中读取结账状态的凭证集时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    while(q.next())
+        suiteMonthes<<q.value(0).toInt()*100+q.value(1).toInt();
+
+    if(!db.transaction()){
+        emit upgradeStep(verNum,tr("转移余额状态时，启动事务失败！"),VUR_ERROR);
+        return false;
+    }
+    for(int i = 0; i < suiteMonthes.count(); ++i){
+        year = suiteMonthes.at(i);
+        y = year/100;
+        m = year%100;
+        s = QString("update %1 set %2=1 where %3=%4 and %5=%6 and %7=%8")
+                .arg(tbl_nse_point).arg(fld_nse_state)
+                .arg(fld_nse_year).arg(y).arg(fld_nse_month)
+                .arg(m).arg(fld_nse_mt).arg(1);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("在转储%1年%2月的余额状态时发生错误！").arg(y).arg(m),VUR_ERROR);
+            return false;
+        }
+    }
+    if(!db.commit()){
+        emit upgradeStep(verNum,tr("转移余额状态时，提交事务失败！"),VUR_ERROR);
+        if(!db.rollback())
+            emit upgradeStep(verNum,tr("转移余额状态时，回滚事务失败！"),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum, tr("成功转移已结账凭证集的余额状态！"),VUR_OK);
+    suiteMonthes.clear();
+
+    //（2）处理未结账的凭证集状态
+    s = QString("select %1,%2 from %3 where %4!=%5")
+            .arg(fld_pzss_year).arg(fld_pzss_month).arg(tbl_pzsStates)
+            .arg(fld_pzss_state).arg(Ps_Jzed);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("从凭证集状态表中读取非结账状态的凭证集时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    while(q.next())
+        suiteMonthes<<q.value(0).toInt()*100+q.value(1).toInt();
+    for(int i = 0; i < suiteMonthes.count(); ++i){
+        year = suiteMonthes.at(i);
+        y = year/100;
+        m = year%100;
+        s = QString("select %1 from %2 where %3=%4 and %5=%6 and %7=%8")
+                .arg(fld_se_state).arg(tbl_se).arg(fld_se_year).arg(y)
+                .arg(fld_se_month).arg(m).arg(fld_se_mt).arg(1);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("读取%1年%2月的余额状态失败！").arg(y).arg(m),VUR_ERROR);
+            return false;
+        }
+        if(!q.first())
+            continue;
+        state = q.value(0).toBool();
+        s = QString("update %1 set %2=%3 where %4=%5 and %6=%7 and %8=%9")
+                .arg(tbl_nse_point).arg(fld_nse_state).arg(state?1:0)
+                .arg(fld_nse_year).arg(y).arg(fld_nse_month)
+                .arg(m).arg(fld_nse_mt).arg(1);
+
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("在转储%1年%2月的余额状态时发生错误！").arg(y).arg(m),VUR_ERROR);
+            return false;
+        }
+        if(q.numRowsAffected() !=1)
+            emit upgradeStep(verNum,tr("在转储%1年%2月的余额状态时，发现没有正确保存！").arg(y).arg(m),VUR_WARNING);
+        upgradeStep(verNum,tr("成功转储%1年%2月的余额状态！").arg(y).arg(m),VUR_OK);
+    }
+
+//    if(!db.commit()){
+//        emit upgradeStep(verNum,tr("提交事务失败！"),VUR_ERROR);
+//        if(!db.rollback())
+//            emit upgradeStep(verNum,tr("回滚事务失败！"),VUR_ERROR);
+//        return false;
+//    }
+
+    delete dbUtil;
+    //恢复连接
+    if(!restoreConnect()){
+        emit upgradeStep(verNum,tr("在升级到版本 %1 后无法恢复数据库连接，如果后续有升级将无法完成！").arg(verNum),VUR_ERROR);
+        return false;
+    }
+    if(setCurVersion(1,5)){
+        emit endUpgrade(verNum,tr("成功升级到版本 %1 ").arg(verNum),VUR_OK);
+        return true;
+    }
+    else{
+        emit endUpgrade(verNum,tr("成功升级到版本 %1 ，但无法正确设置版本号！").arg(verNum),VUR_OK);
+        return false;
+    }
 }
 
 /**
@@ -1491,3 +1721,5 @@ void VersionManager::on_btnClose_clicked()
     else
         reject();
 }
+
+

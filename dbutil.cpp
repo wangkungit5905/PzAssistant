@@ -60,10 +60,22 @@ bool DbUtil::setFilename(QString fname)
 
 bool DbUtil::init()
 {
-    //QSqlQuery q(db);
+    QSqlQuery q(db);
+
+    //1、设置本位币代码
+    QString s = QString("select %1 from %2 where %3=1").arg(fld_mt_code)
+            .arg(tbl_moneyType).arg(fld_mt_isMaster);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        LOG_WARNING(QObject::tr("Don't set master money type"));
+
+    }
 
     //初始化余额指针索引表 （基于这样一个事实，通常不会读取多个年、月份的余额值，因此既然是缓存表，则有使用需求的才被缓存）
-//    QString s = QString("select * from %1").arg(tbl_nse_point);
+//    s = QString("select * from %1").arg(tbl_nse_point);
 //    if(!q.exec(s)){
 //        LOG_SQLERROR(s);
 //        return false;
@@ -640,8 +652,8 @@ bool DbUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &veri
 bool DbUtil::readExtraForPm(int y, int m, QHash<int, Double> &fsums, QHash<int, MoneyDirection> &fdirs,
                             QHash<int, Double> &ssums, QHash<int, MoneyDirection> &sdirs)
 {
-    if(!isNewExtraAccess())
-        BusiUtil::readExtraByMonth2(y,m,fsums,fdirs,ssums,sdirs);
+    //if(!isNewExtraAccess())
+    //    BusiUtil::readExtraByMonth2(y,m,fsums,fdirs,ssums,sdirs);
     if(!_readExtraForPm(y,m,fsums,fdirs))
         return false;
     if(!_readExtraForPm(y,m,ssums,sdirs,false))
@@ -667,31 +679,31 @@ bool DbUtil::readExtraForPm(int y, int m, QHash<int, Double> &fsums, QHash<int, 
  */
 bool DbUtil::readExtraForMm(int y, int m, QHash<int, Double> &fsums, QHash<int, Double> &ssums)
 {
-    if(isNewExtraAccess()){
-        QHash<int,MoneyDirection> fdirs,sdirs;
-        //读取以本币计的余额（先从SubjectExtras和detailExtras表读取科目的原币余额值，将其中的外币乘以汇率转换为本币）
-        if(!BusiUtil::readExtraByMonth3(y,m,fsums,fdirs,ssums,sdirs))
-            return false;
-        //从SubjectMmtExtras和detailMmtExtras表读取本币形式的余额，仅包含外币部分）
-        bool exist;
-        QHash<int,Double> fsumRs,ssumRs;
-        if(!BusiUtil::readExtraByMonth4(y,m,fsumRs,ssumRs,exist))
-            return false;
-        //用精确值代替直接从原币币转换来的外币值
-        if(exist){
-            QHashIterator<int,Double>* it = new QHashIterator<int,Double>(fsumRs);
-            while(it->hasNext()){
-                it->next();
-                fsums[it->key()] = it->value();
-            }
-            it = new QHashIterator<int,Double>(ssumRs);
-            while(it->hasNext()){
-                it->next();
-                ssums[it->key()] = it->value();
-            }
-        }
-        return true;
-    }
+    //    if(isNewExtraAccess()){
+    //        QHash<int,MoneyDirection> fdirs,sdirs;
+    //        //读取以本币计的余额（先从SubjectExtras和detailExtras表读取科目的原币余额值，将其中的外币乘以汇率转换为本币）
+    //        if(!BusiUtil::readExtraByMonth3(y,m,fsums,fdirs,ssums,sdirs))
+    //            return false;
+    //        //从SubjectMmtExtras和detailMmtExtras表读取本币形式的余额，仅包含外币部分）
+    //        bool exist;
+    //        QHash<int,Double> fsumRs,ssumRs;
+    //        if(!BusiUtil::readExtraByMonth4(y,m,fsumRs,ssumRs,exist))
+    //            return false;
+    //        //用精确值代替直接从原币币转换来的外币值
+    //        if(exist){
+    //            QHashIterator<int,Double>* it = new QHashIterator<int,Double>(fsumRs);
+    //            while(it->hasNext()){
+    //                it->next();
+    //                fsums[it->key()] = it->value();
+    //            }
+    //            it = new QHashIterator<int,Double>(ssumRs);
+    //            while(it->hasNext()){
+    //                it->next();
+    //                ssums[it->key()] = it->value();
+    //            }
+    //        }
+    //        return true;
+    //    }
 
     if(!_readExtraForMm(y,m,fsums))
         return false;
@@ -714,8 +726,8 @@ bool DbUtil::readExtraForMm(int y, int m, QHash<int, Double> &fsums, QHash<int, 
  */
 bool DbUtil::saveExtraForPm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, MoneyDirection> &fdirs, const QHash<int, Double> &ssums, const QHash<int, MoneyDirection> &sdirs)
 {
-    if(isNewExtraAccess())
-        return BusiUtil::savePeriodBeginValues2(y,m,fsums,fdirs,ssums,sdirs,false);
+    //if(isNewExtraAccess())
+    //    return BusiUtil::savePeriodBeginValues2(y,m,fsums,fdirs,ssums,sdirs,false);
 
     if(!_saveExtrasForPm(y,m,fsums,fdirs))
         return false;
@@ -735,8 +747,8 @@ bool DbUtil::saveExtraForPm(int y, int m, const QHash<int, Double> &fsums, const
  */
 bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, Double> &ssums)
 {
-    if(!isNewExtraAccess())
-        return BusiUtil::savePeriodEndValues(y,m,fsums,ssums);
+    //if(!isNewExtraAccess())
+    //    return BusiUtil::savePeriodEndValues(y,m,fsums,ssums);
 
     if(!_saveExtrasForMm(y,m,fsums))
         return false;
@@ -1085,7 +1097,8 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
 
         pz = new PingZheng(id,d,pnum,znum,jsum,dsum,pzCls,encnum,pzState,
                            vu,ru,bu,parent);
-
+        //如果是结转汇兑损益类凭证，则要根据其包含的会计分录中的对方科目来确定其是结转哪个科目的
+        bool isJzhdPz = pzClsJzhds.contains(pzCls);
         QString as = QString("select * from %1 where %2=%3 order by %4")
                 .arg(tbl_ba).arg(fld_ba_pid).arg(pz->id()).arg(fld_ba_number);
         if(!q1.exec(as)){
@@ -1108,6 +1121,10 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
             //ba->state = BusiActionData::INIT;
             ba = new BusiAction(id,pz,summary,fsub,ssub,mt,dir,v,num);
             pz->baLst<<ba;
+            if(isJzhdPz && fsub->isUseForeignMoney() && dir == MDIR_D){
+                pz->setOppoSubject(fsub);
+                isJzhdPz=false; //后续的判断都是多余的
+            }
         }
         pzs<<pz;
     }
@@ -1148,32 +1165,93 @@ bool DbUtil::isContainPz(int y, int m, int pid)
 bool DbUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
 {
     QSqlQuery q(db);
-    QList<PzClass> pzClses;
-    if(pzCls == Pzd_Jzhd)
-        pzClses<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
-    else if(pzCls == Pzd_Jzsy)
-        pzClses<<Pzc_JzsyIn<<Pzc_JzsyFei;
-    else if(pzCls == Pzd_Jzlr)
-        pzClses<<Pzc_Jzlr;
-    count = pzClses.count();
+    QString s;
     QString ds = QDate(y,m,1).toString(Qt::ISODate);
     ds.chop(3);
-    QString s = QString("select %1 from %2 where %3 like '%4%'")
-            .arg(fld_pz_class).arg(tbl_pz).arg(fld_pz_date).arg(ds)/*.arg(fld_pz_number)*/;
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    PzClass cls;
-    while(q.next()){
-        cls = (PzClass)q.value(0).toInt();
-        if(pzClses.contains(cls)){
-            pzClses.removeOne(cls);
-            count--;
+    int pzCount;
+    //1、结转汇兑损益凭证，要根据凭证集的需要使用外币的科目的余额状况来定
+    if(pzCls == Pzd_Jzhd){
+        //1、获取所指年份使用的科目系统代码
+        s = QString("select %1 from %2 where %3=%4")
+                .arg(fld_accs_subSys).arg(tbl_accSuites)
+                .arg(fld_accs_year).arg(y);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
         }
-        if(count==0)
-            break;
+        if(!q.first()){
+            LOG_ERROR(QObject::tr("Don't read subject system code for %1").arg(y));
+            return false;
+        }
+        int subSys = q.value(0).toInt();
+        //2、获取需要使用外币的科目
+        QList<int> subIds;
+        s = QString("select id from %1 where %2=%3 and %4=1")
+                .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_isUseWb);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q.next())
+            subIds<<q.value(0).toInt();
+        //3、检查这些科目的余额，如果不为0，则必须结转，即要对这个科目进行计数
+        //select SE_PM_F.sid, SE_PM_F.dir from SE_PM_F join SE_Point on  SE_PM_F.pid=SE_Point.id where SE_Point.year=2012 and SE_Point.month=12 and SE_Point.mt!=1
+        //4、然后，查询结转汇兑损益凭证数目
     }
+    else if(pzCls == Pzd_Jzsy){ //2、结转损益凭证，固定为2
+        count = 2;
+        s = QString("select count() from %1 where (%2 like '%3%') and (%4=%5 or %4=%6")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+                .arg(Pzc_JzsyIn).arg(Pzc_JzsyFei);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.first();
+        count -= q.value(0).toInt();
+    }
+    else{ //3、结转利润凭证，固定为1
+        count = 1;
+        s = QString("select count() from %1 where (%2 like '%3%') and (%4=%5")
+                .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
+                .arg(Pzc_Jzlr);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.first();
+        count -= q.value(0).toInt();
+    }
+    return true;
+
+
+
+//    QList<PzClass> pzClses;
+//    if(pzCls == Pzd_Jzhd)
+//        pzClses<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+//    else if(pzCls == Pzd_Jzsy)
+//        pzClses<<Pzc_JzsyIn<<Pzc_JzsyFei;
+//    else if(pzCls == Pzd_Jzlr)
+//        pzClses<<Pzc_Jzlr;
+//    count = pzClses.count();
+//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+//    ds.chop(3);
+//    QString s = QString("select %1 from %2 where %3 like '%4%'")
+//            .arg(fld_pz_class).arg(tbl_pz).arg(fld_pz_date).arg(ds)/*.arg(fld_pz_number)*/;
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    PzClass cls;
+//    while(q.next()){
+//        cls = (PzClass)q.value(0).toInt();
+//        if(pzClses.contains(cls)){
+//            pzClses.removeOne(cls);
+//            count--;
+//        }
+//        if(count==0)
+//            break;
+//    }
     return true;
 }
 
@@ -1478,8 +1556,10 @@ bool DbUtil::delSpecPz(int y, int m, PzdClass pzCls, int &affected)
 QList<PzClass> DbUtil::getSpecClsPzCode(PzdClass cls)
 {
     QList<PzClass> codes;
-    if(cls == Pzd_Jzhd)
-        codes<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
+    if(cls == Pzd_Jzhd){
+        codes=pzClsJzhds.toList();
+        codes.removeOne(Pzc_Jzhd);
+    }
     else if(cls == Pzd_Jzsy)
         codes<<Pzc_JzsyIn<<Pzc_JzsyFei;
     else if(cls == Pzd_Jzlr)
@@ -1500,19 +1580,25 @@ bool DbUtil::haveSpecClsPz(int y, int m, QHash<PzdClass, bool> &isExist)
     QSqlQuery q(db);
     QString ds = QDate(y,m,1).toString(Qt::ISODate);
     ds.chop(3);
-    QString s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6 or %4=%7)")
-            .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class).arg(Pzc_Jzhd_Bank)
-            .arg(Pzc_Jzhd_Ys).arg(Pzc_Jzhd_Yf);
+
+    //检测结转汇兑损益类凭证是否存在
+    QString s = QString("select id from %1 where (%2 like '%3%') and (")
+            .arg(tbl_pz).arg(fld_pz_date).arg(ds);
+    foreach(PzClass pzCls, getSpecClsPzCode(Pzd_Jzhd))
+        s.append(QString("%1=%2 or ").arg(fld_pz_class).arg(pzCls));
+    s.chop(4); s.append(")");
     if(!q.exec(s))
         return false;
     isExist[Pzd_Jzhd] = q.first();
 
+    //检测结转损益类凭证是否存在
     s = QString("select id from %1 where (%2 like '%3%') and (%4=%5 or %4=%6)")
                 .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
                 .arg(Pzc_JzsyIn).arg(Pzc_JzsyFei);
     if(!q.exec(s))
         return false;
     isExist[Pzd_Jzsy] = q.first();
+    //检测结转利润类凭证是否存在
     s = QString("select id from %1 where (%2 like '%3%') and (%4=%5)")
                 .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_class)
                 .arg(Pzc_Jzlr);
@@ -1906,7 +1992,7 @@ bool DbUtil::_readExtraForMm(int y, int m, QHash<int, Double> &sums, bool isFst)
     if(mtHash.isEmpty())
         return true;
     //因为只有需要外币的科目才会保存本币形式的余额，因此只有存在外币的本币余额项时才继续读取
-    mtHash.remove(curAccount->getMasterMt()->code());
+    mtHash.remove(masterMt);
     if(mtHash.isEmpty())
         return true;
 
@@ -2005,16 +2091,20 @@ bool DbUtil::_saveExtrasForPm(int y, int m, const QHash<int, Double> &sums, cons
     QSqlQuery q(db);
     QString s;
     QHash<int,int> mtHashs; //键为币种代码，值为余额指针
+
+    if(!db.transaction()){
+        warn_transaction(Transaction_open,QObject::tr("When save extra for primary money, open database transaction failed!"));
+        return false;
+    }
+
     if(!_readExtraPoint(y,m,mtHashs))
         return false;
+
     QHash<int, Double> oldSums;
     QHash<int, MoneyDirection> oldDirs;
     if(!_readExtraForPm(y,m,oldSums,oldDirs,isFst))
         return false;
-    if(!db.transaction()){
-        LOG_ERROR("Database transaction start failed!");
-        return false;
-    }
+
     QHashIterator<int,Double> it(sums);
     int mt,sid;
     QString tname;
@@ -2078,8 +2168,9 @@ bool DbUtil::_saveExtrasForPm(int y, int m, const QHash<int, Double> &sums, cons
     }
 
     if(!db.commit()){
+        warn_transaction(Transaction_commit,QObject::tr("When save extra for primary money, transaction commit failed!"));
         if(!db.rollback())
-            LOG_ERROR("Database transaction roll back failed!");
+            warn_transaction(Transaction_rollback,QObject::tr("When save extra for primary money,Database transaction roll back failed!"));
         return false;
     }
     return true;
@@ -2101,15 +2192,17 @@ bool DbUtil::_saveExtrasForMm(int y, int m, const QHash<int, Double> &sums, bool
     QSqlQuery q(db);
     QString s;
     QHash<int,int> mtHashs; //键为币种代码，值为余额指针
+
+    if(!db.transaction()){
+        warn_transaction(Transaction_open,QObject::tr("When save extra for master money, open database transaction failed!"));
+        return false;
+    }
     if(!_readExtraPoint(y,m,mtHashs))
         return false;
     QHash<int, Double> oldSums;
     if(!_readExtraForMm(y,m,oldSums,isFst))
         return false;
-    if(!db.transaction()){
-        LOG_ERROR("Database transaction start failed!");
-        return false;
-    }
+
     QHashIterator<int,Double> it(sums);
     int mt,sid;
     QString tname;
@@ -2165,8 +2258,9 @@ bool DbUtil::_saveExtrasForMm(int y, int m, const QHash<int, Double> &sums, bool
     }
 
     if(!db.commit()){
+        warn_transaction(Transaction_commit,QObject::tr("When save extra for master money, transaction commit failed!"));
         if(!db.rollback())
-            LOG_ERROR("Database transaction roll back failed!");
+            warn_transaction(Transaction_rollback,QObject::tr("When save extra for master money,Database transaction roll back failed!"));
         return false;
     }
     return true;

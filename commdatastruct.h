@@ -86,15 +86,27 @@ enum PzClass{
                                //计提税金
 
     //自动结转凭证（由系统添加，且不允许人工修改）
+    Pzc_Jzhd      =   30,      //这是新的表示结转汇兑损益凭证的类别代码
     Pzc_Jzhd_Bank =   31,      //结转汇兑损益-银行存款
     Pzc_Jzhd_Ys   =   32,      //结转汇兑损益-应收账款
     Pzc_Jzhd_Yf   =   33,      //结转汇兑损益-应付账款
     Pzc_JzsyIn    =   34,      //结转损益（收入类）
     Pzc_JzsyFei   =   35,      //结转损益（费用类）
+    Pzc_Jzhd_Yus  =   36,      //结转汇兑损益-预收账款
+    Pzc_Jzhd_Yuf  =   37,      //结转汇兑损益-预付账款
 
     //其他需由系统添加，并允许人工修改的凭证
     Pzc_Jzlr      =   50       //结转本年利润到利润分配
 };
+
+////凭证子类别
+//enum PzSubClass{
+//    Pzc_sub_jzhd_bank   = 1,    //结转银行存款
+//    Pzc_sub_jzhd_ys     = 2,    //结转应收账款
+//    Pzc_sub_jzhd_yf     = 3,    //结转应付账款
+//    Pzc_sub_jzhd_yus    = 4,    //结转预收账款
+//    Pzc_sub_jzhd_yuf    = 5     //结转预付账款
+//};
 
 //银行账户
 //struct BankAccount{

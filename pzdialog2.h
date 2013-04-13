@@ -195,7 +195,7 @@ private:
     int maxPzNum;      //当前凭证集合已用的最大总号
     int maxPzZbNum;    //当前凭证集合已用的最大自编号
     int curPzId;       //当前凭证的ID
-    int curPzClass;    //当前凭证类别
+    PzClass curPzClass;    //当前凭证类别
     PzsState curPzSetState; //当前凭证集状态
     int cury,curm;     //凭证集所处年、月
     bool pzStateDirty; //当凭证状态在录入态和审核态之间的转变时为真

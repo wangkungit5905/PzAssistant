@@ -264,9 +264,8 @@ bool InspectPzErrorThread::inspectDirEngage(int fsid, int dir, PzClass pzc, QStr
         else
             return true;
     }
-    else if(pzc == Pzc_Jzhd_Bank || pzc == Pzc_Jzhd_Yf || pzc == Pzc_Jzhd_Ys){
-        //if((fsid == sm->getBankId() || fsid == sm->getYsId() || fsid == sm->getYfId())
-        //        && dir == DIR_J){
+    //else if(pzc == Pzc_Jzhd_Bank || pzc == Pzc_Jzhd_Yf || pzc == Pzc_Jzhd_Ys){
+    if(pzClsJzhds.contains(pzc)){
         if(sm->getFstSubject(fsid)->isUseForeignMoney() && (dir == DIR_J)){
             eStr = tr("结转汇兑损益类凭证中，拟结转科目必须在贷方");
             return false;

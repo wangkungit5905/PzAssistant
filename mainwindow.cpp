@@ -3203,10 +3203,10 @@ bool MainWindow::impTestDatas()
     //acc.setSuiteName(2013,tr("2013测试帐套"));
     //acc.addWaiMt(3);
     //acc.close();
-//    QHash<int, Double> fsums,ssums;
-//    QHash<int, int> fdirs,sdirs;
-//    QHash<int, MoneyDirection> nfdirs,nsdirs;
-//    BusiUtil::readExtraByMonth2(2012,12,fsums,fdirs,ssums,sdirs);
+    //QHash<int, Double> fsums,ssums;
+    //QHash<int, MoneyDirection> fdirs,sdirs;
+    //QHash<int, MoneyDirection> nfdirs,nsdirs;
+    //BusiUtil::readExtraByMonth2(2012,12,fsums,fdirs,ssums,sdirs);
 //    transferDirection(fdirs,nfdirs);
 //    transferDirection(sdirs,nsdirs);
 
@@ -3219,32 +3219,33 @@ bool MainWindow::impTestDatas()
     //nsdirs[891] = MDIR_J;
     //nsdirs[902] = MDIR_J;
     //adb.close();
-//    acc.getDbUtil()->saveExtraForPm(2012,12,fsums,nfdirs,ssums,nsdirs);
-    //curAccount->getDbUtil()->saveExtraForMm(2012,12,fsums,ssums);
+    //acc.getDbUtil()->saveExtraForPm(2012,12,fsums,fdirs,ssums,sdirs);
+    //curAccount->getDbUtil()->saveExtraForPm(2012,12,fsums,fdirs,ssums,sdirs);
 
     //VMAccount::backup(tr("宁波苏航.dat"));
     //bool r = VMAccount::restore(tr("宁波苏航.dat"));
 
-    QList<BusiActionData2*> bas;
-    curAccount->getDbUtil()->getActionsInPz(1,bas);
-    BusiActionData2* ba,*ba2;
-    ba = bas.first();
+//    QList<BusiActionData2*> bas;
+//    curAccount->getDbUtil()->getActionsInPz(1,bas);
+//    BusiActionData2* ba,*ba2;
+//    ba = bas.first();
 //    ba->summary = ba->summary.append("  test");
 //    ba->state = BusiActionData2::EDITED;
 //    curAccount->getDbUtil()->saveActionsInPz(1,bas);
 
-    ba2 = new BusiActionData2;
-    ba2->summary = "new busiaction read id";
-    ba2->state = BusiActionData2::NEW;
-    ba2->fid = ba->fid;
-    ba2->sid = ba->sid;
-    ba2->mt = ba->mt;
-    ba2->dir = ba->dir;
-    ba2->pid = ba->pid;
-    ba2->num = 3;
-    bas<<ba2;
-    curAccount->getDbUtil()->saveActionsInPz(1,bas);
-    //ba = bas.last()
+//    ba2 = new BusiActionData2;
+//    ba2->summary = "new busiaction read id";
+//    ba2->state = BusiActionData2::NEW;
+//    ba2->fid = ba->fid;
+//    ba2->sid = ba->sid;
+//    ba2->mt = ba->mt;
+//    ba2->dir = ba->dir;
+//    ba2->pid = ba->pid;
+//    ba2->num = 3;
+//    bas<<ba2;
+//    curAccount->getDbUtil()->saveActionsInPz(1,bas);
+    QHash<PzdClass,bool> exsits;
+    curAccount->getDbUtil()->haveSpecClsPz(2012,12,exsits);
     int i = 0;
 
     //1、在空白表上保存余额通过

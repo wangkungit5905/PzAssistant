@@ -7,7 +7,7 @@
 
 /////////////////PzSetMgr///////////////////////////////////////////
 PzSetMgr::PzSetMgr(Account *account, User *user):
-    account(account),user(user),y(0),m(0)
+    account(account),user(user),curY(0),curM(0)
 {
     dbUtil = account->getDbUtil();
     state = Ps_NoOpen;
@@ -29,11 +29,9 @@ bool PzSetMgr::open(int y, int m)
     if(!pzSetHash.contains(key)){
         if(!dbUtil->loadPzSet(y,m,pzSetHash[key],this))
             return false;
-    }
-
-    if(!dbUtil->getPzsState(y,m,state)){
-        state = Ps_NoOpen;
-        return false;
+        if(!dbUtil->getPzsState(y,m,states[key]))
+            return false;
+        extraStates[key] = dbUtil->getExtraState(y,m);
     }
 
     maxPzNum = pzSetHash.value(key).count() + 1;
@@ -49,7 +47,7 @@ bool PzSetMgr::open(int y, int m)
 void PzSetMgr::close()
 {
     save();
-    y=0;m=0;
+    curY=0;curM=0;
     state = Ps_NoOpen;
     maxPzNum = 0;
     maxZbNum = 0;
@@ -125,16 +123,75 @@ bool PzSetMgr::determineState()
 
 }
 
-//返回凭证集状态
-PzsState PzSetMgr::getState()
+/**
+ * @brief PzSetMgr::getState
+ *  返回凭证集状态，如果年月为0，则返回当前打开的凭证集的状态
+ * @param y
+ * @param m
+ * @return
+ */
+PzsState PzSetMgr::getState(int y, int m)
 {
-    return state;
+    int yy,mm;
+    if(y==0 && m == 0){
+        yy = curY; mm = curM;
+    }
+    int key = genKey(yy,mm);
+    if(states.contains(key))
+        return states.value(key);
+    return Ps_NoOpen;
 }
 
 //设置凭证集状态
-void PzSetMgr::setstate(PzsState state)
+void PzSetMgr::setstate(PzsState state,int y, int m )
 {
-    this->state = state;
+    int yy,mm;
+    if(y==0 && m==0){
+        yy=curY;mm=curM;
+    }
+    int key = genKey(yy,mm);
+    if(!states.contains(key))
+        dbUtil->setPzsState(y,m,state);
+    states[key] = state;
+
+}
+
+/**
+ * @brief PzSetMgr::getExtraState
+ *  获取余额状态（如果年月都为0，则获取当前打开凭证集的余额状态）
+ * @param y
+ * @param m
+ * @return
+ */
+bool PzSetMgr::getExtraState(int y, int m)
+{
+    int yy,mm;
+    if(y==0 && m==0){
+        yy=curY,mm=curM;
+    }
+    int key = genKey(yy,mm);
+    if(!extraStates.contains(key))
+        extraStates[key] = dbUtil->getExtraState(yy,mm);
+    return extraStates.value(key);
+}
+
+/**
+ * @brief PzSetMgr::setExtraState
+ *  设置余额状态（如果年月都为0，则设置当前打开凭证集的余额状态）
+ * @param state
+ * @param y
+ * @param m
+ */
+void PzSetMgr::setExtraState(bool state, int y, int m)
+{
+    int yy,mm;
+    if(y==0 && m==0){
+        yy=curY,mm=curM;
+    }
+    int key = genKey(yy,mm);
+    if(!extraStates.contains(key))
+        dbUtil->setExtraState(yy,mm,state);
+    extraStates[key] = state;
 }
 
 /**
@@ -149,6 +206,9 @@ bool PzSetMgr::getPzSet(int y, int m, QList<PingZheng *> &pzs)
     if(!pzSetHash.contains(key)){
         if(!dbUtil->loadPzSet(y,m,pzSetHash[key],this))
             return false;
+        if(!dbUtil->getPzsState(y,m,states[key]))
+            return false;
+        extraStates[key] = dbUtil->getExtraState(y,m);
     }
     pzs = pzSetHash.value(key);
     return true;
@@ -169,6 +229,9 @@ QList<PingZheng *> PzSetMgr::getPzSpecRange(int y, int m, QSet<int> nums)
     if(!pzSetHash.contains(key)){
         if(!dbUtil->loadPzSet(y,m,pzSetHash[key],this))
             return pzs;
+        if(!dbUtil->getPzsState(y,m,states[key]))
+            return pzs;
+        extraStates[key] = dbUtil->getExtraState(y,m);
     }
     if(nums.isEmpty())
         return pzSetHash.value(key);
@@ -221,13 +284,13 @@ bool PzSetMgr::readPreExtra()
     preExtra.clear();
     preDetExtra.clear();
     int yy,mm;
-    if(m == 1){
-        yy = y - 1;
+    if(curM == 1){
+        yy = curY - 1;
         mm = 12;
     }
     else{
-        yy = y;
-        mm = m - 1;
+        yy = curY;
+        mm = curM - 1;
     }
     return dbUtil->readExtraForPm(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
 }
@@ -266,7 +329,7 @@ bool PzSetMgr::isZbNumConflict(int num)
 {
     if(state == Ps_NoOpen)
         return false;
-    foreach(PingZheng* pz, pzSetHash.value(genKey(y,m)))
+    foreach(PingZheng* pz, pzSetHash.value(genKey(curY,curM)))
         if(num == pz->ZbNumber())
             return true;
     return false;
@@ -284,12 +347,6 @@ int PzSetMgr::genKey(int y, int m)
     if(m < 1 || m > 12)
         return 0;
     return y * 100 + m;
-//    int key;
-//    if(m < 10)
-//        key = y * 100 + m;
-//    else
-//        key = y * 10 + m;
-//    return key;
 }
 
 //移除凭证
@@ -347,13 +404,13 @@ bool PzSetMgr::crtDtfyImpPz(int y,int m,QList<PzData*> pzds)
 //创建当期计提待摊费用凭证
 bool PzSetMgr::crtDtfyTxPz()
 {
-    return Dtfy::createTxPz(y,m,user);
+    return Dtfy::createTxPz(curY,curM,user);
 }
 
 //删除当期计提待摊费用凭证
 bool PzSetMgr::delDtfyPz()
 {
-    return Dtfy::repealTxPz(y,m);
+    return Dtfy::repealTxPz(curY,curM);
 }
 
 //创建当期结转汇兑损益凭证

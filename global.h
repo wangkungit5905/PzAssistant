@@ -53,7 +53,7 @@ extern QHash<int,QString> allGdzcSubjectCls; //所有固定资产产品科目类
 
 //凭证类别和凭证状态
 extern QSet<int> pzClsImps;         //自动引入的凭证类别代码集合
-extern QSet<int> pzClsJzhds;        //结转汇兑损益的凭证类别代码集合
+extern QSet<PzClass> pzClsJzhds;        //结转汇兑损益的凭证类别代码集合
 extern QSet<int> pzClsJzsys;        //结转损益的凭证类别代码集合
 extern QHash<PzState,QString> pzStates; //凭证状态名表
 extern QHash<PzClass,QString> pzClasses;//凭证类别名表

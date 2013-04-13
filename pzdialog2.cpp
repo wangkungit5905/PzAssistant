@@ -143,7 +143,7 @@ void PzDialog2::init()
     if(model->rowCount() > 0){
         dataMapping->toFirst();
         curPzId = model->data(model->index(0,0)).toInt();
-        curPzClass = model->data(model->index(0,PZ_CLS )).toInt();
+        curPzClass = (PzClass)model->data(model->index(0,PZ_CLS )).toInt();
     }
     else{
         curPzId = 0;
@@ -527,7 +527,8 @@ void PzDialog2::refreshContextMenu(int row, int col)
     //ui->actCutAction->setEnabled(ui->twActions->hasSelectedRow());
     //ui->actPasteAction->setEnabled();
 
-    if(curPzClass == Pzc_Jzhd_Bank||curPzClass==Pzc_Jzhd_Ys||curPzClass==Pzc_Jzhd_Yf){
+    //if(curPzClass == Pzc_Jzhd_Bank||curPzClass==Pzc_Jzhd_Ys||curPzClass==Pzc_Jzhd_Yf){
+    if(pzClsJzhds.contains(curPzClass)){
         ui->actCollaps->setVisible(true);
         if(isCollapseJz) //如果当前是折叠，则显示展开
             ui->actCollaps->setText(tr("展开"));
@@ -595,7 +596,7 @@ void PzDialog2::reAllocActionNumber()
 void PzDialog2::viewCurPzInfo()
 {    
     int curRow = dataMapping->currentIndex();
-    curPzClass = model->data(model->index(curRow,PZ_CLS)).toInt();
+    curPzClass = (PzClass)model->data(model->index(curRow,PZ_CLS)).toInt();
     ui->lblPzCount->setText(QString::number(model->rowCount()));
     ui->lblIdx->setText(QString::number(curRow + 1));
     initAction();
@@ -622,9 +623,7 @@ void PzDialog2::refreshVHeaderView()
     //应该区分凭证类别
     QString title;
     vheadLst.clear();
-    if(((curPzClass == Pzc_Jzhd_Bank) ||
-        (curPzClass == Pzc_Jzhd_Ys) ||
-        (curPzClass == Pzc_Jzhd_Yf))  && !isCollapseJz){
+    if(pzClsJzhds.contains(curPzClass) && !isCollapseJz){
         for(int i = 1; i < 3; ++i)
             vheadLst << QString::number(i);
     }

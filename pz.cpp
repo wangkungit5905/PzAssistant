@@ -104,12 +104,16 @@ PingZheng::PingZheng(PzSetMgr *parent):ID(0),p(parent),witchEdited(ES_PZ_INIT),
 
 PingZheng::PingZheng(int id, QString date, int pnum, int znum, Double js, Double ds,
           PzClass pcls, int encnum, PzState state, User* vu, User* ru, User* bu, PzSetMgr* parent)
-    :ID(id),date(date),pnum(pnum),znum(znum),js(js),ds(ds),pzCls(pcls),
+    :ID(id),date(date),pnum(pnum),znum(znum),js(js),ds(ds)/*,pzCls(pcls)*/,
       encNum(encnum),state(state),vu(vu),ru(ru),bu(bu),witchEdited(ES_PZ_INIT),
       isDeleted(false),p(parent)
 {
     md=PZMD++;
     oppoSub=NULL;
+    //将结转汇兑损益的凭证归结为一个代码类别
+    if(pzCls == Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys ||
+       pzCls == Pzc_Jzhd_Yf || pzCls == Pzc_Jzhd_Yus || pzCls == Pzc_Jzhd_Yuf)
+        pzCls = Pzc_Jzhd;
 }
 
 //PingZheng::PingZheng(PzData2* data,User* puser,QSqlDatabase db):

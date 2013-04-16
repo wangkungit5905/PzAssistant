@@ -4121,128 +4121,128 @@ bool BusiUtil::calCurExtraByMonth3(int y,int m,
 
 
 //计算本期末余额
-bool BusiUtil::calCurExtraByMonth(int y,int m,
-  QHash<int,double> preExa, QHash<int,double> preDetExa,     //期初余额
-  QHash<int,int> preExaDir, QHash<int,int> preDetExaDir,     //期初余额方向
-  QHash<int,double> curJHpn, QHash<int,double> curJDHpn,     //当期借方发生额
-  QHash<int,double> curDHpn, QHash<int,double>curDDHpn,      //当期贷方发生额
-  QHash<int,double> &endExa, QHash<int,double>&endDetExa,    //期末余额
-  QHash<int,int> &endExaDir, QHash<int,int> &endDetExaDir)   //期末余额方向
-{
-    //第一步：计算总账科目余额
-    double v;
-    int dir;
-    QHashIterator<int,double> cj(curJHpn);
-    while(cj.hasNext()){
-        cj.next();
-        int key = cj.key();
-        //确定本期借贷相抵后的借贷方向
-        v = curJHpn[key] - curDHpn[key];  //借方 - 贷方
-        if(v > 0)
-            dir = DIR_J;
-        else if(v < 0){
-            dir = DIR_D;
-            v = 0 - v;
-        }
-        else
-            dir = DIR_P;
+//bool BusiUtil::calCurExtraByMonth(int y,int m,
+//  QHash<int,double> preExa, QHash<int,double> preDetExa,     //期初余额
+//  QHash<int,int> preExaDir, QHash<int,int> preDetExaDir,     //期初余额方向
+//  QHash<int,double> curJHpn, QHash<int,double> curJDHpn,     //当期借方发生额
+//  QHash<int,double> curDHpn, QHash<int,double>curDDHpn,      //当期贷方发生额
+//  QHash<int,double> &endExa, QHash<int,double>&endDetExa,    //期末余额
+//  QHash<int,int> &endExaDir, QHash<int,int> &endDetExaDir)   //期末余额方向
+//{
+//    //第一步：计算总账科目余额
+//    double v;
+//    int dir;
+//    QHashIterator<int,double> cj(curJHpn);
+//    while(cj.hasNext()){
+//        cj.next();
+//        int key = cj.key();
+//        //确定本期借贷相抵后的借贷方向
+//        v = curJHpn[key] - curDHpn[key];  //借方 - 贷方
+//        if(v > 0)
+//            dir = DIR_J;
+//        else if(v < 0){
+//            dir = DIR_D;
+//            v = 0 - v;
+//        }
+//        else
+//            dir = DIR_P;
 
-        if(dir == DIR_P){ //本期借贷相抵（平）
-            endExa[key] = preExa.value(key);
-            endExaDir[key] = preExaDir.value(key);
-        }
-        else if(preExaDir.value(key) == dir){ //本期发生额借贷方向与期初相同，则直接加到同一方向
-            endExa[key] = preExa.value(key) + v;
-            endExaDir[key] = preExaDir.value(key);
-        }
-        else{
-            double tv;
-            //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
-            if(dir == DIR_J)
-                tv = v - preExa.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
-            else
-                tv = preExa.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
-            if(tv > 0){ //余额在借方
-                endExa[key] = tv;
-                endExaDir[key] = DIR_J;
-            }
-            else if(tv < 0){ //余额在贷方
-                endExa[key] = 0 - tv;
-                endExaDir[key] = DIR_D;
-            }
-            else{
-                endExa[key] = 0;
-                endExaDir[key] = DIR_P;
-            }
-        }
-    }
+//        if(dir == DIR_P){ //本期借贷相抵（平）
+//            endExa[key] = preExa.value(key);
+//            endExaDir[key] = preExaDir.value(key);
+//        }
+//        else if(preExaDir.value(key) == dir){ //本期发生额借贷方向与期初相同，则直接加到同一方向
+//            endExa[key] = preExa.value(key) + v;
+//            endExaDir[key] = preExaDir.value(key);
+//        }
+//        else{
+//            double tv;
+//            //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
+//            if(dir == DIR_J)
+//                tv = v - preExa.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
+//            else
+//                tv = preExa.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
+//            if(tv > 0){ //余额在借方
+//                endExa[key] = tv;
+//                endExaDir[key] = DIR_J;
+//            }
+//            else if(tv < 0){ //余额在贷方
+//                endExa[key] = 0 - tv;
+//                endExaDir[key] = DIR_D;
+//            }
+//            else{
+//                endExa[key] = 0;
+//                endExaDir[key] = DIR_P;
+//            }
+//        }
+//    }
 
 
-    //第二步：计算明细科目余额
-    QHashIterator<int,double> dj(curJDHpn);
-    while(dj.hasNext()){
-        dj.next();
-        int key = dj.key();
-        v = curJDHpn[key] - curDDHpn[key];
-        if(v > 0)
-            dir = DIR_J;
-        else if(v < 0){
-            dir = DIR_D;
-            v = 0 - v;
-        }
-        else
-            dir = DIR_P;
+//    //第二步：计算明细科目余额
+//    QHashIterator<int,double> dj(curJDHpn);
+//    while(dj.hasNext()){
+//        dj.next();
+//        int key = dj.key();
+//        v = curJDHpn[key] - curDDHpn[key];
+//        if(v > 0)
+//            dir = DIR_J;
+//        else if(v < 0){
+//            dir = DIR_D;
+//            v = 0 - v;
+//        }
+//        else
+//            dir = DIR_P;
 
-        if(dir == DIR_P){ //本期借贷相抵（平）
-            endDetExa[key] = preDetExa.value(key);
-            endDetExaDir[key] = preDetExaDir.value(key);
-        }
-        else if(preDetExaDir.value(key) == dir){ //本期发生额借贷方向与期初相同，则直接加到同一方向
-            endDetExa[key] = preDetExa.value(key) + v;
-            endDetExaDir[key] = preDetExaDir.value(key);
-        }
-        else{
-            double tv;
-            //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
-            if(dir == DIR_J)
-                tv = v - preDetExa.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
-            else
-                tv = preDetExa.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
-            if(tv > 0){ //余额在借方
-                endDetExa[key] = tv;
-                endDetExaDir[key] = DIR_J;
-            }
-            else if(tv < 0){ //余额在贷方
-                endDetExa[key] = 0 - tv;
-                endDetExaDir[key] = DIR_D;
-            }
-            else{
-                endDetExa[key] = 0;
-                endDetExaDir[key] = DIR_P;
-            }
-        }
-    }
-    //将本期未发生的总账科目余额加入到总账期末余额表中
-    QHashIterator<int,double> p(preExa);
-    while(p.hasNext()){
-        p.next();
-        int key = p.key();
-        if(!endExa.contains(key)){
-            endExa[key] = preExa[key];
-            endExaDir[key] = preExaDir[key];
-        }
-    }
-    //将本期未发生的明细科目余额加入到明细期末余额表中
-    QHashIterator<int,double> pd(preDetExa);
-    while(pd.hasNext()){
-        pd.next();
-        int key = pd.key();
-        if(!endDetExa.contains(key)){
-            endDetExa[key] = preDetExa[key];
-            endDetExaDir[key] = preDetExaDir[key];
-        }
-    }
-}
+//        if(dir == DIR_P){ //本期借贷相抵（平）
+//            endDetExa[key] = preDetExa.value(key);
+//            endDetExaDir[key] = preDetExaDir.value(key);
+//        }
+//        else if(preDetExaDir.value(key) == dir){ //本期发生额借贷方向与期初相同，则直接加到同一方向
+//            endDetExa[key] = preDetExa.value(key) + v;
+//            endDetExaDir[key] = preDetExaDir.value(key);
+//        }
+//        else{
+//            double tv;
+//            //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
+//            if(dir == DIR_J)
+//                tv = v - preDetExa.value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
+//            else
+//                tv = preDetExa.value(key) - v; //借方（期初余额） - 贷方（当前发生借贷相抵后）
+//            if(tv > 0){ //余额在借方
+//                endDetExa[key] = tv;
+//                endDetExaDir[key] = DIR_J;
+//            }
+//            else if(tv < 0){ //余额在贷方
+//                endDetExa[key] = 0 - tv;
+//                endDetExaDir[key] = DIR_D;
+//            }
+//            else{
+//                endDetExa[key] = 0;
+//                endDetExaDir[key] = DIR_P;
+//            }
+//        }
+//    }
+//    //将本期未发生的总账科目余额加入到总账期末余额表中
+//    QHashIterator<int,double> p(preExa);
+//    while(p.hasNext()){
+//        p.next();
+//        int key = p.key();
+//        if(!endExa.contains(key)){
+//            endExa[key] = preExa[key];
+//            endExaDir[key] = preExaDir[key];
+//        }
+//    }
+//    //将本期未发生的明细科目余额加入到明细期末余额表中
+//    QHashIterator<int,double> pd(preDetExa);
+//    while(pd.hasNext()){
+//        pd.next();
+//        int key = pd.key();
+//        if(!endDetExa.contains(key)){
+//            endDetExa[key] = preDetExa[key];
+//            endDetExaDir[key] = preDetExaDir[key];
+//        }
+//    }
+//}
 
 bool BusiUtil::calCurExtraByMonth2(int y,int m,
        QHash<int,Double> preExa, QHash<int,Double> preDetExa,     //期初余额

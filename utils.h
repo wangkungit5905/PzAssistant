@@ -334,13 +334,13 @@ public:
     /**
         计算本期余额
     */
-    static bool calCurExtraByMonth(int y,int m,
-       QHash<int,double> preExa, QHash<int,double> preDetExa,     //期初余额
-       QHash<int,int> preExaDir, QHash<int,int> preDetExaDir,     //期初余额方向
-       QHash<int,double> curJHpn, QHash<int,double> curJDHpn,     //当期借方发生额
-       QHash<int,double> curDHpn, QHash<int,double>curDDHpn,      //当期贷方发生额
-       QHash<int,double> &endExa, QHash<int,double>&endDetExa,    //期末余额
-       QHash<int,int> &endExaDir, QHash<int,int> &endDetExaDir);  //期末余额方向
+//    static bool calCurExtraByMonth(int y,int m,
+//       QHash<int,double> preExa, QHash<int,double> preDetExa,     //期初余额
+//       QHash<int,int> preExaDir, QHash<int,int> preDetExaDir,     //期初余额方向
+//       QHash<int,double> curJHpn, QHash<int,double> curJDHpn,     //当期借方发生额
+//       QHash<int,double> curDHpn, QHash<int,double>curDDHpn,      //当期贷方发生额
+//       QHash<int,double> &endExa, QHash<int,double>&endDetExa,    //期末余额
+//       QHash<int,int> &endExaDir, QHash<int,int> &endDetExaDir);  //期末余额方向
 
     static bool calCurExtraByMonth2(int y,int m,
        QHash<int,Double> preExa, QHash<int,Double> preDetExa,     //期初余额

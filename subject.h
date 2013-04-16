@@ -90,6 +90,7 @@ public:
     //一级科目永远不能删除
     void setDelete(bool isDeleted){}
     bool isDelete(){return false;}
+    bool isSameSub(FirstSubject* other){return md==other->md && id==other->id;}
 
     FirstSubjectEditStates getEditState(){return witchEdited;}
     void resetEditState(){witchEdited=ES_FS_INIT;}
@@ -361,6 +362,7 @@ public:
     FirstSubject* getBnlrSub(){return bnlrSub;}
     FirstSubject* getLrfpSub(){return lrfpSub;}
     bool isSySubject(int sid);
+    bool isSyClsSubject(int sid, bool &yes, bool isFst=true);
     QList<BankAccount*>& getBankAccounts();
 
     //

@@ -625,6 +625,31 @@ bool SubjectManager::isSySubject(int sid)
     return sySubCls == sub->getSubClass();
 }
 
+/**
+ * @brief SubjectManager::isInSubject
+ *  判断指定id的科目是否是损益类的费用类科目
+ * @param sid   科目id
+ * @param isFst 该科目是一级科目（默认）还是二级科目
+ * @param yes   true：收入类，false：费用类
+ * @return  true：表示指定的id是损益类科目
+ */
+bool SubjectManager::isSyClsSubject(int sid, bool &yes, bool isFst)
+{
+    FirstSubject* fsub;
+    if(!isFst)
+        fsub = getSndSubject(sid)->getParent();
+    else
+        fsub = getFstSubject(sid);
+    if(!fsub){
+        LOG_ERROR("fsub is null");
+        return false;
+    }
+    if(fsub->getSubClass() != sySubCls)
+        return false;
+    yes = !fsub->getJdDir();
+    return true;
+}
+
 QList<BankAccount *> &SubjectManager::getBankAccounts()
 {
 }

@@ -215,8 +215,8 @@
 
 //货币类型代码
 #define ALLMT 0
-#define RMB 1
-#define USD 2
+const int RMB = 1;
+const int USD = 2;
 
 //科目类别代码
 #define SC_ASSETS  1 //资产类
@@ -287,7 +287,7 @@ enum SujectLevel{
 };
 
 enum PrintTask{
-    TOPRINT   = 1,   //输出到打印机
+    TOPRINT = 1,   //输出到打印机
     PREVIEW = 2,   //打印预览
     TOPDF   = 3    //输出到pdf文件
 };

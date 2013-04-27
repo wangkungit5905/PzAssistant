@@ -204,15 +204,14 @@ const int PZ_BUSER   = 11;
 //会计分录表
 //字段名
 const QString tbl_ba         = "BusiActions";
-const QString fld_ba_pid     = "pid";           //所属的凭证ID（INTEGER）
+const QString fld_ba_pid     = "pid";           //所属的凭证ID（INTEGER）连接到凭证表的外键
 const QString fld_ba_summary = "summary";       //业务活动摘要（TEXT）
-const QString fld_ba_fid     = "firSubID";      //一级科目（ INTEGER）
-const QString fld_ba_sid     = "secSubID";      //二级科目（INTEGER）
-const QString fld_ba_mt      = "moneyType";     //货币类型（INTEGER）
-const QString fld_ba_jv      = "jMoney";        //借方金额（REAL）
-const QString fld_ba_dv      = "dMoney";        //贷方金额（REAL）
-const QString fld_ba_dir     = "dir";           //借贷方向（1：借，0：贷）（INTEGER）
-const QString fld_ba_number  = "NumInPz";       //该业务活动在凭证业务活动表中的序号（INTEGER）
+const QString fld_ba_fid     = "fid";           //一级科目（ INTEGER）
+const QString fld_ba_sid     = "sid";           //二级科目（INTEGER）
+const QString fld_ba_mt      = "mt";            //货币类型（INTEGER）
+const QString fld_ba_value   = "value";         //金额（REAL）
+const QString fld_ba_dir     = "dir";           //借贷方向（1：借，-1：贷）（INTEGER）
+const QString fld_ba_number  = "numInPz";       //该业务活动在凭证业务活动表中的序号（INTEGER）
                                                 //（序号决定了在表中的具体位置，基于1）
 //字段索引
 const int BACTION_PID     = 1;
@@ -220,10 +219,9 @@ const int BACTION_SUMMARY = 2;
 const int BACTION_FID     = 3;
 const int BACTION_SID     = 4;
 const int BACTION_MTYPE   = 5;
-const int BACTION_JMONEY  = 6;
-const int BACTION_DMONEY  = 7;
-const int BACTION_DIR     = 8;
-const int BACTION_NUMINPZ = 9;
+const int BACTION_VALUE   = 6;
+const int BACTION_DIR     = 7;
+const int BACTION_NUMINPZ = 8;
 
 
 //**************************老主目余额表（以原币计）*****************************/

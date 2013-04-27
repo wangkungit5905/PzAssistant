@@ -5,7 +5,7 @@
 #include "global.h"
 #include "version.h"
 
-
+const char* ObjEditState = "editState";
 QString orgName = "SSC";
 QString appName = "Accounts Assistant Process System";
 QString appTitle;
@@ -126,7 +126,7 @@ int appInit()
     if(!appCfg)
         return 3;
 
-    Account::setDatabase(&adb);
+    //Account::setDatabase(&adb);
 
     //设置应用程序的版本号
     int master = 0;
@@ -198,6 +198,7 @@ void initVMs()
 void appExit()
 {
     AppConfig::getInstance()->saveGlobalVar();
+    AppConfig::getInstance()->exit();
 }
 
 //输出借贷方向的文字表达

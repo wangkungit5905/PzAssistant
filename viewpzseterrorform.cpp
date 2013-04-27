@@ -169,8 +169,8 @@ void InspectPzErrorThread::run()
             }
 
             //金额是否设置检测
-            if((q2.value(BACTION_JMONEY).toDouble() == 0) &&
-               (q2.value(BACTION_DMONEY).toDouble() == 0)){
+            if((q2.value(BACTION_VALUE).toDouble() == 0) /*&&
+               (q2.value(BACTION_VALUE).toDouble() == 0)*/){
                 e = new PingZhengError;
                 e->errorLevel = PZE_ERROR;
                 e->errorType = 5;

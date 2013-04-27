@@ -7,6 +7,12 @@
 #include "cal.h"
 #include "securitys.h"
 
+const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
+const int UNCLASS   = 0;    //未知的分类
+const int ALLCLASS  = 0;    //所有类别
+
+
+
 //通用项目编辑状态
 enum CommonItemEditState{
     CIES_PENDING  = -1,    //未决的（比如数据库表中还没有与此对象对应的记录）
@@ -62,6 +68,7 @@ enum MoneyDirection{
     MDIR_P  =   0,
     MDIR_D  =   -1
 };
+Q_DECLARE_METATYPE(MoneyDirection)
 
 //凭证状态代码
 enum PzState{
@@ -72,6 +79,7 @@ enum PzState{
     Pzs_Max        =    100   //这个数是一个标志，它指示该凭证是刚插入到数据库的，还没有回读它的id
 
 };
+Q_DECLARE_METATYPE(PzState)
 
 //凭证类别代码
 enum PzClass{
@@ -98,6 +106,7 @@ enum PzClass{
     //其他需由系统添加，并允许人工修改的凭证
     Pzc_Jzlr      =   50       //结转本年利润到利润分配
 };
+Q_DECLARE_METATYPE(PzClass)
 
 ////凭证子类别
 //enum PzSubClass{

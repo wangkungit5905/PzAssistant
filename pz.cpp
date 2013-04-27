@@ -8,22 +8,57 @@
 
 
 //////////////////////////BusiAction////////////////////////////////////
+BusiAction::BusiAction()
+{
+    md = BAMD++;
+    id = 0;
+    parent = NULL;
+    summary = "";
+    fsub = NULL;
+    ssub = NULL;
+    mt = 0;
+    dir = MDIR_D;
+    v = 0.00;
+    num = 0;
+}
+
+BusiAction::BusiAction(BusiAction& other)
+{
+    md = BAMD++;
+    id = 0;
+    parent = other.parent;
+    summary = other.summary;
+    fsub = other.fsub;
+    ssub = other.ssub;
+    mt = other.mt;
+    dir = other.dir;
+    v = other.v;
+    num = other.num;
+}
+
+BusiAction::BusiAction(int id,PingZheng* p,QString summary,FirstSubject* fsub,SecondSubject* ssub,
+           Money* mt,MoneyDirection dir,Double v,int num):id(id),parent(p),summary(summary),
+    fsub(fsub),ssub(ssub),mt(mt),dir(dir),v(v),num(num),isDeleted(false)
+{md = BAMD++;}
+
 void BusiAction::setParent(PingZheng *p)
 {
     if(parent != p){
         parent = p;
-        witchEdited |= ES_BA_PARENT;
-        parent->witchEdited |= ES_PZ_BACTION;
+        setEditState(ES_BA_PARENT);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
+
+
 
 void BusiAction::setSummary(QString s)
 {
     QString su = s.trimmed();
     if(summary != su){
         summary = su;
-        witchEdited |= ES_BA_SUMMARY;
-        parent->witchEdited |= ES_PZ_BACTION;
+        setEditState(ES_BA_SUMMARY);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
 
@@ -31,8 +66,8 @@ void BusiAction::setFirstSubject(FirstSubject *fsub)
 {
     if(this->fsub != fsub){
         this->fsub = fsub;
-        witchEdited |= ES_BA_FSUB;
-        parent->witchEdited |= ES_PZ_BACTION;
+        setEditState(ES_BA_FSUB);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
 
@@ -40,43 +75,46 @@ void BusiAction::setSecondSubject(SecondSubject *ssub)
 {
     if(this->ssub != ssub){
         this->ssub = ssub;
-        witchEdited |= ES_BA_SSUB;
-        parent->witchEdited |= ES_PZ_BACTION;
+        setEditState(ES_BA_SSUB);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
 
 void BusiAction::setMt(Money *mt)
 {
     if(this->mt != mt){
+        Money* oldMt = this->mt;
         this->mt = mt;
-        witchEdited |= ES_BA_MT;
-        if(mt)
-            parent->calSum();
-        parent->witchEdited |= ES_PZ_BACTION;
-        /*
-        //因为币种变了，所有要调整币值
-        QHash<int,Double> rates;
-        rates = parent->parent()->getRates(parent->parent());*/
+        setEditState(ES_BA_MT);
+        emit valueChanged(oldMt,mt,v,v,this);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
 
 void BusiAction::setValue(Double value)
 {
     if(v != value){
+        Double oldV = v;
         v = value;
-        witchEdited |= ES_BA_VALUE;
-        parent->calSum();
-        parent->witchEdited |= ES_PZ_BACTION;
+        setEditState(ES_BA_VALUE);
+        emit valueChanged(mt,mt,oldV,v,this);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
 
 void BusiAction::setDir(MoneyDirection direct)
 {
-    if(dir != direct){
-        dir = direct;
-        witchEdited |= ES_BA_DIR | ES_BA_VALUE;
-        parent->calSum();
-        parent->witchEdited |= ES_PZ_BACTION;
+    MoneyDirection tdir,oldDir;
+    if(direct == MDIR_P)
+        tdir = MDIR_J;
+    else
+        tdir = direct;
+    if(dir != tdir){
+        oldDir = dir;
+        dir = tdir;
+        setEditState(ES_BA_DIR);
+        emit dirChanged(oldDir,tdir,this);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
 
@@ -84,10 +122,27 @@ void BusiAction::setNumber(int number)
 {
     if(num != number){
         num = number;
-        witchEdited |= ES_BA_NUMBER;
-        parent->witchEdited |= ES_PZ_BACTION;
+        setEditState(ES_BA_NUMBER);
+        parent->setEditState(ES_PZ_BACTION);
     }
 }
+
+BusiActionEditStates BusiAction::getEditState()
+{
+    if(property(ObjEditState).canConvert<BusiActionEditStates>())
+        return property(ObjEditState).value<BusiActionEditStates>();
+    return ES_BA_INIT;
+}
+
+void BusiAction::setEditState(BusiActionEditState state)
+{
+    BusiActionEditStates oldState = getEditState();
+    oldState |= state;
+    QVariant v;
+    v.setValue<BusiActionEditStates>(oldState);
+    setProperty(ObjEditState, v);
+}
+
 
 //bool BusiAction::operator ==(const BusiAction other)
 //{
@@ -99,22 +154,114 @@ void BusiAction::setNumber(int number)
 
 
 /////////////////PingZheng/////////////////////////////////////////
-PingZheng::PingZheng(PzSetMgr *parent):ID(0),p(parent),witchEdited(ES_PZ_INIT),
-    isDeleted(false),encNum(0),ru(NULL),vu(NULL),bu(NULL),oppoSub(NULL){md=PZMD++;}
+PingZheng::PingZheng(PzSetMgr *parent):ID(0),p(parent),isDeleted(false),encNum(0),
+    ru(NULL),vu(NULL),bu(NULL),oppoSub(NULL){md=PZMD++;}
 
-PingZheng::PingZheng(int id, QString date, int pnum, int znum, Double js, Double ds,
-          PzClass pcls, int encnum, PzState state, User* vu, User* ru, User* bu, PzSetMgr* parent)
-    :ID(id),date(date),pnum(pnum),znum(znum),js(js),ds(ds)/*,pzCls(pcls)*/,
-      encNum(encnum),state(state),vu(vu),ru(ru),bu(bu),witchEdited(ES_PZ_INIT),
-      isDeleted(false),p(parent)
+PingZheng::PingZheng(PzSetMgr* parent, int id, QString date, int pnum, int znum, Double js, Double ds,
+          PzClass pzCls, int encnum, PzState state, User* vu, User* ru, User* bu)
+    :p(parent),ID(id),date(date),pnum(pnum),m_znum(znum),js(js),ds(ds)/*,pzCls(pcls)*/,
+      encNum(encnum),state(state),vu(vu),ru(ru),bu(bu),isDeleted(false)
 {
     md=PZMD++;
     oppoSub=NULL;
     //将结转汇兑损益的凭证归结为一个代码类别
     if(pzCls == Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys ||
        pzCls == Pzc_Jzhd_Yf || pzCls == Pzc_Jzhd_Yus || pzCls == Pzc_Jzhd_Yuf)
-        pzCls = Pzc_Jzhd;
+        this->pzCls = Pzc_Jzhd;
+    else
+        this->pzCls = pzCls;
 }
+
+void PingZheng::setDate(QString ds)
+{
+    QString d = ds.trimmed();
+    if(d != date){
+        date=ds;
+        setEditState(ES_PZ_DATE);
+    }
+}
+
+void PingZheng::setDate(QDate d)
+{
+    QString ds = d.toString(Qt::ISODate);
+    if(ds != date){
+        date = ds;
+        setEditState(ES_PZ_DATE);
+    }
+}
+
+void PingZheng::setNumber(int num)
+{
+    if(pnum != num){
+        pnum = num;
+        setEditState(ES_PZ_PZNUM);
+    }
+}
+
+void PingZheng::setZbNumber(int num)
+{
+    if(m_znum != num){
+       m_znum = num;
+       setEditState(ES_PZ_ZBNUM);
+    }
+}
+
+void PingZheng::setEncNumber(int num)
+{
+    if(encNum != num){
+       encNum=num;
+       setEditState(ES_PZ_ENCNUM);
+    }
+}
+
+void PingZheng::setPzClass(PzClass cls)
+{
+    if(pzCls != cls){
+       pzCls=cls;
+       setEditState(ES_PZ_CLASS);
+    }
+}
+
+void PingZheng::setPzState(PzState s)
+{
+    if(state != s){
+        state=s;
+        setEditState(ES_PZ_PZSTATE);
+    }
+}
+
+void PingZheng::setVerifyUser(User *user)
+{
+    if(vu == NULL || vu != user){
+        vu=user;
+        setEditState(ES_PZ_VUSER);
+    }
+}
+
+void PingZheng::setRecordUser(User *user)
+{
+    if(ru == NULL || ru != user){
+        ru=user;
+        setEditState(ES_PZ_RUSER);
+    }
+}
+
+void PingZheng::setBookKeeperUser(User *user)
+{
+    if(bu == NULL || bu != user){
+        bu=user;
+        setEditState(ES_PZ_BUSER);
+    }
+}
+
+BusiAction *PingZheng::getBusiAction(int n)
+{
+    if(n >= baLst.count() || n < 0)
+        return NULL;
+    else
+        return baLst.at(n);
+}
+
 
 //PingZheng::PingZheng(PzData2* data,User* puser,QSqlDatabase db):
 //    ID(data->pzId),date(data->date),pnum(data->pzNum),znum(data->pzZbNum),
@@ -378,8 +525,35 @@ BusiAction* PingZheng::appendBlank()
     ba->setParent(this);
     baLst<<ba;
     ba->setNumber(baLst.count());
-    witchEdited |= ES_PZ_BACTION;
+    setEditState(ES_PZ_BACTION);
     curBa = ba;
+    watchBusiaction(ba);
+    return ba;
+}
+
+/**
+ * @brief PingZheng::append
+ *  添加新的会计分录
+ * @param summary   摘要
+ * @param fsub      一级科目
+ * @param ssub      二级科目
+ * @param mt        币种
+ * @param dir       方向
+ * @param v         金额
+ * @return
+ */
+BusiAction *PingZheng::append(QString summary, FirstSubject *fsub, SecondSubject *ssub, Money *mt, MoneyDirection dir, Double v)
+{
+    Q_ASSERT(dir != MDIR_P);
+    BusiAction* ba = new BusiAction(0,this,summary,fsub,ssub,mt,dir,v,baLst.count()+1);
+    baLst<<ba;
+    if(dir == MDIR_J)
+        js += v;
+    else
+        ds += v;
+    setEditState(ES_PZ_BACTION);
+    curBa = ba;
+    watchBusiaction(ba);
     return ba;
 }
 
@@ -405,16 +579,17 @@ bool PingZheng::append(BusiAction *ba, bool isUpdate)
     if(isUpdate){
         if(ba->dir == DIR_J){
             js += ba->v;
-            witchEdited |= ES_PZ_JSUM;
+            setEditState(ES_PZ_JSUM);
         }
         else{
             ds += ba->v;
-            witchEdited |= ES_PZ_DSUM;
+            setEditState(ES_PZ_DSUM);
         }
-        witchEdited |= ES_PZ_BACTION;
+        setEditState(ES_PZ_BACTION);
         curBa = ba;
     }
     ba->setNumber(baLst.count());
+    watchBusiaction(ba);
     return true;
 }
 
@@ -427,10 +602,7 @@ bool PingZheng::append(BusiAction *ba, bool isUpdate)
  */
 bool PingZheng::insert(int index,BusiAction *ba)
 {
-    if(!ba){
-        LOG_ERROR(QObject::tr("BusiAction object is NULL!"));
-        return false;
-    }
+    Q_ASSERT(ba);
     if(hasBusiAction(ba))
         return false;
     if(baDels.contains(ba)){
@@ -453,15 +625,16 @@ bool PingZheng::insert(int index,BusiAction *ba)
     baLst.insert(idx,ba);
     if(ba->dir == DIR_J){
         js += ba->v;
-        witchEdited |= ES_PZ_JSUM;
+        setEditState(ES_PZ_JSUM);
     }
     else{
         ds += ba->v;
-        witchEdited |= ES_PZ_DSUM;
+        setEditState(ES_PZ_DSUM);
     }
     for(int i = idx; i < baLst.count(); ++i)
         baLst.at(i)->setNumber(i + 1);
-    witchEdited |= ES_PZ_BACTION;
+    setEditState(ES_PZ_BACTION);
+    watchBusiaction(ba);
     return true;
 }
 
@@ -482,16 +655,17 @@ bool PingZheng::remove(int index)
             baLst.at(i)->setNumber(index+1);
     if(ba->dir == DIR_J){
         js -= ba->v;
-        witchEdited |= ES_PZ_JSUM;
+        setEditState(ES_PZ_JSUM);
     }
     else{
         ds -= ba->v;
-        witchEdited |= ES_PZ_DSUM;
+        setEditState(ES_PZ_DSUM);
     }
-    witchEdited |= ES_PZ_BACTION;
+    setEditState(ES_PZ_BACTION);
 
     ba->setDelete(true);
     baDels<<ba;
+    watchBusiaction(ba,false);
     return true;
 }
 
@@ -528,13 +702,14 @@ bool PingZheng::remove(BusiAction *ba)
             baLst.at(i)->setNumber(idx+1);
     if(ba->dir == DIR_J){
         js -= ba->v;
-        witchEdited |= ES_PZ_JSUM;
+        setEditState(ES_PZ_JSUM);
     }
     else{
         ds -= ba->v;
-        witchEdited |= ES_PZ_DSUM;
+        setEditState(ES_PZ_DSUM);
     }
-    witchEdited |= ES_PZ_BACTION;
+    setEditState(ES_PZ_BACTION);
+    watchBusiaction(ba,false);
     return true;
 }
 
@@ -576,14 +751,13 @@ BusiAction *PingZheng::take(int index)
             baLst.at(i)->setNumber(index+1);
     if(ba->dir == DIR_J){
         js -= ba->v;
-        witchEdited |= ES_PZ_JSUM;
+        setEditState(ES_PZ_JSUM);
     }
     else{
         ds -= ba->v;
-        witchEdited |= ES_PZ_DSUM;
+        setEditState(ES_PZ_DSUM);
     }
-    witchEdited |= ES_PZ_BACTION;
-
+    setEditState(ES_PZ_BACTION);
     return ba;
 }
 
@@ -618,7 +792,7 @@ bool PingZheng::moveUp(int row, int nums)
         baLst.swap(i-1,i);
     }
     baLst.at(i)->setNumber(row-nums+1);
-    witchEdited |= ES_PZ_BACTION;
+    setEditState(ES_PZ_BACTION);
     return true;
 }
 
@@ -653,6 +827,86 @@ bool PingZheng::moveDown(int row, int nums)
     }
     baLst.at(row+nums)->setNumber(row+nums+1);
     return true;
+}
+
+PingZhengEditStates PingZheng::getEditState()
+{
+    if(property(ObjEditState).canConvert<PingZhengEditStates>())
+        return property(ObjEditState).value<PingZhengEditStates>();
+    return ES_PZ_INIT;
+}
+
+void PingZheng::setEditState(PingZhengEditState state)
+{
+    PingZhengEditStates oldState = getEditState();
+    oldState |= state;
+    QVariant v; v.setValue<PingZhengEditStates>(oldState);
+    setProperty(ObjEditState, v);
+}
+
+
+/**
+ * @brief PingZheng::adjustSumForDirChanged
+ *  由于某个会计分录的金额方向改变，引起凭证重新调整借贷方合计值
+ * @param oldDir    原方向
+ * @param newDir    新方向
+ * @param ba        所涉及的会计分录
+ */
+void PingZheng::adjustSumForDirChanged(MoneyDirection oldDir, MoneyDirection newDir,BusiAction* ba)
+{
+    if(oldDir == newDir)
+        return;
+    Money* mmt = parent()->getAccount()->getMasterMt();
+    if(oldDir == MDIR_J){
+        if(ba->getMt() == mmt){
+            js -= ba->getValue();
+            ds += ba->getValue();
+        }
+        else{
+            QHash<int,Double> rates = parent()->getRates();
+            Double v = ba->getValue() * rates.value(ba->getMt()->code());
+            js -= v; ds += v;
+        }
+    }
+    else{
+        if(ba->getMt() == mmt){
+            js += ba->getValue();
+            ds -= ba->getValue();
+        }
+        else{
+            QHash<int,Double> rates = parent()->getRates();
+            Double v = ba->getValue() * rates.value(ba->getMt()->code());
+            js += v; ds -= v;
+        }
+    }
+    setEditState(ES_PZ_JSUM);
+    setEditState(ES_PZ_DSUM);
+}
+
+/**
+ * @brief PingZheng::adjustSumForValueChanged
+ *  由于某个会计分录的币种或金额改变，引起凭证重新调整借贷方合计值
+ * @param oldMt     原币种
+ * @param newMt     新币种
+ * @param oldValue  原值
+ * @param newValue  新值
+ * @param ba        所涉及的会计分录
+ */
+void PingZheng::adjustSumForValueChanged(Money *oldMt, Money *newMt, Double &oldValue, Double &newValue,BusiAction* ba)
+{
+    if(oldMt==newMt && oldValue==newValue)
+        return;
+    QHash<int,Double> rates;
+    rates = parent()->getRates();
+    Double diffValue = newValue * rates.value(newMt->code(),1.0) - oldValue * rates.value(oldMt->code(),1.0);
+    if(ba->getDir() == MDIR_J){
+        js += diffValue;
+        setEditState(ES_PZ_JSUM);
+    }
+    else{
+        ds += diffValue;
+        setEditState(ES_PZ_DSUM);
+    }
 }
 
 //移除会计分录列表中末尾的连续空白会计分录
@@ -720,11 +974,33 @@ void PingZheng::calSum()
     }
     if(js != jv){
         js = jv;
-        witchEdited |= ES_PZ_JSUM;
+        setEditState(ES_PZ_JSUM);
     }
     if(ds != dv){
         ds = dv;
-        witchEdited |= ES_PZ_DSUM;
+        setEditState(ES_PZ_DSUM);
+    }
+}
+
+/**
+ * @brief PingZheng::watchBusiaction
+ *  连接相关信号槽，以监视指定会计分录由于方向、币种和值的改变，使凭证得以自动调整借贷方合计值
+ * @param ba
+ * @param isWatch
+ */
+void PingZheng::watchBusiaction(BusiAction *ba, bool isWatch)
+{
+    if(isWatch){
+        connect(ba,SIGNAL(dirChanged(MoneyDirection,MoneyDirection,BusiAction*)),
+                this,SLOT(adjustSumForDirChanged(MoneyDirection,MoneyDirection,BusiAction*)));
+        connect(ba,SIGNAL(valueChanged(Money*,Money*,Double&,Double&,BusiAction*)),
+                this,SLOT(adjustSumForValueChanged(Money*,Money*,Double&,Double&,BusiAction*)));
+    }
+    else{
+        disconnect(ba,SIGNAL(dirChanged(MoneyDirection,MoneyDirection,BusiAction*)),
+                this,SLOT(adjustSumForDirChanged(MoneyDirection,MoneyDirection,BusiAction*)));
+        disconnect(ba,SIGNAL(valueChanged(Money*,Money*,Double&,Double&,BusiAction*)),
+                this,SLOT(adjustSumForValueChanged(Money*,Money*,Double&,Double&,BusiAction*)));
     }
 }
 
@@ -832,5 +1108,7 @@ bool byPzNumLessThan(PingZheng* p1, PingZheng* p2)
 
 bool byZbNumLessThan(PingZheng* p1, PingZheng* p2)
 {
-    return p1->ZbNumber() < p2->ZbNumber();
+    return p1->zbNumber() < p2->zbNumber();
 }
+
+

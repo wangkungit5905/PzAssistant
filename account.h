@@ -87,6 +87,7 @@ public:
     ~Account();
     bool isValid();
     void close();
+    bool isOpen(){return isOpened;}
     DbUtil* getDbUtil(){return dbUtil;}
     QString getSName(){return accInfos.sname;}
     void setSName(QString name){accInfos.sname = name;}
@@ -176,6 +177,7 @@ private:
     DbUtil* dbUtil; //直接访问账户文件的数据库访问对象
     AccountInfo accInfos;   //账户信息
     QHash<int,Money*> moneys; //账户所使用的所有货币对象
+    bool isOpened;  //账户是否打开
 
     friend class DbUtil;
 };

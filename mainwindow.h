@@ -68,7 +68,8 @@ public:
         NONE       = 0,    //不指代任何字窗口类型
         PZEDIT     = 1,    //凭证编辑窗口
         PZSTAT     = 2,    //本期统计窗口
-        CASHDAILY  = 3,    //现金日记账窗口
+        PZSTAT2    = 3,    //本期统计窗口（新）
+        //CASHDAILY  = 3,    //现金日记账窗口
         BANKDAILY  = 4,    //银行日记账窗口
         DETAILSDAILY=5,    //明细科目日记账窗口
         TOTALDAILY = 6,    //总分类账窗口
@@ -263,6 +264,8 @@ private slots:
 
     bool impTestDatas();
     void on_actViewLog_triggered();
+
+    void on_actCurStatNew_triggered();
 
 private:
     void allPzToRecording(int year, int month);

@@ -32,6 +32,8 @@
 #include "version.h"
 #include "subject.h"
 #include "PzSet.h"
+#include "curstatdialog.h"
+#include "statutil.h"
 
 #include "completsubinfodialog.h"
 
@@ -674,7 +676,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
         curAccountId = id;
     }
     ui->mdiArea->closeAllSubWindows();
-    appExit();
+    //appExit();
     if (ui->mdiArea->currentSubWindow()) {
         event->ignore();
     } else {
@@ -717,6 +719,11 @@ void MainWindow::openPzs()
        QString fileStr = QString("date like '%1%'").arg(dateStr);
        curPzModel->setFilter(fileStr);
        curPzModel->select();
+
+       if(!curAccount->getPzSet()->open(cursy,cursm)){
+           QMessageBox::critical(this, tr("错误提示"),tr("打开%1年%2月的凭证集时出错！").arg(cursy).arg(cursm));
+           return;
+       }
 
        if(!dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount))
            sqlWarning();
@@ -1814,6 +1821,42 @@ void MainWindow::on_actCurStat_triggered()
         delete sinfo;
 }
 
+/**
+ * @brief MainWindow::on_actCurStatNew_triggered
+ *  统计本期发生额，并计算期末余额
+ */
+void MainWindow::on_actCurStatNew_triggered()
+{
+    if(!isOpenPzSet){
+        pzsWarning();
+        return;
+    }
+    //为了使本期统计得以正确执行，必须将主窗口记录的凭证集状态保存到账户中
+    dbUtil->setPzsState(cursy,cursm,curPzSetState);
+    CurStatDialog* dlg;
+    if(subWindows.contains(PZSTAT2)){
+        dlg = static_cast<CurStatDialog*>(subWindows.value(PZSTAT2)->widget());
+        //dlg->stat();
+        //激活此子窗口
+        ui->mdiArea->setActiveSubWindow(subWindows.value(PZSTAT2));
+        return;
+    }
+
+    SubWindowDim* winfo;
+    QByteArray* sinfo;
+    dbUtil->getSubWinInfo(PZSTAT2,winfo,sinfo);
+    dlg = new CurStatDialog(&curAccount->getPzSet()->getStatObj(), sinfo, this );
+    connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
+    connect(dlg,SIGNAL(pzsExtraSaved()),this,SLOT(extraValid()));
+
+    showSubWindow(PZSTAT2,winfo,dlg);
+    if(winfo)
+        delete winfo;
+    if(sinfo)
+        delete sinfo;
+}
+
+
 //显示现金日记账
 void MainWindow::on_actCashJournal_triggered()
 {
@@ -2058,6 +2101,12 @@ void MainWindow::subWindowClosed(QMdiSubWindow* subWin)
     else if(subWin == subWindows.value(PZSTAT)){
         winEnum = PZSTAT;
         ViewExtraDialog* dlg = static_cast<ViewExtraDialog*>(subWin->widget());
+        sinfo = dlg->getState();
+        delete dlg;
+    }
+    else if(subWin == subWindows.value(PZSTAT2)){
+        winEnum = PZSTAT2;
+        CurStatDialog* dlg = static_cast<CurStatDialog*>(subWin->widget());
         sinfo = dlg->getState();
         delete dlg;
     }
@@ -2713,6 +2762,7 @@ void MainWindow::showSubWindow(subWindowType winType, SubWindowDim* winfo, QDial
         switch(winType){
         case PZEDIT:
         case PZSTAT:
+        case PZSTAT2:
             dlg = w;
             //在linux平台上测试，如果设置最大或最小化按钮，则同时出现关闭按钮，我晕
             //subWindows.value(winType)->setWindowFlags(Qt::CustomizeWindowHint);
@@ -3198,56 +3248,14 @@ void MainWindow::on_actViewLog_triggered()
 bool MainWindow::impTestDatas()
 {
     //curAccount = new Account(tr("宁波苏航.dat"));
-    //Account acc(tr("宁波苏航.dat"));
-    //acc.appendSuite(2014,tr("2014年测试帐套"));
-    //acc.setSuiteName(2013,tr("2013测试帐套"));
-    //acc.addWaiMt(3);
-    //acc.close();
-    //QHash<int, Double> fsums,ssums;
-    //QHash<int, MoneyDirection> fdirs,sdirs;
-    //QHash<int, MoneyDirection> nfdirs,nsdirs;
-    //BusiUtil::readExtraByMonth2(2012,12,fsums,fdirs,ssums,sdirs);
-//    transferDirection(fdirs,nfdirs);
-//    transferDirection(sdirs,nsdirs);
-
-    //fsums[21] = 2000; //人民币
-    //fsums[22] = 0;  //美金
-    //nfdirs[21] = MDIR_J;
-    //nfdirs[22] = MDIR_J;
-    //ssums[891] = 2000;  //工行-人民币
-    //ssums[902] = 0;   //工行-美金
-    //nsdirs[891] = MDIR_J;
-    //nsdirs[902] = MDIR_J;
-    //adb.close();
-    //acc.getDbUtil()->saveExtraForPm(2012,12,fsums,fdirs,ssums,sdirs);
-    //curAccount->getDbUtil()->saveExtraForPm(2012,12,fsums,fdirs,ssums,sdirs);
-
-    //VMAccount::backup(tr("宁波苏航.dat"));
-    //bool r = VMAccount::restore(tr("宁波苏航.dat"));
-
-//    QList<BusiActionData2*> bas;
-//    curAccount->getDbUtil()->getActionsInPz(1,bas);
-//    BusiActionData2* ba,*ba2;
-//    ba = bas.first();
-//    ba->summary = ba->summary.append("  test");
-//    ba->state = BusiActionData2::EDITED;
-//    curAccount->getDbUtil()->saveActionsInPz(1,bas);
-
-//    ba2 = new BusiActionData2;
-//    ba2->summary = "new busiaction read id";
-//    ba2->state = BusiActionData2::NEW;
-//    ba2->fid = ba->fid;
-//    ba2->sid = ba->sid;
-//    ba2->mt = ba->mt;
-//    ba2->dir = ba->dir;
-//    ba2->pid = ba->pid;
-//    ba2->num = 3;
-//    bas<<ba2;
-//    curAccount->getDbUtil()->saveActionsInPz(1,bas);
-    QHash<PzdClass,bool> exsits;
-    curAccount->getDbUtil()->haveSpecClsPz(2012,12,exsits);
-    int i = 0;
-
-    //1、在空白表上保存余额通过
-    //2、将人民币余额改变，
+    //    PzSetMgr* psMgr = curAccount->getPzSet();
+    //    QList<PingZheng*> pzs;
+    //    psMgr->getPzSet(cursy,cursm,pzs);
+    //    StatUtil* sutil = new StatUtil(pzs,curAccount);
+    //    CurStatDialog* dlg = new CurStatDialog(sutil);
+    //    MyMdiSubWindow* subWin = new MyMdiSubWindow;
+    //    subWin->setWidget(dlg);
+    //    ui->mdiArea->addSubWindow(subWin);
+    //    dlg->show();
 }
+

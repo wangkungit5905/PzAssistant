@@ -579,6 +579,7 @@ SubjectNameItem *SubjectManager::getNameItem(QString name)
 {
     QHashIterator<int,SubjectNameItem*> it(nameItems);
     while(it.hasNext()){
+        it.next();
         if(name == it.value()->getShortName())
             return it.value();
     }
@@ -589,10 +590,29 @@ bool SubjectManager::containNI(QString name)
 {
     QHashIterator<int,SubjectNameItem*> it(nameItems);
     while(it.hasNext()){
+        it.next();
         if(name == it.value()->getShortName())
             return true;
     }
     return false;
+}
+
+/**
+ * @brief SubjectManager::getFstSubject
+ * @param code  科目代码
+ * @return
+ */
+FirstSubject *SubjectManager::getFstSubject(QString code)
+{
+    QHashIterator<int,FirstSubject*> it(fstSubHash);
+    bool ok = false;
+    while(it.hasNext()){
+        it.next();
+        if(it.value()->getCode() == code)
+            return it.value();
+    }
+    if(!ok)
+        return NULL;
 }
 
 

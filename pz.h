@@ -21,6 +21,8 @@ class Money;
 static long PZMD = 1;     //标识凭证对象
 static long BAMD = 1;     //标识会计分录对象
 
+
+
 //指示会计分录对象的哪些属性被编辑了的标记
 enum BusiActionEditState{
     ES_BA_INIT    = 0x0,     //初始
@@ -35,76 +37,60 @@ enum BusiActionEditState{
 };
 Q_DECLARE_FLAGS(BusiActionEditStates, BusiActionEditState)
 Q_DECLARE_OPERATORS_FOR_FLAGS(BusiActionEditStates)
+Q_DECLARE_METATYPE(BusiActionEditStates)
+//Q_FLAGS(BusiActionEditState, BusiActionEditStates)
 
-class BusiAction{
+class BusiAction : public QObject{
+    Q_OBJECT
+    Q_PROPERTY(int Md READ getMd CONSTANT)
+    Q_PROPERTY(int Id READ getId)
+    Q_PROPERTY(PingZheng* Parent READ getParent WRITE setParent)
+    Q_PROPERTY(QString Summary READ getSummary WRITE setSummary)
+    Q_PROPERTY(FirstSubject* FirstSubject READ getFirstSubject WRITE setFirstSubject)
+    Q_PROPERTY(SecondSubject* SecondSubject READ getSecondSubject WRITE setSecondSubject)
+    Q_PROPERTY(Money* MoneyType READ getMt WRITE setMt)
+    Q_PROPERTY(Double Value READ getValue WRITE setValue /*NOTIFY valueOrDirChanged*/)
+    Q_PROPERTY(MoneyDirection Dir READ getDir WRITE setDir)
 
 public:
-    BusiAction()
-    {
-        md = BAMD++;
-        id = 0;
-        parent = NULL;
-        summary = "";
-        fsub = NULL;
-        ssub = NULL;
-        mt = 0;
-        dir = MDIR_D;
-        v = 0.00;
-        num = 0;
-    }
-    BusiAction(BusiAction& other)
-    {
-        md = BAMD++;
-        id = 0;
-        parent = other.parent;
-        summary = other.summary;
-        fsub = other.fsub;
-        ssub = other.ssub;
-        mt = other.mt;
-        dir = other.dir;
-        v = other.v;
-        num = other.num;
-    }
+    BusiAction();
+    BusiAction(BusiAction& other);
     ~BusiAction(){}
     BusiAction(int id,PingZheng* p,QString summary,FirstSubject* fsub,SecondSubject* ssub,
-               Money* mt,MoneyDirection dir,Double v,int num):id(id),parent(p),summary(summary),
-        fsub(fsub),ssub(ssub),mt(mt),dir(dir),v(v),num(num),isDeleted(false)
-    {md = BAMD++;}
+               Money* mt,MoneyDirection dir,Double v,int num);
 
     long getMd(){return md;}
     int getId(){return id;}
     PingZheng* getParent(){return parent;}
     void setParent(PingZheng* p);
-
     QString getSummary() const{return summary;}
     void setSummary(QString s);
-
     FirstSubject* getFirstSubject(){return fsub;}
     void setFirstSubject(FirstSubject* fsub);
-
     SecondSubject* getSecondSubject(){return ssub;}
     void setSecondSubject(SecondSubject* ssub);
-
     Money* getMt() const{return mt;}
     void setMt(Money* mt);
-
     Double getValue() const{return v;}
     void setValue(Double value);
-
     MoneyDirection getDir() const{return dir;}
     void setDir(MoneyDirection direct);
-
     int getNumber(){return num;}
     void setNumber(int number);
 
 
     void setDelete(bool isDelete){isDeleted = isDelete;}
-    BusiActionEditStates getEditState(){return witchEdited;}
-    void resetEditState(){witchEdited = ES_BA_INIT;isDeleted=false;}
+    BusiActionEditStates getEditState();
+    void setEditState(BusiActionEditState state);
+    void resetEditState(){setProperty(ObjEditState,ES_BA_INIT);isDeleted=false;}
     bool isDelete(){return isDeleted;}
 
     bool operator ==(const BusiAction& other){return md == other.md;}
     //bool operator !=(const BusiAction& other){return (md != other.md);}
+
+signals:
+    void dirChanged(MoneyDirection oldDir,MoneyDirection newDir,BusiAction* ba);
+    void valueChanged(Money* oldMt,Money* newMt,Double &oldValue,Double &newValue,BusiAction* ba);
 
 private:
     long md;          //表证该对象的魔术字
@@ -114,53 +100,63 @@ private:
     FirstSubject* fsub;         //一级科目id
     SecondSubject* ssub;        //二级科目id
     Money* mt;                  //币种
-    MoneyDirection dir;                    //借贷方向（1：借，0：贷，-1：未定）
+    MoneyDirection dir;         //借贷方向（1：借，0：未定，-1：贷）
     Double v;                   //金额
     int num;                    //该业务活动在凭证中的序号（基于1）
-    BusiActionEditStates witchEdited;
+    //BusiActionEditStates witchEdited;
     bool isDeleted;
 
     friend class PingZheng;
     friend class PzSetMgr;
+    friend class DbUtil;
 };
 
 //指示凭证对象的哪个属性值被修改的标记
 enum PingZhengEditState{
     ES_PZ_INIT       = 0x0,      //初始
     ES_PZ_DATE       = 0x01,     //日期
-    ES_PZ_PZNUM      = 0x04,     //凭证号
-    ES_PZ_ZBNUM      = 0x08,     //自编号
-    ES_PZ_ENCNUM     = 0x10,     //附件数
-    ES_PZ_PZSTATE    = 0x20,     //凭证审核状态
-    ES_PZ_JSUM       = 0x40,     //借方合计
-    ES_PZ_DSUM       = 0x80,     //贷方合计
-    ES_PZ_RUSER      = 0x100,     //录入用户
-    ES_PZ_VUSER      = 0x200,     //审核用户
-    ES_PZ_BUSER      = 0x400,     //入账用户
-    ES_PZ_CLASS      = 0x800,     //凭证类别
-    ES_PZ_BACTION    = 0x1000     //会计分录
+    ES_PZ_PZNUM      = 0x02,     //凭证号
+    ES_PZ_ZBNUM      = 0x04,     //自编号
+    ES_PZ_ENCNUM     = 0x08,     //附件数
+    ES_PZ_PZSTATE    = 0x10,     //凭证审核状态
+    ES_PZ_JSUM       = 0x20,     //借方合计
+    ES_PZ_DSUM       = 0x40,     //贷方合计
+    ES_PZ_RUSER      = 0x080,     //录入用户
+    ES_PZ_VUSER      = 0x100,     //审核用户
+    ES_PZ_BUSER      = 0x200,     //入账用户
+    ES_PZ_CLASS      = 0x400,     //凭证类别
+    ES_PZ_BACTION    = 0x8000     //会计分录
 };
 Q_DECLARE_FLAGS(PingZhengEditStates, PingZhengEditState)
 Q_DECLARE_OPERATORS_FOR_FLAGS(PingZhengEditStates)
+Q_DECLARE_METATYPE(PingZhengEditStates)
 
 //凭证类
-class PingZheng
+class PingZheng : public QObject
 {
+    Q_OBJECT
+    Q_PROPERTY(int Md READ getMd CONSTANT)
+    Q_PROPERTY(int Id READ id)
+    Q_PROPERTY(PzSetMgr* Parent READ parent WRITE setParent)
+    Q_PROPERTY(QDate Date READ getDate2 WRITE setDate)
+    Q_PROPERTY(QString DateStr READ getDate WRITE setDate)
+    Q_PROPERTY(int Number READ number WRITE setNumber)
+    Q_PROPERTY(int ZbNumer READ zbNumber WRITE setZbNumber)
+    Q_PROPERTY(int EncNumber READ encNumber WRITE setEncNumber)
+    Q_PROPERTY(Double JSum READ jsum)
+    Q_PROPERTY(Double DSum READ dsum)
+    Q_PROPERTY(FirstSubject* OppoSubject READ getOppoSubject WRITE setOppoSubject)
+    Q_PROPERTY(PzState state READ getPzState WRITE setPzState)
+    Q_PROPERTY(User* Recorder READ recordUser WRITE setRecordUser)
+    Q_PROPERTY(User* Verifier READ verifyUser WRITE setVerifyUser)
+    Q_PROPERTY(User* BookKeeper READ bookKeeperUser WRITE setBookKeeperUser)
+
 public:
     PingZheng(PzSetMgr* p = 0);
-    PingZheng(int id,QString date,int pnum,int znum,Double js,Double ds,
-              PzClass pcls,int encnum,PzState state,User* vu = NULL,
-              User* ru = NULL, User* bu = NULL, PzSetMgr* p= NULL);
+    PingZheng(PzSetMgr* parent,int id,QString date,int pnum,int m_znum,Double js,Double ds,
+              PzClass pzCls,int encnum,PzState state,User* vu = NULL,
+              User* ru = NULL, User* bu = NULL);
     ~PingZheng(){}
-
-//    static PingZheng* load(int id,QSqlDatabase db = QSqlDatabase::database());
-//    static PingZheng* create(User* user = NULL,QSqlDatabase db = QSqlDatabase::database());
-//    static PingZheng* create(QString date,int pnum,int znum,double js,double ds,
-//                             PzClass pcls,int encnum,PzState state,User* vu = NULL,
-//                             User* ru = NULL, User* bu = NULL,User* user = NULL,
-//                             QSqlDatabase db = QSqlDatabase::database());
-//    bool save();
-//    bool update();
 
     //属性访问
     long getMd(){return md;}
@@ -169,115 +165,35 @@ public:
     void setParent(PzSetMgr* parent){p = parent;}
     QString getDate(){return date;}
     QDate getDate2() const{return QDate::fromString(date,Qt::ISODate);}
-    void setDate(QString ds)
-    {
-        QString d = ds.trimmed();
-        if(d != date){
-            date=ds;
-            witchEdited |= ES_PZ_DATE;
-        }
-    }
-    void setDate(QDate d)
-    {
-        QString ds = d.toString(Qt::ISODate);
-        if(ds != date){
-            date = ds;
-            witchEdited |= ES_PZ_DATE;
-        }
-    }
+    void setDate(QString ds);
+    void setDate(QDate d);
     int number() const{return pnum;}
-    void setNumber(int num)
-    {
-        if(pnum != num){
-            pnum = num;
-            witchEdited |= ES_PZ_PZNUM;
-        }
-    }
-    int ZbNumber(){return znum;}
-    void setZbNumber(int num)
-    {
-        if(znum != num){
-           znum = num;
-           witchEdited |= ES_PZ_ZBNUM;
-        }
-    }
+    void setNumber(int num);
+    int zbNumber(){return m_znum;}
+    void setZbNumber(int num);
     int encNumber(){return encNum;}
-    void setEncNumber(int num)
-    {
-        if(encNum != num){
-           encNum=num;
-           witchEdited |= ES_PZ_ENCNUM;
-        }
-    }
+    void setEncNumber(int num);
     Double jsum(){return js;}
-    void setJSum(Double v)
-    {
-        if(js != v){
-            js=v;
-            witchEdited |= ES_PZ_JSUM;
-        }
-    }
     Double dsum(){return ds;}
-    void setDSum(Double v)
-    {
-        if(ds != v){
-            ds=v;
-            witchEdited |= ES_PZ_DSUM;
-        }
-    }
     PzClass getPzClass(){return pzCls;}
-    void setPzClass(PzClass cls)
-    {
-        if(pzCls != cls){
-           pzCls=cls;
-           witchEdited |= ES_PZ_CLASS;
-        }
-    }
+    void setPzClass(PzClass cls);
     FirstSubject* getOppoSubject(){return oppoSub;}
     void setOppoSubject(FirstSubject* sub){oppoSub=sub;}
     PzState getPzState(){return state;}
-    void setPzState(PzState s)
-    {
-        if(state != s){
-            state=s;
-            witchEdited |= ES_PZ_PZSTATE;
-        }
-    }
+    void setPzState(PzState s);
     User* verifyUser(){return vu;}
-    void setVerifyUser(User* user)
-    {
-        if(vu == NULL || vu != user){
-            vu=user;
-            witchEdited |= ES_PZ_VUSER;
-        }
-    }
+    void setVerifyUser(User* user);
     User* recordUser(){return ru;}
-    void setRecordUser(User* user)
-    {
-        if(ru == NULL || ru != user){
-            ru=user;
-            witchEdited |= ES_PZ_RUSER;
-        }
-    }
+    void setRecordUser(User* user);
     User* bookKeeperUser(){return bu;}
-    void setBookKeeperUser(User* user)
-    {
-        if(bu == NULL || bu != user){
-            bu=user;
-            witchEdited |= ES_PZ_BUSER;
-        }
-    }
+    void setBookKeeperUser(User* user);
+
 
     //会计分录方法
     void setCurBa(BusiAction* ba){curBa = ba;}   //设置凭证的当前会计分录
-    BusiAction* getBusiAction(int n)
-    {
-        if(n >= baLst.count() || n < 0)
-            return NULL;
-        else
-            return baLst.at(n);
-    }
+    BusiAction* getBusiAction(int n);
     BusiAction* appendBlank();
+    BusiAction* append(QString summary,FirstSubject* fsub, SecondSubject* ssub, Money* mt, MoneyDirection dir, Double v);
     bool append(BusiAction* ba, bool isUpdate = true);
     bool insert(int index, BusiAction *ba);
     bool remove(int index);
@@ -293,8 +209,9 @@ public:
 
 
     //编辑状态方法
-    PingZhengEditStates getEditState(){return witchEdited;}
-    void resetEditState(){witchEdited=ES_PZ_INIT;isDeleted=false;}
+    PingZhengEditStates getEditState();
+    void resetEditState(){setProperty(ObjEditState,ES_PZ_INIT);isDeleted=false;}
+    void setEditState(PingZhengEditState state);
     bool isDelete(){return isDeleted;}
     void setDeleted(bool isDel){isDeleted = isDel;}
     //void removeTailBlank();
@@ -302,9 +219,13 @@ public:
     bool operator ==(PingZheng& other){return md == other.md;}
     //bool operator !=(PingZheng& other){return md != other.md;}
 
+private slots:
+    void adjustSumForDirChanged(MoneyDirection oldDir,MoneyDirection newDir,BusiAction* ba);
+    void adjustSumForValueChanged(Money* oldMt,Money* newMt,Double &oldValue,Double &newValue,BusiAction* ba);
 private:
     bool hasBusiAction(BusiAction* ba);
     void calSum();
+    void watchBusiaction(BusiAction* ba, bool isWatch=true);
 
 private:
 //    bool saveBaOrder();
@@ -316,7 +237,7 @@ private:
     int ID;                             //id
     PzSetMgr* p;                        //该凭证所属的凭证集管理器对象
     QString date;                       //凭证日期（Qt::ISO格式）
-    int pnum,znum,encNum;               //凭证号，自编号和附件数
+    int pnum,m_znum,encNum;               //凭证号，自编号和附件数
     Double js,ds;                       //借贷方合计值
     PzClass pzCls;                      //凭证类别
     PzState state;                      //凭证状态
@@ -324,7 +245,6 @@ private:
     QList<BusiAction*> baLst;           //会计分录列表
     QList<BusiAction*> baDels;          //被删除的会计分录列表
     BusiAction* curBa;                  //当前会计分录对象
-    PingZhengEditStates witchEdited;    //凭证哪个部分被编辑的标志
     bool isDeleted;                     //是否被删除的标记
     FirstSubject* oppoSub;              //结转汇兑损益类凭证的对方科目
 

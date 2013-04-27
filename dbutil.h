@@ -102,9 +102,19 @@ public:
     bool saveRates(int y,int m, QHash<int,Double>& rates);
     bool loadPzSet(int y, int m, QList<PingZheng*> &pzs, PzSetMgr *parent);
     bool isContainPz(int y, int m, int pid);
-    bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);    
+    bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
+
+    bool clearPzSet(int y, int m);
+    bool clearRates(int y, int m);
+    bool clearExtras(int y, int m);
 
     //凭证相关
+    bool savePingZhengs(QList<PingZheng*> pzs);
+    bool savePingZheng(PingZheng* pz);
+    bool delPingZhengs(QList<PingZheng*> pzs);
+    bool delPingZheng(PingZheng* pz);
+
+    ////////////////////////////////////////////////////////////////////
     bool assignPzNum(int y, int m);
     bool crtNewPz(PzData* pz);
     bool delActionsInPz(int pzId);
@@ -117,6 +127,7 @@ public:
     bool specPzClsInstat(int y, int m, PzdClass cls, int &affected);
     bool setAllPzState(int y, int m, PzState state, PzState includeState,
                                   int &affected, User* user);
+    //////////////////////////////////////////////////////////////////
 
     //访问子窗口的位置、大小等信息
     bool getSubWinInfo(int winEnum, SubWindowDim* &info, QByteArray* &otherInfo);
@@ -124,8 +135,12 @@ public:
 
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
-    bool readAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
-    bool saveAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
+    bool _readAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
+    bool _saveAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
+
+    bool _savePingZheng(PingZheng* pz);
+    bool _saveBusiactionsInPz(PingZheng* pz);
+    bool _delPingZheng(PingZheng* pz);
 
     //余额相关辅助函数
     bool _readExtraPoint(int y, int m, QHash<int, int> &mtHashs);
@@ -144,6 +159,7 @@ private:
 
     //
     void warn_transaction(ErrorCode witch, QString context);
+    void errorNotify(QString info);
     bool isNewExtraAccess(){return (mv==nmv && sv>=nsv) || (mv>nmv);}//是否采用新余额存取机制
 
 private:

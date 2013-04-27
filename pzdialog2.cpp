@@ -232,11 +232,9 @@ void PzDialog2::initAction()
         //refreshVHeaderView();
 
         QTableWidgetItem* item;
-        if(curPzClass == Pzc_Hand || curPzClass == Pzc_JzsyIn || curPzClass == Pzc_JzsyFei
-          || curPzClass == Pzc_Jzlr  || !isCollapseJz){
+//        if(curPzClass == Pzc_Hand || curPzClass == Pzc_JzsyIn || curPzClass == Pzc_JzsyFei
+//          || curPzClass == Pzc_Jzlr  || !isCollapseJz){
             delegate->setVolidRows(numActions);
-            //int subSys = curAccount->getCurSuite()->subSys;
-            //SubjectManager* smg = curAccount->getSubjectManager(subSys);
             for(int i = 0; i < busiActions.count(); ++i){
                 ui->twActions->appendRow();  //添加一个有效行
                 BASummaryItem* smItem = new BASummaryItem(busiActions[i]->summary, smg);
@@ -272,7 +270,7 @@ void PzDialog2::initAction()
             if(isEnabled()){
                 appendBlankAction(); //添加一个空记录，以便即时编辑
             }            
-        }
+//        }
 //        else if(curPzClass == Pzc_Jzhd_Bank ||  //如果是结转汇兑损益的凭证
 //                curPzClass == Pzc_Jzhd_Ys ||
 //                curPzClass == Pzc_Jzhd_Yf){

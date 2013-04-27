@@ -16,6 +16,7 @@ QSqlDatabase* Account::db;
 
 Account::Account(QString fname)
 {
+    isOpened = false;
     isReadOnly = false;
     accInfos.fileName = fname;
     if(!init())
@@ -30,7 +31,7 @@ Account::~Account()
 
 bool Account::isValid()
 {
-    if(accInfos.code.isEmpty() ||
+    if(!isOpened || accInfos.code.isEmpty() ||
        accInfos.sname.isEmpty() ||
        accInfos.lname.isEmpty())
         return false;
@@ -42,6 +43,7 @@ void Account::close()
 {
     dbUtil->saveAccountInfo(accInfos);
     dbUtil->close();
+    isOpened = false;
 }
 
 void Account::addWaiMt(Money* mt)
@@ -383,32 +385,40 @@ bool Account::init()
     accInfos.masterMt = NULL;
 
     dbUtil = new DbUtil;
+    bool ok = true;
     if(!dbUtil->setFilename(accInfos.fileName)){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Can't connect to account file!"));
-        return false;
+        ok = false;
     }
-    if(!dbUtil->initMoneys(this)){
+    if(ok && !dbUtil->initMoneys(this)){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Money init happen error!"));
-        return false;
+        ok = false;
     }
-    if(!dbUtil->initAccount(accInfos)){
+    if(ok && !dbUtil->initAccount(accInfos)){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Account info init happen error!"));
-        return false;
+        ok = false;
     }    
-    if(!dbUtil->initNameItems()){
+    if(ok && !dbUtil->initNameItems()){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Name items init happen error!"));
-        return false;
+        ok = false;
     }
-    if(!dbUtil->initBanks(this)){
+    if(ok && !dbUtil->initBanks(this)){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Bank init happen error!"));
+        ok = false;
+    }
+    if(ok){
+        isOpened = true;
+        return true;
+    }
+    else{
+        dbUtil->close();
         return false;
     }
-    return true;
 }
 
 

@@ -1007,10 +1007,10 @@ bool BusiUtil::getActionsInPz(int pid, QList<BusiActionData2 *> &busiActions)
         ba->sid = q.value(BACTION_SID).toInt();
         ba->mt  = q.value(BACTION_MTYPE).toInt();
         ba->dir = q.value(BACTION_DIR).toInt();
-        if(ba->dir == DIR_J)
-            ba->v = Double(q.value(BACTION_JMONEY).toDouble());
-        else
-            ba->v = Double(q.value(BACTION_DMONEY).toDouble());
+        //if(ba->dir == DIR_J)
+        ba->v = Double(q.value(BACTION_VALUE).toDouble());
+        //else
+        //    ba->v = Double(q.value(BACTION_DMONEY).toDouble());
         ba->num = q.value(BACTION_NUMINPZ).toInt();
         ba->state = BusiActionData2::INIT;
         busiActions.append(ba);
@@ -1500,7 +1500,7 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
                                 QList<int> fids, QHash<int, QList<int> > sids,
                                 Double gv, Double lv, bool inc)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
 
     //读取前期余额
@@ -1612,32 +1612,51 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
     QString sd = QDate(y,sm,1).toString(Qt::ISODate);
     QString ed = QDate(y,em,QDate(y,em,1).daysInMonth()).toString(Qt::ISODate);
 
-    s = QString("select PingZhengs.date,PingZhengs.number,BusiActions.summary,"
-                "BusiActions.id,BusiActions.pid,BusiActions.jMoney,BusiActions.dMoney,"
-                "BusiActions.moneyType,BusiActions.dir,BusiActions.firSubID,"
-                "BusiActions.secSubID,PingZhengs.isForward "
-                "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
-                "where (PingZhengs.date >= '%1') and (PingZhengs.date <= '%2')")
-                .arg(sd).arg(ed);
+//    s = QString("select PingZhengs.date,PingZhengs.number,BusiActions.summary,"
+//                "BusiActions.id,BusiActions.pid,BusiActions.jMoney,"
+//                "BusiActions.moneyType,BusiActions.dir,BusiActions.firSubID,"
+//                "BusiActions.secSubID,PingZhengs.isForward "
+//                "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
+//                "where (PingZhengs.date >= '%1') and (PingZhengs.date <= '%2')")
+//                .arg(sd).arg(ed);
+    //date,number,summary,bid,pid,value,mt,dir,fid,sid,pzClass
+    s = QString("select %1.%2,%1.%3,%4.%5,"
+                "%4.id,%4.%6,%4.%7,%4.%8,"
+                "%4.%9,%4.%10,"
+                "%4.%11,%1.%12 "
+                "from %1 join %4 on %4.%6 = %1.id "
+                "where (%1.%2 >= '%13') and (%1.%2 <= '%14')")
+            .arg(tbl_pz).arg(fld_pz_date).arg(fld_pz_number).arg(tbl_ba).arg(fld_ba_summary)
+            .arg(fld_ba_pid).arg(fld_ba_value).arg(fld_ba_mt).arg(fld_ba_dir).arg(fld_ba_fid)
+            .arg(fld_ba_sid).arg(fld_pz_class).arg(sd).arg(ed);
     if(fid != 0)
-        s.append(QString(" and (BusiActions.firSubID = %1)").arg(fid));
+        //s.append(QString(" and (BusiActions.firSubID = %1)").arg(fid));
+        s.append(QString(" and (%1.%2 = %3)").arg(tbl_ba).arg(fld_ba_fid).arg(fid));
     if(sid != 0)
-        s.append(QString(" and (BusiActions.secSubID = %1)").arg(sid));
+        //s.append(QString(" and (BusiActions.secSubID = %1)").arg(sid));
+        s.append(QString(" and (%1.%2 = %3)").arg(tbl_ba).arg(fld_ba_sid).arg(sid));
     //if(mt != ALLMT)
     //    s.append(QString(" and (BusiActions.moneyType = %1)").arg(mt));
     if(gv != 0)
-        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney > %3)) "
-                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney > %3)))")
-                 .arg(DIR_J).arg(DIR_D).arg(gv.toString()));
+//        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney > %3)) "
+//                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney > %3)))")
+//                 .arg(DIR_J).arg(DIR_D).arg(gv.toString()));
+        s.append(QString(" and (%1.%2 > %3)")
+                 .arg(tbl_ba).arg(fld_ba_value).arg(gv.toString()));
     if(lv != 0)
-        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney < %3)) "
-                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney < %3)))")
-                 .arg(DIR_J).arg(DIR_D).arg(lv.toString()));
+//        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney < %3)) "
+//                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney < %3)))")
+//                 .arg(DIR_J).arg(DIR_D).arg(lv.toString()));
+        s.append(QString(" and (%1.%2 < %3)")
+                 .arg(tbl_ba).arg(fld_ba_value).arg(lv.toString()));
     if(!inc) //将已入账的凭证纳入统计范围
-        s.append(QString(" and (PingZhengs.pzState = %1)").arg(Pzs_Instat));
+        //s.append(QString(" and (PingZhengs.pzState = %1)").arg(Pzs_Instat));
+        s.append(QString(" and (%1.%2 = %3)").arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Instat));
     else     //将未审核、已审核、已入账的凭证纳入统计范围
-        s.append(QString(" and (PingZhengs.pzState != %1)").arg(Pzs_Repeal));
-    s.append(" order by PingZhengs.date");
+        //s.append(QString(" and (PingZhengs.pzState != %1)").arg(Pzs_Repeal));
+        s.append(QString(" and (%1.%2 != %3)").arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Repeal));
+    //s.append(" order by PingZhengs.date");
+    s.append(QString(" order by %1.%2").arg(tbl_pz).arg(fld_pz_number));
 
     if(!q.exec(s))
         return false;
@@ -1648,10 +1667,10 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
     getIdByCode(cwfyId,"5503");
 
     while(q.next()){
-        id = q.value(9).toInt();
-        mType = q.value(7).toInt();  //业务发生的币种
-        pzCls = (PzClass)q.value(11).toInt();    //凭证类别
-        fsubId = q.value(9).toInt();    //会计分录所涉及的一级科目id
+        id = q.value(8).toInt();  //fid
+        mType = q.value(6).toInt();  //业务发生的币种
+        pzCls = (PzClass)q.value(10).toInt();    //凭证类别
+        fsubId = q.value(8).toInt();    //会计分录所涉及的一级科目id
         //如果要提取所有选定主目，则跳过所有未选定主目
         if(fid == 0){
             if(!fids.contains(id))
@@ -1659,7 +1678,7 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
         }
         //如果选择所有子目，则过滤掉所有未选定子目
         if(sid == 0){
-            int iid = q.value(10).toInt();
+            int iid = q.value(9).toInt();
             if(!sids.value(id).contains(iid))
                 continue;
         }
@@ -1699,12 +1718,13 @@ bool BusiUtil::getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
         }
         item->summary = summary;
         //借、贷方金额
-        item->mt = q.value(7).toInt();  //业务发生的币种
-        item->dh = q.value(8).toInt();  //业务发生的借贷方向
-        if(item->dh == DIR_J)
-            item->v = Double(q.value(5).toDouble()); //发生在借方
-        else
-            item->v = Double(q.value(6).toDouble()); //发生在贷方
+        item->mt = q.value(6).toInt();  //业务发生的币种
+        item->dh = q.value(7).toInt();  //业务发生的借贷方向
+        item->v = Double(q.value(5).toDouble());
+//        if(item->dh == DIR_J)
+//            item->v = Double(q.value(5).toDouble()); //发生在借方
+//        else
+//            item->v = Double(q.value(6).toDouble()); //发生在贷方
 
         //余额
         if(item->dh == DIR_J){
@@ -1769,7 +1789,7 @@ bool BusiUtil::getTotalAccount(int y, int sm, int em, int fid,
                             QHash<int,int>& preExtraDir,
                             QHash<int, Double>& rates)
 {
-    QSqlQuery q;
+    QSqlQuery q(db);
     QString s;
 
     //读取前期余额
@@ -3927,7 +3947,7 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
             dir = (MoneyDirection)q2.value(BACTION_DIR).toInt();
 
             if(dir == MDIR_J){//发生在借方
-                jv = Double(q2.value(BACTION_JMONEY).toDouble());
+                jv = Double(q2.value(BACTION_VALUE).toDouble());
                 jSums[fid*10+mtype] += jv;
                 if(!dSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
                     dSums[fid*10+mtype] = Double(0.00);
@@ -3939,7 +3959,7 @@ bool BusiUtil::calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<i
                 //}
             }
             else{
-                dv = Double(q2.value(BACTION_DMONEY).toDouble());
+                dv = Double(q2.value(BACTION_VALUE).toDouble());
                 dSums[fid*10+mtype] += dv;
                 if(!jSums.contains(fid*10+mtype)) //这是为了确保jSums和dSums的key集合相同
                     jSums[fid*10+mtype] = Double(0.00);
@@ -4485,7 +4505,7 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
             if(pzClsJzhds.contains(pzCls)/*Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys || pzCls == Pzc_Jzhd_Yf*/){
                 //continue;
                 if(isAccMt(fid)){  //如果是银行、应收/应付方
-                    dv = Double(q2.value(BACTION_DMONEY).toDouble());
+                    dv = Double(q2.value(BACTION_VALUE).toDouble());
                     key = fid*10+USD;
                     dSums[key] += dv;
                     if(!jSums.contains(key))
@@ -4496,7 +4516,7 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
                         sjSums[key] = Double(0.00);
                 }
                 else{ //财务费用方
-                    jv = Double(q2.value(BACTION_JMONEY).toDouble());
+                    jv = Double(q2.value(BACTION_VALUE).toDouble());
                     key = fid*10+mtype;
                     jSums[key] += jv;
                     if(!dSums.contains(key))
@@ -4515,7 +4535,7 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
             //}
             else{
                 if(dir == DIR_J){//发生在借方
-                    jv = Double(q2.value(BACTION_JMONEY).toDouble());
+                    jv = Double(q2.value(BACTION_VALUE).toDouble());
                     if(mtype != RMB)//如果是外币，则将其转换为人民币
                         jv = jv * rates.value(mtype);
                     jSums[fid*10+mtype] += jv;
@@ -4529,7 +4549,7 @@ bool BusiUtil::calAmountByMonth3(int y, int m, QHash<int, Double> &jSums, QHash<
                     //}
                 }
                 else{
-                    dv = Double(q2.value(BACTION_DMONEY).toDouble());
+                    dv = Double(q2.value(BACTION_VALUE).toDouble());
                     if(mtype != RMB)//如果是外币，则将其转换为人民币
                         dv = dv * rates.value(mtype);
                     dSums[fid*10+mtype] += dv;

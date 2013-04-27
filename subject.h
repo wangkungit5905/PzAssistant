@@ -7,9 +7,7 @@
 #include "commdatastruct.h"
 #include "global.h"
 
-const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
-const int UNCLASS   = 0;    //未知的分类
-const int ALLCLASS  = 0;    //所有类别
+
 
 const int SUPERUSERID   = 1;  //超级用户ID
 const int CLIENTCLASSID = 2;  //业务客户类别id
@@ -346,6 +344,7 @@ public:
     //按科目id获取科目对象的方法
     FirstSubject* getFstSubject(int id){fstSubHash.value(id);}
     SecondSubject* getSndSubject(int id){return sndSubs.value(id);}
+    FirstSubject* getFstSubject(QString code);
     QHash<int,FirstSubject*>& getAllFstSubHash(){return fstSubHash;}
     QHash<int,SecondSubject*>& getAllSndSubHash(){return sndSubs;}
 

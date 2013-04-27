@@ -49,6 +49,7 @@ public:
     static AppConfig* getInstance();
     static QSqlDatabase getBaseDbConnect();
 
+    void exit();
     Logger::LogLevel getLogLevel();
     void setLogLevel(Logger::LogLevel level);
     bool readPingzhenClass(QHash<PzClass,QString>& pzClasses);

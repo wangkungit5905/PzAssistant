@@ -523,6 +523,7 @@ private:
     QAction* actMoveTo;  //转到该凭证的QAction
     Account* account;
     SubjectManager* smg;
+    QHash<int,Money*> allMts;
 };
 
 

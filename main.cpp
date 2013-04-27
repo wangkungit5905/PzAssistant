@@ -101,6 +101,7 @@ int main(int argc, char *argv[])
     int exitCode = app.exec();
 
     Logger::write(QDateTime::currentDateTime(),Logger::Must,"",0,"", QObject::tr("Quit PzAssistant!"));
-        AppConfig::getInstance()->setLogLevel(logLevel);
+    AppConfig::getInstance()->setLogLevel(logLevel);
+    appExit();
     return exitCode;
 }

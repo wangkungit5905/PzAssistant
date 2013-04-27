@@ -7,6 +7,7 @@
 QT       += core gui sql xml
 
 TARGET = PzAssistant
+DESTDIR = $${PWD}/../workDir/
 TEMPLATE = app
 
 #CONFIG += qaxcontainer
@@ -56,7 +57,8 @@ SOURCES += main.cpp\
     version.cpp \
     subject.cpp \
     PzSet.cpp \
-    statutil.cpp
+    statutil.cpp \
+    curstatdialog.cpp
 
 HEADERS  += \
     connection.h \
@@ -108,7 +110,8 @@ HEADERS  += \
     version.h \
     subject.h \
     PzSet.h \
-    statutil.h
+    statutil.h \
+    curstatdialog.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -161,7 +164,8 @@ FORMS    += \
     forms/jzhdsyinfoinputdlg.ui \
     forms/pzdsform.ui \
     forms/logview.ui \
-    forms/versionmanager.ui
+    forms/versionmanager.ui \
+    forms/curstatdialog.ui
 
 RESOURCES += \
     imgers.qrc \

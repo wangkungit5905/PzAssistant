@@ -3,6 +3,7 @@
 #include "PzSet.h"
 #include "pz.h"
 #include "dbutil.h"
+#include "statutil.h"
 
 
 /////////////////PzSetMgr///////////////////////////////////////////
@@ -10,6 +11,7 @@ PzSetMgr::PzSetMgr(Account *account, User *user):
     account(account),user(user),curY(0),curM(0)
 {
     dbUtil = account->getDbUtil();
+    statUtil = NULL;
     state = Ps_NoOpen;
     isReStat = false;
     isReSave = false;
@@ -31,6 +33,7 @@ bool PzSetMgr::open(int y, int m)
             return false;
         if(!dbUtil->getPzsState(y,m,states[key]))
             return false;
+        state=states.value(key);
         extraStates[key] = dbUtil->getExtraState(y,m);
     }
 
@@ -41,6 +44,10 @@ bool PzSetMgr::open(int y, int m)
             maxZbNum = pz->number();
     }
     maxZbNum++;
+    curY=y,curM=m;
+    if(!statUtil)
+        delete statUtil;
+    statUtil = new StatUtil(pzSetHash.value(key),account);
     return true;
 }
 
@@ -53,6 +60,17 @@ void PzSetMgr::close()
     maxZbNum = 0;
     isReStat = false;
     isReSave = false;
+    delete statUtil;
+}
+
+/**
+ * @brief PzSetMgr::getStatObj
+ *  获取当前打开凭证集的本期统计对象的引用
+ * @return
+ */
+StatUtil &PzSetMgr::getStatObj()
+{
+    return *statUtil;
 }
 
 //获取凭证总数（也即已用的最大凭证号）
@@ -295,12 +313,27 @@ bool PzSetMgr::readPreExtra()
     return dbUtil->readExtraForPm(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
 }
 
+/**
+ * @brief PzSetMgr::getRates
+ *  获取当前打开凭证集所使用的汇率表
+ * @return
+ */
+QHash<int, Double> &PzSetMgr::getRates()
+{
+    QHash<int,Double> rates;
+    if(curY==0 && curM==0)
+        return rates;
+    account->getRates(curY,curM,rates);
+    return rates;
+}
+
 //添加空白凭证
-void PzSetMgr::appendBlankPz(PingZheng *pd)
+PingZheng* PzSetMgr::appendPz(PzClass pzCls)
 {
     if(state == Ps_NoOpen)
-        return;
-
+        return NULL;
+    QString ds = QDate(curY,curM,1).toString(Qt::ISODate);
+    return new PingZheng(this,0,ds,maxPzNum++,maxZbNum++,0.0,0.0,pzCls,0,Pzs_Recording);
 }
 
 //插入凭证，参数ecode错误代码（1：凭证号越界，2：自编号冲突）
@@ -312,7 +345,7 @@ bool PzSetMgr::insert(PingZheng* pd,int& ecode)
         ecode = 1;
         return false;
     }
-    if(isZbNumConflict(pd->ZbNumber())){
+    if(isZbNumConflict(pd->zbNumber())){
         ecode = 2;
         return false;
     }
@@ -330,7 +363,7 @@ bool PzSetMgr::isZbNumConflict(int num)
     if(state == Ps_NoOpen)
         return false;
     foreach(PingZheng* pz, pzSetHash.value(genKey(curY,curM)))
-        if(num == pz->ZbNumber())
+        if(num == pz->zbNumber())
             return true;
     return false;
 }

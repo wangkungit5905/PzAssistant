@@ -760,6 +760,8 @@ bool VMAccount::updateTo1_3()
  *      其中：PM指代原币新式、MM指代本币形式、F指代一级科目、S指代二级科目
  *
  *  4、修改币种表，添加字段“是否是母币”，并用账户信息表中的相应记录初始化后移除
+ *
+ *  5、修改Busiactions表的结构，将jMoney、dMoney字段合并为value字段
  * @return
  */
 bool VMAccount::updateTo1_4()
@@ -918,8 +920,66 @@ bool VMAccount::updateTo1_4()
     if(!q.exec(s))
         emit upgradeStep(verNum,tr("在从账户信息表中移除外币设置信息时发生错误！"),VUR_WARNING);
 
+    //5、修改Busiactions表的结构，将jMoney、dMoney字段合并为value字段
+    s = QString("alter table %1 rename to old_%1").arg(tbl_ba);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在修改表“%1”的名字时发生错误！").arg(tbl_ba),VUR_ERROR);
+        return false;
+    }
+    s = QString("create table %1(id integer primary key,%2 integer,%3 text,%4 integer,%5 integer,%6 integer,%7 real,%8 integer,%9 integer)")
+            .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary).arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_ba_mt).arg(fld_ba_value).arg(fld_ba_dir).arg(fld_ba_number);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建新的会计分录表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    QSqlQuery q2(db);
+    if(!db.transaction()){
+        emit upgradeStep(verNum,tr("在转移会计分录表的数据时，启动事务失败！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("select * from old_%1").arg(tbl_ba);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在试图读取老会计分录表数据时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    int pid,fid,sid,dir,num;
+    QString summary;
+    Double v;
+    while(q.next()){
+        id = q.value(0).toInt();
+        pid = q.value(1).toInt();
+        summary = q.value(2).toString();
+        fid = q.value(3).toInt();
+        sid = q.value(4).toInt();
+        mt = q.value(5).toInt();
+        dir = q.value(8).toInt();
+        if(dir == 1)
+            v = Double(q.value(6).toDouble());
+        else
+            v = Double(q.value(7).toDouble());
+        num = q.value(9).toInt();
+        s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7,%8,%9) "
+                    "values(%10,%11,'%12',%13,%14,%15,%16,%17,%18)")
+                .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary).arg(fld_ba_fid)
+                .arg(fld_ba_sid).arg(fld_ba_mt).arg(fld_ba_value).arg(fld_ba_dir)
+                .arg(fld_ba_number).arg(id).arg(pid).arg(summary).arg(fid).arg(sid).arg(mt)
+                .arg(v.toString()).arg(dir).arg(num);
+        if(!q2.exec(s)){
+            emit upgradeStep(verNum,tr("在试图插入id=%1的记录到“%2”时发生错误！").arg(id).arg(tbl_ba),VUR_ERROR);
+            db.commit();
+            return false;
+        }
+    }
+    if(!q.exec(QString("delete from old_%1").arg(tbl_ba)))
+        emit upgradeStep(verNum,tr("试图删除老会计分录表内记录时发生错误！"),VUR_WARNING);
+    if(!q.exec(QString("drop table old_%1").arg(tbl_ba)))
+        emit upgradeStep(verNum,tr("试图删除老会计分录表时发生错误！"),VUR_WARNING);
 
-
+    if(!db.commit()){
+        emit upgradeStep(verNum,tr("在转移会计分录表的数据时，提交事务失败"),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("成功修改会计分录表结构！"),VUR_OK);
 
     if(setCurVersion(1,4)){
         emit endUpgrade(verNum,tr("账户文件格式成功更新到1.4版本！"),VUR_OK);

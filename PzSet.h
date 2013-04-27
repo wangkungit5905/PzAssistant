@@ -10,6 +10,7 @@ class DbUtil;
 class CustomRelationTableModel;
 class PingZheng;
 class Account;
+class StatUtil;
 
 
 
@@ -22,6 +23,7 @@ public:
     Account* getAccount(){return account;}
     bool open(int y, int m);
     void close();
+    StatUtil &getStatObj();
 
     int year(){return curY;}
     int month(){return curM;}
@@ -40,8 +42,9 @@ public:
     bool saveExtra();
     bool readExtra();
     bool readPreExtra();
+    QHash<int,Double>& getRates();
 
-    void appendBlankPz(PingZheng* pd);
+    PingZheng* appendPz(PzClass pzCls=Pzc_Hand);
     bool insert(PingZheng* pd, int &ecode);
     bool remove(int pzNum);
     bool savePz();
@@ -101,6 +104,7 @@ private:
     QHash<int,bool> extraStates;//凭证集余额状态（键同上）
     Account* account;
     DbUtil* dbUtil;
+    StatUtil* statUtil;
     User* user;
     QSqlDatabase db;
 };

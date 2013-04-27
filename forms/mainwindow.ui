@@ -139,6 +139,7 @@
     </widget>
     <addaction name="actSubExtra"/>
     <addaction name="actCurStat"/>
+    <addaction name="actCurStatNew"/>
     <addaction name="mnuAccBook"/>
     <addaction name="mnuReport"/>
    </widget>
@@ -1334,6 +1335,14 @@
    </property>
    <property name="toolTip">
     <string>查看日志</string>
+   </property>
+  </action>
+  <action name="actCurStatNew">
+   <property name="text">
+    <string>本期统计（新）</string>
+   </property>
+   <property name="toolTip">
+    <string>统计本期发生额，并计算期末余额</string>
    </property>
   </action>
  </widget>

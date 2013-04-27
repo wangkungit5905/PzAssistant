@@ -6,14 +6,15 @@
 
 QT       += sql xml testlib
 
-TARGET = tst_patest
+TARGET = TestPzA
+include(testmain/config.pri)
 CONFIG   += console
 CONFIG   -= app_bundle
 
 TEMPLATE = app
 
 
-SOURCES += tst_patest.cpp \ 
+SOURCES += \ 
     widgets.cpp \
     viewpzseterrorform.cpp \
     version.cpp \
@@ -61,7 +62,10 @@ SOURCES += tst_patest.cpp \
     logs/FileAppender.cpp \
     logs/ConsoleAppender.cpp \
     logs/AbstractStringAppender.cpp \
-    logs/AbstractAppender.cpp
+    logs/AbstractAppender.cpp \
+    testmain/main.cpp \
+    testmain/tst_patest.cpp \
+    testmain/testpzsetstat.cpp
 DEFINES += SRCDIR=\\\"$$PWD/\\\"
 
 OTHER_FILES += \
@@ -185,7 +189,9 @@ HEADERS += \
     logs/FileAppender.h \
     logs/ConsoleAppender.h \
     logs/AbstractStringAppender.h \
-    logs/AbstractAppender.h
+    logs/AbstractAppender.h \
+    testmain/tst_patest.h \
+    testmain/testpzsetstat.h
 
 RESOURCES += \
     tableprinterresource.qrc \

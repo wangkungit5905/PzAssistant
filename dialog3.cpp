@@ -2863,6 +2863,7 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
     ui->setupUi(this);
     int subSys = account->getCurSuite()->subSys;
     smg = account->getSubjectManager(subSys);
+    allMts = account->getAllMoneys();
     ui->pbr->setVisible(false);
     tfid = -1;tsid = -1;tmt = -1;
     mt = RMB;
@@ -2901,9 +2902,9 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
     mts.removeOne(RMB);
     qSort(mts.begin(),mts.end());
     ui->cmbMt->addItem(tr("所有"),ALLMT);
-    ui->cmbMt->addItem(allMts.value(RMB),RMB);
+    ui->cmbMt->addItem(allMts.value(RMB)->name(),RMB);
     for(int i = 0; i < mts.count(); ++i)
-        ui->cmbMt->addItem(allMts.value(mts[i]),mts[i]);
+        ui->cmbMt->addItem(allMts.value(mts[i])->name(),mts[i]);
 
     ui->btnPrint->addAction(ui->actPrint);
     ui->btnPrint->addAction(ui->actPreview);
@@ -3246,7 +3247,7 @@ void ShowDZDialog::onSelFstSub(int index)
                 QList<int> mts = allMts.keys();
                 qSort(mts.begin(),mts.end());
                 for(int i = 0; i < mts.count(); ++i)
-                    ui->cmbMt->addItem(allMts.value(mts[i]), mts[i]);
+                    ui->cmbMt->addItem(allMts.value(mts.at(i))->name(), mts.at(i));
             }
             else{
                 ui->cmbMt->addItem(tr("人民币"),RMB);
@@ -3288,7 +3289,7 @@ void ShowDZDialog::onSelFstSub(int index)
                 QList<int> mts = allMts.keys();
                 qSort(mts.begin(),mts.end());
                 for(int i = 0; i < mts.count(); ++i)
-                    ui->cmbMt->addItem(allMts.value(mts[i]), mts[i]);
+                    ui->cmbMt->addItem(allMts.value(mts[i])->name(), mts[i]);
             }
             else{
                 ui->cmbMt->addItem(tr("人民币"),RMB);
@@ -3332,11 +3333,11 @@ void ShowDZDialog::onSelSndSub(int index)
             QString name = ui->cmbSsub->currentText();
             int idx = name.indexOf('-');
             name = name.right(name.count()-idx-1);
-            QHashIterator<int,QString> it(allMts);
+            QHashIterator<int,Money*> it(allMts);
             while(it.hasNext()){
                 it.next();
-                if(name == it.value()){
-                    ui->cmbMt->addItem(it.value(),it.key());
+                if(name == it.value()->name()){
+                    ui->cmbMt->addItem(it.value()->name(),it.key());
                     mt = it.key();
                     break;
                 }
@@ -3347,7 +3348,7 @@ void ShowDZDialog::onSelSndSub(int index)
             QList<int> mts = allMts.keys();
             qSort(mts.begin(),mts.end());
             for(int i = 0; i < mts.count(); ++i)
-                ui->cmbMt->addItem(allMts.value(mts[i]),mts[i]);
+                ui->cmbMt->addItem(allMts.value(mts[i])->name(),mts[i]);
         }
 
         connect(ui->cmbMt,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelMt(int)));
@@ -3732,7 +3733,7 @@ void ShowDZDialog::genThForBankWb(QStandardItemModel* model)
     fi = new QStandardItem(tr("借方"));
     l1<<fi;
     for(int i = 0; i < mts.count(); ++i){
-        si = new QStandardItem(allMts.value(mts[i]));
+        si = new QStandardItem(allMts.value(mts[i])->name());
         l2<<si;
         fi->appendColumn(l2);
         l2.clear();
@@ -3746,7 +3747,7 @@ void ShowDZDialog::genThForBankWb(QStandardItemModel* model)
     fi = new QStandardItem(tr("贷方"));
     l1<<fi;
     for(int i = 0; i < mts.count(); ++i){
-        si = new QStandardItem(allMts.value(mts[i]));
+        si = new QStandardItem(allMts.value(mts[i])->name());
         l2<<si;
         fi->appendColumn(l2);
         l2.clear();
@@ -3764,7 +3765,7 @@ void ShowDZDialog::genThForBankWb(QStandardItemModel* model)
     fi = new QStandardItem(tr("余额"));
     l1<<fi;
     for(int i = 0; i < mts.count(); ++i){
-        si = new QStandardItem(allMts.value(mts[i]));
+        si = new QStandardItem(allMts.value(mts[i])->name());
         l2<<si;
         fi->appendColumn(l2);
         l2.clear();
@@ -3872,7 +3873,7 @@ void ShowDZDialog::genThForWai(QStandardItemModel* model)
     fi = new QStandardItem(tr("借方"));
     l1<<fi;
     for(int i = 0; i < mts.count(); ++i){
-        si = new QStandardItem(allMts.value(mts[i])); //5
+        si = new QStandardItem(allMts.value(mts[i])->name()); //5
         l2<<si;
         fi->appendColumn(l2);
         l2.clear();
@@ -3886,7 +3887,7 @@ void ShowDZDialog::genThForWai(QStandardItemModel* model)
     fi = new QStandardItem(tr("贷方"));
     l1<<fi;
     for(int i = 0; i < mts.count(); ++i){
-        si = new QStandardItem(allMts.value(mts[i])); //7
+        si = new QStandardItem(allMts.value(mts[i])->name()); //7
         l2<<si;
         fi->appendColumn(l2);
         l2.clear();
@@ -3904,7 +3905,7 @@ void ShowDZDialog::genThForWai(QStandardItemModel* model)
     fi = new QStandardItem(tr("余额"));
     l1<<fi;
     for(int i = 0; i < mts.count(); ++i){
-        si = new QStandardItem(allMts.value(mts[i])); //10
+        si = new QStandardItem(allMts.value(mts[i])->name()); //10
         l2<<si;
         fi->appendColumn(l2);
         l2.clear();
@@ -5326,7 +5327,7 @@ void ShowDZDialog::printCommon(QPrinter* printer)
         else
             s = tr("%1明细账").arg(smg->getFstSubject(fid)->getName());
         pt->setTitle(s);
-        pt->setMasteMt(allMts.value(RMB));
+        pt->setMasteMt(allMts.value(RMB)->name());
         pt->setDateRange(cury,sm,em);
         s = tr("%1（%2）——（%3）").arg(smg->getFstSubject(fid)->getName())
                 .arg(smg->getFstSubject(fid)->getCode())
@@ -5341,7 +5342,7 @@ void ShowDZDialog::printCommon(QPrinter* printer)
     //打印预览正常，但打印到文件或打印机则截短了字符串的长度到原始长度
     else{
         pt->setTitle("          ");
-        pt->setMasteMt(allMts.value(RMB));
+        pt->setMasteMt(allMts.value(RMB)->name());
         pt->setDateRange(cury,sm,em);
         pt->setSubName("sssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss");
         pt->setAccountName(curAccount->getLName());

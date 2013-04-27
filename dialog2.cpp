@@ -1247,6 +1247,31 @@ void ViewExtraDialog::initHashs()
     BusiUtil::calCurExtraByMonth3(y,m,preExaR,preDetExaR,preExaDir,preDetExaDir,
                                  curJHpnR,curJDHpnR,curDHpnR,curDDHpnR,
                                  endExaR,endDetExaR,endExaDirR,endDetExaDirR);
+
+    //debug 输出应收-宁波佳利的前期余额、本期发生、期末余额及其方向
+    QString title = "(old)YS-nbjl";
+    qDebug()<<tr("%1--Pre:  rmb=%2, usd=%3, rmb-dir=%4, usd-dir=%5")
+              .arg(title).arg(preDetExa.value(961).toString()).arg(preDetExa.value(962).toString())
+              .arg(preDetExaDir.value(961)).arg(preDetExaDir.value(962));
+    qDebug()<<tr("%1--PreR:  usdR=%2")
+              .arg(title).arg(preDetExaR.value(962).toString());
+    qDebug()<<tr("%1--CurJ: rmb=%2, usd=%3").arg(title).arg(curJDHpn.value(961).toString())
+              .arg(curJDHpn.value(962).toString());
+    qDebug()<<tr("%1--CurJR: usdR=%2").arg(title).arg(curJDHpnR.value(962).toString());
+    qDebug()<<tr("%1--CurD: rmb=%2, usd=%3").arg(title).arg(curDDHpn.value(961).toString())
+              .arg(curDDHpn.value(962).toString());
+    qDebug()<<tr("%1--CurDR: usdR=%2").arg(title).arg(curDDHpnR.value(962).toString());
+    qDebug()<<tr("%1--End: rmb=%2, usd=%3, rmb-dir=%4, usd-dir=%5").arg(title)
+              .arg(endDetExa.value(961).toString()).arg(endDetExa.value(962).toString())
+              .arg(endDetExaDir.value(961)).arg(endDetExaDir.value(962));
+    qDebug()<<tr("%1--EndR: usdR=%2").arg(title)
+              .arg(endDetExaR.value(962).toString());
+
+    //输出佳利的贷方数值
+//    qDebug()<<QString("(old)YS-nbjl-D: rmb=%1, usd=%2, usdR=%3")
+//              .arg(curDDHpn.value(961).toString()).arg(curDDHpn.value(962).toString())
+//              .arg(curDDHpnR.value(962).toString());
+
 }
 
 

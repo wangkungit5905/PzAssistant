@@ -11,6 +11,8 @@
 *.dylib
 *~
 PrjExplain/
+PzAssTest/
+TestWorkDir/
 
 # Qt-es
 

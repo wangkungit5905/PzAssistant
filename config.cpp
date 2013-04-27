@@ -8,7 +8,7 @@
 #include "tables.h"
 #include "version.h"
 
-QSettings *AppConfig::appIni = new QSettings("./config/app/appSetting.ini", QSettings::IniFormat);
+QSettings* AppConfig::appIni;
 AppConfig* AppConfig::instance = 0;
 QSqlDatabase AppConfig::db;
 
@@ -20,8 +20,7 @@ AppConfig::AppConfig()
 
 AppConfig::~AppConfig()
 {
-    db.close();
-    appIni->sync();
+    exit();
 }
 
 
@@ -35,6 +34,8 @@ AppConfig *AppConfig::getInstance()
 {
     if(instance)
         return instance;
+    appIni = new QSettings("./config/app/appSetting.ini", QSettings::IniFormat);
+
     db = QSqlDatabase::addDatabase("QSQLITE", "basic");
     QString fname = "./datas/basicdatas/basicdata.dat";
     db.setDatabaseName(fname);
@@ -76,6 +77,17 @@ QSqlDatabase AppConfig::getBaseDbConnect()
 {
     if(instance)
         return db;
+}
+
+void AppConfig::exit()
+{
+    if(instance){
+        db.close();
+        QSqlDatabase::removeDatabase("basic");
+        appIni->sync();
+        delete appIni;
+    }
+
 }
 
 /**

@@ -162,8 +162,8 @@ void OpenPzDialog::on_chkNew_clicked(bool checked)
                this,SLOT(suiteChanged(int)));
     disconnect(ui.spnMonth,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
 
-    int month = account->getEndTime().month();
-    int year = account->getEndTime().year();
+    int month = account->getEndDate().month();
+    int year = account->getEndDate().year();
     if(checked){
         //如果账户的最后记账日期是12月，则还必须创建新的帐套
         ui.chkRate->setEnabled(true);

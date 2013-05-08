@@ -86,6 +86,22 @@ public:
     bool saveExtraForMm(int y, int m, const QHash<int, Double>& fsums,
                                       const QHash<int, Double>& ssums);
 
+    //日记账
+    bool getDetViewFilters(QList<DVFilterRecord*>& rs);
+    bool saveDetViewFilter(const QList<DVFilterRecord *> &dvf);
+    bool getDailyAccount2(QHash<int,SubjectManager*> smgs, QDate sd, QDate ed, int fid, int sid, int mt,
+                            Double& prev, int& preDir,
+                            QList<DailyAccountData2*>& datas,
+                            QHash<int,Double>& preExtra,
+                            QHash<int,Double>& preExtraR,
+                            QHash<int,int>& preExtraDir,
+                            QHash<int, Double>& rates,
+                            QList<int> subIds = QList<int>(),
+                            //QHash<int,QList<int> > sids = QHash<int,QList<int> >(),
+                            Double gv = 0.00,
+                            Double lv = 0.00,
+                            bool inc = false);
+
     //提供给SubjectComplete类的数据模型所用的查询对象
     QSqlQuery* getQuery(){/*QSqlQuery q(db); return q;*/return new QSqlQuery(db);}
     QSqlDatabase& getDb(){return db;}
@@ -150,7 +166,8 @@ private:
     bool _crtExtraPoint(int y, int m, int mt, int& pid);
     bool _saveExtrasForPm(int y, int m, const QHash<int,Double> &sums, const QHash<int,MoneyDirection> &dirs, bool isFst = true);
     bool _saveExtrasForMm(int y, int m, const QHash<int,Double> &sums, bool isFst = true);
-
+    bool _readExtraForFSub(int y,int m, int fid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
+    bool _readExtraForSSub(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
     //
     int _genKeyForExtraPoint(int y, int m, int mt);
 
@@ -161,6 +178,9 @@ private:
     void warn_transaction(ErrorCode witch, QString context);
     void errorNotify(QString info);
     bool isNewExtraAccess(){return (mv==nmv && sv>=nsv) || (mv>nmv);}//是否采用新余额存取机制
+
+    void _getPreYM(int y, int m, int& yy, int& mm);
+    void _getNextYM(int y, int m, int& yy, int& mm);
 
 private:
     QSqlDatabase db;

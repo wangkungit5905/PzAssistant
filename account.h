@@ -109,9 +109,9 @@ public:
     void addWaiMt(Money *mt);
     void delWaiMt(Money *mt);
     QString getWaiMtStr();
-    QDate getStartTime();/*{return QDate::fromString(accInfos.startDate,Qt::ISODate);}*/
+    QDate getStartDate();/*{return QDate::fromString(accInfos.startDate,Qt::ISODate);}*/
     //void setStartTime(QDate date);/*{accInfos.startDate = date.toString(Qt::ISODate);}*/
-    QDate getEndTime();/*{return QDate::fromString(accInfos.endDate,Qt::ISODate);}*/
+    QDate getEndDate();/*{return QDate::fromString(accInfos.endDate,Qt::ISODate);}*/
     void setEndTime(QDate date);/*{accInfos.endDate = date.toString(Qt::ISODate);}*/
 
     //日志相关

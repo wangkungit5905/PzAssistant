@@ -269,6 +269,12 @@ void PrintTemplateDz::setDateRange(int y, int sm, int em)
     ui->lblDate->setText(ss);
 }
 
+void PrintTemplateDz::setDateRange2(const QDate& sd, const QDate& ed)
+{
+    QString s = tr("%1——%2").arg(sd.toString(Qt::ISODate)).arg(ed.toString(Qt::ISODate));
+    ui->lblDate->setText(s);
+}
+
 //设置科目名
 void PrintTemplateDz::setSubName(QString subName)
 {

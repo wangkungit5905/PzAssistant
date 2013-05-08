@@ -74,7 +74,7 @@ QString Account::getWaiMtStr()
  *  获取账户开始记账时间
  * @return
  */
-QDate Account::getStartTime()
+QDate Account::getStartDate()
 {
     AccountSuiteRecord* asr = accInfos.suites.first();
     return QDate(asr->year,asr->startMonth,1);
@@ -85,7 +85,7 @@ QDate Account::getStartTime()
  *  获取账户结束记账时间
  * @return
  */
-QDate Account::getEndTime()
+QDate Account::getEndDate()
 {
     AccountSuiteRecord* asr = accInfos.suites.last();
     QDate d = QDate(asr->year,asr->endMonth,1);

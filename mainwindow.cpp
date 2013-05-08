@@ -34,6 +34,7 @@
 #include "PzSet.h"
 #include "curstatdialog.h"
 #include "statutil.h"
+#include "showdzdialog2.h"
 
 #include "completsubinfodialog.h"
 
@@ -2151,6 +2152,12 @@ void MainWindow::subWindowClosed(QMdiSubWindow* subWin)
         sinfo = dlg->getState();
         delete dlg;
     }
+    else if(subWin == subWindows.value(DETAILSVIEW2)){
+        winEnum = DETAILSVIEW2;
+        ShowDZDialog2* dlg = static_cast<ShowDZDialog2*>(subWin->widget());
+        sinfo = dlg->getState();
+        delete dlg;
+    }
     else if(subWin == subWindows.value(HISTORYVIEW)){
         winEnum = HISTORYVIEW;
         HistoryPzDialog* dlg = static_cast<HistoryPzDialog*>(subWin->widget());
@@ -2749,6 +2756,28 @@ void MainWindow::on_actShowDetail_triggered()
 
 }
 
+/**
+ * @brief MainWindow::on_actDetailView_triggered
+ *  查看明细账（新）
+ */
+void MainWindow::on_actDetailView_triggered()
+{
+    QByteArray* sinfo;
+    SubWindowDim* winfo;
+    dbUtil->getSubWinInfo(DETAILSVIEW2,winfo,sinfo);
+    ShowDZDialog2* dlg = new ShowDZDialog2(curAccount,sinfo);
+    connect(dlg,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
+    //dlg->setSubRange(witch,fids,sids,gv,lv,inc);
+    //dlg->setDateRange(sm,em,cursy);   //暂且用cursy来代表年份，未来要修改
+
+    showSubWindow(DETAILSVIEW2, winfo, dlg);
+    if(sinfo)
+        delete sinfo;
+    if(winfo)
+        delete winfo;
+}
+
+
 //显示只能有一个实例的对话框窗口（参数w是位于mdi子窗口内部的中心部件，仅对于部分子窗口有效，比如凭证编辑窗口）
 void MainWindow::showSubWindow(subWindowType winType, SubWindowDim* winfo, QDialog* w)
 {
@@ -2771,6 +2800,7 @@ void MainWindow::showSubWindow(subWindowType winType, SubWindowDim* winfo, QDial
             dlg = w;
             break;
         case DETAILSVIEW:
+        case DETAILSVIEW2:
             dlg = w;
             //dzd = qobject_cast<ShowDZDialog*>(dlg);
             //connect(dzd,SIGNAL(closeWidget()) ,subWindows[winType],SLOT(close()));
@@ -3257,5 +3287,50 @@ bool MainWindow::impTestDatas()
     //    subWin->setWidget(dlg);
     //    ui->mdiArea->addSubWindow(subWin);
     //    dlg->show();
+
+//    DVFilterRecord* r = new DVFilterRecord;
+//    r->id = 0;
+//    r->isCur = false;
+//    r->curFSub = 1;
+//    r->curSSub = 0;
+//    r->isDef = true;
+//    r->isFst = true;
+//    r->curMt = 2;
+//    r->name = tr("默认");
+//    r->startDate  = QDate(2012,1,1);
+//    r->endDate = QDate(2013,1,31);
+//    r->subIds<<888<<889;
+//    curAccount->getDbUtil()->saveDetViewFilter(*r);
+//    delete r;
+//    QList<DVFilterRecord*> rs;
+//    curAccount->getDbUtil()->getDetViewFilters(rs);
+//    r = rs.first();
+//    r->curFSub = 2;
+//    r->curSSub = 89;
+//    r->isDef = false;
+//    r->isCur = true;
+//    r->isFst = false;
+//    r->curMt = 3;
+//    r->name = tr("默认修改");
+//    r->startDate = QDate(2013,1,1);
+//    r->endDate = QDate(2013,4,30);
+//    r->subIds<<11<<22<<33;
+//    curAccount->getDbUtil()->saveDetViewFilter(*r);
+
+//    QList<int> subIds;
+//    int fid;
+//    SubjectManager* smg = curAccount->getSubjectManager();
+//    fid = smg->getFstSubject("1131")->getId();
+//    subIds<<smg->getFstSubject("1131")->getChildSub(2)->getId()
+//          <<smg->getFstSubject("1131")->getChildSub(4)->getId();
+//    SubjectRangeSelectDialog* dlg = new SubjectRangeSelectDialog(smg,subIds,fid);
+//    dlg->exec();
+//    subIds.clear();
+//    FirstSubject* fsub = dlg->getSelectedFstSub();
+//    subIds = dlg->getSelectedSubIds();
+//    int i = 0;
 }
+
+
+
 

@@ -280,7 +280,7 @@ void GdzcAdminDialog::viewInfo(int index)
         ui->edtRemain->setText("");
         ui->edtMin->setText("");
         ui->twZjTable->clearContents();
-        ui->datBuy->setDate(curAccount->getStartTime());
+        ui->datBuy->setDate(curAccount->getStartDate());
         ui->spnZjMonth->setValue(0);
         ui->cmbProCls->setCurrentIndex(0);
         ui->cmbSubCls->setCurrentIndex(0);
@@ -766,8 +766,8 @@ void GdzcAdminDialog::on_btnSave_clicked()
 void GdzcAdminDialog::on_actJtzj_triggered()
 {
     //确定凭证的所属年月
-    int y = curAccount->getEndTime().year();
-    int m = curAccount->getEndTime().month();
+    int y = curAccount->getEndDate().year();
+    int m = curAccount->getEndDate().month();
     if(QMessageBox::Yes == QMessageBox::warning(this,tr("提示信息"),
         tr("确定要创建%1年%2月的固定资产折旧凭证吗？").arg(y).arg(m),
         QMessageBox::Yes|QMessageBox::No)){
@@ -781,8 +781,8 @@ void GdzcAdminDialog::on_actJtzj_triggered()
 void GdzcAdminDialog::on_btnRepeal_clicked()
 {
     //确定凭证的所属年月
-    int y = curAccount->getEndTime().year();
-    int m = curAccount->getEndTime().month();
+    int y = curAccount->getEndDate().year();
+    int m = curAccount->getEndDate().month();
     if(QMessageBox::Yes == QMessageBox::warning(this,tr("提示信息"),
         tr("确定要撤销%1年%2月固定资产计提折旧吗？").arg(y).arg(m),
         QMessageBox::Yes|QMessageBox::No)){
@@ -858,8 +858,8 @@ void GdzcAdminDialog::on_actPreview_triggered()
     //创建表格和对话框窗口以显示
     QDialog dlg;
     QString year,month;
-    year = QString::number(curAccount->getEndTime().year());
-    month = QString::number(curAccount->getEndTime().month());
+    year = QString::number(curAccount->getEndDate().year());
+    month = QString::number(curAccount->getEndDate().month());
     QLabel title(tr("%1年%2月计提固定资产折旧凭证").arg(year).arg(month));
     QTableView tv;
     tv.setModel(&m);
@@ -890,7 +890,7 @@ void GdzcAdminDialog::on_actViewList_triggered()
     QString t = curAccount->getSuiteName(y);
     int im,m;
     if(curAccount->getCurSuite()->year == curAccount->getEndSuite()->year)
-        im = curAccount->getEndTime().month();
+        im = curAccount->getEndDate().month();
     else
         im = 12;
     m = QInputDialog::getInt(this,tr("请求信息"),
@@ -1024,7 +1024,7 @@ void GdzcAdminDialog::on_actSupply_triggered()
     sed.setDisplayFormat("yyyy-MM-dd");
     sed.setDate(curGdzc->getBuyDate());
     eed.setDisplayFormat("yyyy-MM-dd");
-    eed.setDate(curAccount->getEndTime());
+    eed.setDate(curAccount->getEndDate());
     QLabel l1(tr("开始日期："));
     QLabel l2(tr("结束日期："));
     QLabel l3(tr("折旧值："));
@@ -1788,7 +1788,7 @@ void DtfyAdminDialog::on_actView_triggered()
     QString t = curAccount->getSuiteName(y);
     int im,m;
     if(curAccount->getCurSuite()->year == curAccount->getEndSuite()->year)
-        im = curAccount->getEndTime().month();
+        im = curAccount->getEndDate().month();
     else
         im = 12;
     m = QInputDialog::getInt(this,tr("请求信息"),
@@ -1910,7 +1910,7 @@ void DtfyAdminDialog::on_btnComplete_clicked()
     sed.setDisplayFormat("yyyy-MM-dd");
     sed.setDate(curDtfy->startDate());
     eed.setDisplayFormat("yyyy-MM-dd");
-    eed.setDate(curAccount->getEndTime());
+    eed.setDate(curAccount->getEndDate());
     QLabel l1(tr("开始日期："));
     QLabel l2(tr("结束日期："));
     QLabel l3(tr("摊销值："));
@@ -3494,6 +3494,9 @@ void ShowDZDialog::refreshTalbe()
     if(!BusiUtil::getDailyAccount2(cury,sm,em,fid,sid,mt,prev,preDir,datas,
                                   preExtra,preExtraR,preExtraDir,rates,fids,sids,gv,lv,inc))
         return;
+//    if(!account->getDbUtil()->getDailyAccount2(cury,sm,em,fid,sid,mt,prev,preDir,datas,
+//                                  preExtra,preExtraR,preExtraDir,rates,fids,sids,gv,lv,inc))
+//        return;
 
     pdatas.clear();  //还要注意删除列表内的每个元素对象
     switch(tf){
@@ -5885,8 +5888,8 @@ AccountPropertyDialog::AccountPropertyDialog(Account *account, QWidget *parent) 
     ui->edtSName->setText(account->getSName());
     ui->edtLName->setText(account->getLName());
     ui->edtAccFName->setText(account->getFileName());
-    ui->datStart->setDate(account->getStartTime());
-    ui->datEnd->setDate(account->getEndTime());
+    ui->datStart->setDate(account->getStartDate());
+    ui->datEnd->setDate(account->getEndDate());
     ui->cmbSubType->setCurrentIndex(ui->cmbSubType->
                                     findData(account->getSubType()));
     //ui->cmbRptType->setCurrentIndex();
@@ -5949,12 +5952,12 @@ bool AccountPropertyDialog::isDirty()
     //    bRptType = true;
     //    info.append(tr("账户报表系统\n"));
     //}
-    if(account->getStartTime() != ui->datStart->date()){
+    if(account->getStartDate() != ui->datStart->date()){
         changed = true;
         bSTime = true;
         info.append(tr("账户开始记账时间\n"));
     }
-    if(account->getEndTime() != ui->datEnd->date()){
+    if(account->getEndDate() != ui->datEnd->date()){
         changed = true;
         bETime = true;
         info.append(tr("账户结束记账时间\n"));

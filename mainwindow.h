@@ -69,8 +69,9 @@ public:
         PZEDIT     = 1,    //凭证编辑窗口
         PZSTAT     = 2,    //本期统计窗口
         PZSTAT2    = 3,    //本期统计窗口（新）
+        DETAILSVIEW2 = 4,  //明细账视图（新）
         //CASHDAILY  = 3,    //现金日记账窗口
-        BANKDAILY  = 4,    //银行日记账窗口
+        //BANKDAILY  = 4,    //银行日记账窗口
         DETAILSDAILY=5,    //明细科目日记账窗口
         TOTALDAILY = 6,    //总分类账窗口
         SETUPBASE  = 7,    //设置账户期初余额窗口
@@ -266,6 +267,8 @@ private slots:
     void on_actViewLog_triggered();
 
     void on_actCurStatNew_triggered();
+
+    void on_actDetailView_triggered();
 
 private:
     void allPzToRecording(int year, int month);

@@ -38,7 +38,7 @@ FirstSubject::FirstSubject(const FirstSubject &other)
 }
 
 FirstSubject::FirstSubject(int id, int subcls, QString subName, QString subCode, QString remCode,
-            int subWeight, bool jdDir, bool isUseWb, QString explain, QString usage, int subSys):
+            int subWeight,bool isEnable,bool jdDir, bool isUseWb, QString explain, QString usage, int subSys):
     SubjectBase(),md(FSTSUBMD++),id(id),subClass(subcls),name(subName),code(subCode),remCode(remCode),
     weight(subWeight),isEnable(isEnable),jdDir(jdDir),isUseWb(isUseWb),
     briefExplain(explain),usage(usage),subSys(subSys),defSub(NULL)
@@ -377,6 +377,11 @@ FirstSubject *FSubItrator::value()
         return NULL;
     else
         return fsubHash.value(ids.at(index));
+}
+
+void FSubItrator::toFront()
+{
+    index = -1;
 }
 
 

@@ -354,6 +354,30 @@ const int   SWI_H       = 5;
 const int   SWI_TBL     = 6;
 
 
+//明细账视图过滤条件表
+//字段名
+const QString tbl_dvfilters     = "DVFilters";
+const QString fld_dvfs_isDef    = "isDef";      //是否是系统默认的
+const QString fld_dvfs_isCur    = "isCur";      //是否是最后关闭窗口时应用的过滤条件
+const QString fld_dvfs_isFstSub = "isFst";      //科目范围是一级科目还是二级科目
+const QString fld_dvfs_curFSub  = "curFSubId";  //当前选择的一级科目id
+const QString fld_dvfs_curSSub  = "curSSubId";  //当前选择的二级科目id
+const QString fld_dvfs_mt       = "moneyType";  //当前选择的币种代码
+const QString fld_dvfs_name     = "name";       //名称
+const QString fld_dvfs_startDate= "startDate";  //开始时间
+const QString fld_dvfs_endDate  = "endDate";    //结束时间
+const QString fld_dvfs_subIds   = "subIds";     //选定的科目代码列表
+//字段索引
+const int DVFS_ISDEF        = 1;
+const int DVFS_ISCUR        = 2;
+const int DVFS_ISFST        = 3;
+const int DVFS_CURFSUB      = 4;
+const int DVFS_CURSSUB      = 5;
+const int DVFS_MONEYTYPE    = 6;
+const int DVFS_NAME         = 7;
+const int DVFS_STARTDATE    = 8;
+const int DVFS_ENDDATE      = 9;
+const int DVFS_SUBIDS       = 10;
 
 //转移表（transfers）
 //create table transfers(id integer primary key, smid integer, dmid integer,

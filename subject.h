@@ -65,7 +65,7 @@ class FirstSubject : public SubjectBase{
 public:
     FirstSubject():md(FSTSUBMD++),id(0){}
     FirstSubject(const FirstSubject &other);
-    FirstSubject(int id,int subcls,QString subName,QString subCode,QString remCode,int subWeight,
+    FirstSubject(int id,int subcls,QString subName,QString subCode,QString remCode,int subWeight,bool isEnable,
                  bool jdDir = true,bool isUseWb = true,QString explain = "",QString usage = "",int subSys=1);
     ~FirstSubject();
 
@@ -165,6 +165,7 @@ public:
     FirstSubject* next();
     int key();
     FirstSubject* value();
+    void toFront();
 private:
     QHash<int,FirstSubject*> fsubHash;
     QList<int> ids; //一级科目的id列表（以科目代码的顺序）

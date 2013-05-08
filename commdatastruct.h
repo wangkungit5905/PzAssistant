@@ -211,6 +211,27 @@ struct DailyAccountData2{
     Double etm;           //各币种混合核算的余额值
 };
 
+//明细账视图搜寻条件结构：
+struct DVFilterRecord{
+    CommonItemEditState editState;  //
+    int id;
+    bool isDef;                     //是否是系统默认的过滤条件
+    bool isCur;                     //是否是最后关闭窗口时应用的过滤条件
+    bool isFst;                     //科目范围是一级科目还是二级科目
+    int curFSub;                    //当前一级科目
+    int curSSub;                    //当前二级科目
+    int curMt;                      //当前币种代码
+    QString name;                   //名称
+    QDate startDate,endDate;        //开始时间、结束时间    
+    QList<int> subIds;              //选定的科目代码列表（如果选定了一个一级科目，则首元素保存此一级科目的id，
+                                    //后续跟随二级科目，否者此列表保存所有选择的一级科目id）
+};
+Q_DECLARE_METATYPE(DVFilterRecord*)
+
+
+
+
+
 //总账单行数据结构
 struct TotalAccountData{
     int y,m;  //帐套年份、月份

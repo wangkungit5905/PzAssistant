@@ -98,6 +98,7 @@ public:
 
     void setMasteMt(QString mtName);
     void setDateRange(int y, int sm, int em);
+    void setDateRange2(const QDate &sd, const QDate &ed);
     void setSubName(QString subName);
     void setAccountName(QString name);
     void setCreator(QString name);

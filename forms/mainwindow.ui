@@ -124,6 +124,7 @@
      </property>
      <addaction name="actShowTotal"/>
      <addaction name="actShowDetail"/>
+     <addaction name="actDetailView"/>
     </widget>
     <widget class="QMenu" name="mnuReport">
      <property name="enabled">
@@ -1343,6 +1344,14 @@
    </property>
    <property name="toolTip">
     <string>统计本期发生额，并计算期末余额</string>
+   </property>
+  </action>
+  <action name="actDetailView">
+   <property name="text">
+    <string>明细帐（新）</string>
+   </property>
+   <property name="toolTip">
+    <string>显示明细账视图</string>
    </property>
   </action>
  </widget>

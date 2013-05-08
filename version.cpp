@@ -1027,7 +1027,10 @@ bool VMAccount::updateTo1_6()
 
 /**
  * @brief VMAccount::updateTo1_5
- *  任务描述：将余额转移到新表系中
+ *  任务描述：
+ *  1、将余额转移到新表系中
+ *  2、添加明细账视图过滤条件表（DVFilters）
+ *  3、设置启用的一级科目
  * @return
  */
 bool VMAccount::updateTo1_5()
@@ -1037,6 +1040,8 @@ bool VMAccount::updateTo1_5()
     int verNum = 105;
     emit startUpgrade(verNum,tr("开始更新到版本“1.5”..."));
 
+
+    //1、将余额转移到新表系中
     closeConnect();
     DbUtil* dbUtil = new DbUtil;
     if(!dbUtil->setFilename(fileName)){
@@ -1046,7 +1051,7 @@ bool VMAccount::updateTo1_5()
     db = dbUtil->getDb();
     BusiUtil::init(db);
 
-    //1、创建一个需要进行转移的凭证集月份列表
+    //（1）、创建一个需要进行转移的凭证集月份列表
 //    if(!db.transaction()){
 //        emit upgradeStep(verNum,tr("启动事务失败！"),VUR_ERROR);
 //        return false;
@@ -1079,7 +1084,7 @@ bool VMAccount::updateTo1_5()
     suiteMonthes.push_front(year*100+sm); //账户的期初余额的年月
     emit upgradeStep(verNum,tr("共需要转移 %1 个凭证集的余额数据！").arg(suiteMonthes.count()),VUR_OK);
 
-    //2、读取并转储
+    //（2）、读取并转储
     QHash<int,Double> fes,des/*,feRs,deRs*/; //一二级科目的原币余额和本币余额
     QHash<int,MoneyDirection> feDirs,deDirs; //一二级科目的余额方向
     int y,m;
@@ -1113,11 +1118,11 @@ bool VMAccount::updateTo1_5()
     emit upgradeStep(verNum,tr("成功转移所有的余额数据！").arg(y).arg(m),VUR_OK);
     suiteMonthes.clear();
 
-    //3、转移余额状态信息
+    //（3）、转移余额状态信息
     //首先依据凭证集的状态如果是结账的，则余额肯定有效，如果没有结账，
     //则再从余额表中读取余额状态，因为记录余额状态的字段是后来才添加的，先前年月的凭证集
     //不能正确反映其真实的余额状态
-    //（1）处理结账的凭证集状态
+    //（1、处理结账的凭证集状态
     s = QString("select %1,%2 from %3 where %4=%5")
             .arg(fld_pzss_year).arg(fld_pzss_month).arg(tbl_pzsStates)
             .arg(fld_pzss_state).arg(Ps_Jzed);
@@ -1154,7 +1159,7 @@ bool VMAccount::updateTo1_5()
     emit upgradeStep(verNum, tr("成功转移已结账凭证集的余额状态！"),VUR_OK);
     suiteMonthes.clear();
 
-    //（2）处理未结账的凭证集状态
+    //（2、处理未结账的凭证集状态
     s = QString("select %1,%2 from %3 where %4!=%5")
             .arg(fld_pzss_year).arg(fld_pzss_month).arg(tbl_pzsStates)
             .arg(fld_pzss_state).arg(Ps_Jzed);
@@ -1192,6 +1197,19 @@ bool VMAccount::updateTo1_5()
         upgradeStep(verNum,tr("成功转储%1年%2月的余额状态！").arg(y).arg(m),VUR_OK);
     }
 
+    //2、添加明细账视图过滤条件表（DVFilters）
+    s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 integer,%5 integer,"
+                "%6 integer,%7 integer,%8 text,%9 text,%10 text,%11 text)").arg(tbl_dvfilters)
+            .arg(fld_dvfs_isDef).arg(fld_dvfs_isCur).arg(fld_dvfs_isFstSub)
+            .arg(fld_dvfs_curFSub).arg(fld_dvfs_curSSub).arg(fld_dvfs_mt).arg(fld_dvfs_name)
+            .arg(fld_dvfs_startDate).arg(fld_dvfs_endDate).arg(fld_dvfs_subIds);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("创建表“%1”失败").arg(tbl_dvfilters),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("成功创建表“%1”").arg(tbl_dvfilters),VUR_OK);
+
+
 //    if(!db.commit()){
 //        emit upgradeStep(verNum,tr("提交事务失败！"),VUR_ERROR);
 //        if(!db.rollback())
@@ -1199,20 +1217,53 @@ bool VMAccount::updateTo1_5()
 //        return false;
 //    }
 
+    //3、设置启用的一级科目
+    QStringList codes;
+    codes<<"1001"<<"1002"<<"1131"<<"1133"<<"1151"<<"1301"<<"1501"<<"1502"<<"1801"
+          <<"2121"<<"2131"<<"2151"<<"2171"<<"2176"<<"2181"<<"3101"<<"3131"<<"3141"
+          <<"5101"<<"5301"<<"5401"<<"5402"<<"5501"<<"5502"<<"5503"<<"5601"<<"5701";
+    if(!db.transaction()){
+        emit upgradeStep(verNum,tr("设置启用的一级科目时，启动事务失败！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("update %1 set %2=0 where %3=1").arg(tbl_fsub)
+            .arg(fld_fsub_isview).arg(fld_fsub_subSys);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("重置表“%1”的“%2”字段失败").arg(tbl_fsub).arg(fld_fsub_isview),VUR_ERROR);
+        return false;
+    }
+    foreach(QString code, codes){
+        s = QString("update %1 set %2=1 where %3=1 and %4='%5'")
+                .arg(tbl_fsub).arg(fld_fsub_isview).arg(fld_fsub_subSys)
+                .arg(fld_fsub_subcode).arg(code);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("更新表“%1”的“%2”字段失败").arg(tbl_fsub).arg(fld_fsub_isview),VUR_ERROR);
+            return false;
+        }
+    }
+    if(!db.commit()){
+        emit upgradeStep(verNum,tr("设置启用的一级科目时，提交事务失败！"),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("成功设置启用的一级科目！"),VUR_OK);
+
     delete dbUtil;
     //恢复连接
     if(!restoreConnect()){
         emit upgradeStep(verNum,tr("在升级到版本 %1 后无法恢复数据库连接，如果后续有升级将无法完成！").arg(verNum),VUR_ERROR);
         return false;
     }
+
     if(setCurVersion(1,5)){
-        emit endUpgrade(verNum,tr("成功升级到版本 %1 ").arg(verNum),VUR_OK);
+        emit endUpgrade(verNum,"",VUR_OK);
         return true;
     }
     else{
-        emit endUpgrade(verNum,tr("成功升级到版本 %1 ，但无法正确设置版本号！").arg(verNum),VUR_OK);
+        emit endUpgrade(verNum,tr("但无法正确设置版本号！"),VUR_OK);
         return false;
     }
+
+
 }
 
 /**

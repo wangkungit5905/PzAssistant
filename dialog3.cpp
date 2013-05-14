@@ -5453,7 +5453,7 @@ ShowDZDialog::TableFormat ShowDZDialog::decideTableFormat(int fid,int sid, int m
         tf = BANKRMB;
     else if((fid == subBankId) && (mt != RMB))
         tf = BANKWB;
-    else if((fid == subYsId) || (fid == subYfId))
+    else if(fid && smg->getFstSubject(fid)->isUseForeignMoney())
         tf = THREERAIL;
     else
         tf = COMMON;

@@ -6,8 +6,14 @@
 #include "previewdialog.h"
 #include "ui_previewdialog.h"
 
-//参数说明：templateWidget：打印模板对象，pageType：页面类型
-//printer：打印操作所使用的打印机，outPaging：是否由外部进行分页处理
+/**
+ * @brief PreviewDialog::PreviewDialog
+ * @param templateWidget    打印模板对象
+ * @param pageType          页面类型
+ * @param printer           打印操作所使用的打印机
+ * @param outPaging         是否由外部进行分页处理（true：是（默认））
+ * @param parent
+ */
 PreviewDialog::PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pageType,
                              QPrinter* printer, bool outPaging, QWidget *parent) :
     QDialog(parent),
@@ -34,7 +40,6 @@ PreviewDialog::PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pa
             QAbstractItemModel* dmodel = qobject_cast<QAbstractItemModel*>(pmodel->model());
 
             //重新制备一份表格数据模型的副本
-
             QString text;
             QList<QStandardItem*> l;
             QStandardItem* item;

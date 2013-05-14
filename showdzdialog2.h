@@ -19,6 +19,11 @@ class ProxyModelWithHeaderModels;
 class PrintTemplateDz;
 class PreviewDialog;
 
+//表格列数
+const int DV_COL_CNT_CASH = 12;
+const int DV_COL_CNT_BANKRMB = 13;
+const int DV_COL_CNT_COMMON = 11;
+
 //明细账视图窗口类
 class ShowDZDialog2 : public QDialog
 {
@@ -33,6 +38,12 @@ public:
         BANKWB       =3,   //银行日记账格式（外币）
         COMMON       =4,   //通用金额式
         THREERAIL    =5    //三栏明细式（由应收/应付等使用）
+    };
+
+    enum TableRowType{
+        TRT_DATA    = 1,    //数据行
+        TRT_MONTH   = 2,    //月小计行
+        TRT_YEAR    = 3     //年合计行
     };
 
     explicit ShowDZDialog2(Account* account, QByteArray* sinfo = NULL, QWidget *parent = 0);
@@ -72,6 +83,8 @@ private slots:
 
     void on_btnRefresh_clicked();
 
+    void on_lstSubs_itemDoubleClicked(QListWidgetItem *item);
+
 signals:
     void openSpecPz(int pid, int bid); //打开指定id的凭证
     //void closeWidget();                //向对话框的父（mdi子窗口）报告，我要关闭了
@@ -83,6 +96,8 @@ private:
     void initSubjectItems();
     void initSubjectList();
     void adjustSaveBtn();
+    void setTableRowBackground(TableRowType rowType, const QList<QStandardItem*> cols);
+    //void connectCmbSignal(bool conn = true);
 
     //void genTData(TableFormat tf);
 
@@ -110,13 +125,13 @@ private:
                           QHash<int,Double> preExtra,
                           QHash<int,int> preExtraDir,
                           QHash<int,Double> rates);
-    int genDataForDetails(QList<DailyAccountData2*> datas,
+    int genDataForCommon(QList<DailyAccountData2*> datas,
                            QList<QList<QStandardItem*> >& pdatas,
                            Double prev, int preDir,
                            QHash<int,Double> preExtra,
                            QHash<int,int> preExtraDir,
                            QHash<int,Double> rates);
-    int genDataForDetWai(QList<DailyAccountData2*> datas,
+    int genDataForThreeRail(QList<DailyAccountData2*> datas,
                           QList<QList<QStandardItem*> >& pdatas,
                           Double prev, int preDir,
                           QHash<int,Double> preExtra,
@@ -127,8 +142,8 @@ private:
     void genThForCash(QStandardItemModel* model = NULL);
     void genThForBankRmb(QStandardItemModel* model = NULL);
     void genThForBankWb(QStandardItemModel* model = NULL);
-    void genThForDetails(QStandardItemModel* model = NULL);
-    void genThForWai(QStandardItemModel* model = NULL);
+    void genThForCommon(QStandardItemModel* model = NULL);
+    void genThForThreeRail(QStandardItemModel* model = NULL);
 
     void printCommon(QPrinter* printer);
     TableFormat decideTableFormat(int fid,int sid,int mt);
@@ -139,7 +154,7 @@ private:
     DVFilterRecord* curFilter;      //当前选中的过滤条件项
     SubjectComplete *fcom, *scom;
     int witch;                  //科目选择模式（1：所有科目，2：指定类型科目，3：指定范围科目）
-    QList<int> subIds;            //当前选择的一级科目的id列表
+    QList<int> subIds;            //当前要显示明细帐的科目id列表
     //QHash<int,QList<int> > sids;//二级科目的id列表，键为一级科目id
     QHash<int,QList<QString> > sNames; //二级科目名列表
     double gv,lv;  //业务活动涉及的金额上下限
@@ -200,6 +215,11 @@ private:
     Account* account;
     SubjectManager* smg;
     QHash<int,Money*> allMts;
+
+    //表格行背景色
+    QBrush row_bk_data;     //数据行
+    QBrush row_bk_month;    //月合计行
+    QBrush row_bk_year;     //年合计行
 };
 
 
@@ -213,7 +233,7 @@ public:
     QList<int> getSelectedSubIds();
     bool isSelectedFst();
     FirstSubject* getSelectedFstSub();
-    //SecondSubject* getSelectedSndSub();
+    SecondSubject* getSelectedSndSub();
 
 private slots:
     void onSubjectSelectModeChanged(bool checked);
@@ -236,7 +256,7 @@ private:
     Ui::SubjectRangeSelectDialog *ui;
     SubjectManager* smg;
     FirstSubject* curFsub;
-    QList<int> subIds;
+    QList<int> subIds;    
 };
 
 #endif // SHOWDZDIALOG2_H

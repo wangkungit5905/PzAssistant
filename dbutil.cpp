@@ -835,6 +835,7 @@ bool DbUtil::saveDetViewFilter(const QList<DVFilterRecord*>& dvfs)
     foreach(DVFilterRecord* dvf, dvfs){
         if(dvf->editState == CIES_INIT)
             continue;
+        subIds.clear();
         for(int i = 0; i < dvf->subIds.count(); ++i)
             subIds.append(QString::number(dvf->subIds.at(i)));
         if(dvf->editState == CIES_NEW)
@@ -916,7 +917,7 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     //获取期初汇率并加入汇率表
     if(!getRates(yy,mm,ra))
         return false;
-    ra[RMB] = 1.00;
+    //ra[RMB] = 1.00;
     it = new QHashIterator<int,Double>(ra);
     while(it->hasNext()){
         it->next();
@@ -927,12 +928,13 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     if(fid != 0){
         QHash<int,MoneyDirection>dirs;
         //读取总账科目或明细科目的余额
-        if(sid == 0)
+        if(sid == 0){
             if(!_readExtraForFSub(yy,mm,fid,preExtra,preExtraR,dirs))
-                return false;
-        else
+                return false;}
+        else{
             if(!_readExtraForSSub(yy,mm,sid,preExtra,preExtraR,dirs))
                 return false;
+        }
 
         //原先方向是用整形来表示的，而新实现是用枚举类型来实现的，因此先进行转换以使用原先的数据生成代码
         //待验证明细帐功能正确后可以移除
@@ -978,14 +980,14 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
             continue;
         else if(preExtraDir.value(i.key()) == DIR_J){
             //tsums += (i.value() * ra.value(i.key()));
-            if(mt == RMB)
+            if(mt == masterMt)
                 tsums += i.value();
             else
                 tsums += preExtraR.value(it->key());
         }
         else{
             //tsums -= (i.value() * ra.value(i.key()));
-            if(mt == RMB)
+            if(mt == masterMt)
                 tsums -= i.value();
             else
                 tsums -= preExtraR.value(it->key());
@@ -1007,11 +1009,11 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     QList<int> ms; //在指定的时间范围内的月份列表，每个元素的高四位表示年份，第两位表示月份
     for(int y = sd.year(); y <= ed.year(); ++y){
         int sm,em;
-        if(y = sd.year())
+        if(y == sd.year())
             sm = sd.month();
         else
             sm = 1;
-        if(y = ed.year())
+        if(y == ed.year())
             em = ed.month();
         else
             em = 12;
@@ -1023,7 +1025,7 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
         int ym = ms.at(i);
         if(!getRates(ym/100,ym%100,ra))
             return false;
-        ra[RMB] = 1.00;
+        //ra[RMB] = 1.00;
         it = new QHashIterator<int,Double>(ra);
         while(it->hasNext()){
             it->next();
@@ -1101,8 +1103,8 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
             if(!subIds.contains(fsubId))
                 continue;
         }
-        //如果选择所有子目，则过滤掉所有未选定子目
-        if(sid == 0){
+        //如果选择了某个主目并选择所有子目，则过滤掉所有未选定子目
+        if((fid != 0) && (sid == 0)){
             ssubId = q.value(9).toInt();
             if(!subIds.contains(ssubId))
                 continue;
@@ -1154,12 +1156,13 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
 //            item->v = Double(q.value(6).toDouble()); //发生在贷方
 
         //余额
+        int key = item->y*1000+item->m*10+item->mt;
         if(item->dh == DIR_J){
-            tsums += (item->v * rates.value(item->m*10+item->mt));
+            tsums += (item->v * rates.value(key,1.0));
             esums[item->mt] += item->v;
         }
         else{
-            tsums -= (item->v * rates.value(item->m*10+item->mt));
+            tsums -= (item->v * rates.value(key,1.0));
             esums[item->mt] -= item->v;
         }
 

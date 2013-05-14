@@ -21,6 +21,11 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     dataModel = NULL;
     imodel = NULL;
 
+    //初始化表格行的背景色
+    row_bk_ssub = QBrush(QColor(200,200,255));
+    row_bk_fsub = QBrush(QColor(150,150,255));
+    row_bk_sum = QBrush(QColor(100,100,255));
+
     //初始化自定义的层次式表头
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
     hv->setHighlightSections(true);
@@ -713,29 +718,20 @@ void CurStatDialog::genDatas()
         for(int i = 0; i < ids.count(); ++i){
             if(sendExa.contains(ids.at(i))){
                 //共8列
-                //fs = allFSubs.value(ids[i]);
                 fs = smg->getFstSubject(ids.at(i));
-                item = new ApStandardItem(fs->getCode()); //0 科目代码
-                items<<item;
-                item = new ApStandardItem(fs->getName()); //1 科目名称
-                items<<item;
-                item = new ApStandardItem(dirStr(spreExaDir.value(ids.at(i)))); //2 期初方向
-                items<<item;
-                item = new ApStandardItem(spreExa.value(ids.at(i))); //3 期初金额
-                items<<item;
+                items<<new ApStandardItem(fs->getCode()); //0 科目代码
+                items<<new ApStandardItem(fs->getName()); //1 科目名称
+                items<<new ApStandardItem(dirStr(spreExaDir.value(ids.at(i)))); //2 期初方向
+                items<<new ApStandardItem(spreExa.value(ids.at(i))); //3 期初金额
                 v = scurJHpn.value(ids.at(i)); //4 本期借方发生
                 jsums += v;
-                item = new ApStandardItem(v);
-                items<<item;
+                items<<new ApStandardItem(v);
                 v = scurDHpn.value(ids.at(i));//5 本期贷方发生
                 dsums += v;
-                item = new ApStandardItem(v);
-                items<<item;
-                item = new ApStandardItem(dirStr(sendExaDir.value(ids.at(i))));//6 期末方向
-                items<<item;
-                item = new ApStandardItem(sendExa.value(ids.at(i)));//7 期末余额
-                items<<item;
-
+                items<<new ApStandardItem(v);
+                items<<new ApStandardItem(dirStr(sendExaDir.value(ids.at(i))));//6 期末方向
+                items<<new ApStandardItem(sendExa.value(ids.at(i)));//7 期末余额
+                setTableRowBackground(TRT_FSUB,items);
                 dataModel->appendRow(items);
                 items.clear();//至此，主科目余额加载完毕
 
@@ -753,29 +749,20 @@ void CurStatDialog::genDatas()
                         sids<<ssub->getId();
                     for(int j = 0; j < sids.count(); ++j){
                         if(sendDetExa.contains(sids.at(j))){
-                            //ss = allSSubs.value(sids.at(j));
                             ss = smg->getSndSubject(sids.at(j));
-                            item = new ApStandardItem(fs->getCode() + ss->getCode());//0 科目代码
-                            items.append(item);
-                            item = new ApStandardItem(ss->getName());//1 科目名称
-                            items.append(item);
-                            item = new ApStandardItem(dirStr(spreDetExaDir.value(sids.at(j))));//2 期初方向
-                            items.append(item);
+                            items<<new ApStandardItem(fs->getCode() + ss->getCode());//0 科目代码
+                            items<<new ApStandardItem(ss->getName());//1 科目名称
+                            items<<new ApStandardItem(dirStr(spreDetExaDir.value(sids.at(j))));//2 期初方向
                             v = spreDetExa.value(sids.at(j)); //3 期初金额
-                            item = new ApStandardItem(v);
-                            items<<item;
+                            items<<new ApStandardItem(v);
                             v = scurJDHpn.value(sids.at(j));//4 本期借方发生（所有币种类型的发生额合计）
-                            item = new ApStandardItem(v);
-                            items<<item;
+                            items<<new ApStandardItem(v);
                             v = scurDDHpn.value(sids.at(j)); //5 本期贷方发生
-                            item = new ApStandardItem(v);
-                            items<<item;
-                            item = new ApStandardItem(dirStr(sendDetExaDir.value(sids.at(j))));//6 期末方向
-                            items.append(item);
+                            items<<new ApStandardItem(v);
+                            items<<new ApStandardItem(dirStr(sendDetExaDir.value(sids.at(j))));//6 期末方向
                             v = sendDetExa.value(sids.at(j));//7 期末余额
-                            item = new ApStandardItem(v);
-                            items<<item;
-
+                            items<<new ApStandardItem(v);
+                            setTableRowBackground(TRT_SSUB,items);
                             dataModel->appendRow(items);
                             items.clear();
                         }
@@ -785,12 +772,12 @@ void CurStatDialog::genDatas()
         }
 
         //加入合计行
-        item = new ApStandardItem(tr("合  计"));
-        items<<item<<NULL<<NULL<<NULL;
-        item = new ApStandardItem(jsums);
-        items<<item;
-        item = new ApStandardItem(dsums);
-        items<<item;
+        items<<new ApStandardItem(tr("合  计"));
+        items<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;
+        items<<new ApStandardItem(jsums);
+        items<<new ApStandardItem(dsums);
+        items<<new ApStandardItem<<new ApStandardItem;
+        setTableRowBackground(TRT_SUM,items);
         dataModel->appendRow(items);
         items.clear();
      }
@@ -798,53 +785,39 @@ void CurStatDialog::genDatas()
         QHash<int,Double> curJSums,curDSums;   //本期借贷方合计值（按币种合计，key为币种代码）
         for(int i = 0; i < ids.count(); ++i){
             if(sendExa.contains(ids.at(i))){
-                //fs = allFSubs.value(ids.at(i));
                 fs = smg->getFstSubject(ids.at(i));
-                item = new ApStandardItem(fs->getCode()); //0 科目代码
-                items<<item;
-                item = new ApStandardItem(fs->getName());//1 科目名称
-                items<<item;
-                item = new ApStandardItem(dirStr(spreExaDir.value(ids.at(i))));//2 期初方向
-                items<<(item);
-                for(int k = 0; k<mts.count(); ++k){
-                    item = new ApStandardItem(preExa.value(ids.at(i)*10+mts.at(k))); //3 期初金额（外币部分）
-                    items<<item;
-                }
-                item = new ApStandardItem(spreExa.value(ids.at(i)));//4 期初金额（总额部分）
-                items<<item;
+                items<<new ApStandardItem(fs->getCode()); //0 科目代码
+                items<<new ApStandardItem(fs->getName());//1 科目名称
+                items<<new ApStandardItem(dirStr(spreExaDir.value(ids.at(i))));//2 期初方向
+                for(int k = 0; k<mts.count(); ++k)
+                    items<<new ApStandardItem(preExa.value(ids.at(i)*10+mts.at(k))); //3 期初金额（外币部分）
+                items<<new ApStandardItem(spreExa.value(ids.at(i)));//4 期初金额（总额部分）
                 for(int k = 0; k<mts.count(); ++k){
                     v = curJHpn.value(ids.at(i)*10+mts.at(k)); //5 本期借方发生（外币部分）
                     curJSums[mts.value(k)] += v;
-                    item = new ApStandardItem(v);
-                    items<<item;
+                    items<<new ApStandardItem(v);
                 }
                 v = scurJHpn.value(ids[i]); //6 本期借方发生（各币种合计总额部分）
                 jsums += v;
-                item = new ApStandardItem(v);
-                items.append(item);
+                items<<new ApStandardItem(v);
                 for(int k = 0; k<mts.count(); ++k){
                     v = curDHpn.value(ids.at(i)*10+mts.at(k));
                     curDSums[mts.at(k)] += v;
-                    item = new ApStandardItem(v);//7 本期贷方发生（外币部分）
-                    items<<item;
+                    items<<new ApStandardItem(v);//7 本期贷方发生（外币部分）
                 }
                 v = scurDHpn.value(ids.at(i));//8 本期贷方发生（各币种合计总额部分）
                 dsums += v;
-                item = new ApStandardItem(v);
-                items.append(item);
-                item = new ApStandardItem(dirStr(sendExaDir.value(ids.at(i))));//9 期末方向
-                items.append(item);
+                items<<new ApStandardItem(v);
+                items<<new ApStandardItem(dirStr(sendExaDir.value(ids.at(i))));//9 期末方向
 
                 for(int k = 0; k<mts.count(); ++k){
                     v = endExa.value(ids.at(i)*10+mts.at(k));
-                    item = new ApStandardItem(v);//10 期末余额（外币部分）
-                    items<<item;
+                    items<<new ApStandardItem(v);//10 期末余额（外币部分）
                 }
 
                 v = sendExa.value(ids.at(i)); //11 期末余额（总额部分）
-                item = new ApStandardItem(v);
-                items.append(item);
-
+                items<<new ApStandardItem(v);
+                setTableRowBackground(TRT_FSUB,items);
                 dataModel->appendRow(items);
                 items.clear();//至此，主科目余额加载完毕
 
@@ -862,50 +835,37 @@ void CurStatDialog::genDatas()
                         sids<<ssub->getId();
                     for(int j = 0; j < sids.count(); ++j){
                         if(sendDetExa.contains(sids.at(j))){
-                            //ss = allSSubs.value(sids.at(j));
                             ss = smg->getSndSubject(sids.at(j));
-                            item = new ApStandardItem(fs->getCode()+ss->getCode());//0 科目代码
-                            items<<item;
-                            item = new ApStandardItem(ss->getName());//1 科目名称
-                            items<<item;
-                            item = new ApStandardItem(dirStr(spreDetExaDir.value(sids.at(j))));//2 期初方向
-                            items<<item;
+                            items<<new ApStandardItem(fs->getCode()+ss->getCode());//0 科目代码
+                            items<<new ApStandardItem(ss->getName());//1 科目名称
+                            items<<new ApStandardItem(dirStr(spreDetExaDir.value(sids.at(j))));//2 期初方向
                             for(int k = 0; k<mts.count(); ++k){
                                 v = preDetExa.value(sids.at(j)*10+mts.at(k)); //3 期初金额（外币部分）
-                                item = new ApStandardItem(v);
-                                items<<item;
+                                items<<new ApStandardItem(v);
                             }
                             v = spreDetExa.value(sids.at(j));//4 期初金额（总额部分）
-                            item = new ApStandardItem(v);
-                            items.append(item);
+                            items<<new ApStandardItem(v);
                             for(int k = 0; k<mts.count(); ++k){
                                 v = curJDHpn.value(sids.at(j)*10+mts.at(k));
-                                item = new ApStandardItem(v);//5 本期借方发生（外币部分）
-                                items<<item;
+                                items<<new ApStandardItem(v);//5 本期借方发生（外币部分）
                             }
                             v = scurJDHpn.value(sids[j]);//6 本期借方发生（总额部分）
-                                item = new ApStandardItem(v);
-                            items.append(item);
+                            items<<new ApStandardItem(v);
                             for(int k = 0; k<mts.count(); ++k){
                                 v = curDDHpn.value(sids.at(j)*10+mts.at(k));
-                                item = new ApStandardItem(v);//7 本期贷方发生（外币部分）
-                                items<<item;
+                                items<<new ApStandardItem(v);//7 本期贷方发生（外币部分）
                             }
                             v = scurDDHpn.value(sids[j]);//8 本期贷方发生（总额部分）
-                            item = new ApStandardItem(v);
-                            items.append(item);
-                            item = new ApStandardItem(dirStr(sendDetExaDir.value(sids[j])));//9 期末方向
-                            items.append(item);
+                            items<<new ApStandardItem(v);
+                            items<<new ApStandardItem(dirStr(sendDetExaDir.value(sids[j])));//9 期末方向
                             for(int k = 0; k<mts.count(); ++k){
                                 v = endDetExa.value(sids.at(j)*10+mts.at(k));//10 期末余额（外币部分）
-                                item = new ApStandardItem(v);
-                                items<<item;
+                                items<<new ApStandardItem(v);
                             }
                             //11 期末余额（总额部分）
                             v = sendDetExa.value(sids.at(j));
-                            item = new ApStandardItem(v);
-                            items.append(item);
-
+                            items<<new ApStandardItem(v);
+                            setTableRowBackground(TRT_SSUB,items);
                             dataModel->appendRow(items);
                             items.clear();
                         }
@@ -914,35 +874,35 @@ void CurStatDialog::genDatas()
             }
         }
         //加入合计行
-        item = new ApStandardItem(tr("合  计"));
-        items<<item<<NULL<<NULL;
+        items<<new ApStandardItem(tr("合  计"));
+        items<<new ApStandardItem<<new ApStandardItem;
         for(int k = 0; k <= mts.count(); ++k) //期初金额不需合计
-            items<<NULL;
+            items<<new ApStandardItem;
         //借方合计值（外币部分）
         for(int k = 0; k < mts.count(); ++k){
             v = curJSums.value(mts.value(k));
-            item = new ApStandardItem(v);
-            items<<item;
+            items<<new ApStandardItem(v);
         }
         //借方合计值（各币种合计）
         if(jsums != 0)
-            item = new ApStandardItem(jsums);
+            items<<new ApStandardItem(jsums);
         else
-            item = NULL;
-        items<<item;
+            items<<new ApStandardItem;
         //贷方合计值（外币部分）
         for(int k = 0; k < mts.count(); ++k){
             v = curDSums.value(mts.value(k));
-            item = new ApStandardItem(v);
-            items<<item;
+            items<<new ApStandardItem(v);
         }
         //贷方合计值（各币种合计）
         if(dsums != 0)
-            item = new ApStandardItem(dsums);
+            items<<new ApStandardItem(dsums);
         else
-            item = NULL;
-        items<<item;
-
+            items<<new ApStandardItem;
+        items<<new ApStandardItem;
+        for(int k = 0; k < mts.count(); ++k)
+            items<<new ApStandardItem;
+        items<<new ApStandardItem;
+        setTableRowBackground(TRT_SUM,items);
         dataModel->appendRow(items);
         items.clear();
      }//外币金额式
@@ -997,6 +957,31 @@ void CurStatDialog::printCommon(PrintTask task, QPrinter *printer)
 
     delete thv;
     delete m;
+}
+
+/**
+ * @brief CurStatDialog::setTableRowBackground
+ *  根据表格行的总类设置表格行的背景色
+ * @param rt
+ * @param l
+ */
+void CurStatDialog::setTableRowBackground(CurStatDialog::TableRowType rt, const QList<QStandardItem *> l)
+{
+    QBrush br;
+    switch(rt){
+    case TRT_FSUB:
+        br = row_bk_fsub;
+        break;
+    case TRT_SSUB:
+        br = row_bk_ssub;
+        break;
+    case TRT_SUM:
+        br = row_bk_sum;
+        break;
+    }
+    for(int i = 0; i < l.count(); ++i){
+        l.at(i)->setData(br,Qt::BackgroundRole);
+    }
 }
 
 /**

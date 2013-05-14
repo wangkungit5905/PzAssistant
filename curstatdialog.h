@@ -7,7 +7,7 @@
 
 #include "common.h"
 #include "commdatastruct.h"
-//#include "cal.h"
+
 
 namespace Ui {
 class CurStatDialog;
@@ -16,6 +16,7 @@ class CurStatDialog;
 class QMenu;
 class StatUtil;
 class Account;
+class QStandardItem;
 class QStandardItemModel;
 class HierarchicalHeaderView;
 class ProxyModelWithHeaderModels;
@@ -39,6 +40,13 @@ public:
         COMMON = 1,    //通用金额式
         THREERAIL = 2  //三栏式
     };
+
+    enum TableRowType{
+        TRT_FSUB    = 1,    //主科目行
+        TRT_SSUB    = 2,    //子科目行
+        TRT_SUM     = 3     //合计行
+    };
+
     //状态信息结构
     struct StateInfo{
         TableFormat tFormat;  //最后关闭时，显示的表格格式
@@ -85,6 +93,7 @@ private:
     void genHeaderDatas();
     void genDatas();
     void printCommon(PrintTask task, QPrinter* printer);
+    void setTableRowBackground(TableRowType rt, const QList<QStandardItem*> l);
 
     Ui::CurStatDialog *ui;
     Account* account;
@@ -126,6 +135,11 @@ private:
     bool isCanSave; //是否可以保存余额（基于当前的凭证集状态）
 
     SubjectManager* smg;
+
+    //表格行背景色
+    QBrush row_bk_ssub;    //子目行
+    QBrush row_bk_fsub;    //总目行
+    QBrush row_bk_sum;     //合计行
 };
 Q_DECLARE_METATYPE(CurStatDialog::StateInfo)
 

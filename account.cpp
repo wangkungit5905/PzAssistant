@@ -14,7 +14,7 @@
 
 QSqlDatabase* Account::db;
 
-Account::Account(QString fname)
+Account::Account(QString fname, QObject *parent):QObject(parent)
 {
     isOpened = false;
     isReadOnly = false;

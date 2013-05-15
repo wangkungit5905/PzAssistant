@@ -7,7 +7,7 @@
 
 
 /////////////////PzSetMgr///////////////////////////////////////////
-PzSetMgr::PzSetMgr(Account *account, User *user):
+PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent),
     account(account),user(user),curY(0),curM(0)
 {
     dbUtil = account->getDbUtil();
@@ -17,6 +17,9 @@ PzSetMgr::PzSetMgr(Account *account, User *user):
     isReSave = false;
     maxPzNum = 0;
     maxZbNum = 0;
+    curPz=NULL;
+    curY=0;curM=0;
+    pzs=NULL;
     if(!user)
         user = curUser;
 }
@@ -35,6 +38,7 @@ bool PzSetMgr::open(int y, int m)
             return false;
         state=states.value(key);
         extraStates[key] = dbUtil->getExtraState(y,m);
+        pzs = &pzSetHash[key];
     }
 
     maxPzNum = pzSetHash.value(key).count() + 1;
@@ -61,6 +65,8 @@ void PzSetMgr::close()
     isReStat = false;
     isReSave = false;
     delete statUtil;
+    pzs=NULL;
+    curPz=NULL;
 }
 
 /**
@@ -84,53 +90,29 @@ int PzSetMgr::getPzCount()
 //重置凭证号
 bool PzSetMgr::resetPzNum(int by)
 {
-    if(state == Ps_NoOpen)
-        return true;
+//    if(state == Ps_NoOpen)
+//        return true;
 
-    //1：表示按日期顺序，2：表示按自编号顺序
-    if(by == 1){
-        qSort(pds.begin(),pds.end(),byDateLessThan);
-        for(int i = 0; i < pds.count(); ++i){
-            pds[i]->setNumber(i+1);
-            //pds[i]->setEditState(PingZheng::INFOEDITED);
-        }
-        return true;
-    }
-    if(by == 2){
-        qSort(pds.begin(),pds.end(),byZbNumLessThan);
-        for(int i = 0; i < pds.count(); ++i){
-            pds[i]->setNumber(i+1);
-            //pds[i]->setEditState(PingZheng::INFOEDITED);
-        }
-        return true;
-    }
-    else
-        return false;
-
-//    QSqlQuery q(db),q1(db);
-//    QString s;
-
-//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-//    ds.chop(3);
-//    if(by == 1) //按凭证日期
-//        s = QString("select id from PingZhengs where "
-//                    "date like '%1%' order by date").arg(ds);
-//    else  if(by == 2)      //按自编号
-//        s = QString("select id from PingZhengs where "
-//                    "date like '%1%' order by zbNum").arg(ds);
+//    //1：表示按日期顺序，2：表示按自编号顺序
+//    if(by == 1){
+//        qSort(pds.begin(),pds.end(),byDateLessThan);
+//        for(int i = 0; i < pds.count(); ++i){
+//            pds[i]->setNumber(i+1);
+//            //pds[i]->setEditState(PingZheng::INFOEDITED);
+//        }
+//        return true;
+//    }
+//    if(by == 2){
+//        qSort(pds.begin(),pds.end(),byZbNumLessThan);
+//        for(int i = 0; i < pds.count(); ++i){
+//            pds[i]->setNumber(i+1);
+//            //pds[i]->setEditState(PingZheng::INFOEDITED);
+//        }
+//        return true;
+//    }
 //    else
 //        return false;
-//    if(!q.exec(s))
-//        return false;
-//    int id, num = 1;
-//    while(q.next()){
-//        id = q.value(0).toInt();
-//        s = QString("update PingZhengs set number=%1 where id=%2").arg(num++).arg(id);
-//        if(!q1.exec(s))
-//            return false;
-//    }
-//    model->select();
-//    return true;
+    return true;
 }
 
 //根据凭证集内的每个凭证的状态来确定凭证集的状态
@@ -336,20 +318,80 @@ PingZheng* PzSetMgr::appendPz(PzClass pzCls)
     return new PingZheng(this,0,ds,maxPzNum++,maxZbNum++,0.0,0.0,pzCls,0,Pzs_Recording);
 }
 
-//插入凭证，参数ecode错误代码（1：凭证号越界，2：自编号冲突）
-bool PzSetMgr::insert(PingZheng* pd,int& ecode)
+/**
+ * @brief PzSetMgr::append
+ *  添加指定凭证到当前打开的凭证集中
+ * @param pz
+ * @return
+ */
+bool PzSetMgr::append(PingZheng *pz)
 {
-    //插入凭证要保证凭证集内凭证号和自编号的连贯性要求
-    //凭证号必须从1开始，顺序增加，中间不能间断，自编号必须保证唯一性
-    if(pd->number() > maxPzNum){
-        ecode = 1;
+    if(!pz)
+        return false;
+    if(!isOpened()){
+        LOG_ERROR(QObject::tr("pzSet not opened,don't' append pingzheng"));
         return false;
     }
-    if(isZbNumConflict(pd->zbNumber())){
-        ecode = 2;
-        return false;
-    }
+    if(restorePz(pz))
+        return true;
+    *pzs<<pz;
+    pz->setNumber(pzs->count());
+    curPz = pz;
+    curIndex = pz->number()-1;
+    return true;
+}
 
+/**
+ * @brief PzSetMgr::insert
+ *  插入凭证
+ * @param pd
+ * @return
+ */
+bool PzSetMgr::insert(PingZheng* pz)
+{
+    //插入凭证要保证凭证集内凭证号和自编号的连贯性要求,参数ecode错误代码（1：凭证号越界，2：自编号冲突）
+    //凭证号必须从1开始，顺序增加，中间不能间断，自编号必须保证唯一性
+//    if(pd->number() > maxPzNum){
+//        errorStr = tr("PingZheng number beyond boundary!");
+//        return false;
+//    }
+//    if(isZbNumConflict(pd->zbNumber())){
+//        errorStr = tr("PingZheng Zb Number conflict!");
+//        return false;
+//    }
+
+    if(!pz)
+        return false;
+    if(!isOpened()){
+        LOG_ERROR(tr("pzSet not opened,don't' insert pingzheng"));
+        return false;
+    }
+    int index = pz->number()-1;
+    if(index > pzs->count()){
+        errorStr = tr("when insert pingzheng to happen error,pingzheng number overflow!");
+        LOG_ERROR(errorStr);
+        return false;
+    }
+    if(restorePz(pz))
+        return true;
+    pz->setParent(this);
+    if(index == pzs->count()){
+        pzs->append(pz);
+        pz->setNumber(index+1);
+        curPz = pz;
+        curIndex = pzs->count()-1;
+        return true;
+    }
+    pzs->insert(index,pz);
+    curPz = pz;
+    curIndex = index;
+    //调整插入凭证后的凭证号
+    index++;
+    while(index < pzs->count()){
+        pzs->at(index)->setNumber(index+1);
+        ++index;
+    }
+    return true;
 }
 
 /**
@@ -362,10 +404,20 @@ bool PzSetMgr::isZbNumConflict(int num)
 {
     if(state == Ps_NoOpen)
         return false;
-    foreach(PingZheng* pz, pzSetHash.value(genKey(curY,curM)))
+    foreach(PingZheng* pz, *pzs)
         if(num == pz->zbNumber())
             return true;
     return false;
+}
+
+/**
+ * @brief PzSetMgr::isOpen
+ *  凭证集是否已被打开
+ * @return
+ */
+bool PzSetMgr::isOpened()
+{
+    return (curY!=0 && curM!=0);
 }
 
 /**
@@ -383,10 +435,101 @@ int PzSetMgr::genKey(int y, int m)
 }
 
 //移除凭证
-bool PzSetMgr::remove(int pzNum)
+bool PzSetMgr::remove(PingZheng *pz)
 {
-
+    if(!pz)
+        return false;
+    if(!pzs){
+        LOG_ERROR(QObject::tr("pzSet not opened,don't' remove pingzheng"));
+        return false;
+    }
+    int fonded = false;
+    int i = 0;
+    while(i < pzs->count() && !fonded){
+        if(pzs->at(i) == pz){
+            pzs->removeAt(i);
+            fonded = true;
+            pz->setParent(NULL);
+            pz->setDeleted(true);
+            pz_dels<<pz;
+            break;
+        }
+        i++;
+    }
+    if(!fonded)
+        return false;
+    //调整移除凭证后的凭证号
+    for(i;i<pzs->count();++i)
+        pzs->at(i)->setNumber(i+1);
+    if(pz->number() == pzs->count()+1){
+        curPz = pzs->last();
+        //curIndex = pzs->count()-1;
+    }
+    else{
+        curPz = pzs->at(pz->number()-1);
+        //curIndex = pz->number() - 1;
+    }
+    return true;
 }
+
+/**
+ * @brief PzSetMgr::restorePz
+ * 恢复被删除的凭证（只能恢复被删除后未执行保存操作的凭证）
+ * @param pz
+ * @return
+ */
+bool PzSetMgr::restorePz(PingZheng *pz)
+{
+    for(int i = 0; i < pz_dels.count(); ++i){
+        if(*pz_dels.at(i) == *pz){
+            PingZheng* p = pz_dels.takeAt(i);
+            p->setDeleted(false);
+            //insert(p);
+            int index = pz->number()-1;
+            if(index >= pzs->count()){
+                pzs->append(pz);
+                pz->setNumber(index+1);
+                curPz = pz;
+                curIndex = pzs->count()-1;
+                return true;
+            }
+            pzs->insert(index,pz);
+            curPz = pz;
+            curIndex = pz->number()-1;
+            //调整插入凭证后的凭证号
+            index++;
+            while(index < pzs->count()){
+                pzs->at(index)->setNumber(index);
+                ++index;
+            }
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief PzSetMgr::setCurPz
+ * 设置当前凭证
+ * @param pz
+ */
+void PzSetMgr::setCurPz(PingZheng *pz)
+{
+    if(curPz == pz)
+        return;
+
+    for(int i = 0; i < pzs->count(); ++i){
+        if(pzs->at(i) == pz){
+            curIndex = i;
+            curPz = pz;
+            return;
+        }
+    }
+    curIndex = -1;
+    curPz = NULL;
+}
+
+
 
 //保存凭证
 bool PzSetMgr::savePz()

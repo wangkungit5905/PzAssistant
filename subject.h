@@ -103,6 +103,8 @@ public:
 
     //子科目操作方法
     void addChildSub(SecondSubject* sub);
+    SecondSubject* addChildSub(SubjectNameItem* ni,QString Code="",
+                                   int subWeight=0,bool isEnable=true);
     int getChildCount(){return childSubs.count();}
 
     //SecondSubject* addChildSub(SecondSubject* ssub);
@@ -333,8 +335,12 @@ public:
     void save();
     void rollback();
 
+    //名称条目相关方法
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
+    static void removeNameItem(SubjectNameItem* nItem);
+    static bool restoreNI(SubjectNameItem* nItem);
+    static SubjectNameItem* restoreNI(QString sname, QString lname, QString remCode, int nameCls);
     static QHash<int,QStringList>& getAllNICls(){return nameItemCls;}
     static SubjectNameItem* getNameItem(int nid){return nameItems.value(nid);}
     static SubjectNameItem* getNameItem(QString name);
@@ -400,7 +406,7 @@ public:
 //    FirstSubject* getFSById(int id);
 //    FirstSubject* getFsByCode(QString code);
 
-    //操作二级科目名称列表的方法
+    //名称条目相关方法
 //    void getAllNameClasses(QHash<int, QString> &nameCls);
 //    QList<SubjectNameItem*> getAllNameItems(){return nameItems;}
 //    bool nameItemIsUsing(SubjectNameItem* nItem);
@@ -411,8 +417,8 @@ public:
 //    void addNameItem(SubjectNameItem* nItem){if(nItem) nameItems<<nItem;}
 //    SubjectNameItem* addNameItem(QString sname,QString lname, QString remCode, int nameCls);
 //    void removeNameItem(SubjectNameItem* nItem);
-//    bool restoreNI(SubjectNameItem* nItem);
-//    SubjectNameItem* restoreNI(QString sname, QString lname, QString remCode, int nameCls);
+//
+//
 
     //QList<SubjectNameItem*> getSSinFS(FirstSubject* p);
 
@@ -477,7 +483,7 @@ private:
 
     static QHash<int,QStringList> nameItemCls;    //名称条目类别表
     static QHash<int,SubjectNameItem*> nameItems; //所有名称条目（因为多个科目管理器对象要共享名称条目信息）
-    //QList<SubjectNameItem*> delNameItems;
+    static QList<SubjectNameItem*> delNameItems;  //缓存被删除的名称条目
 
 
     //特种科目

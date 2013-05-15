@@ -59,7 +59,8 @@ SOURCES += main.cpp\
     PzSet.cpp \
     statutil.cpp \
     curstatdialog.cpp \
-    showdzdialog2.cpp
+    showdzdialog2.cpp \
+    commands.cpp
 
 HEADERS  += \
     connection.h \
@@ -113,7 +114,9 @@ HEADERS  += \
     PzSet.h \
     statutil.h \
     curstatdialog.h \
-    showdzdialog2.h
+    showdzdialog2.h \
+    commands.h \
+    statements.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

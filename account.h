@@ -17,7 +17,7 @@ class DbUtil;
 class SubjectManager;
 
 
-class Account
+class Account : public QObject
 {
 public:
     enum InfoField{
@@ -83,7 +83,7 @@ public:
     };
 
 
-    Account(QString fname);
+    Account(QString fname, QObject* parent=0);
     ~Account();
     bool isValid();
     void close();

@@ -12,6 +12,12 @@ const int UNCLASS   = 0;    //未知的分类
 const int ALLCLASS  = 0;    //所有类别
 
 
+//剪贴板操作
+enum ClipboardOperate{
+    CO_COPY     = 1,
+    CO_CUT      = 2,
+    CO_PASTER   =3
+};
 
 //通用项目编辑状态
 enum CommonItemEditState{

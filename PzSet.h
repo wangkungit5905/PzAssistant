@@ -15,11 +15,12 @@ class StatUtil;
 
 
 //凭证集管理类
-class PzSetMgr
+class PzSetMgr : public QObject
 {
+    Q_OBJECT
 public:
 
-    PzSetMgr(Account* account,User* user = NULL);
+    PzSetMgr(Account* account,User* user = NULL,QObject* parent = 0);
     Account* getAccount(){return account;}
     bool open(int y, int m);
     void close();
@@ -45,8 +46,11 @@ public:
     QHash<int,Double>& getRates();
 
     PingZheng* appendPz(PzClass pzCls=Pzc_Hand);
-    bool insert(PingZheng* pd, int &ecode);
-    bool remove(int pzNum);
+    bool append(PingZheng* pz);
+    bool insert(PingZheng* pz);
+    bool remove(PingZheng* pz);
+    bool restorePz(PingZheng *pz);
+    void setCurPz(PingZheng *pz);
     bool savePz();
     bool save();
 
@@ -73,35 +77,33 @@ public:
 private:
     bool isZbNumConflict(int num);
 
-    bool isOpen();
+    bool isOpened();
     int genKey(int y, int m);
 
-    //CustomRelationTableModel* model;
-
-
-    QList<PingZheng*> pds;                  //凭证对象列表
-    QList<PingZheng*> dpds;                 //已被删除的凭证对象列表
-
+private:
+    QString errorStr;
+    //与本期统计相关
     QHash<int,Double> preExtra,preDetExtra; //期初主目和子目余额
     QHash<int,MoneyDirection> preDir,preDetDir;     //期初主目和子目余额方向
     QHash<int,Double> curHpJ,curHpD;        //当期借方和贷方发生额
     QHash<int,Double> endExtra,endDetExtra; //期末主目和子目余额
     QHash<int,MoneyDirection>    endDir,endDetDir;     //期末主目和子目余额方向
-
     bool isReStat;                          //是否需要重新进行统计标志
     bool isReSave;                          //是否需要保存余额
 
 
-    ///////////////////////////////////////////////////////////////////////
-    int curY, curM;               //当前以只读方式打开的凭证集所属年月
-    PzsState state;                         //凭证集状态
-
-    int maxPzNum;                           //最大可用凭证号
-    int maxZbNum;                           //最大可用自编号
-
     QHash<int,QList<PingZheng*> > pzSetHash;  //保存所有已经装载的凭证集（键为年月所构成的整数高4位表示年，低2为表示月）
     QHash<int,PzsState> states; //凭证集状态（键同上）
     QHash<int,bool> extraStates;//凭证集余额状态（键同上）
+    QList<PingZheng*>* pzs;      //当前打开的凭证集对象列表
+    QList<PingZheng*> pz_dels;  //已被删除的凭证对象列表
+
+    int curY, curM;               //当前以只读方式打开的凭证集所属年月
+    PingZheng* curPz;             //当前显示在凭证编辑窗口内的凭证对象
+    int curIndex;                 //当前凭证索引
+    PzsState state;                         //凭证集状态
+    int maxPzNum;                           //最大可用凭证号
+    int maxZbNum;                           //最大可用自编号
     Account* account;
     DbUtil* dbUtil;
     StatUtil* statUtil;

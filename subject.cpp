@@ -6,6 +6,7 @@
 
 QHash<int,QStringList> SubjectManager::nameItemCls;
 QHash<int,SubjectNameItem*> SubjectManager::nameItems;
+QList<SubjectNameItem*> SubjectManager::delNameItems;
 
 //虚拟科目对象
 FirstSubject* FS_ALL;
@@ -153,6 +154,30 @@ void FirstSubject::addChildSub(SecondSubject *sub)
 
 /**
  * @brief FirstSubject::addChildSub
+ *  使用指定的名称条目对象创建二级科目
+ * @param name
+ * @param Code
+ * @param subWeight
+ * @param isEnable
+ * @param isInit
+ * @return
+ */
+SecondSubject *FirstSubject::addChildSub(SubjectNameItem *ni, QString Code, int subWeight, bool isEnable)
+{
+    if(!ni)
+        return NULL;
+    foreach(SecondSubject* sub, childSubs)
+        if(sub->getNameItem() == ni)
+            return NULL;
+    SecondSubject* sb = new SecondSubject(this,0,ni,Code,subWeight,isEnable,QDateTime::currentDateTime(),
+                                          QDateTime::currentDateTime(),curUser);
+    childSubs<<sb;
+    witchEdited |= ES_FS_CHILD;
+    return sb;
+}
+
+/**
+ * @brief FirstSubject::addChildSub
  *  利用已有的名称条目添加新子目
  * @param name      子目所使用的名称条目对象
  * @param Code      子目的代码
@@ -207,6 +232,25 @@ SecondSubject *FirstSubject::restoreChildSub(SecondSubject *sub)
     for(int i = 0; i< delSubs.count(); ++i){
         if(delSubs.at(i) == sub){
             sub->setDelete(false);
+            childSubs<<delSubs.takeAt(i);
+            witchEdited |= ES_FS_CHILD;
+            return childSubs.last();
+        }
+    }
+    return NULL;
+}
+
+/**
+ * @brief FirstSubject::restoreChildSub
+ *  恢复被移除的使用指定名称对象的二级科目
+ * @param ni
+ * @return
+ */
+SecondSubject *FirstSubject::restoreChildSub(SubjectNameItem *ni)
+{
+    for(int i = 0; i< delSubs.count(); ++i){
+        if(delSubs.at(i)->getNameItem() == ni){
+            delSubs.at(i)->setDelete(false);
             childSubs<<delSubs.takeAt(i);
             witchEdited |= ES_FS_CHILD;
             return childSubs.last();
@@ -632,6 +676,64 @@ void SubjectManager::save()
 {
 }
 
+/**
+ * @brief SubjectManager::removeNameItem
+ *  移除名称条目
+ * @param nItem
+ */
+void SubjectManager::removeNameItem(SubjectNameItem *nItem)
+{
+    if(!nItem)
+        return;
+    if(!nameItems.contains(nItem->getId()))
+        return;
+    delNameItems<<nItem;
+    nameItems.remove(nItem->getId());
+    nItem->setDelete(true);
+}
+
+/**
+ * @brief SubjectManager::restoreNI
+ * 恢复被删除的名称条目
+ * @param nItem
+ * @return
+ */
+bool SubjectManager::restoreNI(SubjectNameItem* nItem)
+{
+    for(int i = 0; i < delNameItems.count(); ++i){
+        if(nItem == delNameItems.at(i)){
+            nameItems[nItem->getId()] = delNameItems.takeAt(i);
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @brief SubjectManager::restoreNI
+ * 恢复被删除的名称条目
+ * @param sname
+ * @param lname
+ * @param remCode
+ * @param nameCls
+ * @return
+ */
+SubjectNameItem *SubjectManager::restoreNI(QString sname, QString lname, QString remCode, int nameCls)
+{
+    SubjectNameItem* ni;
+    for(int i = 0; i < delNameItems.count(); ++i){
+        ni = delNameItems.at(i);
+        if(ni->getShortName() == sname &&
+           ni->getLongName() == lname &&
+           ni->getRemCode() == remCode &&
+           ni->getClassId() == nameCls)
+            ni->setDelete(false);
+            nameItems[ni->getId()] = delNameItems.takeAt(i);
+            return ni;
+    }
+    return NULL;
+}
+
 
 bool SubjectManager::init()
 {
@@ -736,6 +838,7 @@ SecondSubject *SubjectManager::addSndSubject(FirstSubject *fsub, SubjectNameItem
     sndSubs[ssub->getId()] = ssub;
     return ssub;
 }
+
 
 
 

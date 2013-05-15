@@ -11,6 +11,7 @@ PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent
     account(account),user(user),curY(0),curM(0)
 {
     dbUtil = account->getDbUtil();
+    undoStack = new QUndoStack(this);
     statUtil = NULL;
     state = Ps_NoOpen;
     isReStat = false;
@@ -22,6 +23,11 @@ PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent
     pzs=NULL;
     if(!user)
         user = curUser;
+}
+
+PzSetMgr::~PzSetMgr()
+{
+    delete undoStack;
 }
 
 //打开凭证集
@@ -54,6 +60,17 @@ bool PzSetMgr::open(int y, int m)
     statUtil = new StatUtil(pzSetHash.value(key),account);
     return true;
 }
+
+/**
+ * @brief PzSetMgr::isOpen
+ *  凭证集是否已被打开
+ * @return
+ */
+bool PzSetMgr::isOpened()
+{
+    return (curY!=0 && curM!=0);
+}
+
 
 void PzSetMgr::close()
 {
@@ -255,6 +272,19 @@ bool PzSetMgr::contains(int y, int m, int pid)
     return dbUtil->isContainPz(y,m,pid);
 }
 
+/**
+ * @brief PzSetMgr::getStatePzCount 返回凭证集内指定状态凭证数
+ * @param st
+ * @return
+ */
+int PzSetMgr::getStatePzCount(PzState state)
+{
+    int c = 0;
+    foreach(PingZheng* pz, *pzs)
+        if(pz->getPzState() == state)
+            c++;
+    return c;
+}
 //保存当期余额
 bool PzSetMgr::PzSetMgr::saveExtra()
 {
@@ -307,6 +337,105 @@ QHash<int, Double> &PzSetMgr::getRates()
         return rates;
     account->getRates(curY,curM,rates);
     return rates;
+}
+
+/**
+ * @brief PzSetMgr::first 定位到第一个凭证对象
+ * @return
+ */
+PingZheng *PzSetMgr::first()
+{
+    if(!isOpened()){
+        LOG_ERROR(QObject::tr("pzSet not opened!"));
+        return NULL;
+    }
+    if(pzs->empty()){
+        curPz = NULL;
+        return NULL;
+    }
+    curIndex = 0;
+    curPz = pzs->first();
+    return curPz;
+}
+
+/**
+ * @brief PzSetMgr::next 定位到下一个凭证对象
+ * @return
+ */
+PingZheng *PzSetMgr::next()
+{
+    if(!isOpened()){
+        LOG_ERROR(QObject::tr("pzSet not opened!"));
+        return NULL;
+    }
+    if(pzs->empty()){
+        curPz = NULL;
+        return NULL;
+    }
+    if(curIndex == pzs->count()-1){
+        curPz = NULL;
+        return NULL;
+    }
+    curPz = pzs->at(++curIndex);
+    return curPz;
+}
+
+/**
+ * @brief PzSetMgr::previou 定位到上一个凭证对象
+ * @return
+ */
+PingZheng *PzSetMgr::previou()
+{
+    if(!isOpened()){
+        LOG_ERROR(QObject::tr("pzSet not opened!"));
+        return NULL;
+    }
+    if(pzs->empty()){
+        curPz = NULL;
+        return NULL;
+    }
+    if(curIndex == 0){
+        curPz = NULL;
+        return NULL;
+    }
+    curPz = pzs->at(--curIndex);
+    return curPz;
+}
+
+/**
+ * @brief PzSetMgr::last 定位到最后一个凭证对象
+ * @return
+ */
+PingZheng *PzSetMgr::last()
+{
+    if(!isOpened()){
+        LOG_ERROR(QObject::tr("pzSet not opened!"));
+        return NULL;
+    }
+    if(pzs->empty()){
+        curPz = NULL;
+        return NULL;
+    }
+    curIndex = pzs->count() - 1;
+    curPz = pzs->last();
+    return curPz;
+}
+
+/**
+ * @brief PzSetMgr::seek 定位到指定凭证号的凭证对象
+ * @param num
+ * @return
+ */
+PingZheng *PzSetMgr::seek(int num)
+{
+    if((num < 1) || num > pzs->count()){
+        curPz = NULL;
+        curIndex = -1;
+        return NULL;
+    }
+    curPz = pzs->at(num-1);
+    curIndex = num-1;
+    return curPz;
 }
 
 //添加空白凭证
@@ -410,15 +539,6 @@ bool PzSetMgr::isZbNumConflict(int num)
     return false;
 }
 
-/**
- * @brief PzSetMgr::isOpen
- *  凭证集是否已被打开
- * @return
- */
-bool PzSetMgr::isOpened()
-{
-    return (curY!=0 && curM!=0);
-}
 
 /**
  * @brief PzSetMgr::genKey
@@ -506,6 +626,19 @@ bool PzSetMgr::restorePz(PingZheng *pz)
         }
     }
     return false;
+}
+
+/**
+ * @brief PzSetMgr::getPz
+ * 获取指定号的凭证对象
+ * @param num
+ * @return
+ */
+PingZheng *PzSetMgr::getPz(int num)
+{
+    if(num < 1 || num > pzs->count())
+        return NULL;
+    return pzs->at(num-1);
 }
 
 /**

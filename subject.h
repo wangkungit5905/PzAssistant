@@ -336,6 +336,7 @@ public:
     void rollback();
 
     //名称条目相关方法
+    const QList<SubjectNameItem*>& getAllNameItems(){return nameItems.values();}
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
     static void removeNameItem(SubjectNameItem* nItem);
@@ -346,6 +347,7 @@ public:
     static SubjectNameItem* getNameItem(QString name);
     static QHash<int,SubjectNameItem*>& getAllNI(){return nameItems;}
     static bool containNI(QString name);
+    bool containNI(SubjectNameItem* ni);
 
     QHash<int,QString>& getFstSubClass(){return fstSubCls;}
     //按科目id获取科目对象的方法
@@ -430,8 +432,9 @@ public:
 
     //银行账户有关的方法
     //bool getAllBankAccount(QHash<int,BankAccount*>& banks);
-    //BankAccount* getBankAccount(int sid);
-    //Money* getSubMatchMt(SecondSubject* ssub);
+    BankAccount* getBankAccount(SecondSubject *ssub);
+    Money* getSubMatchMt(SecondSubject* ssub);
+    bool isBankSndSub(SecondSubject* ssub);
 
     //获取要作特别处理的一级科目的方法
 

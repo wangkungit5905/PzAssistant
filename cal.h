@@ -49,6 +49,7 @@ private:
     int digs; //小数位数
     int digRate;  //与小数位数对应的10的倍数（比如2位即100）
 };
+Q_DECLARE_METATYPE(Double)
 
 //货币类
 class Money{

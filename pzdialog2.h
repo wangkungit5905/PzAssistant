@@ -185,7 +185,7 @@ private:
 
     CustomRelationTableModel* model;  //读取凭证表
     QDataWidgetMapper* dataMapping;   //映射PingZhengs表的内容到显示部件
-    ActionEditItemDelegate* delegate; //业务活动表格部件的项目代理
+    ActionEditItemDelegate2* delegate; //业务活动表格部件的项目代理
 
     QHash<int,Double> rates;  //当月汇率
     QHash<int,QString> mtNames; //币种名称表

@@ -624,8 +624,8 @@ void ActionEditTableWidget::sndSubjectDisabeld(int id)
 void ActionEditTableWidget::currentCellChanged (int currentRow, int currentColumn, int previousRow, int previousColumn)
 {
     //如果是从前一行的末列转到下一行的第一列（这个动作一般是由在贷方列按回车键后发生）
-    if((previousColumn == ActionEditItemDelegate::DV)
-            && (currentColumn == ActionEditItemDelegate::SUMMARY)
+    if((previousColumn == ActionEditItemDelegate2::DV)
+            && (currentColumn == ActionEditItemDelegate2::SUMMARY)
             && (currentRow == previousRow + 1)){
         rowTag = true;
     }
@@ -692,7 +692,7 @@ void ActionEditTableWidget::keyPressEvent(QKeyEvent* e)
         //    emit requestAppendNewAction(row+1);
         //这个只能在还没有打开编辑器的时候，在贷方列按回车键时满足条件
         else if(((key == Qt::Key_Return) || (key == Qt::Key_Enter))
-                && col == ActionEditItemDelegate::DV){
+                && col == ActionEditItemDelegate2::DV){
             emit requestAppendNewAction(row+1);
         }
     //}

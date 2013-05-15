@@ -157,7 +157,7 @@ public:
 
 	void setReadOnly(bool readOnly){isReadOnly=readOnly;}
 	bool getReadOnly(){return isReadOnly;}
-    QList<BankAccount*> getAllBankAccount(){return bankAccounts;}
+    QList<BankAccount*> &getAllBankAccount(){return bankAccounts;}
     static void setDatabase(QSqlDatabase* db);
 
 private:

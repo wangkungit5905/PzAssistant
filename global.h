@@ -11,6 +11,8 @@
 #include "otherModule.h"
 #include "logs/Logger.h"
 
+class BusiAction;
+
 //动态属性名（应用于所有在运行时需要保存对象的编辑状态属性名）
 extern const char* ObjEditState;
 
@@ -86,6 +88,7 @@ extern double czRate;               //固定资产折旧残值率
 //应用程序剪贴板功能有关的全局标量
 extern bool copyOrCut;                       //剪贴板存放到业务活动是复制还是剪切到（true：复制）
 extern QList<BusiActionData2*> clbBaList;     //存放要粘贴的业务活动数据
+extern QList<BusiAction*> clb_Bas;       //存放要粘贴的会计分录对象（新的凭证编辑窗口使用）
 
 //账户状态变量
 extern QString lastModifyTime;   //账户最后修改时间

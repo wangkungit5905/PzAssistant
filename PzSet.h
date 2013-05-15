@@ -11,7 +11,7 @@ class CustomRelationTableModel;
 class PingZheng;
 class Account;
 class StatUtil;
-
+class QUndoStack;
 
 
 //凭证集管理类
@@ -21,10 +21,14 @@ class PzSetMgr : public QObject
 public:
 
     PzSetMgr(Account* account,User* user = NULL,QObject* parent = 0);
+    ~PzSetMgr();
     Account* getAccount(){return account;}
     bool open(int y, int m);
+    bool isOpened();
     void close();
     StatUtil &getStatObj();
+    QUndoStack* getUndoStack(){return undoStack;}
+    PingZheng* getCurPz(){return curPz;}
 
     int year(){return curY;}
     int month(){return curM;}
@@ -39,17 +43,28 @@ public:
     bool getPzSet(int y, int m, QList<PingZheng *> &pzs);
     QList<PingZheng*> getPzSpecRange(int y ,int m, QSet<int> nums);
     bool contains(int y, int m, int pid);
+    int getStatePzCount(PzState state);
 
     bool saveExtra();
     bool readExtra();
     bool readPreExtra();
     QHash<int,Double>& getRates();
 
+    //导航方法
+    PingZheng* first();
+    PingZheng* next();
+    PingZheng* previou();
+    PingZheng* last();
+    PingZheng* seek(int num);
+    bool isFirst(){return curIndex == 0;}
+    bool isLast(){return curIndex == pzs->count()-1;}
+
     PingZheng* appendPz(PzClass pzCls=Pzc_Hand);
     bool append(PingZheng* pz);
     bool insert(PingZheng* pz);
     bool remove(PingZheng* pz);
     bool restorePz(PingZheng *pz);
+    PingZheng* getPz(int num);
     void setCurPz(PingZheng *pz);
     bool savePz();
     bool save();
@@ -77,7 +92,7 @@ public:
 private:
     bool isZbNumConflict(int num);
 
-    bool isOpened();
+
     int genKey(int y, int m);
 
 private:
@@ -108,7 +123,7 @@ private:
     DbUtil* dbUtil;
     StatUtil* statUtil;
     User* user;
-    QSqlDatabase db;
+    QUndoStack* undoStack;
 };
 
 #endif // PZSET_H

@@ -19,6 +19,21 @@ enum ClipboardOperate{
     CO_PASTER   =3
 };
 
+//智能提示列表框项目的排序模式
+enum SortByMode{
+    SM_NAME   = 1,     //按名称字符
+    SM_CODE   = 2,     //按科目代码
+    SM_REMCOD = 3      //按助记符
+};
+
+//应用错误级别名称
+enum AppErrorLevel{
+    AE_OK            = 0,       //正常信息
+    AE_WARNING       = 1,       //警告信息（影响操作的顺利运行）
+    AE_CRITICAL      = 2,       //临界错误（影响操作的正确结果）
+    AE_ERROR         = 3        //致命错误（影响应用程序的运行，可能导致崩溃）
+};
+
 //通用项目编辑状态
 enum CommonItemEditState{
     CIES_PENDING  = -1,    //未决的（比如数据库表中还没有与此对象对应的记录）
@@ -95,7 +110,7 @@ enum PzClass{
     Pzc_GdzcImp   =   11,      //引入固定资产的凭证
     Pzc_GdzcZj    =   12,      //固定资产折旧凭证
     Pzc_DtfyImp   =   14,      //引入待摊费用的凭证
-    Pzc_Dtfy      =   15,      //待摊费用分摊凭证
+    Pzc_DtfyTx    =   15,      //待摊费用分摊凭证
                                //工资
                                //计提税金
 

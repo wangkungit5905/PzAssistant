@@ -50,7 +50,7 @@ public:
     QString getData();
 
 signals:
-    void dataEditCompleted(ActionEditItemDelegate::ColumnIndex col);
+    void dataEditCompleted(ActionEditItemDelegate2::ColumnIndex col);
 
 private:
     Ui::BASummaryForm *ui;

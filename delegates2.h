@@ -97,7 +97,7 @@ private:
 
 
 //提供编辑业务活动各项的项目代理类
-class ActionEditItemDelegate : public QItemDelegate
+class ActionEditItemDelegate2 : public QItemDelegate
 {
     Q_OBJECT
 
@@ -115,7 +115,7 @@ public:
         NUM     = 9    //业务活动在凭证中的序号列
     };
 
-    ActionEditItemDelegate(SubjectManager* smg,QObject *parent = 0);
+    ActionEditItemDelegate2(SubjectManager* smg,QObject *parent = 0);
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                           const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -152,11 +152,11 @@ private:
 
 
 //显示和编辑业务活动的摘要
-class SummaryEdit : public QLineEdit
+class SummaryEdit2 : public QLineEdit
 {
     Q_OBJECT
 public:
-    SummaryEdit(int row,int col,QWidget* parent = 0);
+    SummaryEdit2(int row,int col,QWidget* parent = 0);
     void setContent(QString content);
     QString getContent();
 
@@ -188,12 +188,12 @@ private:
 };
 
 //显示和编辑总账科目
-class FstSubComboBox : public QComboBox
+class FstSubComboBox2 : public QComboBox
 {
     Q_OBJECT
 public:
-    FstSubComboBox(QWidget *parent = 0);
-    ~FstSubComboBox();
+    FstSubComboBox2(QWidget *parent = 0);
+    ~FstSubComboBox2();
 protected:
     //void focusOutEvent(QFocusEvent* e);
     void keyPressEvent(QKeyEvent* e );
@@ -210,12 +210,12 @@ private:
 };
 
 //编辑和显示明细科目
-class SndSubComboBox : public QComboBox
+class SndSubComboBox2 : public QComboBox
 {
     Q_OBJECT
 public:
-    SndSubComboBox(int pid, SubjectManager* smg, QWidget *parent = 0);
-    ~SndSubComboBox();
+    SndSubComboBox2(int pid, SubjectManager* smg, QWidget *parent = 0);
+    ~SndSubComboBox2();
     void setRowColNum(int row, int col);
 
 protected:
@@ -249,11 +249,11 @@ private:
 };
 
 //编辑和显示币种
-class MoneyTypeComboBox : public QComboBox
+class MoneyTypeComboBox2 : public QComboBox
 {
     Q_OBJECT
 public:
-    MoneyTypeComboBox(QHash<int,QString>* mts, QWidget* parent = 0);
+    MoneyTypeComboBox2(QHash<int,QString>* mts, QWidget* parent = 0);
     void setCell(int row, int col);
 protected:
     void focusOutEvent(QFocusEvent* e);
@@ -267,11 +267,11 @@ private:
 };
 
 //编辑和显示借贷金额
-class MoneyValueEdit : public QLineEdit
+class MoneyValueEdit2 : public QLineEdit
 {
     Q_OBJECT
 public:
-    MoneyValueEdit(int row, int witch = 0,double v = 0, QWidget* parent = 0);
+    MoneyValueEdit2(int row, int witch = 0,double v = 0, QWidget* parent = 0);
     void setValue(double v);
     double getValue();
     void setCell(int row, int col);

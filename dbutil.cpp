@@ -491,6 +491,46 @@ bool DbUtil::savefstSubject(FirstSubject *fsub)
 }
 
 /**
+ * @brief DbUtil::getBankSubMatchMoney
+ *  返回与银行科目的子目对应的货币代码
+ * @param sub
+ * @return
+ */
+int DbUtil::getBankSubMatchMoney(SecondSubject *sub)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_ERROR(QObject::tr("Start transaction failed!"));
+        return 0;
+    }
+
+    QString s = QString("select %1 from %2 where %3=%4").arg(fld_bankAcc_mt).arg(tbl_bankAcc)
+            .arg(fld_bankAcc_nameId).arg(sub->getNameItem()->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return 0;
+    }
+    if(!q.first())
+        return 0;
+    int rowId = q.value(0).toInt();
+    s = QString("select %1 from %2 where id=%3")
+            .arg(fld_mt_code).arg(tbl_moneyType).arg(rowId);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return 0;
+    }
+    if(!q.first())
+        return 0;
+    int mt = q.value(0).toInt();
+
+    if(!db.commit()){
+        LOG_ERROR(QObject::tr("commit transaction failed!"));
+        return 0;
+    }
+    return mt;
+}
+
+/**
  * @brief DbUtil::initMoneys
  *  初始化当前账户所使用的所有货币对象
  * @param moneys
@@ -568,7 +608,6 @@ bool DbUtil::initBanks(Account *account)
     QString s = QString("select * from %1").arg(tbl_bank);
     if(!q.exec(s))
         return false;
-    int id;
     while(q.next()){
         Bank* bank = new Bank;
         bank->id = q.value(0).toInt();

@@ -646,6 +646,17 @@ bool SubjectManager::containNI(QString name)
     return false;
 }
 
+bool SubjectManager::containNI(SubjectNameItem *ni)
+{
+    QHashIterator<int,SubjectNameItem*> it(nameItems);
+    while(it.hasNext()){
+        it.next();
+        if(ni == it.value())
+            return true;
+    }
+    return false;
+}
+
 /**
  * @brief SubjectManager::getFstSubject
  * @param code  科目代码
@@ -837,6 +848,47 @@ SecondSubject *SubjectManager::addSndSubject(FirstSubject *fsub, SubjectNameItem
     fsub->childSubs<<ssub;
     sndSubs[ssub->getId()] = ssub;
     return ssub;
+}
+
+/**
+ * @brief SubjectManager::getBankAccount
+ *  获取与银行子目对象对应的银行对象
+ * @param ssub
+ * @return
+ */
+BankAccount *SubjectManager::getBankAccount(SecondSubject* ssub)
+{
+    foreach(BankAccount* ba, account->getAllBankAccount()){
+        if(ba->subObj == ssub)
+            return ba;
+    }
+    return NULL;
+}
+
+/**
+ * @brief SubjectManager::getSubMatchMt
+ *  获取与银行科目到子科目对应的货币对象
+ * @param ssub
+ * @return
+ */
+Money *SubjectManager::getSubMatchMt(SecondSubject *ssub)
+{
+    int mt = dbUtil->getBankSubMatchMoney(ssub);
+    return account->getAllMoneys().value(mt);
+}
+
+/**
+ * @brief SubjectManager::isBankSndSub
+ *  判断二级科目是否是银行的子目
+ * @param ssub
+ * @return
+ */
+bool SubjectManager::isBankSndSub(SecondSubject *ssub)
+{
+    if(ssub->getParent() != bankSub)
+        return false;
+    else
+        return true;
 }
 
 

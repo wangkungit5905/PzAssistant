@@ -60,7 +60,11 @@ SOURCES += main.cpp\
     statutil.cpp \
     curstatdialog.cpp \
     showdzdialog2.cpp \
-    commands.cpp
+    commands.cpp \
+    pzdialog.cpp \
+    widgets/bawidgets.cpp \
+    delegates.cpp \
+    widgets/variousWidgets.cpp
 
 HEADERS  += \
     connection.h \
@@ -116,7 +120,11 @@ HEADERS  += \
     curstatdialog.h \
     showdzdialog2.h \
     commands.h \
-    statements.h
+    statements.h \
+    pzdialog.h \
+    widgets/bawidgets.h \
+    delegates.h \
+    widgets/variousWidgets.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -172,7 +180,8 @@ FORMS    += \
     forms/versionmanager.ui \
     forms/curstatdialog.ui \
     forms/showdzdialog2.ui \
-    forms/subjectrangeselectdialog.ui
+    forms/subjectrangeselectdialog.ui \
+    forms/pzdialog.ui
 
 RESOURCES += \
     imgers.qrc \

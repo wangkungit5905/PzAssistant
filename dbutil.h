@@ -64,6 +64,7 @@ public:
     bool saveNameItem(SubjectNameItem* ni);
     bool saveSndSubject(SecondSubject* sub);
     bool savefstSubject(FirstSubject* fsub);
+    int getBankSubMatchMoney(SecondSubject* sub);
 
     //货币相关
     bool initMoneys(Account* account);

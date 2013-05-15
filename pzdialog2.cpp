@@ -190,7 +190,7 @@ void PzDialog2::init()
         ui->twActions->setRowHeight(i, rowHeight); //设置表格行高
 
     //设置表格的项目代理
-    delegate = new ActionEditItemDelegate(smg,this);
+    delegate = new ActionEditItemDelegate2(smg,this);
     ui->twActions->setItemDelegate(delegate);
     connect(delegate, SIGNAL(newSndSubMapping(int,int,int,int,bool)),
             ui->twActions, SLOT(newSndSubMapping(int,int,int,int,bool)));
@@ -505,8 +505,8 @@ void PzDialog2::refreshContextMenu(int row, int col)
     r = false;
     //如果鼠标光标位于借贷金额列，且光标所处行的上面一些行的同一借贷方向上的合计值不为0，
     //则可以启用插入合计对冲业务活动菜单项
-    if((row < numActions) && ((col == ActionEditItemDelegate::JV)
-                              || (col == ActionEditItemDelegate::DV))){
+    if((row < numActions) && ((col == ActionEditItemDelegate2::JV)
+                              || (col == ActionEditItemDelegate2::DV))){
 
         r = canCrtOppoSumAction(row,col,oSums,oSum,oDir,oNum);
     }
@@ -555,15 +555,15 @@ bool PzDialog2::canCrtOppoSumAction(int row, int col, QHash<int, Double> &sums,
     //直到遇到不同的借贷方向的业务活动为止，新建的对冲业务活动数等于遇到的币种数
     int scanDir;  //扫描的借贷方向
     int scanCol;  //要扫描的列
-    if(col == ActionEditItemDelegate::JV){ //新建的对冲科目处于借方则要扫描贷方的合计值
+    if(col == ActionEditItemDelegate2::JV){ //新建的对冲科目处于借方则要扫描贷方的合计值
         dir = DIR_J;
         scanDir = DIR_D;
-        scanCol = ActionEditItemDelegate::DV;
+        scanCol = ActionEditItemDelegate2::DV;
     }
     else{
         dir = DIR_D;
         scanDir = DIR_J;
-        scanCol = ActionEditItemDelegate::JV;
+        scanCol = ActionEditItemDelegate2::JV;
     }
     int curRow = row-1;
     while(curRow > -1){
@@ -586,7 +586,7 @@ void PzDialog2::reAllocActionNumber()
         return;
     for(int i = 0; i < numActions; ++i){
         busiActions[i]->num = i+1;
-        ui->twActions->item(i,ActionEditItemDelegate::NUM)->setData(Qt::EditRole,i+1);
+        ui->twActions->item(i,ActionEditItemDelegate2::NUM)->setData(Qt::EditRole,i+1);
     }
 }
 
@@ -1309,12 +1309,12 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
     int col = item->column();
     bool b = false;
 
-    if((col == ActionEditItemDelegate::SUMMARY)
+    if((col == ActionEditItemDelegate2::SUMMARY)
             && (item->data(Qt::EditRole).toString() != busiActions[row]->summary)){
         busiActions[row]->summary = item->data(Qt::EditRole).toString();
         b = true;
     }
-    else if(((col == ActionEditItemDelegate::FSTSUB)
+    else if(((col == ActionEditItemDelegate2::FSTSUB)
              && (item->data(Qt::EditRole).toInt() != busiActions[row]->fid))){
         //QHash<int,QString> subs;  //
         int fid = item->data(Qt::EditRole).toInt();
@@ -1327,8 +1327,8 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         //int cid; //现金科目的id
         //BusiUtil::getIdByCode(cid,"1001");
         if(fid == smg->getCashSub()->getId()){
-            ui->twActions->item(row,ActionEditItemDelegate::SNDSUB)->setData(Qt::EditRole,fsub->getDefaultSubject()->getId());
-            ui->twActions->item(row,ActionEditItemDelegate::MTYPE)->setData(Qt::EditRole,account->getMasterMt()->code());
+            ui->twActions->item(row,ActionEditItemDelegate2::SNDSUB)->setData(Qt::EditRole,fsub->getDefaultSubject()->getId());
+            ui->twActions->item(row,ActionEditItemDelegate2::MTYPE)->setData(Qt::EditRole,account->getMasterMt()->code());
             busiActions[row]->sid = fsub->getDefaultSubject()->getId();
             busiActions[row]->mt = account->getMasterMt()->code();
         }
@@ -1345,7 +1345,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         b = true;
         emit mustRestat();
     }
-    else if((col == ActionEditItemDelegate::SNDSUB)
+    else if((col == ActionEditItemDelegate2::SNDSUB)
             && (item->data(Qt::EditRole).toInt() != busiActions[row]->sid)){
 
         int sid = item->data(Qt::EditRole).toInt();
@@ -1353,7 +1353,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         //int bid;//银行存款科目的id
         //BusiUtil::getIdByCode(cid,"1001");
         //BusiUtil::getIdByCode(bid,"1002");
-        int fid = ui->twActions->item(row,ActionEditItemDelegate::FSTSUB)->data(Qt::EditRole).toInt();
+        int fid = ui->twActions->item(row,ActionEditItemDelegate2::FSTSUB)->data(Qt::EditRole).toInt();
 
         //如果一级科目是现金，则设置与二级科目对应的币种
         if(fid == smg->getCashSub()->getId()){
@@ -1367,7 +1367,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
 //                    break;
 //                }
 //            }
-            ui->twActions->item(row, ActionEditItemDelegate::MTYPE)->setData(Qt::EditRole, account->getMasterMt()->code());
+            ui->twActions->item(row, ActionEditItemDelegate2::MTYPE)->setData(Qt::EditRole, account->getMasterMt()->code());
             busiActions[row]->mt = account->getMasterMt()->code();
         }
 
@@ -1385,14 +1385,14 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
                     break;
                 }
             }
-            ui->twActions->item(row, ActionEditItemDelegate::MTYPE)->setData(Qt::EditRole, mt);
+            ui->twActions->item(row, ActionEditItemDelegate2::MTYPE)->setData(Qt::EditRole, mt);
             busiActions[row]->mt = mt;
         }
         busiActions[row]->sid = sid;
         b = true;
         emit mustRestat();
     }
-    else if((col == ActionEditItemDelegate::MTYPE)
+    else if((col == ActionEditItemDelegate2::MTYPE)
               && (item->data(Qt::EditRole).toInt() != busiActions[row]->mt)){
         int mt = item->data(Qt::EditRole).toInt();
         //在币种改变时，要自动调整金额
@@ -1400,19 +1400,19 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         if(busiActions[row]->mt == RMB){
             busiActions[row]->v /= rates.value(mt);
             if(busiActions[row]->dir == DIR_J){
-                ui->twActions->item(row,ActionEditItemDelegate::JV)->setData(Qt::EditRole,busiActions[row]->v.getv());
+                ui->twActions->item(row,ActionEditItemDelegate2::JV)->setData(Qt::EditRole,busiActions[row]->v.getv());
             }
             else{
-                ui->twActions->item(row,ActionEditItemDelegate::DV)->setData(Qt::EditRole,busiActions[row]->v.getv());
+                ui->twActions->item(row,ActionEditItemDelegate2::DV)->setData(Qt::EditRole,busiActions[row]->v.getv());
             }
         }
         else{
             busiActions[row]->v *= rates.value(busiActions[row]->mt);
             if(busiActions[row]->dir == DIR_J){
-                ui->twActions->item(row,ActionEditItemDelegate::JV)->setData(Qt::EditRole,busiActions[row]->v.getv());
+                ui->twActions->item(row,ActionEditItemDelegate2::JV)->setData(Qt::EditRole,busiActions[row]->v.getv());
             }
             else{
-                ui->twActions->item(row,ActionEditItemDelegate::DV)->setData(Qt::EditRole,busiActions[row]->v.getv());
+                ui->twActions->item(row,ActionEditItemDelegate2::DV)->setData(Qt::EditRole,busiActions[row]->v.getv());
             }
         }
         installDataWatch();
@@ -1420,7 +1420,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         b = true;
         emit mustRestat();
     }
-    else if(col == ActionEditItemDelegate::JV){
+    else if(col == ActionEditItemDelegate2::JV){
         if((busiActions[row]->dir == DIR_J)
             && (Double(item->data(Qt::EditRole).toDouble()) != busiActions[row]->v)){
             busiActions[row]->v = Double(item->data(Qt::EditRole).toDouble());
@@ -1432,7 +1432,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
             busiActions[row]->v = Double(item->data(Qt::EditRole).toDouble());
             busiActions[row]->dir = DIR_J;
             installDataWatch(false);
-            ui->twActions->item(row,ActionEditItemDelegate::DV)->setData(Qt::EditRole,0);
+            ui->twActions->item(row,ActionEditItemDelegate2::DV)->setData(Qt::EditRole,0);
             installDataWatch();
 
         }
@@ -1440,7 +1440,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
         calSums();
         emit mustRestat();
     }
-    else if(col == ActionEditItemDelegate::DV){
+    else if(col == ActionEditItemDelegate2::DV){
         if((busiActions[row]->dir == DIR_D)
             && Double(item->data(Qt::EditRole).toDouble()) != busiActions[row]->v){
             busiActions[row]->v = Double(item->data(Qt::EditRole).toDouble());
@@ -1450,7 +1450,7 @@ void PzDialog2::actionDataItemChanged(QTableWidgetItem *item)
             busiActions[row]->v = Double(item->data(Qt::EditRole).toDouble());
             busiActions[row]->dir = DIR_D;
             installDataWatch(false);
-            ui->twActions->item(row,ActionEditItemDelegate::JV)->setData(Qt::EditRole,0);
+            ui->twActions->item(row,ActionEditItemDelegate2::JV)->setData(Qt::EditRole,0);
             installDataWatch();
             //b = true;
         }

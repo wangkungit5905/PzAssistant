@@ -340,7 +340,7 @@ bool BusiUtil::init(QSqlDatabase& db)
     //初始化凭证类别代码集合
     impPzCls.clear();
     impPzCls.insert(Pzc_GdzcZj);
-    impPzCls.insert(Pzc_Dtfy);
+    impPzCls.insert(Pzc_DtfyTx);
 
     //这些可以通过访问全局变量pzClsJzhds来获得
 //    jzhdPzCls.clear();

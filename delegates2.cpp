@@ -91,7 +91,7 @@ void iTosItemDelegate::setBoxEnanbled(bool isEnabled)
 
 
 ////////////////////////////SummaryEdit/////////////////////////
-SummaryEdit::SummaryEdit(int row,int col,QWidget* parent) : QLineEdit(parent)
+SummaryEdit2::SummaryEdit2(int row,int col,QWidget* parent) : QLineEdit(parent)
 {
     this->row = row;
     this->col = col;
@@ -103,20 +103,20 @@ SummaryEdit::SummaryEdit(int row,int col,QWidget* parent) : QLineEdit(parent)
 }
 
 //设置内容
-void SummaryEdit::setContent(QString content)
+void SummaryEdit2::setContent(QString content)
 {
     parse(content);
     setText(summary);
 }
 
 //取得摘要的所有内容（包括摘要信息体，引用体）
-QString SummaryEdit::getContent()
+QString SummaryEdit2::getContent()
 {
     return assemble();
 }
 
 //解析内容
-void SummaryEdit::parse(QString content)
+void SummaryEdit2::parse(QString content)
 {
     QString summ,xmlStr;
     int start = content.indexOf("<");
@@ -150,7 +150,7 @@ void SummaryEdit::parse(QString content)
 }
 
 //装配内容（包括摘要信息体，引用体）
-QString SummaryEdit::assemble()
+QString SummaryEdit2::assemble()
 {
     summary = text();
     bool isHave = false;
@@ -196,20 +196,20 @@ QString SummaryEdit::assemble()
 }
 
 //摘要部分修改结束了
-void SummaryEdit::summaryEditingFinished()
+void SummaryEdit2::summaryEditingFinished()
 {
     summary = text();
     emit dataEditCompleted(0,true);
 }
 
 //捕获自动复制前一条会计分录的快捷方式
-void SummaryEdit::shortCutActivated()
+void SummaryEdit2::shortCutActivated()
 {
     emit copyPrevShortcutPressed(row,col);
 }
 
 //重载此函数的目的是创建一种输入摘要引用体内容的方法
-void SummaryEdit::keyPressEvent(QKeyEvent *event)
+void SummaryEdit2::keyPressEvent(QKeyEvent *event)
 {
     //if(event->modifiers() == Qt::AltModifier){
 
@@ -250,13 +250,13 @@ void SummaryEdit::keyPressEvent(QKeyEvent *event)
     QLineEdit::keyPressEvent(event);
 }
 
-void SummaryEdit::mouseDoubleClickEvent(QMouseEvent *e)
+void SummaryEdit2::mouseDoubleClickEvent(QMouseEvent *e)
 {
     int i = 0;
     e->ignore();
 }
 
-void SummaryEdit::focusOutEvent(QFocusEvent* e)
+void SummaryEdit2::focusOutEvent(QFocusEvent* e)
 {
     //QLineEdit::focusOutEvent(e);
 
@@ -275,7 +275,7 @@ void SummaryEdit::focusOutEvent(QFocusEvent* e)
 
 /////////////////////////////FstSubComboBox//////////////////////////
 
-FstSubComboBox::FstSubComboBox(QWidget *parent) : QComboBox(parent)
+FstSubComboBox2::FstSubComboBox2(QWidget *parent) : QComboBox(parent)
 {
     QList<int>ids;        //总账科目id（它是以科目代码顺序出现的）
     //QList<QString> names; //总账科目名
@@ -300,7 +300,7 @@ FstSubComboBox::FstSubComboBox(QWidget *parent) : QComboBox(parent)
 
 }
 
-FstSubComboBox::~FstSubComboBox()
+FstSubComboBox2::~FstSubComboBox2()
 {
     delete listview;
     delete keys;
@@ -313,7 +313,7 @@ FstSubComboBox::~FstSubComboBox()
 //    QComboBox::focusOutEvent(e);
 //}
 
-void FstSubComboBox::keyPressEvent(QKeyEvent* e)
+void FstSubComboBox2::keyPressEvent(QKeyEvent* e)
 {
     static int i = 0;
     static bool isDigit = true;  //true：输入的是科目的数字代码，false：科目的助记符
@@ -463,7 +463,7 @@ void FstSubComboBox::keyPressEvent(QKeyEvent* e)
 
 
 //////////////////////////SndSubComboBox//////////////////////////
-SndSubComboBox::SndSubComboBox(int pid, SubjectManager *smg, QWidget *parent) :
+SndSubComboBox2::SndSubComboBox2(int pid, SubjectManager *smg, QWidget *parent) :
     QComboBox(parent),pid(pid),smg(smg)
 {
     db = smg->getAccount()->getDbUtil()->getDb();
@@ -525,14 +525,14 @@ SndSubComboBox::SndSubComboBox(int pid, SubjectManager *smg, QWidget *parent) :
 
 }
 
-SndSubComboBox::~SndSubComboBox()
+SndSubComboBox2::~SndSubComboBox2()
 {
     delete listview;
     delete keys;
 }
 
 //设置编辑器激活时所处的行列号
-void SndSubComboBox::setRowColNum(int row, int col)
+void SndSubComboBox2::setRowColNum(int row, int col)
 {
     this->row = row;
     this->col = col;
@@ -544,7 +544,7 @@ void SndSubComboBox::setRowColNum(int row, int col)
 //    QComboBox::focusOutEvent(e);
 //}
 
-void SndSubComboBox::keyPressEvent(QKeyEvent* e)
+void SndSubComboBox2::keyPressEvent(QKeyEvent* e)
 {
     static int i = 0;
     static bool isDigit = true;  //true：输入的是科目的数字代码，false：科目的助记符    
@@ -777,7 +777,7 @@ void SndSubComboBox::keyPressEvent(QKeyEvent* e)
 
 
 /////////////////////////////MoneyTypeComboBox///////////////////////
-MoneyTypeComboBox::MoneyTypeComboBox(QHash<int,QString>* mts,
+MoneyTypeComboBox2::MoneyTypeComboBox2(QHash<int,QString>* mts,
                                      QWidget* parent):QComboBox(parent)
 {
     this->mts = mts;
@@ -788,19 +788,19 @@ MoneyTypeComboBox::MoneyTypeComboBox(QHash<int,QString>* mts,
     }
 }
 
-void MoneyTypeComboBox::setCell(int row,int col)
+void MoneyTypeComboBox2::setCell(int row,int col)
 {
     this->row = row;
     this->col = col;
 }
 
-void MoneyTypeComboBox::focusOutEvent(QFocusEvent* e)
+void MoneyTypeComboBox2::focusOutEvent(QFocusEvent* e)
 {
     QComboBox::focusOutEvent(e);
 }
 
 //实现输入货币代码即定位到正确的货币索引
-void MoneyTypeComboBox::keyPressEvent(QKeyEvent* e )
+void MoneyTypeComboBox2::keyPressEvent(QKeyEvent* e )
 {
     int key = e->key();
     if((key >= Qt::Key_0) && (key <= Qt::Key_9)){
@@ -824,7 +824,7 @@ void MoneyTypeComboBox::keyPressEvent(QKeyEvent* e )
 
 
 ////////////////////////////MoneyValueEdit////////////////////////
-MoneyValueEdit::MoneyValueEdit(int row, int witch, double v, QWidget* parent)
+MoneyValueEdit2::MoneyValueEdit2(int row, int witch, double v, QWidget* parent)
     : QLineEdit(parent)
 {
     this->row = row;
@@ -837,7 +837,7 @@ MoneyValueEdit::MoneyValueEdit(int row, int witch, double v, QWidget* parent)
 }
 
 //设置金额值
-void MoneyValueEdit::setValue(double v)
+void MoneyValueEdit2::setValue(double v)
 {
     //QString s = removeRightZero(QString::number(v,'f',2));
     this->v = v;
@@ -853,24 +853,24 @@ void MoneyValueEdit::setValue(double v)
 }
 
 //获取金额值
-double MoneyValueEdit::getValue()
+double MoneyValueEdit2::getValue()
 {
     v = text().toDouble();
     return v;
 }
 
-void MoneyValueEdit::setCell(int row,int col)
+void MoneyValueEdit2::setCell(int row,int col)
 {
     this->row = row;
     this->col = col;
 }
 
-void MoneyValueEdit::focusOutEvent(QFocusEvent* e)
+void MoneyValueEdit2::focusOutEvent(QFocusEvent* e)
 {
     QLineEdit::focusOutEvent(e);
 }
 
-void MoneyValueEdit::keyPressEvent(QKeyEvent* e )
+void MoneyValueEdit2::keyPressEvent(QKeyEvent* e )
 {
     int key = e->key();
     if((key == Qt::Key_Return) || (key == Qt::Key_Enter)){
@@ -948,25 +948,25 @@ void TagEdit::DescEdited(const QString &text)
 
 
 ////////////////////////////////ActionEditItemDelegate/////////////////
-ActionEditItemDelegate::ActionEditItemDelegate(SubjectManager *smg, QObject *parent):
+ActionEditItemDelegate2::ActionEditItemDelegate2(SubjectManager *smg, QObject *parent):
     QItemDelegate(parent),smg(smg)
 {
     isReadOnly = false;
 }
 
 //设置其代理的表格项的只读模式（这个函数用于支持表格的只读模式）
-void ActionEditItemDelegate::setReadOnly(bool readOnly)
+void ActionEditItemDelegate2::setReadOnly(bool readOnly)
 {
     isReadOnly = readOnly;
 }
 
 //
-void ActionEditItemDelegate::setVolidRows(int rows)
+void ActionEditItemDelegate2::setVolidRows(int rows)
 {
     this->rows = rows;
 }
 
-QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+QWidget* ActionEditItemDelegate2::createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                       const QModelIndex &index) const
 {
     if(isReadOnly)
@@ -976,7 +976,7 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
     if(row < rows){
         if(col == SUMMARY){ //摘要列
             //QLineEdit* editor = new QLineEdit(parent);
-            SummaryEdit *editor = new SummaryEdit(row,col,parent);
+            SummaryEdit2 *editor = new SummaryEdit2(row,col,parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
             connect(editor, SIGNAL(copyPrevShortcutPressed(int,int)),
@@ -986,7 +986,7 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
             return editor;
         }
         else if(col == FSTSUB){ //总账科目列
-            FstSubComboBox* editor = new FstSubComboBox(parent);
+            FstSubComboBox2* editor = new FstSubComboBox2(parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
             return editor;
@@ -996,7 +996,7 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
             int pid = index.model()->data(index.model()->index(index.row(),
                            col - 1), Qt::EditRole).toInt();
             if(pid != 0){
-                SndSubComboBox* editor = new SndSubComboBox(pid,smg,parent);
+                SndSubComboBox2* editor = new SndSubComboBox2(pid,smg,parent);
                 //editor->setCompleter(new QCompleter(names, editor));
                 editor->setRowColNum(index.row(), col);
                 connect(editor, SIGNAL(dataEditCompleted(int,bool)),
@@ -1013,19 +1013,19 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
                 return new QComboBox(parent);
         }
         else if(col == MTYPE){ //币种列
-            MoneyTypeComboBox* editor = new MoneyTypeComboBox(&allMts, parent);
+            MoneyTypeComboBox2* editor = new MoneyTypeComboBox2(&allMts, parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
             return editor;
         }
         else if(col == JV){ //借方金额列
-            MoneyValueEdit *editor = new MoneyValueEdit(row,1,0,parent);
+            MoneyValueEdit2 *editor = new MoneyValueEdit2(row,1,0,parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
             return editor;
         }
         else{               //贷方金额列
-            MoneyValueEdit *editor = new MoneyValueEdit(row,0,0,parent);
+            MoneyValueEdit2 *editor = new MoneyValueEdit2(row,0,0,parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
             connect(editor, SIGNAL(nextRow(int)), this, SLOT(nextRow(int)));
@@ -1037,17 +1037,17 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
         return 0;
 }
 
-void ActionEditItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+void ActionEditItemDelegate2::setEditorData(QWidget *editor, const QModelIndex &index) const
 {
     int col = index.column();
     if(col == SUMMARY){
-       SummaryEdit* edit = qobject_cast<SummaryEdit*>(editor);
+       SummaryEdit2* edit = qobject_cast<SummaryEdit2*>(editor);
        if (edit) {
            edit->setContent(index.model()->data(index, Qt::EditRole).toString());
        }
     }
     else if(col == FSTSUB){
-        FstSubComboBox* cmb = qobject_cast<FstSubComboBox*>(editor);
+        FstSubComboBox2* cmb = qobject_cast<FstSubComboBox2*>(editor);
         if(cmb){
             int fid = index.model()->data(index, Qt::EditRole).toInt();
             int idx = cmb->findData(fid, Qt::UserRole);
@@ -1055,7 +1055,7 @@ void ActionEditItemDelegate::setEditorData(QWidget *editor, const QModelIndex &i
         }
     }
     else if(col == SNDSUB){
-        SndSubComboBox* cmb = qobject_cast<SndSubComboBox*>(editor);
+        SndSubComboBox2* cmb = qobject_cast<SndSubComboBox2*>(editor);
         if(cmb){
             int sid = index.model()->data(index, Qt::EditRole).toInt();
             int idx = cmb->findData(sid, Qt::UserRole);
@@ -1063,13 +1063,13 @@ void ActionEditItemDelegate::setEditorData(QWidget *editor, const QModelIndex &i
         }
     }
     else if(col == MTYPE){
-        MoneyTypeComboBox* cmb = qobject_cast<MoneyTypeComboBox*>(editor);
+        MoneyTypeComboBox2* cmb = qobject_cast<MoneyTypeComboBox2*>(editor);
         int mt = index.model()->data(index, Qt::EditRole).toInt();
         int idx = cmb->findData(mt, Qt::UserRole);
         cmb->setCurrentIndex(idx);
     }
     else if((col == JV) || (col == DV)){
-        MoneyValueEdit *edit = qobject_cast<MoneyValueEdit*>(editor);
+        MoneyValueEdit2 *edit = qobject_cast<MoneyValueEdit2*>(editor);
         if (edit) {
             double v = index.model()->data(index, Qt::EditRole).toDouble();
             edit->setValue(v);
@@ -1077,18 +1077,18 @@ void ActionEditItemDelegate::setEditorData(QWidget *editor, const QModelIndex &i
     }    
 }
 
-void ActionEditItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model,
+void ActionEditItemDelegate2::setModelData(QWidget *editor, QAbstractItemModel *model,
                   const QModelIndex &index) const
 {
     int col = index.column();
     if(col == SUMMARY){
-        SummaryEdit* edit = qobject_cast<SummaryEdit*>(editor);
+        SummaryEdit2* edit = qobject_cast<SummaryEdit2*>(editor);
         if (edit) {
             model->setData(index, edit->getContent());
         }
     }
     else if(col == FSTSUB){
-        FstSubComboBox* cmb = qobject_cast<FstSubComboBox*>(editor);
+        FstSubComboBox2* cmb = qobject_cast<FstSubComboBox2*>(editor);
         if(cmb){
             int fid = cmb->itemData(cmb->currentIndex(), Qt::UserRole).toInt();
             if(fid != 0)
@@ -1096,7 +1096,7 @@ void ActionEditItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *m
         }
     }
     else if(col == SNDSUB){
-        SndSubComboBox* cmb = qobject_cast<SndSubComboBox*>(editor);
+        SndSubComboBox2* cmb = qobject_cast<SndSubComboBox2*>(editor);
         if(cmb){
             int sid = cmb->itemData(cmb->currentIndex(), Qt::UserRole).toInt();
 
@@ -1105,7 +1105,7 @@ void ActionEditItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *m
         }
     }
     else if(col == MTYPE){
-        MoneyTypeComboBox* cmb = qobject_cast<MoneyTypeComboBox*>(editor);
+        MoneyTypeComboBox2* cmb = qobject_cast<MoneyTypeComboBox2*>(editor);
         if(cmb){
             int mt = cmb->itemData(cmb->currentIndex(), Qt::UserRole).toInt();
             if(mt != 0)
@@ -1113,7 +1113,7 @@ void ActionEditItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *m
         }
     }
     else if((col == JV) || (col == DV)){
-        MoneyValueEdit* edit = qobject_cast<MoneyValueEdit*>(editor);
+        MoneyValueEdit2* edit = qobject_cast<MoneyValueEdit2*>(editor);
         if(edit){
             double v = edit->getValue();
             model->setData(index, v);
@@ -1121,26 +1121,26 @@ void ActionEditItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *m
     }
 }
 
-void ActionEditItemDelegate::commitAndCloseEditor(int colIndex, bool isMove)
+void ActionEditItemDelegate2::commitAndCloseEditor(int colIndex, bool isMove)
 {
     QWidget* editor;
     if(colIndex == SUMMARY)
         editor = qobject_cast<BASummaryForm*>(sender());
     else if(colIndex == FSTSUB)
-        editor = qobject_cast<FstSubComboBox*>(sender());
+        editor = qobject_cast<FstSubComboBox2*>(sender());
     else if(colIndex == SNDSUB){
-        editor = qobject_cast<SndSubComboBox*>(sender());
+        editor = qobject_cast<SndSubComboBox2*>(sender());
         //SndSubComboBox* combo = qobject_cast<SndSubComboBox*>(sender());
         //int idx = combo->currentIndex();
         //if(idx == -1)
         //    return;
     }
     else if(colIndex == MTYPE)
-        editor = qobject_cast<MoneyTypeComboBox*>(sender());
+        editor = qobject_cast<MoneyTypeComboBox2*>(sender());
     else if(colIndex == JV)
-        editor = qobject_cast<MoneyValueEdit*>(sender());
+        editor = qobject_cast<MoneyValueEdit2*>(sender());
     else if(colIndex == DV)
-        editor = qobject_cast<MoneyValueEdit*>(sender());
+        editor = qobject_cast<MoneyValueEdit2*>(sender());
 
     //emit commitData(editor);
     if(isMove){
@@ -1154,36 +1154,36 @@ void ActionEditItemDelegate::commitAndCloseEditor(int colIndex, bool isMove)
 }
 
 //创建新的一二级科目的映射关系
-void ActionEditItemDelegate::newMappingItem(int pid, int sid, int row, int col)
+void ActionEditItemDelegate2::newMappingItem(int pid, int sid, int row, int col)
 {    
     emit newSndSubMapping(pid,sid,row,col);
 }
 
 //创建新的二级科目，并建立与指定一级科目的映射关系
-void ActionEditItemDelegate::newSndSubject(int fid, QString name, int row, int col)
+void ActionEditItemDelegate2::newSndSubject(int fid, QString name, int row, int col)
 {
     emit newSndSubAndMapping(fid,name,row,col);
 }
 
 //二级科目已被禁用
-void ActionEditItemDelegate::sndSubDisabled(int id)
+void ActionEditItemDelegate2::sndSubDisabled(int id)
 {
     emit sndSubjectDisabled(id);
 }
 
 //信号传播中介，在编辑器打开的情况下，当用户在贷方列按回车键时，会接收到此信号，并将此信号进一步传播给凭证编辑窗口
-void ActionEditItemDelegate::nextRow(int row)
+void ActionEditItemDelegate2::nextRow(int row)
 {
     emit moveNextRow(row);
 }
 
 //捕获编辑器触发的要求自动快捷方式
-void ActionEditItemDelegate::catchCopyPrevShortcut(int row, int col)
+void ActionEditItemDelegate2::catchCopyPrevShortcut(int row, int col)
 {
     emit reqCopyPrevAction(row,col);
 }
 
-void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
+void ActionEditItemDelegate2::updateEditorGeometry(QWidget* editor,
          const QStyleOptionViewItem &option, const QModelIndex& index) const
 {
 //    if(index.column() == SUMMARY){
@@ -1210,7 +1210,7 @@ QWidget* DetExtItemDelegate::createEditor(QWidget *parent, const QStyleOptionVie
     int col = index.column();
     int row = index.row();
     if(col == SUB){
-        SndSubComboBox* editor = new SndSubComboBox(fid,smg,parent);
+        SndSubComboBox2* editor = new SndSubComboBox2(fid,smg,parent);
         editor->setRowColNum(row,col);
         //connect(editor, SIGNAL(editNextItem(int,int)),
         //        this,SLOT(editNextItem(int,int)));
@@ -1221,18 +1221,18 @@ QWidget* DetExtItemDelegate::createEditor(QWidget *parent, const QStyleOptionVie
         return editor;
     }
     else if(col == MT){
-        MoneyTypeComboBox* editor = new MoneyTypeComboBox(&allMts, parent);
+        MoneyTypeComboBox2* editor = new MoneyTypeComboBox2(&allMts, parent);
         editor->setCell(row,col);
         connect(editor, SIGNAL(editNextItem(int,int)),this, SLOT(editNextItem(int,int)));
         return editor;
     }
     else if(col == MV){
-        MoneyValueEdit* editor;
+        MoneyValueEdit2* editor;
         int dir = index.model()->data(index.model()->index(row,DIR),Qt::EditRole).toInt();
         if(dir == DIR_J)
-            editor = new MoneyValueEdit(row,1,0,parent);
+            editor = new MoneyValueEdit2(row,1,0,parent);
         else
-            editor = new MoneyValueEdit(row,0,0,parent);
+            editor = new MoneyValueEdit2(row,0,0,parent);
         connect(editor, SIGNAL(editNextItem(int,int)),this,SLOT(editNextItem(int,int)));
         editor->setCell(row,col);
         return editor;
@@ -1241,12 +1241,12 @@ QWidget* DetExtItemDelegate::createEditor(QWidget *parent, const QStyleOptionVie
         int mt = index.model()->data(index.model()->index(row,MT),Qt::EditRole).toInt();
         if(mt == RMB)
             return NULL;
-        MoneyValueEdit* editor;
+        MoneyValueEdit2* editor;
         int dir = index.model()->data(index.model()->index(row,DIR),Qt::EditRole).toInt();
         if(dir == DIR_J)
-            editor = new MoneyValueEdit(row,1,0,parent);
+            editor = new MoneyValueEdit2(row,1,0,parent);
         else
-            editor = new MoneyValueEdit(row,0,0,parent);
+            editor = new MoneyValueEdit2(row,0,0,parent);
         connect(editor, SIGNAL(editNextItem(int,int)),this,SLOT(editNextItem(int,int)));
         editor->setCell(row,col);
         return editor;
@@ -1271,7 +1271,7 @@ void DetExtItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index
     int col = index.column();
     int row = index.row();
     if(col == SUB){
-        SndSubComboBox* cmb = qobject_cast<SndSubComboBox*>(editor);
+        SndSubComboBox2* cmb = qobject_cast<SndSubComboBox2*>(editor);
         if(cmb){
             int sid = index.model()->data(index, Qt::EditRole).toInt();
             int idx = cmb->findData(sid, Qt::UserRole);
@@ -1279,20 +1279,20 @@ void DetExtItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index
         }
     }
     else if(col == MT){
-        MoneyTypeComboBox* cmb = qobject_cast<MoneyTypeComboBox*>(editor);
+        MoneyTypeComboBox2* cmb = qobject_cast<MoneyTypeComboBox2*>(editor);
         int mt = index.model()->data(index, Qt::EditRole).toInt();
         int idx = cmb->findData(mt, Qt::UserRole);
         cmb->setCurrentIndex(idx);
     }
     else if(col == MV){
-        MoneyValueEdit *edit = qobject_cast<MoneyValueEdit*>(editor);
+        MoneyValueEdit2 *edit = qobject_cast<MoneyValueEdit2*>(editor);
         if (edit) {
             double v = index.model()->data(index, Qt::EditRole).toDouble();
             edit->setValue(v);
         }
     }
     else if(col == RV){
-        MoneyValueEdit *edit = qobject_cast<MoneyValueEdit*>(editor);
+        MoneyValueEdit2 *edit = qobject_cast<MoneyValueEdit2*>(editor);
         if (edit) {
             double v = index.model()->data(index, Qt::EditRole).toDouble();
             edit->setValue(v);
@@ -1322,7 +1322,7 @@ void DetExtItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model
     int col = index.column();
     int row = index.row();
     if(col == SUB){
-        SndSubComboBox* cmb = qobject_cast<SndSubComboBox*>(editor);
+        SndSubComboBox2* cmb = qobject_cast<SndSubComboBox2*>(editor);
         if(cmb){
             int sid = cmb->itemData(cmb->currentIndex(), Qt::UserRole).toInt();
             if(sid != 0)
@@ -1330,7 +1330,7 @@ void DetExtItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model
         }
     }
     else if(col == MT){
-        MoneyTypeComboBox* cmb = qobject_cast<MoneyTypeComboBox*>(editor);
+        MoneyTypeComboBox2* cmb = qobject_cast<MoneyTypeComboBox2*>(editor);
         if(cmb){
             int mt = cmb->itemData(cmb->currentIndex(), Qt::UserRole).toInt();
             if(mt != 0)
@@ -1338,14 +1338,14 @@ void DetExtItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model
         }
     }
     else if(col == MV){
-        MoneyValueEdit* edit = qobject_cast<MoneyValueEdit*>(editor);
+        MoneyValueEdit2* edit = qobject_cast<MoneyValueEdit2*>(editor);
         if(edit){
             double v = edit->getValue();
             model->setData(index, v);
         }
     }
     else if(col == RV){
-        MoneyValueEdit* edit = qobject_cast<MoneyValueEdit*>(editor);
+        MoneyValueEdit2* edit = qobject_cast<MoneyValueEdit2*>(editor);
         if(edit){
             double v = edit->getValue();
             model->setData(index, v);

@@ -68,6 +68,7 @@ int  timeoutOfTemInfo = 10000;
 bool viewHideColInDailyAcc1;
 bool viewHideColInDailyAcc2;
 QList<BusiActionData2*> clbBaList;
+QList<BusiAction*> clb_Bas;
 double czRate;
 
 //VersionManager* accVM;
@@ -153,7 +154,7 @@ int appInit()
     bool r;
 
     pzClsImps.insert(Pzc_GdzcZj);
-    pzClsImps.insert(Pzc_Dtfy);
+    pzClsImps.insert(Pzc_DtfyTx);
 
     pzClsJzhds.insert(Pzc_Jzhd_Bank);
     pzClsJzhds.insert(Pzc_Jzhd_Ys);

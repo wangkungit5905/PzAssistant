@@ -57,7 +57,7 @@ BASummaryForm::BASummaryForm(QWidget *parent) : QWidget(parent),
 
 BASummaryForm::~BASummaryForm()
 {
-    emit dataEditCompleted(ActionEditItemDelegate::SUMMARY);
+    emit dataEditCompleted(ActionEditItemDelegate2::SUMMARY);
     delete ui;
 }
 

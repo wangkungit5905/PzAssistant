@@ -48,9 +48,10 @@ enum CommonItemEditState{
 enum NameItemEditState{
     ES_NI_INIT = 0x0,       //未做任何修改
     ES_NI_CLASS = 0x01,     //名称条目类别改变
-    ES_NI_SNAME = 0x02,     //名称条目的基本信息被修改
-    ES_NI_LNAME = 0x04,     //名称条目的子目被修改
-    ES_NI_SYMBOL = 0x08     //名称条目助记符
+    ES_NI_SNAME = 0x02,     //名称条目简称被修改
+    ES_NI_LNAME = 0x04,     //名称条目全称被修改
+    ES_NI_SYMBOL = 0x08     //名称条目助记符被修改
+
 };
 Q_DECLARE_FLAGS(NameItemEditStates, NameItemEditState)
 Q_DECLARE_OPERATORS_FOR_FLAGS(NameItemEditStates)
@@ -75,10 +76,15 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(FirstSubjectEditStates)
 
 //二级科目编辑状态
 enum SecondSubjectEditState{
-    ES_SS_INIT = 0x0,       //未做任何修改
-    ES_SS_CODE = 0x01,      //二级科目的基本信息被修改
-    ES_SS_WEIGHT = 0x02,    //二级科目的子目被修改
-    ES_SS_ISENABLED = 0x04  //是否启用
+    ES_SS_INIT      = 0x0,  //未做任何修改
+    ES_SS_FID       = 0x01, //父科目
+    ES_SS_NID       = 0x02, //科目所用的名称条目id
+    ES_SS_CODE      = 0x04, //科目代码
+    ES_SS_WEIGHT    = 0x08, //权重
+    ES_SS_ISENABLED = 0x10, //是否启用
+    ES_SS_DISABLE   = 0x20, //禁用时间
+    ES_SS_CTIME     = 0x40, //创建时间
+    ES_SS_CUSER     = 0x80  //创建者
 };
 Q_DECLARE_FLAGS(SecondSubjectEditStates, SecondSubjectEditState)
 Q_DECLARE_OPERATORS_FOR_FLAGS(SecondSubjectEditStates)
@@ -93,6 +99,7 @@ Q_DECLARE_METATYPE(MoneyDirection)
 
 //凭证状态代码
 enum PzState{
+    Pzs_NULL       =    -1,   //空状态
     Pzs_Repeal     =    0,    //作废
     Pzs_Recording  =    1,    //初始录入态
     Pzs_Verify     =    2,    //已审核
@@ -104,6 +111,7 @@ Q_DECLARE_METATYPE(PzState)
 
 //凭证类别代码
 enum PzClass{
+    Pzc_NULL      = -1,        //空凭证
     Pzc_Hand      =   0,       //手工录入的凭证（由用户添加，并允许用户修改）
 
     //由其他模块引入的凭证（由其他模块添加，允许人工修改）
@@ -162,7 +170,7 @@ struct BankAccount{
     Money* mt;              //该账户所对应的币种
     QString accNumber;      //帐号
     SubjectNameItem* niObj; //对应的名称条目对象（这个域在Account对象初始化阶段就要设置）
-    SecondSubject* subObj;  //对应的二级科目对象（这个域只在科目管理器返回此结构时设置）
+    //SecondSubject* subObj;  //对应的二级科目对象（这个域只在科目管理器返回此结构时设置）
 };
 
 //保存日记账表格行数据的结构

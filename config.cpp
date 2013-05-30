@@ -553,3 +553,21 @@ int AppConfig::getLocalMid()
         return 0;
     return q.value(0).toInt();
 }
+
+/**
+ * @brief AppConfig::readPzEwTableState
+ *  读取凭证编辑窗口的默认窗口尺寸、表格行高和列宽等信息
+ * @param dim
+ * @param infos
+ * @return
+ */
+bool AppConfig::readPzEwTableState(QList<int>& infos)
+{
+//    dim.setWidth(1000);
+//    dim.setHeight(600);
+//    dim.setTop(10);
+//    dim.setLeft(10);
+    infos<<30<<400<<80<<100<<80<<150;//默认表格行高、摘要列、一二级科目、币种、金额列宽
+    return true;
+}
+

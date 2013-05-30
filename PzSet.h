@@ -13,18 +13,26 @@ class Account;
 class StatUtil;
 class QUndoStack;
 
+const int MAXUNDOSTACK = 100;    //Undo栈的最大容量
 
 //凭证集管理类
 class PzSetMgr : public QObject
 {
     Q_OBJECT
 public:
+    //保存凭证集的哪个部分
+    enum SaveWitch{
+        SW_ALL   = 1,   //所有
+        SW_PZS   = 2,   //仅凭证
+        SW_STATE = 3    //凭证集状态和余额状态
+    };
 
     PzSetMgr(Account* account,User* user = NULL,QObject* parent = 0);
     ~PzSetMgr();
     Account* getAccount(){return account;}
     bool open(int y, int m);
     bool isOpened();
+    bool isDirty();
     void close();
     StatUtil &getStatObj();
     QUndoStack* getUndoStack(){return undoStack;}
@@ -32,12 +40,10 @@ public:
 
     int year(){return curY;}
     int month(){return curM;}
-    int getPzCount();
     int getMaxZbNum(){return maxZbNum;}
     bool resetPzNum(int by = 1);
-    bool determineState();
     PzsState getState(int curY=0, int curM=0);
-    void setstate(PzsState state, int y=0, int m=0);
+    void setState(PzsState state, int y=0, int m=0);
     bool getExtraState(int y=0,int m=0);
     void setExtraState(bool state, int y=0,int m=0);
     bool getPzSet(int y, int m, QList<PingZheng *> &pzs);
@@ -48,7 +54,7 @@ public:
     bool saveExtra();
     bool readExtra();
     bool readPreExtra();
-    QHash<int,Double>& getRates();
+    QHash<int, Double> getRates();
 
     //导航方法
     PingZheng* first();
@@ -57,17 +63,26 @@ public:
     PingZheng* last();
     PingZheng* seek(int num);
     bool isFirst(){return curIndex == 0;}
-    bool isLast(){return curIndex == pzs->count()-1;}
+    bool isLast(){return !pzs || (curIndex == pzs->count()-1);}
+
+    //返回凭证数的方法
+    int getPzCount();
+    int getRecordingCount(){return c_recording;}
+    int getVerifyCount(){return c_verify;}
+    int getInstatCount(){return c_instat;}
+    int getRepealCount(){return c_repeal;}
 
     PingZheng* appendPz(PzClass pzCls=Pzc_Hand);
     bool append(PingZheng* pz);
     bool insert(PingZheng* pz);
+    bool insert(int index, PingZheng* pz);
     bool remove(PingZheng* pz);
     bool restorePz(PingZheng *pz);
     PingZheng* getPz(int num);
     void setCurPz(PingZheng *pz);
-    bool savePz();
-    bool save();
+    bool savePz(PingZheng* pz);
+    bool savePzSet();
+    bool save(SaveWitch witch=SW_ALL);
 
     bool crtGdzcPz();
     bool crtDtfyImpPz(int y, int m, QList<PzData *> pzds);
@@ -79,7 +94,6 @@ public:
 
     void finishAccount();
 
-    CustomRelationTableModel* getModel();
     bool stat();
     static bool stat(int y, int m);
     bool getDetList();
@@ -89,9 +103,20 @@ public:
     bool find();
     static bool find(int y, int sm, int em);
 
-private:
-    bool isZbNumConflict(int num);
 
+private slots:
+    void needRestat();
+    void pzChangedInSet(PingZheng* pz);
+signals:
+    void currentPzChanged(PingZheng* newPz, PingZheng* oldPz);
+    void pzCountChanged(int count);
+    void pzSetChanged();//包括凭证集内凭证数和凭证内容的改变，用于通知其他窗口有未保存的修改
+private:
+    void cachePz(PingZheng* pz);
+    bool isZbNumConflict(int num);
+    void scanPzCount();
+    void _determinePzSetState(PzsState& state);
+    void _determineCurPzChanged(PingZheng* oldPz);
 
     int genKey(int y, int m);
 
@@ -113,12 +138,16 @@ private:
     QList<PingZheng*>* pzs;      //当前打开的凭证集对象列表
     QList<PingZheng*> pz_dels;  //已被删除的凭证对象列表
 
+    QList<PingZheng*> cachedPzs; //保存被删除后执行了保存操作的凭证对象（用以支持恢复任何情况下被删除的凭证对象）
+
     int curY, curM;               //当前以只读方式打开的凭证集所属年月
     PingZheng* curPz;             //当前显示在凭证编辑窗口内的凭证对象
     int curIndex;                 //当前凭证索引
-    PzsState state;                         //凭证集状态
+    //PzsState state;                         //凭证集状态
     int maxPzNum;                           //最大可用凭证号
     int maxZbNum;                           //最大可用自编号
+    int c_recording,c_verify,c_instat,c_repeal;      //录入态、审核态、入账态和作废的凭证数
+    bool dirty;                   //只记录除凭证外的所有对凭证集的更改（凭证集状态、余额状态等）
     Account* account;
     DbUtil* dbUtil;
     StatUtil* statUtil;

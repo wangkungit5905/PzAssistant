@@ -7,7 +7,7 @@
 
 const char* ObjEditState = "editState";
 QString orgName = "SSC";
-QString appName = "Accounts Assistant Process System";
+QString appName = "PingZheng Assistant";
 QString appTitle;
 QString versionStr;
 QString aboutStr;
@@ -17,9 +17,6 @@ int curAccountId = 0;
 Account* curAccount = NULL;
 int screenWidth;
 int screenHeight;
-
-//int usedRptType = RPT_OLD;
-//int curUsedSubSys = SUBSYS_OLE;
 
 User* curUser = NULL;
 
@@ -32,14 +29,8 @@ QString BaseDataPath;
 
 QString lastModifyTime;
 
-
-//QHash<int,QString> allFstSubs;
-//QHash<int,QString> allFSCodes;
-//QHash<int,QString> allSndSubs;
-//QHash<int,QString> allSndSubLNames;
 QHash<int,QString> MTS;
 QHash<int,QString> allMts;
-//QHash<int,int>  defaultSndSubs;
 
 QHash<int,GdzcType*> allGdzcProductCls;
 QHash<int,QString> allGdzcSubjectCls;
@@ -62,18 +53,14 @@ int subCashRmbId = 0;
 bool isByMt;
 bool isCollapseJz;
 int  autoSaveInterval;
-bool copyOrCut;
 bool jzlrByYear;
 int  timeoutOfTemInfo = 10000;
 bool viewHideColInDailyAcc1;
 bool viewHideColInDailyAcc2;
+ClipboardOperate copyOrCut;
 QList<BusiActionData2*> clbBaList;
 QList<BusiAction*> clb_Bas;
 double czRate;
-
-//VersionManager* accVM;
-//VersionManager* confVM;
-//VersionManager* baseVM;
 
 /**
  * @brief appInit
@@ -99,15 +86,11 @@ int appInit()
     bool exec = false;
     switch(result){
     case VUIR_CANT:
-        //QMessageBox::warning(this,tr("出错信息"),
-        //                     tr("基本库版本不能归集到初始版本！"));
         return 1;
     case VUIR_DONT:
         exec = false;
         break;
     case VUIR_LOW:
-        //QMessageBox::warning(this,tr("出错信息"),
-        //                     tr("当前程序版本太低，必须要用更新版本的程序打开此账户！"));
         return 1;
     case VUIR_MUST:
         exec = true;
@@ -115,8 +98,6 @@ int appInit()
     }
     if(exec){
         if(vm.exec() == QDialog::Rejected){
-            //QMessageBox::warning(this,tr("出错信息"),
-            //                          tr("基本库版本过低，必须先升级！"));
             return 2;
         }
         else if(!vm.getUpgradeResult())
@@ -126,8 +107,6 @@ int appInit()
     AppConfig* appCfg = AppConfig::getInstance();
     if(!appCfg)
         return 3;
-
-    //Account::setDatabase(&adb);
 
     //设置应用程序的版本号
     int master = 0;
@@ -168,8 +147,6 @@ int appInit()
 
     //初始化币种表
     r = q.exec("select code,name from MoneyTypes");
-    //while(q.next())
-    //    allMts[q.value(0).toInt()] = q.value(1).toString();
     while(q.next())
         MTS[q.value(0).toInt()] = q.value(1).toString();
 
@@ -183,18 +160,6 @@ int appInit()
     }
     return 0;
 }
-
-/**
- * @brief initVMs
- *  三大模块需要3个版本管理对象来维护各自的版本
- */
-void initVMs()
-{
-    //accVM = new VersionManager(VersionManager::MT_ACC);
-    //confVM = new VersionManager(VersionManager::MT_CONF);
-    //baseVM = new VersionManager(VersionManager::MT_BASE);
-}
-
 
 void appExit()
 {

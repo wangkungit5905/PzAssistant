@@ -180,7 +180,7 @@ private:
     PingZheng* pz;    //凭证对象
     PzState oldState;
     PzState newState;
-    QHash<PzState,QString> stateNames;  //凭证状态名表
+    //QHash<PzState,QString> stateNames;  //凭证状态名表
 };
 
 /**
@@ -462,7 +462,7 @@ private:
 class PasterBaCmd : public QUndoCommand
 {
 public:
-    PasterBaCmd(PzSetMgr* pm, PingZheng* pz, int row, QList<BusiAction*>* baLst, QUndoCommand* parent = 0);
+    PasterBaCmd(PingZheng* pz, int row, QList<BusiAction*>* baLst, bool copy=true, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
@@ -470,6 +470,7 @@ private:
     PingZheng* pz;    //凭证对象
     int row,rows;     //插入位置，粘贴对象的数目
     QList<BusiAction*>* baLst; //指向剪贴板缓存列表
+    bool copy;        //复制（true）或剪切（false）操作
     //QList<BusiAction*> cacheLst; //内部缓存列表
 };
 

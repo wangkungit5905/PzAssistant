@@ -86,7 +86,8 @@ void BusiAction::setMt(Money *mt)
         Money* oldMt = this->mt;
         this->mt = mt;
         setEditState(ES_BA_MT);
-        emit valueChanged(oldMt,mt,v,v,this);
+        if(mt)
+            emit valueChanged(oldMt,mt,v,v,this);
         parent->setEditState(ES_PZ_BACTION);
     }
 }
@@ -97,7 +98,8 @@ void BusiAction::setValue(Double value)
         Double oldV = v;
         v = value;
         setEditState(ES_BA_VALUE);
-        emit valueChanged(mt,mt,oldV,v,this);
+        if(mt)
+            emit valueChanged(mt,mt,oldV,v,this);
         parent->setEditState(ES_PZ_BACTION);
     }
 }
@@ -113,7 +115,8 @@ void BusiAction::setDir(MoneyDirection direct)
         oldDir = dir;
         dir = tdir;
         setEditState(ES_BA_DIR);
-        emit dirChanged(oldDir,tdir,this);
+        if(mt)
+            emit dirChanged(oldDir,tdir,this);
         parent->setEditState(ES_PZ_BACTION);
     }
 }
@@ -170,6 +173,17 @@ PingZheng::PingZheng(PzSetMgr* parent, int id, QString date, int pnum, int znum,
         this->pzCls = Pzc_Jzhd;
     else
         this->pzCls = pzCls;
+}
+
+PingZheng::~PingZheng()
+{
+    //要不要显式地断开分录与凭证对象的信号连接？
+    qDeleteAll(baLst);
+    baLst.clear();
+    qDeleteAll(baDels);
+    baDels.clear();
+    qDeleteAll(ba_saveAfterDels);
+    ba_saveAfterDels.clear();
 }
 
 void PingZheng::setDate(QString ds)
@@ -528,6 +542,8 @@ BusiAction* PingZheng::appendBlank()
     setEditState(ES_PZ_BACTION);
     curBa = ba;
     watchBusiaction(ba);
+    emit indexBoundaryChanged(baLst.count()==1,true);
+    emit pzContentChanged(this);
     return ba;
 }
 
@@ -547,13 +563,14 @@ BusiAction *PingZheng::append(QString summary, FirstSubject *fsub, SecondSubject
     Q_ASSERT(dir != MDIR_P);
     BusiAction* ba = new BusiAction(0,this,summary,fsub,ssub,mt,dir,v,baLst.count()+1);
     baLst<<ba;
-    if(dir == MDIR_J)
-        js += v;
-    else
-        ds += v;
+    adjustSumForBaChanged(ba);
     setEditState(ES_PZ_BACTION);
     curBa = ba;
     watchBusiaction(ba);
+    emit indexBoundaryChanged(baLst.count()==1,true);
+    emit updateBalanceState(js==ds);
+    emit pzContentChanged(this);
+    emit mustRestat();
     return ba;
 }
 
@@ -576,20 +593,16 @@ bool PingZheng::append(BusiAction *ba, bool isUpdate)
 
     ba->setParent(this);
     baLst<<ba;
-    if(isUpdate){
-        if(ba->dir == DIR_J){
-            js += ba->v;
-            setEditState(ES_PZ_JSUM);
-        }
-        else{
-            ds += ba->v;
-            setEditState(ES_PZ_DSUM);
-        }
-        setEditState(ES_PZ_BACTION);
-        curBa = ba;
-    }
+    if(ba->getMt() && (ba->getValue() != 0.0))
+        adjustSumForBaChanged(ba);
+    setEditState(ES_PZ_BACTION);
+    curBa = ba;
     ba->setNumber(baLst.count());
     watchBusiaction(ba);
+    emit indexBoundaryChanged(baLst.count()==1,true);
+    emit updateBalanceState(js==ds);
+    emit pzContentChanged(this);
+    emit mustRestat();
     return true;
 }
 
@@ -623,18 +636,20 @@ bool PingZheng::insert(int index,BusiAction *ba)
 
     ba->setNumber(idx+1);
     baLst.insert(idx,ba);
-    if(ba->dir == DIR_J){
-        js += ba->v;
-        setEditState(ES_PZ_JSUM);
-    }
-    else{
-        ds += ba->v;
-        setEditState(ES_PZ_DSUM);
-    }
+    bool first,last;
+    first = (index==0);
+    last = (index == baLst.count()-1);
+    emit indexBoundaryChanged(first,last);
+    adjustSumForBaChanged(ba);
+
     for(int i = idx; i < baLst.count(); ++i)
         baLst.at(i)->setNumber(i + 1);
     setEditState(ES_PZ_BACTION);
     watchBusiaction(ba);
+    curBa = ba;
+    emit updateBalanceState(js==ds);
+    emit pzContentChanged(this);
+    emit mustRestat();
     return true;
 }
 
@@ -666,6 +681,15 @@ bool PingZheng::remove(int index)
     ba->setDelete(true);
     baDels<<ba;
     watchBusiaction(ba,false);
+    bool first,last;
+    if(baLst.isEmpty()){
+        first=true,last=true;
+    }
+    else{
+        first = (baLst.count()==1) || (index==0);
+        last = (baLst.count()==1) || (index >=baLst.count()-1);
+    }
+    emit indexBoundaryChanged(first,last);
     return true;
 }
 
@@ -700,22 +724,28 @@ bool PingZheng::remove(BusiAction *ba)
     if(idx < baLst.count()-1)
         for(int i = idx; i < baLst.count(); ++i)
             baLst.at(i)->setNumber(idx+1);
-    if(ba->dir == DIR_J){
-        js -= ba->v;
-        setEditState(ES_PZ_JSUM);
-    }
-    else{
-        ds -= ba->v;
-        setEditState(ES_PZ_DSUM);
-    }
+    adjustSumForBaChanged(ba,false);
     setEditState(ES_PZ_BACTION);
     watchBusiaction(ba,false);
+    bool first,last;
+    if(baLst.isEmpty()){
+        first=true,last=true;
+    }
+    else{
+        first = (baLst.count()==1) || (idx==0);
+        last = (baLst.count()==1) || (idx >=baLst.count()-1);
+    }
+    emit indexBoundaryChanged(first,last);
+    emit updateBalanceState(js==ds);
+    emit pzContentChanged(this);
+    emit mustRestat();
     return true;
 }
 
 /**
  * @brief PingZheng::restore
- * 恢复被删除的会计分录对象（会计分录被删除后未执行保存操作，则此对象仍保留在删除队列中）
+ * 恢复被删除的会计分录对象（会计分录被删除后未执行保存操作，则此对象仍保留在baDels中，
+ *  否则将保存在ba_saveAfterDels中）
  * @param ba
  * @return true：成功，false：对象不存在
  */
@@ -724,11 +754,15 @@ bool PingZheng::restore(BusiAction *ba)
     for(int i = 0; i < baDels.count(); ++i){
         if(*baDels.at(i) == *ba){
             baDels.takeAt(i);
-            insert(ba->getNumber()-1,ba);
-            return true;
+            return insert(ba->getNumber()-1,ba);
         }
     }
-    curBa = ba;
+    for(int i = 0; i < ba_saveAfterDels.count(); ++i){
+        if(*ba_saveAfterDels.at(i) == *ba){
+            ba_saveAfterDels.removeAt(i);
+            return insert(ba->getNumber()-1,ba);
+        }
+    }
     return false;
 }
 
@@ -746,18 +780,24 @@ BusiAction *PingZheng::take(int index)
         return NULL;
     }
     BusiAction *ba = baLst.takeAt(index);
+    watchBusiaction(ba,false);
     if(index < baLst.count()-1)
         for(int i = index; i < baLst.count(); ++i)
             baLst.at(i)->setNumber(index+1);
-    if(ba->dir == DIR_J){
-        js -= ba->v;
-        setEditState(ES_PZ_JSUM);
+    adjustSumForBaChanged(ba,false);
+    setEditState(ES_PZ_BACTION);
+    bool first,last;
+    if(baLst.isEmpty()){
+        first=true,last=true;
     }
     else{
-        ds -= ba->v;
-        setEditState(ES_PZ_DSUM);
+        first = (baLst.count()==1) || (index==0);
+        last = (baLst.count()==1) || (index >=baLst.count()-1);
     }
-    setEditState(ES_PZ_BACTION);
+    emit indexBoundaryChanged(first,last);
+    emit updateBalanceState(js==ds);
+    emit pzContentChanged(this);
+    emit mustRestat();
     return ba;
 }
 
@@ -793,6 +833,9 @@ bool PingZheng::moveUp(int row, int nums)
     }
     baLst.at(i)->setNumber(row-nums+1);
     setEditState(ES_PZ_BACTION);
+    emit pzContentChanged(this);
+    bool first = (row == 1);
+    emit indexBoundaryChanged(first,false);
     return true;
 }
 
@@ -826,7 +869,19 @@ bool PingZheng::moveDown(int row, int nums)
         baLst.swap(i,i+1);
     }
     baLst.at(row+nums)->setNumber(row+nums+1);
+    bool last = (row == baLst.count()-2);
+    emit indexBoundaryChanged(false,last);
+    emit pzContentChanged(this);
     return true;
+}
+
+void PingZheng::setBaList(QList<BusiAction *> lst)
+{
+    baLst = lst;
+    calSum();
+    emit updateBalanceState(js==ds);
+    emit pzContentChanged(this);
+    emit mustRestat();
 }
 
 PingZhengEditStates PingZheng::getEditState()
@@ -842,6 +897,8 @@ void PingZheng::setEditState(PingZhengEditState state)
     oldState |= state;
     QVariant v; v.setValue<PingZhengEditStates>(oldState);
     setProperty(ObjEditState, v);
+    if(state != ES_PZ_INIT)
+        emit pzContentChanged(this);
 }
 
 
@@ -881,6 +938,8 @@ void PingZheng::adjustSumForDirChanged(MoneyDirection oldDir, MoneyDirection new
     }
     setEditState(ES_PZ_JSUM);
     setEditState(ES_PZ_DSUM);
+    emit updateBalanceState(js==ds);
+    emit mustRestat();
 }
 
 /**
@@ -894,11 +953,19 @@ void PingZheng::adjustSumForDirChanged(MoneyDirection oldDir, MoneyDirection new
  */
 void PingZheng::adjustSumForValueChanged(Money *oldMt, Money *newMt, Double &oldValue, Double &newValue,BusiAction* ba)
 {
+    if(!newMt)
+        return;
     if(oldMt==newMt && oldValue==newValue)
         return;
     QHash<int,Double> rates;
     rates = parent()->getRates();
-    Double diffValue = newValue * rates.value(newMt->code(),1.0) - oldValue * rates.value(oldMt->code(),1.0);
+    //rates[1] = 1.0;
+    Double diffValue;
+    if(oldMt){
+        diffValue = newValue * rates.value(newMt->code(),1.0) - oldValue * rates.value(oldMt->code(),1.0);
+    }
+    else
+        diffValue = newValue * rates.value(newMt->code(),1.0);
     if(ba->getDir() == MDIR_J){
         js += diffValue;
         setEditState(ES_PZ_JSUM);
@@ -907,6 +974,8 @@ void PingZheng::adjustSumForValueChanged(Money *oldMt, Money *newMt, Double &old
         ds += diffValue;
         setEditState(ES_PZ_DSUM);
     }
+    emit updateBalanceState(js==ds);
+    emit mustRestat();
 }
 
 //移除会计分录列表中末尾的连续空白会计分录
@@ -936,11 +1005,6 @@ bool PingZheng::hasBusiAction(BusiAction *ba)
     foreach(BusiAction* b,baLst){
         if(*b == *ba)
             return true;
-//        if(b->getId() == ba->getId()){
-//            LOG_ERROR(QObject::tr("The PingZheng object(id:%1,pnum:%2) has same BusiAction object(id:%3)")
-//                      .arg(ID).arg(pnum).arg(ba->getId()));
-//            return true;
-//        }
     }
     return false;
 }
@@ -978,6 +1042,38 @@ void PingZheng::calSum()
     }
     if(ds != dv){
         ds = dv;
+        setEditState(ES_PZ_DSUM);
+    }
+}
+
+/**
+ * @brief PingZheng::adjustSumForBaChanged
+ *  调整由于会计分录的增加或移除操作引起的凭证借贷合计值的改变
+ * @param ba    被增加或移除的分录对象
+ * @param add   增加（true）、移除（false）
+ */
+void PingZheng::adjustSumForBaChanged(BusiAction *ba, bool add)
+{
+    //调整借贷合计值
+    Double v;
+    if(ba->getMt() == p->getAccount()->getMasterMt())
+        v = ba->v;
+    else{
+        QHash<int,Double> rates = p->getRates();
+        v = ba->v * rates.value(ba->mt->code());
+    }
+    if(ba->dir == DIR_J){
+        if(add)
+            js += v;
+        else
+            js -= v;
+        setEditState(ES_PZ_JSUM);
+    }
+    else{
+        if(add)
+            ds += v;
+        else
+            ds -= v;
         setEditState(ES_PZ_DSUM);
     }
 }

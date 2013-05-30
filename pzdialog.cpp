@@ -1,4 +1,5 @@
 #include <QKeyEvent>
+#include <QBuffer>
 
 #include "pzdialog.h"
 #include "cal.h"
@@ -35,10 +36,12 @@ BaTableWidget::BaTableWidget(QWidget *parent):QTableWidget(parent)
     sumTable->setItem(0,1,item);
 
     jSumItem = new BAMoneyValueItem_new(DIR_J,0.00,QColor(Qt::red));
+    jSumItem->setForeColor(QColor("red"));
     //jSumItem->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
     jSumItem->setFlags(falgs);
     sumTable->setItem(0,2,jSumItem);
     dSumItem = new BAMoneyValueItem_new(DIR_D,0.00,QColor(Qt::red));
+    dSumItem->setForeColor(QColor("red"));
     //dSumItem->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
     dSumItem->setFlags(falgs);
     sumTable->setItem(0,3,dSumItem);
@@ -273,23 +276,13 @@ void BaTableWidget::mousePressEvent(QMouseEvent *event)
 
 
 /////////////////////////////PzDialog////////////////////////////////
-PzDialog::PzDialog(int y, int m, PzSetMgr *psm, const StateInfo states, QWidget *parent)
-    : QWidget(parent),ui(new Ui::pzDialog),curRow(-1),isInteracting(false)
+PzDialog::PzDialog(int y, int m, PzSetMgr *psm, QByteArray* sinfo, QWidget *parent)
+    : QDialog(parent),ui(new Ui::pzDialog),curRow(-1),isInteracting(false),pzMgr(psm)
 {
     ui->setupUi(this);
     curPz = NULL;
     initResources();
-    if(states.isValid)
-        this->states = states;
-    else{
-        this->states.rowHeight = PZEW_DEFROWHEIGHT;
-        this->states.colSummaryWidth = PZEW_DEFCW_SUMMARY;
-        this->states.colFstSubWidth = PZEW_DEFCW_FS;
-        this->states.colSndSubWidth = PZEW_DEFCW_SS;
-        this->states.colMtWidth = PZEW_DEFCW_MT;
-        this->states.colValueWidth = PZEW_DEFCW_V;
-    }
-
+    setState(sinfo);
 
     msgTimer = new QTimer(this);
     msgTimer->setInterval(INFO_TIMEOUT);
@@ -297,12 +290,12 @@ PzDialog::PzDialog(int y, int m, PzSetMgr *psm, const StateInfo states, QWidget 
     connect(msgTimer, SIGNAL(timeout()),this,SLOT(msgTimeout()));
 
     if(!psm){
-        showInfomation(tr("Ping Zheng Set object is NULL!"),AE_WARNING);
+        LOG_ERROR("Ping Zheng Set object is NULL!");
         return;
     }
-
+    connect(pzMgr,SIGNAL(pzCountChanged(int)),this,SLOT(updatePzCount(int)));
     //初始化快捷键
-    sc_copyprev = new QShortcut(QKeySequence("Ctrl+="),this);
+    sc_copyprev = new QShortcut(QKeySequence("Alt+W"),this);
     sc_save = new QShortcut(QKeySequence("Ctrl+s"),this);
     sc_copy = new QShortcut(QKeySequence("Ctrl+c"),this);
     sc_cut = new QShortcut(QKeySequence("Ctrl+x"),this);
@@ -313,24 +306,21 @@ PzDialog::PzDialog(int y, int m, PzSetMgr *psm, const StateInfo states, QWidget 
     connect(sc_cut,SIGNAL(activated()),this,SLOT(processShortcut()));
     connect(sc_paster,SIGNAL(activated()),this,SLOT(processShortcut()));
 
-    pmg = psm;
-    account = pmg->getAccount();
+    account = pzMgr->getAccount();
     subMgr = account->getSubjectManager();
     delegate = new ActionEditItemDelegate(subMgr,this);
+    connect(delegate,SIGNAL(reqCopyPrevAction(int)),this,SLOT(copyPrewAction(int)));
     ui->tview->setItemDelegate(delegate);
-    if(!pmg->isOpened() && !pmg->open(y,m)){
-        showInfomation(tr("Ping Zheng Set don't open!"),AE_WARNING);
-        //curPz = NULL;
-        //curIdx = -1;
-    }
+    if(!pzMgr->isOpened() && !pzMgr->open(y,m))
+        QMessageBox::warning(this,msgTitle_warning,tr("凭证集未打开"));
     else{
+        ui->edtPzCount->setText(QString::number(pzMgr->getPzCount()));
         //显示本期汇率
-        rates = pmg->getRates();
+        rates = pzMgr->getRates();
         if(rates.isEmpty()){
-            showInfomation(tr("Don't get current period exchange rates"),AE_WARNING);
+            QMessageBox::warning(this,msgTitle_warning,tr("不能获取本期汇率"));
             return;
         }
-        //rates.remove(account->getMasterMtObject());//移除本币
         QHash<int, Money*> mts = account->getAllMoneys();
         mts.remove(account->getMasterMt()->code());  //移除本币
         QHashIterator<int,Double> it(rates);
@@ -345,27 +335,7 @@ PzDialog::PzDialog(int y, int m, PzSetMgr *psm, const StateInfo states, QWidget 
         connect(ui->cmbMt,SIGNAL(currentIndexChanged(int)),
                 this,SLOT(moneyTypeChanged(int)));
         moneyTypeChanged(0);
-        //rates[account->getMasterMtObject()] = 1.00;
-
-        //显示本期凭证总数
-        //ui->edtPzCount->setText(QString::number(pzSet->getPzCount()));
-
-        QString s = tr("current period pingzheng amount:%1 among").arg(pmg->getPzCount());
-        int repeal = pmg->getStatePzCount(Pzs_Repeal);
-        int record = pmg->getStatePzCount(Pzs_Recording);
-        int verify = pmg->getStatePzCount(Pzs_Verify);
-        int instat = pmg->getStatePzCount(Pzs_Instat);
-        if(record != 0)
-            s.append(tr("(Don't verify:%1)").arg(record));
-        if(verify != 0)
-            s.append(tr("(Haved verify:%1)").arg(verify));
-        if(instat != 0)
-            s.append(tr("(Have bookered:%1)").arg(instat));
-        if(repeal != 0)
-            s.append(tr("(Have repeal:%1)").arg(repeal));
-        showInfomation(s);
-
-        curPz = pmg->first();
+        curPz = pzMgr->first();
         refreshPzContent();
 
         //connect(delegate,SIGNAL(updateSndSubject(int,int,SecondSubject*)),
@@ -378,12 +348,14 @@ PzDialog::PzDialog(int y, int m, PzSetMgr *psm, const StateInfo states, QWidget 
                 this,SLOT(currentCellChanged(int,int,int,int)));
         //connect(delegate,SIGNAL(moveNextRow(int)),this,SLOT(moveToNextBa(int)));
 
-        adjustTableSize();
+        //adjustTableSize();
         connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
                 this,SLOT(tabColWidthResized(int,int,int)));
         connect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
                        this,SLOT(tabRowHeightResized(int,int,int)));
     }
+    connect(ui->tview,SIGNAL(itemSelectionChanged()),this,SLOT(selectedRowChanged()));
+    connect(pzMgr,SIGNAL(currentPzChanged(PingZheng*,PingZheng*)),this,SLOT(curPzChanged(PingZheng*,PingZheng*)));
 }
 
 PzDialog::~PzDialog()
@@ -391,6 +363,54 @@ PzDialog::~PzDialog()
     //delete msgTimer;
     delete ui;
     //
+}
+
+void PzDialog::setState(QByteArray *info)
+{
+    if(!info){
+        states.isValid = true;
+        QList<int> tinfos;
+        AppConfig::getInstance()->readPzEwTableState(tinfos);
+        states.rowHeight = tinfos.first();
+        states.colSummaryWidth = tinfos.at(1);
+        states.colFstSubWidth = tinfos.at(2);
+        states.colSndSubWidth = tinfos.at(3);
+        states.colMtWidth = tinfos.at(4);
+        states.colValueWidth = tinfos.at(5);
+    }
+    else{
+        QBuffer bf(info);
+        QDataStream in(&bf);
+        bf.open(QIODevice::ReadOnly);
+        in>>states.isValid;
+        in>>states.rowHeight;
+        in>>states.colSummaryWidth;
+        in>>states.colFstSubWidth;
+        in>>states.colSndSubWidth;
+        in>>states.colMtWidth;
+        in>>states.colValueWidth;
+        bf.close();
+    }
+    adjustTableSize();
+}
+
+QByteArray *PzDialog::getState()
+{
+    //
+    QByteArray* info = new QByteArray;
+    QBuffer bf(info);
+    QDataStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+
+    out<<states.isValid;
+    out<<states.rowHeight;
+    out<<states.colSummaryWidth;
+    out<<states.colFstSubWidth;
+    out<<states.colSndSubWidth;
+    out<<states.colMtWidth;
+    out<<states.colValueWidth;
+    bf.close();
+    return info;
 }
 
 /**
@@ -411,11 +431,16 @@ void PzDialog::setReadonly()
     //    delegate->setVolidRows(curPz->baCount());
 }
 
+bool PzDialog::isDirty()
+{
+    return pzMgr->isDirty();
+}
+
 /**
  * @brief PzDialog::restoreState 恢复窗口状态
  * @param datas 第1个元素表示表格行高，后6个元素表示表格列宽
  */
-void PzDialog::restoreState()
+void PzDialog::restoreStateInfo()
 {
     ui->tview->setColumnWidth(BaTableWidget::SUMMARY,states.colSummaryWidth);
     ui->tview->setColumnWidth(BaTableWidget::FSTSUB,states.colFstSubWidth);
@@ -461,62 +486,64 @@ void PzDialog::restoreState()
  */
 void PzDialog::updateContent()
 {
-    curPz = pmg->getCurPz();
+    curPz = pzMgr->getCurPz();
     refreshPzContent();
 }
 
 void PzDialog::moveToFirst()
 {
-    curPz = pmg->first();
+    curPz = pzMgr->first();
     refreshPzContent();
 }
 
 void PzDialog::moveToPrev()
 {
-    curPz = pmg->previou();
+    curPz = pzMgr->previou();
     refreshPzContent();
 }
 
 void PzDialog::moveToNext()
 {
-    curPz = pmg->next();
+    curPz = pzMgr->next();
     refreshPzContent();
+    emit showMessage("move to next ping zheng!");
 }
 
 void PzDialog::moveToLast()
 {
-    curPz = pmg->last();
+    curPz = pzMgr->last();
     refreshPzContent();
+    emit showMessage("move to last ping zheng!",AE_WARNING);
 }
 
 /**
  * @brief PzDialog::seek 快速定位指定号的凭证
  * @param num
  */
-void PzDialog::seek(int num)
-{
-    curPz = pmg->seek(num);
-    refreshPzContent();
-}
+//void PzDialog::seek(int num)
+//{
+//    curPz = pzMgr->seek(num);
+//    refreshPzContent();
+//}
 
 void PzDialog::addPz()
 {
     //进行凭证集状态检测，以决定是否可以添加凭证
     PingZheng* oldCurPz = curPz;
-    curPz = new PingZheng(pmg);
+    curPz = new PingZheng(pzMgr);
     QString ds;
     if(!oldCurPz)
-        ds = QDate(pmg->year(),pmg->month(),1).toString(Qt::ISODate);
+        ds = QDate(pzMgr->year(),pzMgr->month(),1).toString(Qt::ISODate);
     else
-        ds = pmg->getPz(pmg->getPzCount())->getDate();
+        ds = pzMgr->getPz(pzMgr->getPzCount())->getDate();
     curPz->setDate(ds);
-    curPz->setNumber(pmg->getPzCount()+1);
-    curPz->setZbNumber(pmg->getMaxZbNum()+1);
+    curPz->setNumber(pzMgr->getPzCount()+1);
+    curPz->setZbNumber(pzMgr->getMaxZbNum());
     curPz->setPzClass(Pzc_Hand);
     curPz->setRecordUser(curUser);
     curPz->setPzState(Pzs_Recording);
-    AppendPzCmd* cmd = new AppendPzCmd(pmg,curPz);
-    pmg->getUndoStack()->push(cmd);
+    AppendPzCmd* cmd = new AppendPzCmd(pzMgr,curPz);
+    pzMgr->getUndoStack()->push(cmd);
     refreshPzContent();
 }
 
@@ -524,28 +551,28 @@ void PzDialog::insertPz()
 {
     //进行凭证集状态检测，以决定是否可以添加凭证
     PingZheng* oldCurPz = curPz;
-    curPz = new PingZheng(pmg);
+    curPz = new PingZheng(pzMgr);
     QString ds;
     if(!oldCurPz)
-        ds = QDate(pmg->year(),pmg->month(),1).toString(Qt::ISODate);
+        ds = QDate(pzMgr->year(),pzMgr->month(),1).toString(Qt::ISODate);
     else
         ds = oldCurPz->getDate();
     curPz->setDate(ds);
     curPz->setNumber(oldCurPz->number());
-    curPz->setZbNumber(pmg->getMaxZbNum()+1);
+    curPz->setZbNumber(pzMgr->getMaxZbNum());
     curPz->setPzClass(Pzc_Hand);
     curPz->setRecordUser(curUser);
     curPz->setPzState(Pzs_Recording);
-    InsertPzCmd* cmd = new InsertPzCmd(pmg,curPz);
-    pmg->getUndoStack()->push(cmd);
+    InsertPzCmd* cmd = new InsertPzCmd(pzMgr,curPz);
+    pzMgr->getUndoStack()->push(cmd);
     refreshPzContent();
 }
 
 void PzDialog::removePz()
 {
-    DelPzCmd* cmd = new DelPzCmd(pmg,curPz);
-    pmg->getUndoStack()->push(cmd);
-    curPz = pmg->getCurPz();
+    DelPzCmd* cmd = new DelPzCmd(pzMgr,curPz);
+    pzMgr->getUndoStack()->push(cmd);
+    curPz = pzMgr->getCurPz();
     refreshPzContent();
 }
 
@@ -561,8 +588,8 @@ void PzDialog::moveUpBa()
     int col = ui->tview->currentColumn();
     if(row <= 0)
         return;
-    ModifyBaMoveCmd* cmd = new ModifyBaMoveCmd(pmg,curPz,curBa,1,pmg->getUndoStack());
-    pmg->getUndoStack()->push(cmd);
+    ModifyBaMoveCmd* cmd = new ModifyBaMoveCmd(pzMgr,curPz,curBa,1,pzMgr->getUndoStack());
+    pzMgr->getUndoStack()->push(cmd);
     BaUpdateColumns updateCols;
     updateCols |= BUC_ALL;
     updateBas(row-1,2,updateCols);
@@ -581,8 +608,8 @@ void PzDialog::moveDownBa()
     int col = ui->tview->currentColumn();
     if(row >= curPz->baCount()-1)
         return;
-    ModifyBaMoveCmd* cmd = new ModifyBaMoveCmd(pmg,curPz,curBa,-1,pmg->getUndoStack());
-    pmg->getUndoStack()->push(cmd);
+    ModifyBaMoveCmd* cmd = new ModifyBaMoveCmd(pzMgr,curPz,curBa,-1,pzMgr->getUndoStack());
+    pzMgr->getUndoStack()->push(cmd);
     BaUpdateColumns updateCols;
     updateCols |= BUC_ALL;
     updateBas(row,2,updateCols);
@@ -598,8 +625,10 @@ void PzDialog::addBa()
     if(!curPz)
         return;
     curBa = new BusiAction;
-    AppendBaCmd* cmd = new AppendBaCmd(pmg,curPz,curBa);
-    pmg->getUndoStack()->push(cmd);
+    curBa->setParent(curPz);
+    curBa->setMt(account->getMasterMt());
+    AppendBaCmd* cmd = new AppendBaCmd(pzMgr,curPz,curBa);
+    pzMgr->getUndoStack()->push(cmd);
     int rows = curPz->baCount();
 
     disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
@@ -620,20 +649,29 @@ void PzDialog::addBa()
  * @brief PzDialog::insertBa
  * 插入会计分录
  */
-void PzDialog::insertBa()
+void PzDialog::insertBa(BusiAction* ba)
 {
     if(curRow == -1)
         return;
-    curBa = new BusiAction;
-    InsertBaCmd* cmd = new InsertBaCmd(pmg,curPz,curBa,curRow);
-    pmg->getUndoStack()->push(cmd);
+    if(!ba){
+        curBa = new BusiAction;
+        curBa->setParent(curPz);
+        curBa->setMt(account->getMasterMt());
+    }
+    else
+        curBa = ba;
+    InsertBaCmd* cmd = new InsertBaCmd(pzMgr,curPz,curBa,curRow);
+    pzMgr->getUndoStack()->push(cmd);
     int rows = curPz->baCount();
 
     disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
     //ui->tview->setRowCount(rows+1);
     ui->tview->setValidRows(rows+1);
     delegate->setVolidRows(rows);
-    initBlankBa(rows);
+//    if(!ba)
+//        initBlankBa(rows);
+//    else
+        refreshSingleBa(curRow,curBa);
     connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
 
     BaUpdateColumns updateCols;
@@ -657,13 +695,13 @@ void PzDialog::removeBa()
     foreach(int r, selRows)
         rowStr.append(QString::number(r+1)).append(",");
     rowStr.chop(1);
-    QUndoCommand* mmd = new QUndoCommand(tr("remove busiaction(%1) in pingzheng(%2#)")
-                                         .arg(rowStr).arg(curPz->number()));
+    QUndoCommand* mmd = new QUndoCommand(tr("移除会计分录（P%1B%2）")
+                                         .arg(curPz->number()).arg(rowStr));
     foreach(int r, selRows){
         BusiAction* b = curPz->getBusiAction(r);
-        ModifyBaDelCmd* cmd = new ModifyBaDelCmd(pmg,curPz,curPz->getBusiAction(r),mmd);
+        ModifyBaDelCmd* cmd = new ModifyBaDelCmd(pzMgr,curPz,curPz->getBusiAction(r),mmd);
     }
-    pmg->getUndoStack()->push(mmd);
+    pzMgr->getUndoStack()->push(mmd);
     int rows = curPz->baCount();
 
     disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
@@ -684,6 +722,19 @@ void PzDialog::removeBa()
     ui->tview->setCurrentCell(curRow,BT_SUMMARY);
 }
 
+/**
+ * @brief PzDialog::getBaSelectedCase
+ *  获取当前凭证中分录的选择情况（如果选择的分录是不连续的，则两个参数都返回true，包括全选的情况）
+ *  这个用来控制分录移动按钮的可用性
+ * @param first 如果选择的分录包含了第一个分录，则为true
+ * @param last  如果选择的分录包含了最后一个分录，则为true
+ */
+void PzDialog::getBaSelectedCase(QList<int> rows, bool& conti)
+{
+    ui->tview->selectedRows(rows,conti);
+}
+
+
 //void PzDialog::setPz(PingZheng *pz)
 //{
 //    curPz = pz;
@@ -695,11 +746,12 @@ void PzDialog::removeBa()
  */
 void PzDialog::msgTimeout()
 {
-    ui->lblStateInfo->setText("");
+    //ui->lblStateInfo->setText("");
 }
 
 /**
- * @brief PzDialog::moneyTypeChanged 监视外币选择的改变
+ * @brief PzDialog::moneyTypeChanged
+ *  根据选择的外币币种，显示对应该外币的汇率
  * @param index
  */
 void PzDialog::moneyTypeChanged(int index)
@@ -746,8 +798,10 @@ void PzDialog::processShortcut()
         save();
     //编辑会计分录相关的快捷键
     else if(ui->tview->hasFocus()){
-        if(sender() == sc_copyprev)
-            copyPreviouBa();
+        if(sender() == sc_copyprev){
+            if(curRow > 0)
+                copyPrewAction(curRow);
+        }
         else if(sender() == sc_copy){
             QList<int> rows; bool c;
             ui->tview->selectedRows(rows,c);
@@ -764,8 +818,9 @@ void PzDialog::processShortcut()
             if(rows.empty())
                 return;
             copyOrCut = CO_CUT;
-            CutBaCmd* cmd = new CutBaCmd(pmg,curPz,rows,&clb_Bas);
-            pmg->getUndoStack()->push(cmd);
+            clb_Bas.clear();
+            CutBaCmd* cmd = new CutBaCmd(pzMgr,curPz,rows,&clb_Bas);
+            pzMgr->getUndoStack()->push(cmd);
             refreshActions();
         }
         else if(sender() == sc_paster){
@@ -775,8 +830,8 @@ void PzDialog::processShortcut()
                 return;
             int row = curRow;
             int rows = clb_Bas.count();
-            PasterBaCmd* cmd = new PasterBaCmd(pmg,curPz,curRow,&clb_Bas);
-            pmg->getUndoStack()->push(cmd);
+            PasterBaCmd* cmd = new PasterBaCmd(curPz,curRow,&clb_Bas,copyOrCut==CO_COPY);
+            pzMgr->getUndoStack()->push(cmd);
             refreshActions();
             //选中粘贴行
             curRow = row;
@@ -788,13 +843,32 @@ void PzDialog::processShortcut()
 
 /**
  * @brief PzDialog::save
- * 保存凭证集和在编辑凭证集的过程中对科目的更改
+ * 保存凭证集内的所有凭证
  */
 void PzDialog::save()
 {
-    LOG_INFO("shortcut save is actived!");
-    //subMgr->save();
-    //pzSet->save();
+    //LOG_INFO("shortcut save is actived!");
+    pzMgr->save(PzSetMgr::SW_PZS);
+}
+
+/**
+ * @brief PzDialog::updatePzCount
+ * @param count
+ */
+void PzDialog::updatePzCount(int count)
+{
+    ui->edtPzCount->setText(QString::number(count));
+}
+
+/**
+ * @brief PzDialog::curPzChanged
+ *  接收由凭证集管理对象发出的当前凭证改变信号，并显示该凭证内容
+ * @param newPz
+ * @param oldPz
+ */
+void PzDialog::curPzChanged(PingZheng *newPz, PingZheng *oldPz)
+{
+    updateContent();
 }
 
 /**
@@ -809,6 +883,26 @@ void PzDialog::moveToNextBa(int row)
         delegate->setVolidRows(row+2);
         initBlankBa(row+1);
     }
+}
+
+/**
+ * @brief PzDialog::selectedBaChanged
+ *  监视分录选择的改变，进而控制移动分录按钮的可用性
+ */
+void PzDialog::selectedRowChanged()
+{
+    QList<int> rows; bool conti;
+    ui->tview->selectedRows(rows,conti);
+    emit selectedBaChanged(rows,conti);
+//    bool first,last;
+//    if(rows.isEmpty()||!conti){
+//        first=true;last=true;
+//    }
+//    else{
+//        first = (rows.first() == 0);
+//        last = (rows.last() == curPz->baCount()-1);
+//    }
+//    emit baIndexBoundaryChanged(first,last);
 }
 
 /**
@@ -838,8 +932,8 @@ void PzDialog::currentCellChanged(int currentRow, int currentColumn, int previou
 void PzDialog::pzDateChanged(const QDate &date)
 {
     //curPz->setDate(date);
-    ModifyPzDateCmd*  cmd = new ModifyPzDateCmd(pmg,curPz,date.toString(Qt::ISODate));
-    pmg->getUndoStack()->push(cmd);
+    ModifyPzDateCmd*  cmd = new ModifyPzDateCmd(pzMgr,curPz,date.toString(Qt::ISODate));
+    pzMgr->getUndoStack()->push(cmd);
 }
 
 /**
@@ -850,8 +944,8 @@ void PzDialog::pzDateChanged(const QDate &date)
 void PzDialog::pzZbNumChanged(int num)
 {
     //curPz->setZbNumber(num);
-    ModifyPzZNumCmd* cmd = new ModifyPzZNumCmd(pmg,curPz,num);
-    pmg->getUndoStack()->push(cmd);
+    ModifyPzZNumCmd* cmd = new ModifyPzZNumCmd(pzMgr,curPz,num);
+    pzMgr->getUndoStack()->push(cmd);
 }
 
 /**
@@ -862,8 +956,8 @@ void PzDialog::pzZbNumChanged(int num)
 void PzDialog::pzEncNumChanged(int num)
 {
     //curPz->setEncNumber(num);
-    ModifyPzEncNumCmd* cmd = new ModifyPzEncNumCmd(pmg,curPz,num);
-    pmg->getUndoStack()->push(cmd);
+    ModifyPzEncNumCmd* cmd = new ModifyPzEncNumCmd(pzMgr,curPz,num);
+    pzMgr->getUndoStack()->push(cmd);
 }
 
 /**
@@ -881,8 +975,8 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
     int rows = ui->tview->getValidRows();
     if(row == rows - 1){
         curBa = new BusiAction;
-        AppendBaCmd* cmd = new AppendBaCmd(pmg,curPz,curBa);
-        pmg->getUndoStack()->push(cmd);
+        AppendBaCmd* cmd = new AppendBaCmd(pzMgr,curPz,curBa);
+        pzMgr->getUndoStack()->push(cmd);
         int rows = curPz->baCount();
         disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
         ui->tview->setValidRows(rows+1);
@@ -912,25 +1006,25 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
 
     switch(col){
     case BT_SUMMARY:
-        scmd = new ModifyBaSummaryCmd(pmg,curPz,curBa,item->data(Qt::EditRole).toString());
-        pmg->getUndoStack()->push(scmd);
+        scmd = new ModifyBaSummaryCmd(pzMgr,curPz,curBa,item->data(Qt::EditRole).toString());
+        pzMgr->getUndoStack()->push(scmd);
         break;
     case BT_FSTSUB:
         fsub = item->data(Qt::EditRole).value<FirstSubject*>();
         //ssub = ui->tview->item(row,BT_SNDSUB)->data(Qt::EditRole).value<SecondSubject*>();
-        mfCmd = new ModifyBaFSubMmd(tr("set busiaction(%1) of first subject to %2 in pingzheng(%3#")
-                .arg(curBa->getNumber()).arg(fsub->getName()).arg(curPz->number()),
-                                    pmg,curPz,curBa,pmg->getUndoStack());
-        fscmd = new ModifyBaFSubCmd(pmg,curPz,curBa,fsub,mfCmd);
+        mfCmd = new ModifyBaFSubMmd(tr("设置一级科目为“%1”（P%2B%3）").arg(fsub->getName())
+                .arg(curPz->number()).arg(curBa->getNumber()),
+                                    pzMgr,curPz,curBa,pzMgr->getUndoStack());
+        fscmd = new ModifyBaFSubCmd(pzMgr,curPz,curBa,fsub,mfCmd);
         //如果一级科目是现金，则默认设置二级科目为账户的本币，如果是外币,要将币种也设为本币
         //如果金额不为零还要调整金额
         if(fsub == subMgr->getCashSub()){
             ssub = fsub->getDefaultSubject();
-            sscmd = new ModifyBaSSubCmd(pmg,curPz,curBa,ssub,mfCmd);
+            sscmd = new ModifyBaSSubCmd(pzMgr,curPz,curBa,ssub,mfCmd);
             updateCols |= BUC_SNDSUB;
             mt = account->getMasterMt(); //本币
             if(mt != curBa->getMt()){
-                mtcmd = new ModifyBaMtCmd(pmg,curPz,curBa,mt,mfCmd);
+                mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,mt,mfCmd);
                 updateCols |= BUC_MTYPE;
                 dir = curBa->getDir();
                 if(dir == MDIR_J)
@@ -939,18 +1033,18 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                     v = ui->tview->item(row,BT_JV)->data(Qt::EditRole).toDouble();
                 if(v != 0){
                     v = v * rates.value(curBa->getMt()->code());
-                    vcmd = new ModifyBaValueCmd(pmg,curPz,curBa,v,dir,mfCmd);
+                    vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,dir,mfCmd);
                     updateCols |= BUC_VALUE;
                 }
             }
         }
         //如果当前设置的二级科目不属于当前一级科目，则清空二级科目的设置
         else if(!curBa->getSecondSubject() && !fsub->containChildSub(ssub)){
-            sscmd = new ModifyBaSSubCmd(pmg,curPz,curBa,NULL,mfCmd);
+            sscmd = new ModifyBaSSubCmd(pzMgr,curPz,curBa,NULL,mfCmd);
             updateCols |= BUC_SNDSUB;
         }
 
-        pmg->getUndoStack()->push(mfCmd);
+        pzMgr->getUndoStack()->push(mfCmd);
         break;
     case BT_SNDSUB:
         LOG_INFO("enter BaDataChanged() function case BT_SNDSUB !");
@@ -958,15 +1052,15 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             return;
         fsub = curBa->getFirstSubject();
         ssub = item->data(Qt::EditRole).value<SecondSubject*>();
-        mmd = new QUndoCommand(tr("set busiaction(%1) of second subject to %2 in pingzheng(%3)")
-                                             .arg(curBa->getNumber()).arg(ssub->getName()).arg(curPz->number()));
-        sscmd = new ModifyBaSSubCmd(pmg,curPz,curBa,ssub,mmd);
+        mmd = new QUndoCommand(tr("设置二级科目为“%1”（P%2B%3）")
+                               .arg(ssub->getName()).arg(curPz->number()).arg(curBa->getNumber()));
+        sscmd = new ModifyBaSSubCmd(pzMgr,curPz,curBa,ssub,mmd);
 
         //如果是银行科目，则根据银行账户所属的币种设置币种对象
         if(subMgr->getBankSub() == fsub){
             mt = subMgr->getSubMatchMt(ssub);
             if(mt != curBa->getMt()){
-                mtcmd = new ModifyBaMtCmd(pmg,curPz,curBa,mt,mmd);
+                mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,mt,mmd);
                 updateCols |= BUC_MTYPE;
                 //如果需要，当值不为0时，调整金额
                 //if(v != 0){
@@ -976,19 +1070,18 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         }        
         else{//如果是普通科目，且未设币种，则默认将币种设为本币
             if(!curBa->getMt()){
-                mtcmd = new ModifyBaMtCmd(pmg,curPz,curBa,account->getMasterMt(),mmd);
+                mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,account->getMasterMt(),mmd);
                 updateCols |= BUC_MTYPE;
             }
         }
-        pmg->getUndoStack()->push(mmd);
+        pzMgr->getUndoStack()->push(mmd);
         break;
     case BT_MTYPE:
         mt = item->data(Qt::EditRole).value<Money*>();
         dir = curBa->getDir();
-        mmCmd = new ModifyBaMtMmd(tr("set busiaction(%1) of money type to %2 in pingzheng(%3#)")
-                                    .arg(curBa->getNumber()).arg(mt->name()).arg(curPz->number()),
-                                  pmg,curPz,curBa,pmg->getUndoStack());
-        mtcmd = new ModifyBaMtCmd(pmg,curPz,curBa,mt,mmCmd);
+        mmCmd = new ModifyBaMtMmd(tr("设置币种为“%1”（P%2B%3）").arg(mt->name()).arg(curPz->number())
+                                    .arg(curBa->getNumber()),pzMgr,curPz,curBa,pzMgr->getUndoStack());
+        mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,mt,mmCmd);
         //如果金额为0，则不必调整金额，否则，必须调整金额
         if(curBa->getValue() != 0){
             //如果从外币转到本币
@@ -999,21 +1092,21 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                 v = curBa->getValue() * rates.value(curBa->getMt()->code()) / rates.value(mt->code());
             else   //从本币转到外币
                 v = curBa->getValue() / rates.value(mt->code());
-            vcmd = new ModifyBaValueCmd(pmg,curPz,curBa,v,dir,mmCmd);
+            vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,dir,mmCmd);
             updateCols |= BUC_VALUE;
         }
-        pmg->getUndoStack()->push(mmCmd);
+        pzMgr->getUndoStack()->push(mmCmd);
         break;
     case BT_JV:
         v = item->data(Qt::EditRole).value<Double>();
-        vcmd = new ModifyBaValueCmd(pmg,curPz,curBa,v,MDIR_J);
-        pmg->getUndoStack()->push(vcmd);
+        vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,MDIR_J);
+        pzMgr->getUndoStack()->push(vcmd);
         updateCols |= BUC_VALUE;
         break;
     case BT_DV:
         v = item->data(Qt::EditRole).value<Double>();
-        vcmd = new ModifyBaValueCmd(pmg,curPz,curBa,v,MDIR_D);
-        pmg->getUndoStack()->push(vcmd);
+        vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,MDIR_D);
+        pzMgr->getUndoStack()->push(vcmd);
         updateCols |= BUC_VALUE;
         break;
     }
@@ -1031,13 +1124,13 @@ void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, Sub
 {
     isInteracting = true;
     //LOG_INFO("enter creatNewNameItemMapping()");
-    if(QMessageBox::information(0,msgTitle_info,tr("Confirm request create new second subject mapping item?\n"
-                                                "first subject:%1\nsecond subject:%2").arg(fsub->getName()).arg(ni->getShortName()),
+    if(QMessageBox::information(0,msgTitle_info,tr("确定要使用已有的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
+                                .arg(ni->getShortName()).arg(fsub->getName()),
                              QMessageBox::Yes|QMessageBox::No) == QMessageBox::No)
         return;
     isInteracting = false;
-    ModifyBaSndSubNMMmd* cmd = new ModifyBaSndSubNMMmd(pmg,curPz,curBa,subMgr,fsub,ni);
-    pmg->getUndoStack()->push(cmd);
+    ModifyBaSndSubNMMmd* cmd = new ModifyBaSndSubNMMmd(pzMgr,curPz,curBa,subMgr,fsub,ni);
+    pzMgr->getUndoStack()->push(cmd);
     ssub = cmd->getSecondSubject();
     BaUpdateColumns updateCols;
     updateCols |= BUC_SNDSUB;
@@ -1059,12 +1152,13 @@ void PzDialog::creatNewSndSubject(int row, int col, FirstSubject* fsub, SecondSu
     //LOG_INFO("enter PzDialog::creatNewSndSubject()");
     CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fsub->getId(),subMgr,0);
     dlg->setName(name);
+
     if(QDialog::Accepted == dlg->exec()){
         ModifyBaSndSubNSMmd* cmd =
-            new ModifyBaSndSubNSMmd(pmg,curPz,curBa,subMgr,fsub,
+            new ModifyBaSndSubNSMmd(pzMgr,curPz,curBa,subMgr,fsub,
                                     dlg->getSName(),dlg->getLName(),
                                     dlg->getRemCode(),dlg->getSubCalss());
-        pmg->getUndoStack()->push(cmd);
+        pzMgr->getUndoStack()->push(cmd);
         ssub = cmd->getSecondSubject();
         BaUpdateColumns updateCols;
         updateCols |= BUC_SNDSUB;
@@ -1075,6 +1169,20 @@ void PzDialog::creatNewSndSubject(int row, int col, FirstSubject* fsub, SecondSu
     else
         ssub = curBa->getSecondSubject();
     //LOG_INFO("exit PzDialog::creatNewSndSubject()");
+}
+
+/**
+ * @brief PzDialog::addCopyPrewAction
+ *  拷贝上一条分录并插入到当前行
+ * @param row
+ * @param col
+ */
+void PzDialog::copyPrewAction(int row)
+{
+    if(row < 1)
+        return;
+    BusiAction* ba = new BusiAction(*curPz->getBusiAction(row-1));
+    insertBa(ba);
 }
 
 /**
@@ -1169,22 +1277,44 @@ void PzDialog::adjustTableSize()
 void PzDialog::refreshPzContent()
 {
     //显示本期凭证总数
-    ui->edtPzCount->setText(QString::number(pmg->getPzCount()));
-    if(curPz == NULL)
-       return;
     installInfoWatch(false);
-    ui->dateEdit->setDate(curPz->getDate2());
-    ui->edtPzNum->setText(QString::number(curPz->number()));
-    ui->spnZbNum->setValue(curPz->zbNumber());
-    ui->spnEncNum->setValue(curPz->encNumber());
-    ui->edtRUser->setText(curPz->recordUser()->getName());
-    ui->edtVUser->setText(curPz->verifyUser()?curPz->verifyUser()->getName():"");
-    ui->edtBUser->setText(curPz->bookKeeperUser()?curPz->bookKeeperUser()->getName():"");
-    ui->lblClass->setPixmap(icons_pzcls.value(curPz->getPzClass()));
-    ui->lblState->setPixmap(icons_pzstate.value(curPz->getPzState()));
-    refreshActions();
+    if(curPz == NULL){
+        disconnect(curPz,SIGNAL(updateBalanceState(bool)),ui->tview,SLOT(setBalance(bool)));
+        ui->dateEdit->setReadOnly(true);
+        //ui->dateEdit->clear();
+        ui->dateEdit->setDate(QDate());
+        ui->edtPzNum->clear();
+        ui->spnZbNum->setReadOnly(true);
+        ui->spnZbNum->clear();
+        ui->spnEncNum->setReadOnly(true);
+        ui->spnEncNum->clear();
+        ui->edtRUser->clear();
+        ui->edtVUser->clear();
+        ui->edtBUser->clear();
+        ui->edtComment->setReadOnly(true);
+        ui->edtComment->clear();
+        ui->lblClass->setPixmap(icons_pzcls.value(Pzc_NULL));
+        ui->lblState->setPixmap(icons_pzstate.value(Pzs_NULL));
+    }
+    else{
+        connect(curPz,SIGNAL(updateBalanceState(bool)),ui->tview,SLOT(setBalance(bool)));
+        ui->dateEdit->setReadOnly(false);
+        ui->dateEdit->setDate(curPz->getDate2());
+        ui->edtPzNum->setText(QString::number(curPz->number()));
+        ui->spnZbNum->setReadOnly(false);
+        ui->spnZbNum->setValue(curPz->zbNumber());
+        ui->spnEncNum->setReadOnly(false);
+        ui->spnEncNum->setValue(curPz->encNumber());
+        ui->edtRUser->setText(curPz->recordUser()->getName());
+        ui->edtVUser->setText(curPz->verifyUser()?curPz->verifyUser()->getName():"");
+        ui->edtBUser->setText(curPz->bookKeeperUser()?curPz->bookKeeperUser()->getName():"");
+        ui->edtComment->setReadOnly(false);
+        ui->lblClass->setPixmap(icons_pzcls.value(curPz->getPzClass()));
+        ui->lblState->setPixmap(icons_pzstate.value(curPz->getPzState()));
+        refreshActions();
+        setReadonly();
+    }
     installInfoWatch();
-    setReadonly();
 }
 
 /**
@@ -1194,6 +1324,7 @@ void PzDialog::refreshActions()
 {
     if(curPz == NULL){
         //validBas = -1;
+        delegate->setReadOnly(true);
         return;
     }
 
@@ -1214,7 +1345,8 @@ void PzDialog::refreshActions()
         i++;
         rowSelStates<<false;
     }
-    initBlankBa(i);
+    initBlankBa(i);    
+    ui->tview->setBalance(curPz->isBalance());
     ui->tview->setJSum(curPz->jsum());
     ui->tview->setDSum(curPz->dsum());
     delegate->setVolidRows(curPz->baCount());
@@ -1370,8 +1502,8 @@ void PzDialog::showInfomation(QString info, AppErrorLevel level)
         s = tr("fault:%1").arg(info);
         break;
     }
-    ui->lblStateInfo->setStyleSheet(colors.value(level));
-    ui->lblStateInfo->setText(s);
+    //ui->lblStateInfo->setStyleSheet(colors.value(level));
+    //ui->lblStateInfo->setText(s);
     msgTimer->start();
 }
 
@@ -1404,10 +1536,10 @@ bool PzDialog::isBlankLastRow()
  * @brief PzDialog::copyPreviouBa
  * 复制上一条会计分录并插入到当前行
  */
-void PzDialog::copyPreviouBa()
-{
-    LOG_INFO("shortcut copy previou is actived!");
-}
+//void PzDialog::copyPreviouBa()
+//{
+//    LOG_INFO("shortcut copy previou is actived!");
+//}
 
 /**
  * @brief PzDialog::copyCutPaste
@@ -1462,12 +1594,6 @@ void PzDialog::installInfoWatch(bool install)
  */
 void PzDialog::initResources()
 {
-    //初始化不同级别的状态信息所采用的样式表颜色
-    colors[AE_OK] = "color: rgb(0, 85, 0)";
-    colors[AE_WARNING] = "color: rgb(255, 0, 127)";
-    colors[AE_CRITICAL] = "color: rgb(85, 0, 0)";
-    colors[AE_ERROR] = "color: rgb(255, 0, 0)";
-
     //初始化各种凭证类别对应的图标
     icons_pzcls[Pzc_Hand] = QPixmap(":/images/PzClass/recording.png");
     icons_pzcls[Pzc_GdzcImp] = QPixmap(":/images/PzClass/gdzcImp.png");

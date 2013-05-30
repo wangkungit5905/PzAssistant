@@ -277,6 +277,13 @@ bool FirstSubject::removeChildSub(SecondSubject *sub)
     return true;
 }
 
+SecondSubject *FirstSubject::getChildSub(int index)
+{
+    if(index<0 || index>=childSubs.count())
+        return 0;
+    else
+        return childSubs.at(index);
+}
 
 /**
  * @brief FirstSubject::getRangeChildSubs
@@ -859,7 +866,7 @@ SecondSubject *SubjectManager::addSndSubject(FirstSubject *fsub, SubjectNameItem
 BankAccount *SubjectManager::getBankAccount(SecondSubject* ssub)
 {
     foreach(BankAccount* ba, account->getAllBankAccount()){
-        if(ba->subObj == ssub)
+        if(ba->niObj == ssub->getNameItem())
             return ba;
     }
     return NULL;

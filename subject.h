@@ -115,7 +115,7 @@ public:
     bool removeChildSub(SecondSubject* sub);
     bool removeChildSub(SubjectNameItem* name);
 
-    SecondSubject* getChildSub(int index){if(index<0 || index>=childSubs.count()) return 0;return childSubs.at(index);}
+    SecondSubject* getChildSub(int index);
     QList<SecondSubject*>& getChildSubs(){return childSubs;}
     bool getRangeChildSubs(SecondSubject* ssub,SecondSubject* esub, QList<SecondSubject*>& subs);
     bool containChildSub(SecondSubject* sndSub);
@@ -218,6 +218,7 @@ private:
     bool isDeleted;         //是否被删除了
 
     friend class SubjectManager;
+    friend class DbUtil;
 };
 
 Q_DECLARE_METATYPE(SubjectNameItem)
@@ -270,13 +271,13 @@ public:
     void setLName(QString name){nItem->setLongName(name);}
     //int getNameCls(){return nItem->getClassId();}//返回科目使用的名称条目的所属类别代码
     //int getNameId(){return nItem->getId();}    //返回科目使用的名称条目的id
-    void setParent(FirstSubject* p){if(p)parent=p;}
+    void setParent(FirstSubject* p){if(p){parent=p;witchEdit |= ES_SS_FID;}}
     FirstSubject* getParent(){return parent;}
     SubjectNameItem* getNameItem(){return nItem;}
     QDateTime getCreateTime(){return crtTime;}
     User* getCreator(){return creator;}
-    QDateTime getDiableTime(){return disTime;}
-    void setDisableTime(QDateTime time){disTime=time;}
+    QDateTime getDisableTime(){return disTime;}
+    void setDisableTime(QDateTime time){disTime=time;witchEdit |= ES_SS_DISABLE;}
 
 
     bool operator ==(SecondSubject& other){if(&other == SS_ALL) return true;else return md == other.md;}
@@ -301,7 +302,7 @@ private:
     SecondSubjectEditStates witchEdit; //记录那些部分被修改了的标志
 
     friend class SubjectManager;
-
+    friend class DbUtil;
 };
 
 Q_DECLARE_METATYPE(SecondSubject)
@@ -336,7 +337,7 @@ public:
     void rollback();
 
     //名称条目相关方法
-    const QList<SubjectNameItem*>& getAllNameItems(){return nameItems.values();}
+    /*const */QList<SubjectNameItem*> getAllNameItems(){return nameItems.values();}
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
     static void removeNameItem(SubjectNameItem* nItem);

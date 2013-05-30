@@ -193,9 +193,12 @@ QList<int> Account::getSuites()
  */
 void Account::setCurSuite(int y)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites)
+    foreach(AccountSuiteRecord* as, accInfos.suites){
         if(as->year == y)
             as->isCur = true;
+        else
+            as->isCur = false;
+    }
 }
 
 void Account::delSuite(int y)
@@ -363,6 +366,15 @@ bool Account::getRates(int y, int m, QHash<int, Double> &rates)
 
 bool Account::getRates(int y, int m, QHash<Money*, Double> &rates)
 {
+    QHash<int,Double> rs;
+    if(!dbUtil->getRates(y,m,rs))
+        return false;
+    QHashIterator<int,Double> it(rs);
+    while(it.hasNext()){
+        it.next();
+        rates[moneys.value(it.key())] = it.value();
+    }
+    return true;
 }
 
 bool Account::setRates(int y, int m, QHash<int, Double> &rates)

@@ -48,5 +48,26 @@
         <file>images/naviTo.png</file>
         <file>images/not_tag.png</file>
         <file>images/tag.png</file>
+        <file>images/edit-redo.png</file>
+        <file>images/edit-undo.png</file>
+        <file>images/PzClass/dtfyImp.png</file>
+        <file>images/PzClass/dtfyTx.png</file>
+        <file>images/PzClass/gdzcImp.png</file>
+        <file>images/PzClass/gdzcZj.png</file>
+        <file>images/PzClass/hdsyBank.png</file>
+        <file>images/PzClass/hdsyYf.xcf</file>
+        <file>images/PzClass/hdsyYs.png</file>
+        <file>images/PzClass/jzBnlr.png</file>
+        <file>images/PzClass/jzsyF.png</file>
+        <file>images/PzClass/jzsyS.png</file>
+        <file>images/PzClass/recording.png</file>
+        <file>images/PzState/init.png</file>
+        <file>images/PzState/instat.png</file>
+        <file>images/PzState/repeal.png</file>
+        <file>images/PzState/verify.png</file>
+        <file>images/action_insert.png</file>
+        <file>images/pz_insert.png</file>
+        <file>images/recordPz_not.png</file>
+        <file>images/recordPz_ok.png</file>
     </qresource>
 </RCC>

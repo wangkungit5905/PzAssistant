@@ -464,30 +464,12 @@ bool DbUtil::saveNameItem(SubjectNameItem *ni)
 
 bool DbUtil::saveSndSubject(SecondSubject *sub)
 {
-    QSqlQuery q(db);
-    QString s;
-    if(sub->getId() == UNID)
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) "
-                    "values(%9,%10,'%11',%12,%13,%14,%15)").arg(tbl_ssub)
-                .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
-                .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_crtTime)
-                .arg(fld_ssub_creator).arg(sub->getParent()->getId()).arg(sub->getNameItem()->getId())
-                .arg(sub->getCode()).arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
-                .arg(sub->getCreateTime().toString(Qt::ISODate)).arg(sub->getCreator()->getUserId());
-    else
-        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10='%11',%=%,%=%,%=% where id=%")
-                .arg(tbl_ssub).arg(fld_ssub_fid).arg(sub->getParent()->getId())
-                .arg(fld_ssub_nid).arg(sub->getNameItem()->getId())
-                .arg(fld_ssub_weight).arg(sub->getWeight()).arg(fld_ssub_enable).arg(sub->isEnabled()?1:0)
-                .arg(fld_ssub_code).arg(sub->getCode())
-                .arg(fld_ssub_crtTime).arg(sub->getCreateTime().toString(Qt::ISODate))
-                .arg(fld_ssub_disTime).arg(sub->getDiableTime().toString(Qt::ISODate))
-                .arg(fld_ssub_creator).arg(sub->getCreator()->getUserId());
-    return q.exec(s);
+    return _saveSecondSubject(sub);
 }
 
 bool DbUtil::savefstSubject(FirstSubject *fsub)
 {
+    return _saveFirstSubject(fsub);
 }
 
 /**
@@ -1543,16 +1525,22 @@ bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
 bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
 {
     QSqlQuery q(db),q1(db);
-    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-    ds.chop(3);
-    QString s = QString("select * from %1 where %2 like '%3%'")
-            .arg(tbl_pz).arg(fld_pz_date).arg(ds);
 
     //发现在事务中装载凭证集，也没有提升多少速度，不知道瓶颈在那里
     if(!db.transaction()){
         warn_transaction(Transaction_open,QObject::tr("When load PingZheng set(%1-%2) failed!"));
         return false;
     }
+
+    QHash<int,Double> rates;
+    if(!getRates(y,m,rates)){
+        LOG_WARNING(QString("Don't read rates(y=%1,m=%2)").arg(y).arg(m));
+    }
+
+    QString ds = QDate(y,m,1).toString(Qt::ISODate);
+    ds.chop(3);
+    QString s = QString("select * from %1 where %2 like '%3%' order by %4")
+            .arg(tbl_pz).arg(fld_pz_date).arg(ds).arg(fld_pz_number);
 
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -1565,7 +1553,6 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
     SubjectManager* smg = account->getSubjectManager(subSys);
     QHash<int,Money*> mts = account->getAllMoneys();
     PingZheng* pz;
-    QList<BusiAction*> bs;
     BusiAction* ba;
     int id,pid,pnum,znum,encnum,num;
     MoneyDirection dir;
@@ -1602,6 +1589,7 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
             LOG_SQLERROR(s);
             return false;
         }
+        Double js = 0.0,ds = 0.0;
         while(q1.next()){
             id = q1.value(0).toInt();
             pid = q1.value(BACTION_PID).toInt();
@@ -1615,13 +1603,25 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
             //ba->state = BusiActionData::INIT;
             ba = new BusiAction(id,pz,summary,fsub,ssub,mt,dir,v,num);
             pz->baLst<<ba;
+            pz->watchBusiaction(ba);
             if(isJzhdPz && fsub->isUseForeignMoney() && dir == MDIR_D){
                 pz->setOppoSubject(fsub);
                 isJzhdPz=false; //后续的判断都是多余的
             }
+            if(dir == MDIR_J)
+                js += v*rates.value(mt->code(),1.0);
+            else
+                ds += v*rates.value(mt->code(),1.0);
         }
         pzs<<pz;
+        //纠正凭证表中的借贷合计值
+        if(js != pz->jsum())
+            pz->js = js;
+        if(ds != pz->dsum())
+            pz->ds = ds;
+        js=0.0;ds=0.0;
     }
+
     if(!db.commit()){
         warn_transaction(Transaction_commit,QObject::tr("When load PingZheng set(%1-%2) failed!"));
         return false;
@@ -1894,13 +1894,15 @@ bool DbUtil::clearExtras(int y, int m)
 /**
  * @brief DbUtil::savePingZhengs
  *  保存一组凭证
- * @param pzs
+ * @param   pzs
+ * @param   dels
+ * @param   catched
  * @return
  */
 bool DbUtil::savePingZhengs(QList<PingZheng *> pzs)
 {
     if(!db.transaction()){
-        warn_transaction(Transaction_open,QObject::tr("when save a Ping Zheng failed!"));
+        warn_transaction(Transaction_open,QObject::tr("when save a Ping Zheng start transaction failed!"));
         return false;
     }
 
@@ -1908,13 +1910,12 @@ bool DbUtil::savePingZhengs(QList<PingZheng *> pzs)
     for(int i = 0; i < pzs.count(); ++i){
         pz = pzs.at(i);
         if(!_savePingZheng(pz)){
-            LOG_SQLERROR("");
-            errorNotify("");
+            LOG_SQLERROR(QObject::tr("保存凭证时发生错误！"));
+            errorNotify(QObject::tr("保存凭证时发生错误！"));
             db.commit();
             return false;
         }
     }
-
     if(!db.commit()){
         if(!db.rollback()){
             warn_transaction(Transaction_rollback,QObject::tr("when save a Ping Zheng rollback transaction failed"));
@@ -1941,8 +1942,8 @@ bool DbUtil::savePingZheng(PingZheng *pz)
         return false;
     }
     if(!_savePingZheng(pz)){
-        LOG_SQLERROR("");
-        errorNotify("");
+        LOG_ERROR(QObject::tr("保存凭证时发生错误！"));
+        errorNotify(QObject::tr("保存凭证时发生错误！"));
         db.commit();
         return false;
     }
@@ -1958,6 +1959,12 @@ bool DbUtil::savePingZheng(PingZheng *pz)
     return true;
 }
 
+/**
+ * @brief DbUtil::delPingZhengs
+ *  从数据库中删除一组凭证
+ * @param pzs
+ * @return
+ */
 bool DbUtil::delPingZhengs(QList<PingZheng *> pzs)
 {
     if(!db.transaction()){
@@ -1969,7 +1976,7 @@ bool DbUtil::delPingZhengs(QList<PingZheng *> pzs)
             errorNotify(QObject::tr("Delete ping zheng operate failed!"));
             return false;
         }
-        delete pzs.at(i);
+        //delete pzs.at(i);
     }
     if(!db.commit()){
         if(!db.rollback()){
@@ -1979,17 +1986,24 @@ bool DbUtil::delPingZhengs(QList<PingZheng *> pzs)
         warn_transaction(Transaction_commit,QObject::tr("when delete a Ping Zheng commit transaction failed"));
         return false;
     }
-    pzs.clear();
+    //pzs.clear();
     return true;
 }
 
+/**
+ * @brief DbUtil::delPingZheng
+ *  删除单一凭证
+ * @param pz
+ * @return
+ */
 bool DbUtil::delPingZheng(PingZheng *pz)
 {
+
     if(!db.transaction()){
         warn_transaction(Transaction_open,QObject::tr("when delete a Ping Zheng failed!"));
         return false;
     }
-    if(_delPingZheng(pz)){
+    if(!_delPingZheng(pz)){
         errorNotify(QObject::tr("Delete ping zheng operate failed!"));
         return false;
     }
@@ -2598,17 +2612,18 @@ bool DbUtil::_saveAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
         oldHash[as->id] = as;
     foreach(Account::AccountSuiteRecord* as, suites){
         if(as->id == 0)
-            s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,'%9',%10,%11)")
-                    .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
-                    .arg(fld_accs_name).arg(fld_accs_recentMonth).arg(fld_accs_isCur)
-                    .arg(as->year).arg(as->subSys).arg(as->name).arg(as->recentMonth)
-                    .arg(as->isCur?1:0);
+            s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(%9,%10,%11,%12,'%13',%14,%15)")
+                    .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys).arg(fld_accs_isCur)
+                    .arg(fld_accs_recentMonth).arg(fld_accs_name).arg(fld_accs_startMonth)
+                    .arg(fld_accs_endMonth).arg(as->year).arg(as->subSys).arg(as->isCur?1:0)
+                    .arg(as->recentMonth).arg(as->name).arg(as->startMonth).arg(as->endMonth);
         else if(*as != *(oldHash.value(as->id)))
-            s = QString("update %1 set %2=%3,%4=%5,%6='%7',%8=%9,%10=%11 where id=%12")
+            s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10='%11',%12=%13,%14=%15 where id=%16")
                     .arg(tbl_accSuites).arg(fld_accs_year).arg(as->year)
-                    .arg(fld_accs_subSys).arg(as->subSys).arg(fld_accs_name)
-                    .arg(as->name).arg(fld_accs_recentMonth).arg(as->recentMonth)
-                    .arg(fld_accs_isCur).arg(as->isCur?1:0).arg(as->id);
+                    .arg(fld_accs_subSys).arg(as->subSys).arg(fld_accs_isCur).arg(as->isCur?1:0)
+                    .arg(fld_accs_recentMonth).arg(as->recentMonth).arg(fld_accs_name).arg(as->name)
+                    .arg(fld_accs_startMonth).arg(as->startMonth).arg(fld_accs_endMonth).arg(as->endMonth)
+                    .arg(as->id);
 
         if(!s.isEmpty()){
             q.exec(s);
@@ -2624,6 +2639,121 @@ bool DbUtil::_saveAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
 }
 
 /**
+ * @brief DbUtil::_saveFirstSubject
+ * @param sub
+ * @return
+ */
+bool DbUtil::_saveFirstSubject(FirstSubject *sub)
+{
+    return false;
+}
+
+/**
+ * @brief DbUtil::_saveSecondSubject
+ * @param sub
+ * @return
+ */
+bool DbUtil::_saveSecondSubject(SecondSubject *sub)
+{
+    QSqlQuery q(db);
+    QString s;
+
+
+    if(!_saveNameItem(sub->getNameItem()))
+        return false;
+
+    if(sub->getId() == UNID)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) "
+                    "values(%9,%10,'%11',%12,%13,'%14',%15)").arg(tbl_ssub)
+                .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+                .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_crtTime)
+                .arg(fld_ssub_creator).arg(sub->getParent()->getId()).arg(sub->getNameItem()->getId())
+                .arg(sub->getCode()).arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
+                .arg(sub->getCreateTime().toString(Qt::ISODate)).arg(sub->getCreator()->getUserId());
+    else{
+        SecondSubjectEditStates state = sub->getEditState();
+        if(state == ES_SS_INIT)
+            return true;
+        s = QString("update %1 set ").arg(tbl_ssub);
+        if(state.testFlag(ES_SS_CODE))
+            s.append(QString("%1='%2',").arg(fld_ssub_code).arg(sub->getCode()));
+        if(state.testFlag(ES_SS_FID))
+            s.append(QString("%1=%2,").arg(fld_ssub_fid).arg(sub->getParent()->getId()));
+        if(state.testFlag(ES_SS_NID))
+            s.append(QString("%1=%2,").arg(fld_ssub_nid).arg(sub->getNameItem()->getId()));
+        if(state.testFlag(ES_SS_WEIGHT))
+            s.append(QString("%1=%2,").arg(fld_ssub_weight).arg(sub->getWeight()));
+        if(state.testFlag(ES_SS_DISABLE))
+            s.append(QString("%1='%2',").arg(fld_ssub_disTime).arg(sub->getDisableTime().toString(Qt::ISODate)));
+        if(state.testFlag(ES_SS_ISENABLED))
+            s.append(QString("%1=%2,").arg(fld_ssub_enable).arg(sub->isEnabled()?1:0));
+        if(state.testFlag(ES_SS_CTIME))
+            s.append(QString("%1=%2,").arg(fld_ssub_crtTime).arg(sub->getCreateTime().toString(Qt::ISODate)));
+        if(state.testFlag(ES_SS_CUSER))
+            s.append(QString("%1=%2,").arg(fld_ssub_creator).arg(sub->getCreator()?sub->getCreator()->getUserId():0));
+        if(s.endsWith(","))
+            s.chop(1);
+        s.append(QString(" where id=%1").arg(sub->getId()));
+    }
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(sub->getId() == 0){
+        if(!q.exec("select last_insert_rowid()") || !q.first())
+            return false;
+        sub->id = q.value(0).toInt();
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::_saveNameItem
+ * @param ni
+ * @return
+ */
+bool DbUtil::_saveNameItem(SubjectNameItem *ni)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(ni->getId() == UNID)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values('%8','%9','%10',%11,'%12',%13)")
+                .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname)
+                .arg(fld_ni_remcode).arg(fld_ni_class).arg(fld_ni_crtTime)
+                .arg(fld_ni_creator).arg(ni->getShortName()).arg(ni->getLongName())
+                .arg(ni->getRemCode()).arg(ni->getClassId()).arg(ni->getCreateTime().toString(Qt::ISODate))
+                .arg(ni->getCreator()?ni->getCreator()->getUserId():1);
+    else{
+        NameItemEditStates state = ni->getEditState();
+        if(state == ES_NI_INIT)
+            return true;
+        s = QString("update %1 set ").arg(tbl_nameItem);
+        if(state.testFlag(ES_NI_CLASS))
+            s.append(QString("%1=%2,").arg(fld_ni_class).arg(ni->getClassId()));
+        if(state.testFlag(ES_NI_SNAME))
+            s.append(QString("%1='%2',").arg(fld_ni_name).arg(ni->getShortName()));
+        if(state.testFlag(ES_NI_LNAME))
+            s.append(QString("%1='%2',").arg(fld_ni_lname).arg(ni->getLongName()));
+        if(state.testFlag(ES_NI_SYMBOL))
+            s.append(QString("%1='%2',").arg(fld_ni_remcode).arg(ni->getRemCode()));
+        if(s.endsWith(","))
+            s.chop(1);
+        s.append(QString(" where id=%1").arg(ni->getId()));
+    }
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(ni->getId() == UNID){
+        if(!q.exec("select last_insert_rowid()") || !q.first())
+            return false;
+        ni->id = q.value(0).toInt();
+    }
+    return true;
+
+}
+
+/**
  * @brief DbUtil::_savePzForInfos
  *  保存凭证的信息部分内容
  * @param pz
@@ -2633,6 +2763,9 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
 {
     QSqlQuery q(db);
     QString s;
+    PingZhengEditStates state = pz->getEditState();
+    if(state == ES_PZ_INIT)
+        return true;
     if(pz->id() == UNID){  //如果是新建凭证
         s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12) "
                     "values('%13',%14,%15,%16,%17,%18,%19,%20,%21,%22,%23)")
@@ -2657,10 +2790,7 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
         q.first(); pz->ID = q.value(0).toInt();
         return _saveBusiactionsInPz(pz);
     }
-    else{   //如果是原有凭证
-        PingZhengEditStates state = pz->getEditState();
-        if(state == ES_PZ_INIT)
-            return true;
+    else{   //如果是原有凭证        
         s = QString("update %1 set ").arg(tbl_pz);
         if(state.testFlag(ES_PZ_DATE))
             s.append(QString("%1='%2',").arg(fld_pz_date).arg(pz->getDate()));
@@ -2712,14 +2842,24 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
     BusiAction* ba;
     for(int i = 0; i < pz->baCount(); ++i){
         ba = pz->getBusiAction(i);
+        BusiActionEditStates state = ba->getEditState();
+        if(state == ES_BA_INIT)
+            continue;
+        //会计分录可能引用了一个新建的二级科目，因此要先保存该二级科目
+        if(ba->getSecondSubject() && ba->getSecondSubject()->getId() == 0){
+            if(!_saveSecondSubject(ba->getSecondSubject()))
+                return false;
+        }
         if(ba->getId() == UNID){ //新会计分录
             s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9) "
                         "values(%10,'%11',%12,%13,%14,%15,%16,%17)")
                     .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary).arg(fld_ba_fid)
                     .arg(fld_ba_sid).arg(fld_ba_mt).arg(fld_ba_value).arg(fld_ba_dir)
                     .arg(fld_ba_number).arg(pz->id()).arg(ba->getSummary())
-                    .arg(ba->getFirstSubject()->getId()).arg(ba->getSecondSubject()->getId())
-                    .arg(ba->getMt()->code()).arg(ba->getValue().getv()).arg(ba->getDir())
+                    .arg(ba->getFirstSubject()?ba->getFirstSubject()->getId():0)
+                    .arg(ba->getSecondSubject()?ba->getSecondSubject()->getId():0)
+                    .arg(ba->getMt()?ba->getMt()->code():0)
+                    .arg(ba->getValue().getv()).arg(ba->getDir())
                     .arg(i+1);
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
@@ -2734,20 +2874,17 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
             ba->id = q.value(0).toInt();
         }
         else{   //原有的已修改会计分录
-            s = QString("update set %1 ").arg(tbl_ba);
-            BusiActionEditStates state = ba->getEditState();
-            if(state == ES_BA_INIT)
-                continue;
+            s = QString("update %1 set ").arg(tbl_ba);            
             if(state.testFlag(ES_BA_NUMBER))
                 s.append(QString("%1=%2,").arg(fld_ba_number).arg(i+1));
             if(state.testFlag(ES_BA_PARENT))
                 s.append(QString("%1=%2,").arg(fld_ba_pid).arg(pz->id()));
             if(state.testFlag(ES_BA_SUMMARY))
-                s.append(QString("%1='%2',").arg(fld_ba_pid).arg(ba->getSummary()));
+                s.append(QString("%1='%2',").arg(fld_ba_summary).arg(ba->getSummary()));
             if(state.testFlag(ES_BA_FSUB))
-                s.append(QString("%1=%2,").arg(fld_ba_fid).arg(ba->getFirstSubject()->getId()));
+                s.append(QString("%1=%2,").arg(fld_ba_fid).arg(ba->getFirstSubject()?ba->getFirstSubject()->getId():0));
             if(state.testFlag(ES_BA_SSUB))
-                s.append(QString("%1=%2,").arg(fld_ba_sid).arg(ba->getSecondSubject()->getId()));
+                s.append(QString("%1=%2,").arg(fld_ba_sid).arg(ba->getSecondSubject()?ba->getSecondSubject()->getId():0));
             if(state.testFlag(ES_BA_MT))
                 s.append(QString("%1=%2,").arg(fld_ba_mt).arg(ba->getMt()->code()));
             if(state.testFlag(ES_BA_VALUE))
@@ -2763,18 +2900,19 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
                 }
             }
         }
+        ba->setEditState(ES_BA_INIT);
     }
-    foreach(ba,pz->baDels){
-        if(ba->getId() == UNID)
-            pz->baDels.removeOne(ba);
-        else{
-            s = QString("delect from %1 where id=%2").arg(tbl_ba).arg(ba->getId());
+    for(int i = 0; i < pz->baDels.count(); ++i){
+        ba = pz->baDels.takeAt(0);
+        if(ba->getId() != UNID){
+            s = QString("delete from %1 where id=%2").arg(tbl_ba).arg(ba->getId());
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
                 return false;
             }
         }
-
+        ba->id = UNID;
+        pz->ba_saveAfterDels<<ba;
     }
     return true;
 }
@@ -2787,10 +2925,9 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
 bool DbUtil::_delPingZheng(PingZheng *pz)
 {
     Q_ASSERT(pz);
-    if(pz->id() == UNID){
-        delete pz;
+    if(pz->id() == UNID)
         return true;
-    }
+
     QSqlQuery q(db);
     QString s = QString("delete from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_pid).arg(pz->id());
     if(!q.exec(s)){

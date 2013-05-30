@@ -155,6 +155,12 @@ private:
     bool _readAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
     bool _saveAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
 
+    //科目相关
+    bool _saveFirstSubject(FirstSubject* sub);
+    bool _saveSecondSubject(SecondSubject* sub);
+    bool _saveNameItem(SubjectNameItem* ni);
+
+    //凭证相关
     bool _savePingZheng(PingZheng* pz);
     bool _saveBusiactionsInPz(PingZheng* pz);
     bool _delPingZheng(PingZheng* pz);

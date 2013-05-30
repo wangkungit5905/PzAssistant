@@ -16,12 +16,12 @@
 //#define PZEW_SD_COUNT 9      //状态信息个数
 #define PZEW_DEF_WIDTH  1000 //默认宽度
 #define PZEW_DEF_HEIGHT 600  //默认高度
-#define PZEW_DEFROWHEIGHT    30   //默认表格行高
-#define PZEW_DEFCW_SUMMARY   400  //摘要列列宽
-#define PZEW_DEFCW_FS        80   //一级科目列列宽
-#define PZEW_DEFCW_SS        100  //而积极科目列列宽
-#define PZEW_DEFCW_MT        80   //币种列列宽
-#define PZEW_DEFCW_V         150  //金额列列宽
+//const int PZEW_DEFROWHEIGHT = 30;   //默认表格行高
+//const int PZEW_DEFCW_SUMMARY   400  //摘要列列宽
+//const int PZEW_DEFCW_FS        80   //一级科目列列宽
+//const int PZEW_DEFCW_SS        100  //而积极科目列列宽
+//const int PZEW_DEFCW_MT        80   //币种列列宽
+//const int PZEW_DEFCW_V         150  //金额列列宽
 
 namespace Ui {
 class pzDialog;
@@ -46,15 +46,14 @@ public:
     void setValidRows(int rows);
     int getValidRows(){return validRows;}
     void setJSum(Double v);
-    void setDSum(Double v);
-    void setBalance(bool isBalance = true);
+    void setDSum(Double v);    
     void setLongName(QString name);
     void switchRow(int r1,int r2);
     bool isHasSelectedRows();
     void selectedRows(QList<int>& selRows, bool& isContinuous);
-
-
     void updateSubTableGeometry();
+public slots:
+    void setBalance(bool isBalance);
 protected:
     virtual void resizeEvent(QResizeEvent *event);
     void keyPressEvent(QKeyEvent* e);
@@ -92,37 +91,41 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(BaUpdateColumns)
 
 
 
-class PzDialog : public QWidget
+class PzDialog : public QDialog
 {
     Q_OBJECT
 
 public:
     struct StateInfo{
         bool isValid;        //是否有效
-        int rowHeight;       //表格行高
-        int colSummaryWidth; //摘要列列宽
-        int colFstSubWidth;  //一级科目列列宽
-        int colSndSubWidth;  //二级科目列列宽
-        int colMtWidth;      //币种列列宽
-        int colValueWidth;   //金额列列宽
+        qint8 rowHeight;       //表格行高
+        qint16 colSummaryWidth; //摘要列列宽
+        qint16 colFstSubWidth;  //一级科目列列宽
+        qint16 colSndSubWidth;  //二级科目列列宽
+        qint16 colMtWidth;      //币种列列宽
+        qint16 colValueWidth;   //金额列列宽
     };
 
-    explicit PzDialog(int y, int m, PzSetMgr* psm, const StateInfo states, QWidget *parent = NULL);
+    explicit PzDialog(int y, int m, PzSetMgr* psm, QByteArray* sinfo, QWidget *parent = NULL);
     ~PzDialog();
+    void setState(QByteArray* info);
+    QByteArray* getState();
 
     void setReadonly();
+    bool isDirty();
 
     //状态获取和恢复方法
-    void restoreState();
-    const StateInfo &getState(){return states;}
+    void restoreStateInfo();
+    const StateInfo &getStateInfo(){return states;}
 
     //凭证导航方法
     void updateContent();
+    //这些方法应该可以去除了
     void moveToFirst();
     void moveToPrev();
     void moveToNext();
     void moveToLast();
-    void seek(int num);
+    //void seek(int num);
 
     //凭证增删方法
     void addPz();
@@ -133,19 +136,24 @@ public:
     void moveUpBa();
     void moveDownBa();
     void addBa();
-    void insertBa();
+    void insertBa(BusiAction *ba=NULL);
     void removeBa();
+    void getBaSelectedCase(QList<int> rows, bool& conti);
 
     //bool hasSelectedRow();
     //void selectedRows(QList<int>& rows);
-
+public slots:
+    void save();
 private slots:
+    void updatePzCount(int count);
+    void curPzChanged(PingZheng* newPz, PingZheng* oldPz);
     void msgTimeout();
     void moneyTypeChanged(int index);
     //void updateSndSubject(int row, int col, SecondSubject* ssub);
     void processShortcut();
-    void save();
+
     void moveToNextBa(int row);
+    void selectedRowChanged();
 
     //凭证内容编辑监视槽
     void currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
@@ -196,7 +204,7 @@ private slots:
 //    void pasterAction();
 //    void deleteAction();
 //    void addNewAction();
-//    void addCopyPrewAction();
+    void copyPrewAction(int row);
 //    void insertAction();
 //    void insertOppoAction();
 //    void collapsActions();
@@ -207,8 +215,10 @@ private slots:
     void tabColWidthResized(int index, int oldSize, int newSize);
     void tabRowHeightResized(int index, int oldSize, int newSize);
 
-//signals:
-
+signals:
+    void showMessage(QString info, AppErrorLevel levelS=AE_OK);
+    void selectedBaChanged(QList<int> rows, bool conti);
+    //void baIndexBoundaryChanged(bool first, bool last);
 private:
     void adjustTableSize();
     void initResources();
@@ -222,7 +232,7 @@ private:
     void showInfomation(QString info,AppErrorLevel level = AE_OK);
     bool isBlankLastRow();
     //
-    void copyPreviouBa();
+    //void copyPreviouBa();
     void copyCutPaste(ClipboardOperate witch);
 
 //    void enableWidget();
@@ -241,7 +251,7 @@ private:
     Ui::pzDialog *ui;
     Account* account;            //账户对象
     SubjectManager* subMgr;      //科目管理对象
-    PzSetMgr* pmg;             //凭证集
+    PzSetMgr* pzMgr;             //凭证集
     PingZheng* curPz;            //当前凭证
     BusiAction* curBa;           //当前会计分录
     int curRow;                  //当前选定的会计分录行号
@@ -253,7 +263,6 @@ private:
 //    //int selRows;                 //
     QList<bool> rowSelStates;  //行选择状态列表
 
-    QHash<AppErrorLevel,QString> colors;     //信息级别所使用的颜色在样式表中的表示串
     QHash<PzClass,QPixmap> icons_pzcls;      //各种凭证类别对应的图标
     QHash<PzState,QPixmap> icons_pzstate;    //各种凭证状态对应的图标
 

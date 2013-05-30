@@ -17,11 +17,14 @@
 #include "widgets.h"
 #include "subjectsearchform.h"
 
-
+class QUndoStack;
+class QUndoView;
 
 namespace Ui {
     class MainWindow;
 }
+
+
 
 class PaStatusBar : public QStatusBar
 {
@@ -40,9 +43,12 @@ public:
     void setPzCounts(int repeal,int recording,int verify,int instat,int amount);
     void resetPzCounts();
     void setUser(User* user);
+    void showRuntimeMessage(QString info, AppErrorLevel level);
 
 public slots:
     void notificationProgress(int amount, int curp);
+private slots:
+    void timeout();
 private:
     void startProgress(int amount);
     void endProgress();
@@ -50,7 +56,10 @@ private:
 
     QLabel pzSetDate,pzSetState,extraState,lblUser,pzCount,pzRepeal,pzRecording,pzVerify,pzInstat;
     QProgressBar* pBar;
+    QLabel* lblRuntime;
     int pAmount;  //进度指示器的最大值
+    QHash<AppErrorLevel,QString> colors;     //运行时信息各级别所使用的颜色在样式表中的表示串
+    QTimer* timer;
 };
 
 
@@ -70,9 +79,10 @@ public:
         PZSTAT     = 2,    //本期统计窗口
         PZSTAT2    = 3,    //本期统计窗口（新）
         DETAILSVIEW2 = 4,  //明细账视图（新）
+        PZEDIT_new     = 5,    //凭证编辑窗口（新）
         //CASHDAILY  = 3,    //现金日记账窗口
         //BANKDAILY  = 4,    //银行日记账窗口
-        DETAILSDAILY=5,    //明细科目日记账窗口
+        //DETAILSDAILY=5,    //明细科目日记账窗口
         TOTALDAILY = 6,    //总分类账窗口
         SETUPBASE  = 7,    //设置账户期初余额窗口
         SETUPBANK  = 8,    //设置开户行信息
@@ -87,6 +97,21 @@ public:
         VIEWPZSETERROR=17  //查看凭证错误窗口
         //设置期初余额的窗口
         //科目配置窗口
+
+
+    };
+
+    //工具视图类别枚举
+    enum ToolViewType{
+        TV_UNDO         = 1,    //UndoView工具视图
+        TV_SEARCHCLIENT = 2     //搜索客户
+    };
+
+    //undo框架类别
+    enum UndoType{
+        UT_PZ  = 1,      //对凭证集的编辑
+        UT_ACCOUNT = 2,  //对账户信息的编辑
+        UT_SUBJECT = 3   //对科目系统的编辑
     };
 
     explicit MainWindow(QWidget *parent = 0);
@@ -150,23 +175,44 @@ private slots:
     void subWindowActivated(QMdiSubWindow *window);
 
     void pzStateChange(int scode);
-    void pzContentChanged(bool isChanged = true);
-    void curPzIndexChanged(int idx, int nums);
-    void pzContentSaved();
+    //void pzContentChanged(bool isChanged = true);
+    //void pzContentSaved();
 
     void userModifyPzState(bool checked);
     void userSelBaAction(bool isSel);
     void showTemInfo(QString info);
+    void showRuntimeInfo(QString info, AppErrorLevel level);
     void refreshShowPzsState();
-    void extraChanged(){isExtraVolid = false;} //由于凭证集发生了影响统计余额的改变，导致当前余额失效，
+    //void extraChanged(){isExtraVolid = false;} //由于凭证集发生了影响统计余额的改变，导致当前余额失效，
                                                //目前主要由凭证编辑窗口的编辑动作引起，反馈给主窗口
     void extraValid();
 
+    //Undo框架相关槽
+    void undoViewItemClicked(const QModelIndex &indexes);
+    //void canRedoChanged(bool canRedo);
+    //void canUndoChanged(bool canUndo);
+    void undoCleanChanged(bool clean);
+    void UndoIndexChanged(int idx);
+    void redoTextChanged(const QString& redoText);
+    void undoTextChanged(const QString& undoText);
+
+    void showAndHideToolView(int vtype);
+    void DockWindowVisibilityChanged(bool visible);
+    void pzCountChanged(int count);
+    void rfNaveBtn(PingZheng* newPz, PingZheng* oldPz);
+    void baIndexBoundaryChanged(bool first, bool last);
+    void baSelectChanged(QList<int> rows, bool conti);
+    //void PzChangedInSet();
+
     void on_actAddPz_triggered();
+
+    void on_actInsertPz_triggered();
 
     void on_actDelPz_triggered();
 
     void on_actAddAction_triggered();
+
+    void on_actInsertBa_triggered();
 
     void on_actDelAction_triggered();
 
@@ -178,7 +224,7 @@ private slots:
 
     void on_actGoLast_triggered();
 
-    void on_actSavePz_triggered();
+    void on_actSave_triggered();
 
     void on_actFordPl_triggered();
 
@@ -186,23 +232,11 @@ private slots:
 
     void on_actCurStat_triggered();
 
-    void on_actCashJournal_triggered();
-
-    void on_actBankJournal_triggered();
-
-    void on_actSubsidiaryLedger_triggered();
-
-    void on_actLedger_triggered();    
-
     void on_actPrint_triggered();
 
     void on_actPrintAdd_triggered();
 
     void on_actPrintDel_triggered();
-
-    void on_actSortByZb_triggered();
-
-    void on_actSortByPz_triggered();
 
     void on_actLogin_triggered();
 
@@ -226,7 +260,7 @@ private slots:
 
     void on_actAntiVerify_triggered();
 
-    void on_actInsertPz_triggered();
+
 
     void on_actReassignPzNum_triggered();
 
@@ -274,14 +308,22 @@ private:
     void allPzToRecording(int year, int month);
     void initActions();
     void initToolBar();
-    void initDockWidget();
+    void initSearchClientToolView();
+    void initTvActions();
     void accountInit();    
-    QDialog* activeMdiChild();
-    void refreshTbrVisble();
-    void refreshActEnanble();
+    subWindowType activedMdiChild();
+    void rfOther();
+    void rfLogin(bool login = true);
+    void rfMainAct(bool open = true);
+    void rfPzSetAct(bool open = true);
+    void rfPzAct();
+    void rfAdvancedAct();
+    void rfEditAct();
+    void rfAct();
+    void rfTbrVisble();
+    void refreshActEnanble();    
     void refreshAdvancPzOperBtn();
-    void enaActOnLogin(bool isEnabled);    
-    bool isIncoming(int id);
+    void enaActOnLogin(bool isEnabled);
     void rightWarnning(int right);
     void pzsWarning();
     void sqlWarning();
@@ -292,6 +334,11 @@ private:
 
     bool jzsy();
     bool jzhdsy();
+
+    void initUndoView();
+    void clearUndo();
+    void adjustViewMenus(ToolViewType t, bool isRestore = false);
+    void adjustEditMenus(UndoType ut=UT_PZ, bool restore = false);
 
     Ui::MainWindow *ui;
 
@@ -304,16 +351,8 @@ private:
     BasicDataDialog* dlgData;
 
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
+    QSignalMapper* tvMapper;     //用于处理从视图菜单中选择显示的工具视图
 
-    //各个子窗体内的中心部件指针
-
-//    DetailsViewDialog2* dlgCashDaily;   //现金日记账窗口
-//    DetailsViewDialog2* dlgBankDaily;   //银行日记账窗口
-//    DetailsViewDialog2* dlgDetailDaily; //明细账窗口
-//    DetailsViewDialog2* dlgTotalDaily;  //总分类账窗口
-
-    //QSignalMapper* BasicDataTabMapper; //将组中的每个菜单项映射到同一个槽中
-    CustomRelationTableModel* curPzModel; //当前打开的凭证集
     int cursy,cursm,curey,curem,cursd,cured; //当前打开的凭证集的起始年、月、日
 
     QSet<int> PrintPznSet; //欲打印的凭证号集合
@@ -322,31 +361,27 @@ private:
 
     //QSet<subWindowType> subWinSet;  //需要保存子窗口信息的窗口枚举类型集合（这些子窗口都是单例的）
     QHash<subWindowType, MyMdiSubWindow*> subWindows; //已打开的子窗口（这些窗口只能有一个实例）
+    QHash<ToolViewType,QDockWidget*> dockWindows;      //工具视图窗口集
+    QHash<ToolViewType,QAction*> tvActions;           //与工具视图类型对应的QAction对象表
     QHash<subWindowType,bool> subWinActStates;   //子窗口的激活状态
-
-    //状态条部件
-    //QLabel *l1,*lblPzsDate;
-    //QLabel *l2,*lblPzSetState;
-    //QLabel *l3,*lblCurUser;
-
 
     //工具条上的部件
     CustomSpinBox* spnNaviTo;
 
-    //可停靠窗口
-    QDockWidget *subjectSearchDock;
-    SubjectSearchForm* sfm;  //客户名查询
 
-    bool isOpenPzSet;
     int curPzState;  //当前凭证的状态代码，用以确定高级凭证操作按钮的启用状态
-    bool isExtraVolid; //当前凭证集的余额是否有效
-    //bool isRefreshPzSetState;  //是否需要刷新凭证集状态
-    int pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount; //作废、录入、审核、入账凭证数，总数
+    //bool isExtraVolid; //当前凭证集的余额是否有效
     PzClass curPzCls; //当前凭证类别
-    PzsState curPzSetState; //当前凭证集状态
-    QRadioButton *rdoRecording, *rdoRepealPz, *rdoInstatPz, *rdoVerifyPz;
-    QAction *actRecording;/*, *actRepeal, *actVerify, *actInstat;*/
+    //PzsState curPzSetState; //当前凭证集状态
+    //QRadioButton *rdoRecording, *rdoRepealPz, *rdoInstatPz, *rdoVerifyPz;
+    //QAction *actRecording;/*, *actRepeal, *actVerify, *actInstat;*/
 
+    PzSetMgr* pzSetMgr;
     DbUtil* dbUtil;
+
+    QUndoStack* undoStack;     //Undo命令栈
+    QUndoView* undoView;       //Undo视图
+    QAction *undoAction, *redoAction; //执行undo，redo操作
+
  };
 #endif // MAINWINDOW_H

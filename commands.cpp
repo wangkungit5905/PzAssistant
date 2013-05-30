@@ -13,7 +13,7 @@
 AppendPzCmd::AppendPzCmd(PzSetMgr *pm, PingZheng *pz, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("append pingzheng(%1#)").arg(pz->number()));
+    setText(QObject::tr("添加凭证（P%1）").arg(pz->number()));
 
 }
 
@@ -35,7 +35,7 @@ void AppendPzCmd::redo()
 InsertPzCmd::InsertPzCmd(PzSetMgr *pm, PingZheng *pz, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("insert pingzheng(%1#)").arg(pz->number()));
+    setText(QObject::tr("插入凭证（P%1）").arg(pz->number()));
 }
 
 void InsertPzCmd::undo()
@@ -53,7 +53,7 @@ void InsertPzCmd::redo()
 DelPzCmd::DelPzCmd(PzSetMgr *pm, PingZheng* pz, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("delete pingzheng(%1#)").arg(pz->number()));
+    setText(QObject::tr("删除凭证（P%1）").arg(pz->number()));
 }
 
 void DelPzCmd::undo()
@@ -70,7 +70,7 @@ void DelPzCmd::redo()
 ModifyPzDateCmd::ModifyPzDateCmd(PzSetMgr *pm, PingZheng *pz, QString ds, QUndoCommand *parent)
     : QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("set PingZheng(%1#) date to %2").arg(pz->number()).arg(ds));
+    setText(QObject::tr("设置日期为“%1”（P%2）").arg(ds.arg(pz->number())));
     oldDate = pz->getDate();
     newDate = ds;
 }
@@ -85,7 +85,7 @@ bool ModifyPzDateCmd::mergeWith(const QUndoCommand *command)
         return false;
 
     newDate = other->newDate;
-    setText(QObject::tr("set PingZheng(%1#) date to %2").arg(pz->number()).arg(newDate));
+    setText(QObject::tr("设置日期为“%1”（P%2）").arg(newDate).arg(pz->number()));
     return true;
 }
 
@@ -108,7 +108,7 @@ void ModifyPzDateCmd::redo()
 ModifyPzZNumCmd::ModifyPzZNumCmd(PzSetMgr *pm, PingZheng *pz, int pnum, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("set PingZheng(%1#) znum to %2").arg(pz->number()).arg(pnum));
+    setText(QObject::tr("设置自编号为“%1”（P%2）").arg(pnum).arg(pz->number()));
     oldPNum = pz->zbNumber();
     newPNum = pnum;
 }
@@ -123,7 +123,7 @@ bool ModifyPzZNumCmd::mergeWith(const QUndoCommand *command)
         return false;
 
     newPNum = other->newPNum;
-    setText(QObject::tr("set PingZheng(%1#) znum to %2").arg(pz->number()).arg(newPNum));
+    setText(QObject::tr("设置自编号为“%1”（P%2）").arg(newPNum).arg(pz->number()));
     return true;
 }
 
@@ -144,7 +144,7 @@ void ModifyPzZNumCmd::redo()
 ModifyPzEncNumCmd::ModifyPzEncNumCmd(PzSetMgr *pm, PingZheng *pz, int encnum, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("set PingZheng(%1#) enum to %2").arg(pz->number()).arg(encnum));
+    setText(QObject::tr("设置附件数为“%1”（P%2）").arg(encnum).arg(pz->number()));
     oldENum = pz->encNumber();
     newENum = encnum;
 }
@@ -159,7 +159,7 @@ bool ModifyPzEncNumCmd::mergeWith(const QUndoCommand *command)
         return false;
 
     newENum = other->newENum;
-    setText(QObject::tr("set PingZheng(%1#) enum to %2").arg(pz->number()).arg(newENum));
+    setText(QObject::tr("设置附件数为“%1”（P%2）").arg(newENum).arg(pz->number()));
     return true;
 }
 
@@ -179,11 +179,11 @@ void ModifyPzEncNumCmd::redo()
 ModifyPzVStateCmd::ModifyPzVStateCmd(PzSetMgr *pm, PingZheng *pz, PzState state, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
-    stateNames[Pzs_Repeal] = QObject::tr("repeal");
-    stateNames[Pzs_Recording] = QObject::tr("recording");
-    stateNames[Pzs_Verify] = QObject::tr("verified");
-    stateNames[Pzs_Instat] = QObject::tr("instated");
-    setText(QObject::tr("set PingZheng(%1#) state to %2").arg(pz->number()).arg(stateNames.value(state)));
+//    stateNames[Pzs_Repeal] = QObject::tr("repeal");
+//    stateNames[Pzs_Recording] = QObject::tr("recording");
+//    stateNames[Pzs_Verify] = QObject::tr("verified");
+//    stateNames[Pzs_Instat] = QObject::tr("instated");
+    setText(QObject::tr("设置凭证状态为“%1”（P%2）").arg(pzStates.value(state)).arg(pz->number()));
     oldState = pz->getPzState();
     newState = state;
 }
@@ -198,7 +198,7 @@ bool ModifyPzVStateCmd::mergeWith(const QUndoCommand *command)
         return false;
 
     newState = other->newState;
-    setText(QObject::tr("set PingZheng(%1#) state to %2").arg(pz->number()).arg(stateNames.value(newState)));
+    setText(QObject::tr("设置凭证状态为“%1”（P%2）").arg(pzStates.value(newState)).arg(pz->number()));
     return true;
 }
 
@@ -218,7 +218,7 @@ void ModifyPzVStateCmd::redo()
 ModifyPzVUserCmd::ModifyPzVUserCmd(PzSetMgr *pm, PingZheng *pz, User *user, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("set PingZheng(%1#) verify user to %2").arg(pz->number()).arg(user?user->getName():""));
+    setText(QObject::tr("设置审核用户为“%1”（P%2）").arg(user?user->getName():"").arg(pz->number()));
     oldUser = pz->verifyUser();
     newUser = user;
 }
@@ -239,7 +239,7 @@ void ModifyPzVUserCmd::redo()
 ModifyPzBUserCmd::ModifyPzBUserCmd(PzSetMgr *pm, PingZheng *pz, User *user, QUndoCommand *parent)
 :QUndoCommand(parent),pm(pm),pz(pz)
 {
-    setText(QObject::tr("set PingZheng(%1#) instat user to %2").arg(pz->number()).arg(user?user->getName():""));
+    setText(QObject::tr("设置记账用户为“%1”（P%2）").arg(user?user->getName():"").arg(pz->number()));
     oldUser = pz->bookKeeperUser();
     newUser = user;
 }
@@ -263,8 +263,7 @@ AppendBaCmd::AppendBaCmd(PzSetMgr *pm, PingZheng *pz, BusiAction* ba, QUndoComma
 //    setText(QObject::tr("append bauiaction(%1) in PingZheng(%2#)")
 //            .arg((ba->getNumber()==0)?QObject::tr("Blank busiaction"):QString::number(ba->getNumber()))
 //            .arg(pz->number()));
-    setText(QObject::tr("append Blank bauiaction(point->%1) in PingZheng(%2#)")
-            .arg((int)ba).arg(pz->number()));
+    setText(QObject::tr("添加分录（P%1）").arg(pz->number()));
     pz->append(ba);
 }
 
@@ -287,8 +286,7 @@ void AppendBaCmd::redo()
 InsertBaCmd::InsertBaCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, int row, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz),ba(ba),row(row)
 {
-    setText(QObject::tr("insert bauiaction(%1) in PingZheng(%2#)")
-            .arg(row+1).arg(pz->number()));
+    setText(QObject::tr("插入分录（P%1B%2）").arg(pz->number()).arg(row+1));
 }
 
 void InsertBaCmd::undo()
@@ -305,8 +303,8 @@ void InsertBaCmd::redo()
 ModifyBaSummaryCmd::ModifyBaSummaryCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, QString summary, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
-    setText(QObject::tr("set bauiaction(%1) of summary to '%2' in PingZheng(%3#)")
-            .arg(ba->getNumber()).arg(summary).arg(pz->number()));
+    setText(QObject::tr("设置摘要为“%1”（P%2B%3）").arg(summary).arg(pz->number()).arg(ba->getNumber()));
+
     newSummary = summary;
     oldSummary = ba->getSummary();
 }
@@ -321,8 +319,7 @@ bool ModifyBaSummaryCmd::mergeWith(const QUndoCommand *command)
         return false;
 
     newSummary = other->newSummary;
-    setText(QObject::tr("set bauiaction(%1) of summary to '%2' in PingZheng(%3#)")
-            .arg(ba->getNumber()).arg(newSummary).arg(pz->number()));
+    setText(QObject::tr("设置摘要为“%1”（P%2B%3）").arg(newSummary).arg(pz->number()).arg(ba->getNumber()));
     return true;
 }
 
@@ -342,7 +339,7 @@ void ModifyBaSummaryCmd::redo()
 
 ///////////////////////////////////////ModifyBaFSubMmd/////////////////////////////
 ModifyBaFSubMmd::ModifyBaFSubMmd(QString text, PzSetMgr *pm, PingZheng *pz, BusiAction *ba, QUndoStack *stack, QUndoCommand *parent)
-    :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
+    :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),pstack(stack)
 {
     setText(text);
 }
@@ -373,8 +370,8 @@ bool ModifyBaFSubMmd::mergeWith(const QUndoCommand *command)
 ModifyBaFSubCmd::ModifyBaFSubCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, FirstSubject *fsub, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
-    setText(QObject::tr("set bauiaction(%1) of first subject to '%2' in PingZheng(%3#)")
-            .arg(ba->getNumber()).arg(fsub->getName()).arg(pz->number()));
+    setText(QObject::tr("设置一级科目为“%1”（P%2B%3）").arg(fsub->getName())
+            .arg(pz->number()).arg(ba->getNumber()));
     newFSub = fsub;
     oldFSub = ba->getFirstSubject();
 }
@@ -413,11 +410,11 @@ ModifyBaSSubCmd::ModifyBaSSubCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, Se
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     if(ssub)
-        setText(QObject::tr("set bauiaction(%1) of second subject to '%2' in PingZheng(%3#)")
-            .arg(ba->getNumber()).arg(ssub->getName()).arg(pz->number()));
+        setText(QObject::tr("设置二级科目为“%1”（P%2B%3）").arg(ssub->getName())
+            .arg(pz->number()).arg(ba->getNumber()));
     else
-        setText(QObject::tr("clear bauiaction(%1) of second subject in PingZheng(%2#)")
-            .arg(ba->getNumber()).arg(pz->number()));
+        setText(QObject::tr("清除二级科目（P%1B%2）").arg(pz->number()).arg(ba->getNumber()));
+
     newSSub = ssub;
     oldSSub = ba->getSecondSubject();
 }
@@ -505,8 +502,8 @@ void ModifyBaSSubCmd::redo()
 ModifyBaMtCmd::ModifyBaMtCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, Money *mt, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
-    setText(QObject::tr("set bauiaction(%1) of money type to '%2' in PingZheng(%3#)")
-            .arg(ba->getNumber()).arg(mt->name()).arg(pz->number()));
+    setText(QObject::tr("设置币种为“%1”（P%2B%3）() of money type to '' in PingZheng(#)")
+            .arg(mt->name()).arg(pz->number()).arg(ba->getNumber()));
     oldMt = ba->getMt();
     newMt = mt;
     oldValue = ba->getValue();
@@ -562,14 +559,9 @@ bool ModifyBaMtMmd::mergeWith(const QUndoCommand *command)
 ModifyBaValueCmd::ModifyBaValueCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, Double v, MoneyDirection dir, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
-    QString dirStr;
-    if(dir == DIR_J)
-        dirStr = dirStrJ;
-    else
-        dirStr = dirStrD;
-    setText(QObject::tr("set bauiaction(%1) of value to %2(%3) in PingZheng(%4#)")
-            .arg(ba->getNumber()).arg(v.getv())
-            .arg(dirStr).arg(pz->number()));
+    QString ds = (dir==MDIR_J)?QObject::tr("借"):QObject::tr("贷");
+    setText(QObject::tr("设置金额为“%1”（%2P%3B%4）").arg(v.getv())
+            .arg(ds).arg(pz->number()).arg(ba->getNumber()));
     newValue = v;
     newDir = dir;
     oldValue = ba->getValue();
@@ -587,9 +579,9 @@ bool ModifyBaValueCmd::mergeWith(const QUndoCommand *command)
 
     newValue = other->newValue;
     newDir = other->newDir;
-    setText(QObject::tr("set bauiaction(%1) of value to %2(%3) in PingZheng(%4#)")
-            .arg(ba->getNumber()).arg(newValue.getv())
-            .arg((newDir == DIR_J)?dirStrJ:dirStrD).arg(pz->number()));
+    QString ds = (newDir==MDIR_J)?QObject::tr("借"):QObject::tr("贷");
+    setText(QObject::tr("设置金额为“%1”（%2P%3B%4）").arg(newValue.getv())
+            .arg(ds).arg(pz->number()).arg(ba->getNumber()));
     return true;
 }
 
@@ -616,11 +608,10 @@ CutBaCmd::CutBaCmd(PzSetMgr *pm, PingZheng *pz, QList<int> rows, QList<BusiActio
     :QUndoCommand(parent),pm(pm),pz(pz),rows(rows),baLst(baLst)
 {
     QString numStr;
-    foreach(BusiAction* ba, *baLst)
-        numStr.append(QString::number(ba->getNumber())).append(",");
+    foreach(int row, rows)
+        numStr.append(QString("%1,").arg(row+1));
     numStr.chop(1);
-    setText(QObject::tr("cut busiaction(%1) int pingzheng(%2)")
-            .arg(numStr).arg(pz->number()));
+    setText(QObject::tr("剪切分录（P%1B%2）").arg(pz->number()).arg(numStr));
 }
 
 bool CutBaCmd::mergeWith(const QUndoCommand *command)
@@ -656,11 +647,10 @@ void CutBaCmd::redo()
 
 
 /////////////////////////PasterBaCmd////////////////////////////////////////////
-PasterBaCmd::PasterBaCmd(PzSetMgr *pm, PingZheng *pz, int row, QList<BusiAction *>* baLst, QUndoCommand *parent)
-    :QUndoCommand(parent),pm(pm),pz(pz),row(row),baLst(baLst)
+PasterBaCmd::PasterBaCmd(PingZheng *pz, int row, QList<BusiAction *>* baLst, bool copy, QUndoCommand *parent)
+    :QUndoCommand(parent),pm(pz->parent()),pz(pz),row(row),baLst(baLst),copy(copy)
 {
-    setText(QObject::tr("paster busiactions(amount: %1) at row(%2) in pingzheng(%3#)")
-            .arg(baLst->count()).arg(row).arg(pz->number()));
+    setText(QObject::tr("粘贴分录（P%1R%2）").arg(pz->number()).arg(row));
     rows = baLst->count();
 }
 
@@ -672,16 +662,23 @@ void PasterBaCmd::undo()
         if(copyOrCut == CO_CUT)
             baLst->push_front(ba);
     }
+    pm->setCurPz(pz);
 }
 
 void PasterBaCmd::redo()
 {
     int r = row;
     foreach(BusiAction* ba, *baLst){
-        pz->insert(r++,ba);
+        BusiAction* b1;
+        if(copy)
+            b1 = new BusiAction(*ba);
+        else
+            b1 = ba;
+        pz->insert(r++,b1);
     }
-    if(copyOrCut == CO_CUT)
+    if(!copy)
         baLst->clear();
+    pm->setCurPz(pz);
 }
 
 
@@ -689,9 +686,9 @@ void PasterBaCmd::redo()
 ModifyBaMoveCmd::ModifyBaMoveCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, int rows, QUndoStack* stack, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),rows(rows),pstack(stack)
 {
-    setText(QObject::tr("move  %1 bauiaction(%2) %3 rows in PingZheng(%4#)")
-            .arg((rows>0)?QObject::tr("up"):QObject::tr("down"))
-            .arg(ba->getNumber()).arg(rows).arg(pz->number()));
+    setText(QObject::tr("向%1移动分录%2行（P%3C%4）")
+            .arg((rows>0)?QObject::tr("up"):QObject::tr("down")).arg(rows).arg(pz->number())
+            .arg(ba->getNumber()));
 
 }
 
@@ -743,7 +740,7 @@ void ModifyBaMoveCmd::redo()
 ModifyBaDelCmd::ModifyBaDelCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
-    setText(QObject::tr("delete busiaction(%1) in pingzheng(%2#)").arg(ba->getNumber()).arg(pz->number()));
+    setText(QObject::tr("删除分录（P%1B%2）").arg(pz->number()).arg(ba->getNumber()));
 
 }
 
@@ -763,8 +760,8 @@ void ModifyBaDelCmd::redo()
 CrtSndSubUseNICmd::CrtSndSubUseNICmd(SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, QUndoCommand *parent)
     :QUndoCommand(parent),subMgr(subMgr),fsub(fsub),ni(ni)
 {
-    setText(QObject::tr("create new second subject(%1) use name item")
-            .arg(ni?ni->getShortName():""));
+    setText(QObject::tr("创建二级科目“%1”（NF-%2）")
+            .arg(ni?ni->getShortName():"").arg(fsub?fsub->getName():""));
 }
 
 void CrtSndSubUseNICmd::undo()
@@ -787,9 +784,9 @@ void CrtSndSubUseNICmd::redo()
 ModifyBaSndSubNMMmd::ModifyBaSndSubNMMmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),ni(ni),ssub(0)
 {
-    setText(QObject::tr("set busiaction(%1) second subject(%2) in pingzheng(%3) "
-                        "use new name mapping").arg(ba->getNumber()).arg(ni->getShortName())
-            .arg(pz->number()));
+    //注意：这里的“S”表示用已有的名称条目创建的二级科目
+    setText(QObject::tr("设置二级科目为“%1”（P%2B%3-S）").arg(ni->getShortName()
+                       .arg(pz->number()).arg(ba->getNumber())));
     CrtSndSubUseNICmd* cmd1 = new CrtSndSubUseNICmd(subMgr,fsub,ni,this);
     ModifyBaSSubCmd* cmd2 = new ModifyBaSSubCmd(pm,pz,ba,ssub,this);
 }
@@ -827,7 +824,7 @@ void ModifyBaSndSubNMMmd::redo()
 CrtNameItemCmd::CrtNameItemCmd(QString sname, QString lname, QString remCode, int nameCls, SubjectManager *subMgr, QUndoCommand *parent)
     :QUndoCommand(parent),sname(sname),lname(lname),remCode(remCode),nameCls(nameCls),subMgr(subMgr)
 {
-    setText(QObject::tr("create name item %1").arg(sname));
+    setText(QObject::tr("创建名称条目“%1”").arg(sname));
 }
 
 void CrtNameItemCmd::undo()
@@ -847,8 +844,9 @@ void CrtNameItemCmd::redo()
 ModifyBaSndSubNSMmd::ModifyBaSndSubNSMmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, QString sname, QString lname, QString remCode, int nameCls, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),sname(sname),lname(lname),remCode(remCode),nameCls(nameCls),ni(0),ssub(0)
 {
-    setText(QObject::tr("set busiaction(%1) of second subject to %2 in pingzheng(%3)")
-            .arg(ba->getNumber()).arg(sname).arg(pz->number()));
+    //注意：这里的“SN”表示用新建的名称条目在一级科目下创建的二级科目
+    setText(QObject::tr("设置二级科目为“%1”（P%2B%3-SN）").arg(sname).arg(pz->number())
+            .arg(ba->getNumber()));
     CrtNameItemCmd* cmd1 = new CrtNameItemCmd(sname,lname,remCode,nameCls,subMgr,this);
     CrtSndSubUseNICmd* cmd2 = new CrtSndSubUseNICmd(subMgr,fsub,ni,this);
     ModifyBaSSubCmd* cmd3 = new ModifyBaSSubCmd(pm,pz,ba,ssub,this);

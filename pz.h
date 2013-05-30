@@ -86,7 +86,7 @@ public:
     bool isDelete(){return isDeleted;}
 
     bool operator ==(const BusiAction& other){return md == other.md;}
-    //bool operator !=(const BusiAction& other){return (md != other.md);}
+    bool operator !=(const BusiAction& other){return (md != other.md);}
 
 signals:
     void dirChanged(MoneyDirection oldDir,MoneyDirection newDir,BusiAction* ba);
@@ -156,7 +156,7 @@ public:
     PingZheng(PzSetMgr* parent,int id,QString date,int pnum,int m_znum,Double js,Double ds,
               PzClass pzCls,int encnum,PzState state,User* vu = NULL,
               User* ru = NULL, User* bu = NULL);
-    ~PingZheng(){}
+    ~PingZheng();
 
     //属性访问
     long getMd(){return md;}
@@ -175,6 +175,7 @@ public:
     void setEncNumber(int num);
     Double jsum(){return js;}
     Double dsum(){return ds;}
+    bool isBalance(){return js == ds;}
     PzClass getPzClass(){return pzCls;}
     void setPzClass(PzClass cls);
     FirstSubject* getOppoSubject(){return oppoSub;}
@@ -205,7 +206,7 @@ public:
 
     int baCount(){return baLst.count();}
     QList<BusiAction*>& baList(){return baLst;}
-    void setBaList(QList<BusiAction*> lst){baLst = lst;}
+    void setBaList(QList<BusiAction*> lst);
 
 
     //编辑状态方法
@@ -217,16 +218,21 @@ public:
     //void removeTailBlank();
 
     bool operator ==(PingZheng& other){return md == other.md;}
-    //bool operator !=(PingZheng& other){return md != other.md;}
+    bool operator !=(PingZheng& other){return md != other.md;}
 
 private slots:
     void adjustSumForDirChanged(MoneyDirection oldDir,MoneyDirection newDir,BusiAction* ba);
     void adjustSumForValueChanged(Money* oldMt,Money* newMt,Double &oldValue,Double &newValue,BusiAction* ba);
+signals:
+    void updateBalanceState(bool balance); //更新凭证的借贷平衡状态
+    void mustRestat();          //告诉父对象，由于其包含的分录发生了影响统计结果的改变
+    void pzContentChanged(PingZheng* pz); //凭证内容的任何改变都将触发
+    void indexBoundaryChanged(bool first, bool last);
 private:
     bool hasBusiAction(BusiAction* ba);
     void calSum();
+    void adjustSumForBaChanged(BusiAction* ba, bool add = true);
     void watchBusiaction(BusiAction* ba, bool isWatch=true);
-
 private:
 //    bool saveBaOrder();
 //    bool saveNewPz();
@@ -244,6 +250,7 @@ private:
     User *vu,*ru,*bu;                   //审核、录入和记账用户
     QList<BusiAction*> baLst;           //会计分录列表
     QList<BusiAction*> baDels;          //被删除的会计分录列表
+    QList<BusiAction*> ba_saveAfterDels;//保存被删除后执行了保存操作的分录对象（用以支持恢复任何情况下被删除的分录对象）
     BusiAction* curBa;                  //当前会计分录对象
     bool isDeleted;                     //是否被删除的标记
     FirstSubject* oppoSub;              //结转汇兑损益类凭证的对方科目

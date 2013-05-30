@@ -1875,7 +1875,7 @@ void PzDialog2::on_actCopyAction_triggered()
         ba = busiActions[i];
         clbBaList << ba;
     }
-    copyOrCut = true;
+    copyOrCut = CO_COPY;
 }
 
 //剪切业务活动
@@ -1895,7 +1895,7 @@ void PzDialog2::on_actCutAction_triggered()
     }
     delegate->setVolidRows(numActions);
     acDirty = true;
-    copyOrCut = false;
+    copyOrCut = CO_CUT;
     refreshVHeaderView();
     pzContentModify();
 }

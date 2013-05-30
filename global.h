@@ -27,9 +27,6 @@ extern int screenWidth;        //屏幕宽度
 extern int screenHeight;       //屏幕高度
 
 extern int curAccountId;         //当前打开账户的id
-//extern AccountBriefInfo* curAccInfo;       //当前账户信息
-//extern int usedRptType;  //默认使用老式报表形式（新式为2）
-//extern int curUsedSubSys;      //所使用的科目系统
 extern Account* curAccount;
 
 extern User* curUser;           //当前用户
@@ -43,14 +40,8 @@ extern QString DatabasePath;    //工作数据库路径
 extern QString BaseDataPath;    //基础数据库路径
 
 
-//extern QHash<int,QString> allFstSubs;  //所有一级科目id到科目名称的映射表
-//extern QHash<int,QString> allFSCodes;  //所有一级科目id到科目代码的映射表
-
-//extern QHash<int,QString> allSndSubs;  //所有二级科目id到科目名称的映射表
-//extern QHash<int,QString> allSndSubLNames; //所有二级科目id到科目全称的映射表
 extern QHash<int,QString> MTS;         //所有币种代码到名称的映射表（包括账户内未使用的外币）
 extern QHash<int,QString> allMts;      //当前打开账户所用的所有币种代码到名称的映射表
-//extern QHash<int,int>  defaultSndSubs; //所有一级科目下的默认二级科目
 
 //固定资产相关变量
 extern QHash<int,GdzcType*> allGdzcProductCls; //所有固定资产产品类别表，键为固定资产类别的代码
@@ -86,25 +77,19 @@ extern bool viewHideColInDailyAcc2; //是否在日记账表格中显示隐藏列
 extern double czRate;               //固定资产折旧残值率
 
 //应用程序剪贴板功能有关的全局标量
-extern bool copyOrCut;                       //剪贴板存放到业务活动是复制还是剪切到（true：复制）
+extern ClipboardOperate copyOrCut;                       //剪贴板存放到业务活动是复制还是剪切到（true：复制）
 extern QList<BusiActionData2*> clbBaList;     //存放要粘贴的业务活动数据
 extern QList<BusiAction*> clb_Bas;       //存放要粘贴的会计分录对象（新的凭证编辑窗口使用）
 
 //账户状态变量
 extern QString lastModifyTime;   //账户最后修改时间
 
-//extern VersionManager* accVM;    //管理账户数据库版本
-//extern VersionManager* confVM;   //管理配置模块版本
-//extern VersionManager* baseVM;   //管理基本库版本
-
 //全局函数
 extern int appInit();          //应用初始化
-extern void initVMs();          //初始化版本维护对象
 extern void appExit();          //应用退出前的执行例程
 extern QString dirStr(int dir); //输出借贷方向的文字表达
 extern QString dirVStr(double v); //根据值的符号输出借贷方向的文字表达
 extern QString removeRightZero(QString str); //移除两位精度的实数的最后一位或二位0
-//static QMap<int, QString> mapFstSubClass = appSetting.readFstSubClass();  //保存一级科目的类别（从整数到类别名称的映射）
 
 
 #endif // GLOBAL_H

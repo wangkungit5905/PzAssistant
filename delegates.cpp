@@ -23,8 +23,10 @@ SummaryEdit::SummaryEdit(int row,int col,QWidget* parent) : QLineEdit(parent)
     oppoSubject = 0;
     connect(this, SIGNAL(returnPressed()),
             this, SLOT(summaryEditingFinished())); //输入焦点自动转移到右边一列
-    //shortCut = new QShortcut(QKeySequence(tr("Ctrl+=")),this);
-    //connect(shortCut,SIGNAL(activated()),this,SLOT(shortCutActivated()));
+    shortCut = new QShortcut(QKeySequence(tr("Alt+W")),this);
+    //shortCut = new QShortcut(QKeySequence(tr("Ctrl+=")),this,0,0,Qt::WidgetShortcut);
+    //shortCut = new QShortcut(QKeySequence(tr("Ctrl+P")),this);
+    connect(shortCut,SIGNAL(activated()),this,SLOT(shortCutActivated()));
 }
 
 //设置内容
@@ -130,31 +132,32 @@ void SummaryEdit::summaryEditingFinished()
 //捕获自动复制上一条会计分录的快捷方式
 void SummaryEdit::shortCutActivated()
 {
-    emit copyPrevShortcutPressed(row,col);
+    if(row > 0)
+        emit copyPrevShortcutPressed(row,col);
 }
 
 //重载此函数的目的是创建一种输入摘要引用体内容的方法
-void SummaryEdit::keyPressEvent(QKeyEvent *event)
-{
-    //if(event->modifiers() == Qt::AltModifier){
+//void SummaryEdit::keyPressEvent(QKeyEvent *event)
+//{
+//    //if(event->modifiers() == Qt::AltModifier){
 
-    int key = event->key();
-    bool alt = false;
+//    int key = event->key();
+//    bool alt = false;
 
-    if(event->modifiers() == Qt::AltModifier)
-        alt = true;
+//    if(event->modifiers() == Qt::AltModifier)
+//        alt = true;
 
-    //为简单起见，目前的实现仅可输入发票号
-    if(alt){
-        bool ok;
-        QString s = QInputDialog::getText(this, tr("input invoice number"),
-                                          tr("invoice number:"), QLineEdit::Normal,
-                                          QString(), &ok);
-        if(ok){
-            fpNums.clear();
-            fpNums = s.split(",");
-        }
-    }
+//    //为简单起见，目前的实现仅可输入发票号
+//    if(alt){
+//        bool ok;
+//        QString s = QInputDialog::getText(this, tr("input invoice number"),
+//                                          tr("invoice number:"), QLineEdit::Normal,
+//                                          QString(), &ok);
+//        if(ok){
+//            fpNums.clear();
+//            fpNums = s.split(",");
+//        }
+//    }
 
 //    if(alt && (key == Qt::Key_1)){ //打开发票号输入窗口
 
@@ -172,17 +175,17 @@ void SummaryEdit::keyPressEvent(QKeyEvent *event)
 //        event->ignore();
 
 
-    QLineEdit::keyPressEvent(event);
-}
+//    QLineEdit::keyPressEvent(event);
+//}
 
-void SummaryEdit::mouseDoubleClickEvent(QMouseEvent *e)
-{
-    int i = 0;
-    e->ignore();
-}
+//void SummaryEdit::mouseDoubleClickEvent(QMouseEvent *e)
+//{
+//    int i = 0;
+//    e->ignore();
+//}
 
-void SummaryEdit::focusOutEvent(QFocusEvent* e)
-{
+//void SummaryEdit::focusOutEvent(QFocusEvent* e)
+//{
     //QLineEdit::focusOutEvent(e);
 
     //这个函数在QItemDelegate::setModelData()之后得到调用，
@@ -192,8 +195,8 @@ void SummaryEdit::focusOutEvent(QFocusEvent* e)
 //        emit dataEditCompleted(0, false);
 //    }
 
-    QLineEdit::focusOutEvent(e);
-}
+//    QLineEdit::focusOutEvent(e);
+//}
 
 /////////////////////////////FstSubComboBox//////////////////////////
 FstSubComboBox::FstSubComboBox(SubjectManager* subMgr, QWidget *parent)
@@ -228,24 +231,19 @@ FstSubComboBox::FstSubComboBox(SubjectManager* subMgr, QWidget *parent)
         sub = it->value();
         fsubs<<sub;
         v.setValue(sub);
+        com->addItem(sub->getName(),v);
         item = new QListWidgetItem(sub->getName());
         item->setData(Qt::EditRole,v);
-        lw->addItem(item);
+        lw->addItem(item);        
     }
-//    fsubs = subMgr->getAllFstSubs();
-//    foreach(FirstSubject* sub, fsubs){
-//        v.setValue(sub);
-//        com->addItem(sub->getName(),v);
-//        item = new QListWidgetItem(sub->getName());
-//        item->setData(Qt::EditRole,v);
-//        lw->addItem(item);
-//    }
     connect(com->lineEdit(),SIGNAL(textChanged(QString)),this,SLOT(nameTextChanged(QString)));
 }
 
 FstSubComboBox::~FstSubComboBox()
 {
-
+    delete com;
+    delete lw;
+    delete keys;
 }
 
 /**
@@ -485,8 +483,9 @@ SndSubComboBox::SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectM
     connect(com->lineEdit(),SIGNAL(returnPressed()),this,SLOT(nameTexteditingFinished()));
 
     //装载所有名称条目
-    foreach(SubjectNameItem* ni, subMgr->getAllNameItems())
-        allNIs<<ni;
+    //foreach(SubjectNameItem* ni, subMgr->getAllNameItems())
+    //    allNIs<<ni;
+    allNIs = subMgr->getAllNameItems();
     qSort(allNIs.begin(),allNIs.end(),byNameThan_ni);
     QListWidgetItem* item;
     foreach(SubjectNameItem* ni, allNIs){
@@ -1238,6 +1237,8 @@ MoneyValueEdit::MoneyValueEdit(int row, int witch, Double v, QWidget *parent)
     QDoubleValidator* validator  = new QDoubleValidator(this);
     validator->setDecimals(2);
     setValidator(validator);
+    connect(this,SIGNAL(textChanged(QString)),this,SLOT(valueChanged(QString)));
+    //connect(this,SIGNAL(editingFinished()),this,SLOT(valueEdited()));
 }
 
 void MoneyValueEdit::keyPressEvent(QKeyEvent *e)
@@ -1257,6 +1258,23 @@ void MoneyValueEdit::keyPressEvent(QKeyEvent *e)
     else
         QLineEdit::keyPressEvent(e);
 }
+
+void MoneyValueEdit::valueChanged(const QString &text)
+{
+    v = text.toDouble();
+}
+
+//void MoneyValueEdit::valueEdited()
+//{
+//    //v = text().toDouble();
+//    if(witch == 1)  //借方金额栏
+//        emit dataEditCompleted(BT_JV, true);
+//    else
+//        emit dataEditCompleted(BT_DV, true);
+//    if(witch == 0)
+//        emit nextRow(row);  //传播给代理，代理再传播给凭证编辑窗
+//    emit editNextItem(row,col);
+//}
 
 
 ////////////////////////////////ActionEditItemDelegate2/////////////////
@@ -1290,8 +1308,8 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
             SummaryEdit *editor = new SummaryEdit(row,col,parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
-            //connect(editor, SIGNAL(copyPrevShortcutPressed(int,int)),
-            //        this, SLOT(catchCopyPrevShortcut(int,int)));
+            connect(editor, SIGNAL(copyPrevShortcutPressed(int,int)),
+                    this, SLOT(catchCopyPrevShortcut(int,int)));
             return editor;
         }
         else if(col == BT_FSTSUB){ //总账科目列
@@ -1507,25 +1525,11 @@ void ActionEditItemDelegate::newNameItemMapping(FirstSubject *fsub, SubjectNameI
  * @param col  所在列
  */
 void ActionEditItemDelegate::newSndSubject(FirstSubject *fsub, SecondSubject*& ssub, QString name, int row, int col)
-{
-    //LOG_INFO(QString("Request create second subject!(fsub=%1,name=%2)").arg(fsub->getName().arg(name)));
-    if(QMessageBox::information(0,msgTitle_info,tr("Confirm request create new second subject using new name item?\n"
-                                                "first subject:%1\n second subject:%2").arg(fsub->getName()).arg(name),
-                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes){
-//        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fsub,subMgr,0);
-//        dlg->setName(name);
-//        if(QDialog::Accepted == dlg->exec()){
+{    
+    if(QMessageBox::information(0,msgTitle_info,tr("确定要用新的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
+                                .arg(name).arg(fsub->getName()),
+                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
             emit crtNewSndSubject(row,col,fsub,ssub,name);
-//            SubjectNameItem* ni = new SubjectNameItem;
-//            ni->setShortName(dlg->getSName());
-//            ni->setLongName(dlg->getLName());
-//            ni->setRemCode(dlg->getRemCode());
-//            ni->setClassId(dlg->getSubCalss());
-//            subMgr->addNameItem(ni);
-//            /*SecondSubject* */ssub = fsub->addChildSub(ni);
-//            emit updateSndSubject(row,col,ssub);
-//        }
-    }
 
 }
 
@@ -1535,11 +1539,11 @@ void ActionEditItemDelegate::nextRow(int row)
     emit moveNextRow(row);
 }
 
-//捕获编辑器触发的要求自动快捷方式
-//void ActionEditItemDelegate2::catchCopyPrevShortcut(int row, int col)
-//{
-//    emit reqCopyPrevAction(row,col);
-//}
+//捕获编辑器触发的要求自动拷贝上一条分录的快捷方式
+void ActionEditItemDelegate::catchCopyPrevShortcut(int row, int col)
+{
+    emit reqCopyPrevAction(row);
+}
 
 void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
          const QStyleOptionViewItem &option, const QModelIndex& index) const

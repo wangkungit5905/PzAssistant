@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
  <class>pzDialog</class>
- <widget class="QWidget" name="pzDialog">
+ <widget class="QDialog" name="pzDialog">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
     <width>1178</width>
-    <height>435</height>
+    <height>467</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>Ping Zheng Edit Window</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout">
+  <layout class="QVBoxLayout" name="verticalLayout_2" stretch="1,0,1,20,1,0,2">
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_5">
+    <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="5,2,1">
      <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
@@ -30,11 +30,11 @@
       </spacer>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_4">
+      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="2,2,1">
        <item>
         <widget class="QLabel" name="label_9">
          <property name="text">
-          <string>current period rate</string>
+          <string>本期汇率：</string>
          </property>
         </widget>
        </item>
@@ -47,11 +47,11 @@
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_10" stretch="1,1">
+      <layout class="QHBoxLayout" name="horizontalLayout_10" stretch="5,1">
        <item>
         <widget class="QLabel" name="label_10">
          <property name="text">
-          <string>current period ping zheng counts</string>
+          <string>本期凭证数：</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
@@ -60,6 +60,9 @@
        </item>
        <item>
         <widget class="QLineEdit" name="edtPzCount">
+         <property name="text">
+          <string>0</string>
+         </property>
          <property name="readOnly">
           <bool>true</bool>
          </property>
@@ -81,7 +84,7 @@
      <item>
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>ping zheng date</string>
+        <string>凭证日期</string>
        </property>
       </widget>
      </item>
@@ -95,7 +98,7 @@
      <item>
       <widget class="QLabel" name="label_2">
        <property name="text">
-        <string>ping zheng number</string>
+        <string>凭证号</string>
        </property>
       </widget>
      </item>
@@ -130,7 +133,7 @@
      <item>
       <widget class="QLabel" name="label_3">
        <property name="text">
-        <string>custom number</string>
+        <string>自编号</string>
        </property>
       </widget>
      </item>
@@ -144,7 +147,7 @@
      <item>
       <widget class="QLabel" name="label_4">
        <property name="text">
-        <string>enclosure count</string>
+        <string>附件数</string>
        </property>
       </widget>
      </item>
@@ -200,32 +203,32 @@
      </property>
      <column>
       <property name="text">
-       <string>summary</string>
+       <string>摘要</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>First Subject</string>
+       <string>一级科目</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Second Subject</string>
+       <string>二级科目</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>Money Type</string>
+       <string>币种</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>J value</string>
+       <string>借方金额</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>D value</string>
+       <string>贷方金额</string>
       </property>
      </column>
     </widget>
@@ -237,7 +240,7 @@
        <item>
         <widget class="QLabel" name="label_5">
          <property name="text">
-          <string>Recorder:  </string>
+          <string>录入</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
@@ -271,7 +274,7 @@
        <item>
         <widget class="QLabel" name="label_6">
          <property name="text">
-          <string>Verify:  </string>
+          <string>审核</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -305,7 +308,7 @@
        <item>
         <widget class="QLabel" name="label_7">
          <property name="text">
-          <string>booker:  </string>
+          <string>记账</string>
          </property>
          <property name="alignment">
           <set>Qt::AlignCenter</set>
@@ -331,61 +334,34 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_11" stretch="10">
+    <layout class="QHBoxLayout" name="horizontalLayout_6">
      <item>
-      <widget class="QLabel" name="lblStateInfo">
-       <property name="font">
-        <font>
-         <family>Andale Mono</family>
-         <pointsize>14</pointsize>
-         <weight>75</weight>
-         <bold>true</bold>
-        </font>
-       </property>
-       <property name="frameShape">
-        <enum>QFrame::Panel</enum>
-       </property>
-       <property name="frameShadow">
-        <enum>QFrame::Sunken</enum>
-       </property>
-       <property name="lineWidth">
-        <number>2</number>
-       </property>
+      <widget class="QLabel" name="label_8">
        <property name="text">
-        <string>stateName</string>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </item>
-   <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_12">
-     <item>
-      <spacer name="horizontalSpacer_8">
-       <property name="orientation">
-        <enum>Qt::Horizontal</enum>
-       </property>
-       <property name="sizeHint" stdset="0">
-        <size>
-         <width>40</width>
-         <height>20</height>
-        </size>
-       </property>
-      </spacer>
-     </item>
-     <item>
-      <widget class="QPushButton" name="btnOk">
-       <property name="text">
-        <string>Ok</string>
+        <string>备注</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QPushButton" name="btnCancel">
-       <property name="text">
-        <string>Cancel</string>
-       </property>
-      </widget>
+      <widget class="QPlainTextEdit" name="edtComment"/>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout">
+       <item>
+        <widget class="QPushButton" name="btnOk">
+         <property name="text">
+          <string>确定</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="btnCancel">
+         <property name="text">
+          <string>取消</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
      </item>
     </layout>
    </item>

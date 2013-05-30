@@ -12,15 +12,18 @@ PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent
 {
     dbUtil = account->getDbUtil();
     undoStack = new QUndoStack(this);
+    undoStack->setUndoLimit(MAXUNDOSTACK);
     statUtil = NULL;
-    state = Ps_NoOpen;
+    c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
     isReStat = false;
     isReSave = false;
     maxPzNum = 0;
     maxZbNum = 0;
     curPz=NULL;
+    curIndex = -1;
     curY=0;curM=0;
     pzs=NULL;
+    dirty = false;
     if(!user)
         user = curUser;
 }
@@ -33,7 +36,7 @@ PzSetMgr::~PzSetMgr()
 //打开凭证集
 bool PzSetMgr::open(int y, int m)
 {
-    if(state != Ps_NoOpen)    //在打开指定年月的凭证集，必须显式调用close关闭先前已打开的凭证集
+    if(curY!=0 && curM!=0)    //同时只能打开一个凭证集
         return false;
 
     int key = genKey(y,m);
@@ -41,10 +44,15 @@ bool PzSetMgr::open(int y, int m)
         if(!dbUtil->loadPzSet(y,m,pzSetHash[key],this))
             return false;
         if(!dbUtil->getPzsState(y,m,states[key]))
-            return false;
-        state=states.value(key);
-        extraStates[key] = dbUtil->getExtraState(y,m);
-        pzs = &pzSetHash[key];
+            return false;        
+    }
+    scanPzCount();
+    extraStates[key] = dbUtil->getExtraState(y,m);
+    pzs = &pzSetHash[key];
+    for(int i = 0; i < pzs->count(); ++i){
+        PingZheng* pz = pzs->at(i);
+        connect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
+        connect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
     }
 
     maxPzNum = pzSetHash.value(key).count() + 1;
@@ -58,6 +66,12 @@ bool PzSetMgr::open(int y, int m)
     if(!statUtil)
         delete statUtil;
     statUtil = new StatUtil(pzSetHash.value(key),account);
+    if(!pzs->isEmpty()){
+        curPz = pzs->first();
+        curIndex = 0;
+        emit currentPzChanged(curPz,NULL);
+    }
+    emit pzCountChanged(pzs->count());
     return true;
 }
 
@@ -71,19 +85,44 @@ bool PzSetMgr::isOpened()
     return (curY!=0 && curM!=0);
 }
 
+/**
+ * @brief PzSetMgr::isDirty
+ *  凭证集是否有未保存的更改
+ * @return
+ */
+bool PzSetMgr::isDirty()
+{
+    //要考虑的方面包括（凭证集内的凭证、余额状态、凭证集状态）
+    return (dirty || !undoStack->isClean());
+}
+
 
 void PzSetMgr::close()
 {
-    save();
+    //save();
+    undoStack->clear();
+    for(int i = 0; i < pzs->count(); ++i){
+        PingZheng* pz = pzs->at(i);
+        disconnect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
+        disconnect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
+    }
+    qDeleteAll(pz_dels);
+    pz_dels.clear();
+    qDeleteAll(cachedPzs);
+    cachedPzs.clear();
     curY=0;curM=0;
-    state = Ps_NoOpen;
+    c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
     maxPzNum = 0;
     maxZbNum = 0;
     isReStat = false;
     isReSave = false;
     delete statUtil;
     pzs=NULL;
+    PingZheng* oldPz = curPz;
     curPz=NULL;
+    curIndex = -1;
+    _determineCurPzChanged(oldPz);
+    emit pzCountChanged(0);
 }
 
 /**
@@ -99,7 +138,7 @@ StatUtil &PzSetMgr::getStatObj()
 //获取凭证总数（也即已用的最大凭证号）
 int PzSetMgr::getPzCount()
 {
-    if(state == Ps_NoOpen)
+    if(curY==0 && curM==0)
         return 0;
     return maxPzNum-1;
 }
@@ -132,14 +171,6 @@ bool PzSetMgr::resetPzNum(int by)
     return true;
 }
 
-//根据凭证集内的每个凭证的状态来确定凭证集的状态
-bool PzSetMgr::determineState()
-{
-    if(state == Ps_NoOpen)
-        return false;
-
-}
-
 /**
  * @brief PzSetMgr::getState
  *  返回凭证集状态，如果年月为0，则返回当前打开的凭证集的状态
@@ -160,17 +191,22 @@ PzsState PzSetMgr::getState(int y, int m)
 }
 
 //设置凭证集状态
-void PzSetMgr::setstate(PzsState state,int y, int m )
+void PzSetMgr::setState(PzsState state,int y, int m )
 {
     int yy,mm;
     if(y==0 && m==0){
         yy=curY;mm=curM;
     }
+    else{
+        yy=y;mm=m;
+    }
     int key = genKey(yy,mm);
     if(!states.contains(key))
-        dbUtil->setPzsState(y,m,state);
+        dbUtil->getPzsState(y,m,state);
+    if(state == states.value(key))
+        return;
     states[key] = state;
-
+    dirty = true;
 }
 
 /**
@@ -203,12 +239,18 @@ void PzSetMgr::setExtraState(bool state, int y, int m)
 {
     int yy,mm;
     if(y==0 && m==0){
-        yy=curY,mm=curM;
+        yy=curY;mm=curM;
+    }
+    else{
+        yy = y;mm = m;
     }
     int key = genKey(yy,mm);
     if(!extraStates.contains(key))
-        dbUtil->setExtraState(yy,mm,state);
+        extraStates[key] = dbUtil->getExtraState(yy,mm);
+    if(state == extraStates.value(key))
+        return;
     extraStates[key] = state;
+    dirty = true;
 }
 
 /**
@@ -330,7 +372,7 @@ bool PzSetMgr::readPreExtra()
  *  获取当前打开凭证集所使用的汇率表
  * @return
  */
-QHash<int, Double> &PzSetMgr::getRates()
+QHash<int, Double> PzSetMgr::getRates()
 {
     QHash<int,Double> rates;
     if(curY==0 && curM==0)
@@ -349,12 +391,16 @@ PingZheng *PzSetMgr::first()
         LOG_ERROR(QObject::tr("pzSet not opened!"));
         return NULL;
     }
+    PingZheng* oldPz = curPz;
     if(pzs->empty()){
         curPz = NULL;
-        return NULL;
+        curIndex = -1;
     }
-    curIndex = 0;
-    curPz = pzs->first();
+    else{
+        curIndex = 0;
+        curPz = pzs->first();
+    }
+    _determineCurPzChanged(oldPz);
     return curPz;
 }
 
@@ -368,15 +414,20 @@ PingZheng *PzSetMgr::next()
         LOG_ERROR(QObject::tr("pzSet not opened!"));
         return NULL;
     }
+    PingZheng* oldPz = curPz;
     if(pzs->empty()){
         curPz = NULL;
-        return NULL;
+        curIndex = -1;
     }
-    if(curIndex == pzs->count()-1){
-        curPz = NULL;
-        return NULL;
+    else{
+        if(curIndex == pzs->count()-1){
+            curPz = NULL;
+            curIndex = -1;
+        }
+        else
+            curPz = pzs->at(++curIndex);
     }
-    curPz = pzs->at(++curIndex);
+    _determineCurPzChanged(oldPz);
     return curPz;
 }
 
@@ -390,15 +441,20 @@ PingZheng *PzSetMgr::previou()
         LOG_ERROR(QObject::tr("pzSet not opened!"));
         return NULL;
     }
+    PingZheng* oldPz = curPz;
     if(pzs->empty()){
         curPz = NULL;
-        return NULL;
+        curIndex = -1;
     }
-    if(curIndex == 0){
-        curPz = NULL;
-        return NULL;
+    else{
+        if(curIndex == 0){
+            curIndex = -1;
+            curPz = NULL;
+        }
+        else
+            curPz = pzs->at(--curIndex);
     }
-    curPz = pzs->at(--curIndex);
+    _determineCurPzChanged(oldPz);
     return curPz;
 }
 
@@ -412,12 +468,16 @@ PingZheng *PzSetMgr::last()
         LOG_ERROR(QObject::tr("pzSet not opened!"));
         return NULL;
     }
+    PingZheng* oldPz = curPz;
     if(pzs->empty()){
+        curIndex = -1;
         curPz = NULL;
-        return NULL;
     }
-    curIndex = pzs->count() - 1;
-    curPz = pzs->last();
+    else{
+        curIndex = pzs->count() - 1;
+        curPz = pzs->last();
+    }
+    _determineCurPzChanged(oldPz);
     return curPz;
 }
 
@@ -428,23 +488,33 @@ PingZheng *PzSetMgr::last()
  */
 PingZheng *PzSetMgr::seek(int num)
 {
-    if((num < 1) || num > pzs->count()){
-        curPz = NULL;
-        curIndex = -1;
+    PingZheng* oldPz = curPz;
+    if((num < 1) || num > pzs->count())
         return NULL;
+    else{
+        curPz = pzs->at(num-1);
+        curIndex = num-1;
     }
-    curPz = pzs->at(num-1);
-    curIndex = num-1;
+    _determineCurPzChanged(oldPz);
     return curPz;
 }
 
 //添加空白凭证
 PingZheng* PzSetMgr::appendPz(PzClass pzCls)
 {
-    if(state == Ps_NoOpen)
+    if(curY==0 && curM==0)
         return NULL;
+    PingZheng* oldPz = curPz;
     QString ds = QDate(curY,curM,1).toString(Qt::ISODate);
-    return new PingZheng(this,0,ds,maxPzNum++,maxZbNum++,0.0,0.0,pzCls,0,Pzs_Recording);
+    curPz =  new PingZheng(this,0,ds,maxPzNum++,maxZbNum++,0.0,0.0,pzCls,0,Pzs_Recording);
+    c_recording++;
+    setState(Ps_Rec);
+    *pzs<<curPz;
+    curIndex = pzs->count()-1;
+    emit currentPzChanged(curPz,oldPz);
+    emit pzCountChanged(pzs->count());
+    emit pzSetChanged();
+    return curPz;
 }
 
 /**
@@ -465,8 +535,29 @@ bool PzSetMgr::append(PingZheng *pz)
         return true;
     *pzs<<pz;
     pz->setNumber(pzs->count());
+    PingZheng* oldPz = curPz;
     curPz = pz;
     curIndex = pz->number()-1;
+    switch(pz->getPzState()){
+    case Pzs_Recording:
+        c_recording++;
+        setState(Ps_Rec);
+        break;
+    case Pzs_Verify:
+        c_verify++;
+        break;
+    case Pzs_Instat:
+        c_instat++;
+        break;
+    case Pzs_Repeal:
+        c_repeal++;
+        break;
+    }
+    if(pz->baCount() > 0)
+        setExtraState(false);
+    _determineCurPzChanged(oldPz);
+    emit pzCountChanged(pzs->count());
+    emit pzSetChanged();
     return true;
 }
 
@@ -480,14 +571,6 @@ bool PzSetMgr::insert(PingZheng* pz)
 {
     //插入凭证要保证凭证集内凭证号和自编号的连贯性要求,参数ecode错误代码（1：凭证号越界，2：自编号冲突）
     //凭证号必须从1开始，顺序增加，中间不能间断，自编号必须保证唯一性
-//    if(pd->number() > maxPzNum){
-//        errorStr = tr("PingZheng number beyond boundary!");
-//        return false;
-//    }
-//    if(isZbNumConflict(pd->zbNumber())){
-//        errorStr = tr("PingZheng Zb Number conflict!");
-//        return false;
-//    }
 
     if(!pz)
         return false;
@@ -495,32 +578,124 @@ bool PzSetMgr::insert(PingZheng* pz)
         LOG_ERROR(tr("pzSet not opened,don't' insert pingzheng"));
         return false;
     }
+    //凭证集内不能存在同一个凭证对象的多个拷贝
+    for(int i = 0; i < pzs->count(); ++i){
+        if(*pzs->at(i) == *pz)
+            return false;
+    }
     int index = pz->number()-1;
     if(index > pzs->count()){
-        errorStr = tr("when insert pingzheng to happen error,pingzheng number overflow!");
-        LOG_ERROR(errorStr);
+        //errorStr = tr("when insert pingzheng to happen error,pingzheng number overflow!");
+        //LOG_ERROR(errorStr);
+        //return false;
+        index = pzs->count();
+        pz->setNumber(index+1);
+    }
+
+//    if(restorePz(pz))
+//        return true;
+    pz->setParent(this);
+    PingZheng* oldPz = curPz;
+    if(index == pzs->count())
+        pzs->append(pz);
+    else{
+        pzs->insert(index,pz);
+        curPz = pz;
+        curIndex = index;
+        //调整插入凭证后的凭证号
+        index++;
+        while(index < pzs->count()){
+            pzs->at(index)->setNumber(index+1);
+            ++index;
+        }
+    }
+    switch(pz->getPzState()){
+    case Pzs_Recording:
+        c_recording++;
+        setState(Ps_Rec);
+        break;
+    case Pzs_Verify:
+        c_verify++;
+        break;
+    case Pzs_Instat:
+        c_instat++;
+        break;
+    case Pzs_Repeal:
+        c_repeal++;
+        break;
+    }
+    if(pz->baCount() > 0)
+        setExtraState(false);
+    _determineCurPzChanged(oldPz);
+    emit pzCountChanged(pzs->count());
+    emit pzSetChanged();
+    return true;
+}
+
+/**
+ * @brief PzSetMgr::insert
+ *  在指定位置插入凭证
+ * @param index
+ * @param pz
+ * @return
+ */
+bool PzSetMgr::insert(int index, PingZheng *pz)
+{
+    if(!isOpened()){
+        LOG_ERROR(tr("pzSet not opened,don't' insert pingzheng"));
         return false;
     }
-    if(restorePz(pz))
-        return true;
-    pz->setParent(this);
-    if(index == pzs->count()){
-        pzs->append(pz);
-        pz->setNumber(index+1);
-        curPz = pz;
-        curIndex = pzs->count()-1;
-        return true;
+    if(!pz || ((index < 0) && (index > pzs->count())))
+        return false;
+    //凭证集内不能存在同一个凭证对象的多个拷贝
+    for(int i = 0; i < pzs->count(); ++i){
+        if(*pzs->at(i) == *pz)
+            return false;
     }
+
+    PingZheng* oldPz = curPz;
+    pz->setNumber(index+1);
     pzs->insert(index,pz);
+    if(index < pzs->count()-1)
+    for(int i = index+1; i < pzs->count(); ++i)
+        pzs->at(i)->setNumber(i+1);
     curPz = pz;
     curIndex = index;
-    //调整插入凭证后的凭证号
-    index++;
-    while(index < pzs->count()){
-        pzs->at(index)->setNumber(index+1);
-        ++index;
+    switch(pz->getPzState()){
+    case Pzs_Recording:
+        c_recording++;
+        setState(Ps_Rec);
+        break;
+    case Pzs_Verify:
+        c_verify++;
+        break;
+    case Pzs_Instat:
+        c_instat++;
+        break;
+    case Pzs_Repeal:
+        c_repeal++;
+        break;
     }
+    if(pz->baCount() > 0)
+        setExtraState(false);
+    _determineCurPzChanged(oldPz);
+    emit pzCountChanged(pzs->count());
+    emit pzSetChanged();
     return true;
+}
+
+/**
+ * @brief PzSetMgr::cachePz
+ *  缓存指定凭证对象，以便以后在撤销删除该凭证又执行了保存操作时恢复
+ * @param pz
+ */
+void PzSetMgr::cachePz(PingZheng *pz)
+{
+    pz->ID = UNID;
+    foreach(BusiAction* ba, pz->baLst){
+        ba->id = UNID;
+    }
+    cachedPzs<<pz;
 }
 
 /**
@@ -531,12 +706,70 @@ bool PzSetMgr::insert(PingZheng* pz)
  */
 bool PzSetMgr::isZbNumConflict(int num)
 {
-    if(state == Ps_NoOpen)
+    if(curY==0 && curM==0)
         return false;
     foreach(PingZheng* pz, *pzs)
         if(num == pz->zbNumber())
             return true;
     return false;
+}
+
+/**
+ * @brief PzSetMgr::scanPzCount
+ *  扫描打开凭证集内各种状态的凭证数
+ */
+void PzSetMgr::scanPzCount()
+{
+    if(curY==0 && curM==0)
+        return;
+    c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
+    foreach(PingZheng* pz, *pzs){
+        switch(pz->getPzState()){
+        case Pzs_Recording:
+            c_recording++;
+            break;
+        case Pzs_Verify:
+            c_verify++;
+            break;
+        case Pzs_Instat:
+            c_instat++;
+            break;
+        case Pzs_Repeal:
+            c_repeal++;
+            break;
+        }
+    }
+}
+
+/**
+ * @brief PzSetMgr::_confirmPzSetState
+ *  根据当前打开凭证集内凭证的状态确定凭证集的状态
+ * @param state
+ */
+void PzSetMgr::_determinePzSetState(PzsState &state)
+{
+    if(curY==0 && curM==0)
+        state = Ps_NoOpen;
+    else if(getState() == Ps_Jzed)
+        state = Ps_Jzed;
+    else{
+        scanPzCount();
+        if(c_recording > 0)
+            state = Ps_Rec;
+        else
+            state = Ps_AllVerified;
+    }
+}
+
+/**
+ * @brief PzSetMgr::_determineCurPzChanged
+ *  判断当前凭证是否改变，如果改变则触发相应信号
+ * @param oldPz
+ */
+void PzSetMgr::_determineCurPzChanged(PingZheng *oldPz)
+{
+    if((!curPz && oldPz) || (curPz && !oldPz) || (*curPz != *oldPz))
+        emit currentPzChanged(curPz,oldPz);
 }
 
 
@@ -565,8 +798,8 @@ bool PzSetMgr::remove(PingZheng *pz)
     }
     int fonded = false;
     int i = 0;
-    while(i < pzs->count() && !fonded){
-        if(pzs->at(i) == pz){
+    while(!fonded && i < pzs->count()){
+        if(*pzs->at(i) == *pz){
             pzs->removeAt(i);
             fonded = true;
             pz->setParent(NULL);
@@ -578,17 +811,44 @@ bool PzSetMgr::remove(PingZheng *pz)
     }
     if(!fonded)
         return false;
+    PingZheng* oldPz = curPz;
+    if(pzs->isEmpty()){
+        curPz = NULL;
+        curIndex = -1;
+        return true;
+    }
     //调整移除凭证后的凭证号
     for(i;i<pzs->count();++i)
         pzs->at(i)->setNumber(i+1);
     if(pz->number() == pzs->count()+1){
         curPz = pzs->last();
-        //curIndex = pzs->count()-1;
+        curIndex = pzs->count()-1;
     }
     else{
         curPz = pzs->at(pz->number()-1);
-        //curIndex = pz->number() - 1;
+        curIndex = pz->number() - 1;
     }
+    switch(pz->getPzState()){
+    case Pzs_Recording:
+        c_recording--;
+        break;
+    case Pzs_Verify:
+        c_verify--;
+        break;
+    case Pzs_Instat:
+        c_instat--;
+        break;
+    case Pzs_Repeal:
+        c_repeal--;
+        break;
+    }
+    PzsState state;
+    _determinePzSetState(state);
+    if(state != getState())
+        setState(state);
+    _determineCurPzChanged(oldPz);
+    emit pzCountChanged(pzs->count());
+    emit pzSetChanged();
     return true;
 }
 
@@ -600,32 +860,66 @@ bool PzSetMgr::remove(PingZheng *pz)
  */
 bool PzSetMgr::restorePz(PingZheng *pz)
 {
+    //bool fonded = false;
     for(int i = 0; i < pz_dels.count(); ++i){
         if(*pz_dels.at(i) == *pz){
-            PingZheng* p = pz_dels.takeAt(i);
-            p->setDeleted(false);
-            //insert(p);
-            int index = pz->number()-1;
-            if(index >= pzs->count()){
-                pzs->append(pz);
-                pz->setNumber(index+1);
-                curPz = pz;
-                curIndex = pzs->count()-1;
-                return true;
-            }
-            pzs->insert(index,pz);
-            curPz = pz;
-            curIndex = pz->number()-1;
-            //调整插入凭证后的凭证号
-            index++;
-            while(index < pzs->count()){
-                pzs->at(index)->setNumber(index);
-                ++index;
-            }
-            return true;
+            pz_dels.takeAt(i);
+            pz->setDeleted(false);
+            return insert(pz);
+        }
+    }    
+    for(int i = 0; i < cachedPzs.count(); ++i){
+        if(*cachedPzs.at(i) == *pz){
+            cachedPzs.takeAt(i);
+            pz->setDeleted(false);
+            return insert(pz);
         }
     }
     return false;
+//    if(fonded){
+//        PingZheng* oldPz = curPz;
+//        int index = pz->number()-1;
+//        if(index >= pzs->count()){
+//            pzs->append(pz);
+//            pz->setNumber(index+1);
+//            curPz = pz;
+//            curIndex = pzs->count()-1;
+//        }
+//        else{
+//            pzs->insert(index,pz);
+//            curPz = pz;
+//            curIndex = pz->number()-1;
+//            //调整插入凭证后的凭证号
+//            index++;
+//            while(index < pzs->count()){
+//                pzs->at(index)->setNumber(index);
+//                ++index;
+//            }
+//        }
+//        switch(pz->getPzState()){
+//        case Pzs_Recording:
+//            c_recording++;
+//            setState(Ps_Rec);
+//            break;
+//        case Pzs_Verify:
+//            c_verify++;
+//            break;
+//        case Pzs_Instat:
+//            c_instat++;
+//            break;
+//        case Pzs_Repeal:
+//            c_repeal++;
+//            break;
+//        }
+//        if(pz->baCount() > 0)
+//            setExtraState(false);
+//        if(curPz != oldPz)
+//            emit currentPzChanged(curPz,oldPz);
+//        emit pzCountChanged(pzs->count());
+//        emit pzSetChanged();
+//        return true;
+//    }
+//    return false;
 }
 
 /**
@@ -650,30 +944,86 @@ void PzSetMgr::setCurPz(PingZheng *pz)
 {
     if(curPz == pz)
         return;
-
+    PingZheng* oldPz = curPz;
+    bool fonded = false;
     for(int i = 0; i < pzs->count(); ++i){
         if(pzs->at(i) == pz){
+            fonded = true;
             curIndex = i;
             curPz = pz;
-            return;
+            break;
         }
     }
-    curIndex = -1;
-    curPz = NULL;
+    if(!fonded){
+        curIndex = -1;
+        curPz = NULL;
+    }
+    _determineCurPzChanged(oldPz);
 }
 
-
-
-//保存凭证
-bool PzSetMgr::savePz()
+/**
+ * @brief PzSetMgr::savePz
+ *  保存单一凭证
+ * @param pz
+ * @return
+ */
+bool PzSetMgr::savePz(PingZheng *pz)
 {
-
+    return dbUtil->savePingZheng(pz);
 }
 
-//保存凭证集
-bool PzSetMgr::save()
+/**
+ * @brief PzSetMgr::savePz
+ *  保存打开凭证集内的所有被修改和删除的凭证
+ *  对应被删除的凭证，其对象仍将保存在缓存队列（pz_saveAfterDels）中，且对象ID复位
+ *  当这些被删除且已实际删除的凭证复时，将以新凭证的面目出现
+ * @param pzs
+ * @return
+ */
+bool PzSetMgr::savePzSet()
 {
+    if(!dbUtil->savePingZhengs(*pzs))
+        return false;
+    if(!dbUtil->delPingZhengs(pz_dels))
+        return false;
+    foreach(PingZheng* pz, pz_dels){
+        cachePz(pz);
+    }
+    pz_dels.clear();
+    return true;
+}
 
+/**
+ * @brief PzSetMgr::save
+ *  保存凭证集相关的数据和信息（凭证、余额状态、凭证集状态等）
+ * @return
+ */
+bool PzSetMgr::save(SaveWitch witch)
+{
+    switch(witch){
+    case SW_ALL:
+        if(!savePzSet())
+            return false;
+        if(!dbUtil->setPzsState(curY,curM,states.value(genKey(curY,curM))))
+            return false;
+        if(!dbUtil->setExtraState(curY,curM,extraStates.value(genKey(curY,curM))))
+            return false;
+        undoStack->setClean();
+        dirty = false;
+    case SW_PZS:
+        if(!savePzSet())
+            return false;
+        undoStack->setClean();
+        break;
+    case SW_STATE:
+        if(!dbUtil->setPzsState(curY,curM,getState()))
+            return false;
+        if(!dbUtil->setExtraState(curY,curM,getExtraState()))
+            return false;
+        break;
+        dirty = false;
+    }
+    return true;
 }
 
 //创建当期固定资产折旧凭证
@@ -746,12 +1096,6 @@ void PzSetMgr::finishAccount()
 
 }
 
-//获取凭证集的数据模型，提供给凭证编辑窗口
-CustomRelationTableModel* PzSetMgr::getModel()
-{
-
-}
-
 //统计本期发生额
 bool PzSetMgr::stat()
 {
@@ -799,3 +1143,26 @@ bool PzSetMgr::find(int y, int sm, int em)
 {
 
 }
+
+/**
+ * @brief PzSetMgr::needRestat
+ *  由于凭证集内的凭证数值的改变，需要进行重新统计来得到正确的余额
+ */
+void PzSetMgr::needRestat()
+{
+    setExtraState(false);
+}
+
+/**
+ * @brief PzSetMgr::pzChangedInSet
+ *  打开的凭证集内的一个凭证的内容发生了改变，必须通知给凭证集对象
+ * @param pz
+ */
+void PzSetMgr::pzChangedInSet(PingZheng *pz)
+{
+    //目前的实现只触发凭证集改变信号以启用主窗口的保存按钮
+    emit pzSetChanged();
+}
+
+
+

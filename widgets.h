@@ -62,7 +62,8 @@ class MyMdiSubWindow : public QMdiSubWindow
 {
     Q_OBJECT
 public:
-    MyMdiSubWindow(QWidget* parent = 0):QMdiSubWindow(parent){}
+    MyMdiSubWindow(bool isHideWhenColse = false, QWidget* parent = 0):
+    QMdiSubWindow(parent),isHideWhenColse(isHideWhenColse){}
     //~MyMdiSubWindow();
 public slots:
     //void centrlWidgetClosed();
@@ -70,7 +71,7 @@ signals:
     void windowClosed(QMdiSubWindow* subWin);
 protected:
     void closeEvent(QCloseEvent *closeEvent);
-
+    bool isHideWhenColse;
 };
 
 //在QTableWidget中显示业务活动摘要部分内容的表格项

@@ -97,9 +97,13 @@ void ValidableTableWidgetItem::setData(int role, const QVariant& value)
 
 void MyMdiSubWindow::closeEvent(QCloseEvent *closeEvent)
 {
-    emit windowClosed(this);
-    //delete widget();
-    QMdiSubWindow::closeEvent(closeEvent);
+    if(isHideWhenColse)
+        hide();
+    else{
+        emit windowClosed(this);
+        //delete widget();
+        QMdiSubWindow::closeEvent(closeEvent);
+    }
 }
 
 
@@ -288,16 +292,11 @@ QVariant BASndSubItem::data(int role) const
     if (role == Qt::TextAlignmentRole)
         return (int)Qt::AlignCenter;
     if(role == Qt::ToolTipRole){
-        QString tip = smg->getSndSubject(subId)->getLName();
+        SecondSubject* ssub = smg->getSndSubject(subId);
+        QString tip = ssub->getLName();
         //如果是银行科目，则显示银行账户信息
-        BankAccount* ba=0; bool found = false;
-        foreach(ba,smg->getBankAccounts()){
-            if(ba->subObj->getId() == subId){
-                found = true;
-                break;
-            }
-        }
-        if(found){
+        if(smg->isBankSndSub(ssub)){
+            BankAccount* ba = smg->getBankAccount(ssub);
             tip.append("\n").append(QObject::tr("帐号：%1\n").arg(ba->accNumber));
             tip.append(QObject::tr("是否基本户："));
             if(ba->bank->isMain)
@@ -306,6 +305,23 @@ QVariant BASndSubItem::data(int role) const
                 tip.append(QObject::tr("否"));
         }
         return tip;
+
+//        BankAccount* ba=0; bool found = false;
+//        foreach(ba,smg->getBankAccounts()){
+//            if(ba->subObj->getId() == subId){
+//                found = true;
+//                break;
+//            }
+//        }
+//        if(found){
+//            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(ba->accNumber));
+//            tip.append(QObject::tr("是否基本户："));
+//            if(ba->bank->isMain)
+//                tip.append(QObject::tr("是"));
+//            else
+//                tip.append(QObject::tr("否"));
+//        }
+//        return tip;
     }
     if(role == Qt::DisplayRole){
         SecondSubject* ssub = smg->getSndSubject(subId);

@@ -55,10 +55,10 @@ private slots:
     void summaryEditingFinished();
     void shortCutActivated();
 
-protected:
-    void keyPressEvent(QKeyEvent *event);
-    void mouseDoubleClickEvent(QMouseEvent *e);
-    void focusOutEvent(QFocusEvent* e);
+//protected:
+//    void keyPressEvent(QKeyEvent *event);
+//    void mouseDoubleClickEvent(QMouseEvent *e);
+//    void focusOutEvent(QFocusEvent* e);
 
 private:
     void parse(QString content);
@@ -158,7 +158,7 @@ private:
     FirstSubject* fsub;              //二级科目所属的一级科目
     SecondSubject* ssub;             //当前选定的二级科目对象
     SubjectManager *subMgr;          //
-    QList<SubjectNameItem*> allNIs;  //所有二级科目
+    QList<SubjectNameItem*> allNIs;  //所有名称条目
 
     bool textChangeReson; //组合框的文本是怎么改变的（true：鼠标选择组合框的下拉列表中的一个项目，false：用户输入到组合框的文本编辑区域）
     QComboBox* com;       //显示当前一级科目下的可选的二级科目的组合框
@@ -233,6 +233,9 @@ public:
     void setCell(int row, int col){this->row = row;this->col = col;}
 protected:
     void keyPressEvent(QKeyEvent* e );
+private slots:
+    void valueChanged(const QString & text);
+    //void valueEdited();
 signals:
     void dataEditCompleted(int col, bool isMove);
     void nextRow(int row);  //在贷方列按下回车键时触发此信号
@@ -269,14 +272,14 @@ private slots:
     void newSndSubject(FirstSubject* fsub, SecondSubject*& ssub, QString name, int row, int col);
 
     void nextRow(int row);
-//    void catchCopyPrevShortcut(int row, int col);
+    void catchCopyPrevShortcut(int row, int col);
 
 signals:
     //void updateSndSubject(int row, int col, SecondSubject* ssub);
     void crtNewNameItemMapping(int row, int col, FirstSubject *fsub, SubjectNameItem *ni, SecondSubject*& ssbu);
     void crtNewSndSubject(int row, int col, FirstSubject* fsub, SecondSubject*& ssub, QString name);
     void moveNextRow(int row);
-    //void reqCopyPrevAction(int row, int col);
+    void reqCopyPrevAction(int row);
 
 private:
     //int witch;  //代理当前编辑的是业务活动的哪个列

@@ -65,6 +65,9 @@ public:
 
     int getLocalMid();
 
+    //子窗口状态信息存取方法
+    bool readPzEwTableState(QList<int> &infos);
+
     //获取或设置配置变量的值
     bool initGlobalVar();
     bool saveGlobalVar();

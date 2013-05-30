@@ -64,7 +64,8 @@ SOURCES += main.cpp\
     pzdialog.cpp \
     widgets/bawidgets.cpp \
     delegates.cpp \
-    widgets/variousWidgets.cpp
+    widgets/variousWidgets.cpp \
+    statements.cpp
 
 HEADERS  += \
     connection.h \

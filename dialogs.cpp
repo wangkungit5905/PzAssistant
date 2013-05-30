@@ -164,10 +164,14 @@ void OpenPzDialog::on_chkNew_clicked(bool checked)
 
     int month = account->getEndDate().month();
     int year = account->getEndDate().year();
+
+    //如果已设定选定月份的汇率，则禁用延续汇率
+    QHash<int,Double> rates;
+    account->getRates(year,month,rates);
+    ui.chkRate->setChecked(rates.isEmpty());
+    ui.chkRate->setEnabled(rates.isEmpty());
     if(checked){
         //如果账户的最后记账日期是12月，则还必须创建新的帐套
-        ui.chkRate->setEnabled(true);
-        ui.chkRate->setChecked(true);
         if(month == 12){
             year++;
             month = 1;
@@ -227,6 +231,7 @@ void OpenPzDialog::on_btnOk_clicked()
         curAccount->setRates(y,m,rates);
     }
     account->setCurSuite(y);
+    account->setCurMonth(m);
     accept();
 }
 

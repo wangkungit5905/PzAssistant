@@ -65,7 +65,8 @@ SOURCES += main.cpp\
     widgets/bawidgets.cpp \
     delegates.cpp \
     widgets/variousWidgets.cpp \
-    statements.cpp
+    statements.cpp \
+    accountpropertyconfig.cpp
 
 HEADERS  += \
     connection.h \
@@ -125,7 +126,8 @@ HEADERS  += \
     pzdialog.h \
     widgets/bawidgets.h \
     delegates.h \
-    widgets/variousWidgets.h
+    widgets/variousWidgets.h \
+    accountpropertyconfig.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -182,7 +184,13 @@ FORMS    += \
     forms/curstatdialog.ui \
     forms/showdzdialog2.ui \
     forms/subjectrangeselectdialog.ui \
-    forms/pzdialog.ui
+    forms/pzdialog.ui \
+    forms/apcbase.ui \
+    forms/apcsuite.ui \
+    forms/apcbank.ui \
+    forms/apcsubject.ui \
+    forms/apcreport.ui \
+    forms/apclog.ui
 
 RESOURCES += \
     imgers.qrc \

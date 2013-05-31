@@ -39,6 +39,7 @@
 #include "showdzdialog2.h"
 #include "pzdialog.h"
 #include "statements.h"
+#include "accountpropertyconfig.h"
 
 #include "completsubinfodialog.h"
 
@@ -331,6 +332,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
 
     on_actLogin_triggered(); //显示登录窗口
+    if(!curUser)
+        return;
 
     AppConfig* appCfg = AppConfig::getInstance();
     if(appCfg->getRecentOpenAccount(curAccountId) && (curAccountId != 0)){
@@ -660,6 +663,37 @@ void MainWindow::rfLogin(bool login)
     ui->actShiftUser->setEnabled(login);
     //如果当前登录的root用户，则启用安全配置菜单项，目前未实现，暂不启用
     //ui->actSecCon->setEnabled(true);
+
+    //如果用户没有登录，则禁用所有与账户有关的所有菜单项
+    if(!login){
+        ui->actCrtAccount->setEnabled(false);
+        ui->actOpenAccount->setEnabled(false);
+        ui->actCloseAccount->setEnabled(false);
+        ui->actAccProperty->setEnabled(false);
+        ui->actSave->setEnabled(false);
+        ui->actPrint->setEnabled(false);
+        ui->actOpenPzs->setEnabled(false);
+        ui->actClosePzs->setEnabled(false);
+        ui->actEditPzs->setEnabled(false);
+        ui->actCurStat->setEnabled(false);
+        ui->actCurStatNew->setEnabled(false);
+        ui->actDetailView->setEnabled(false);
+        ui->actAddPz->setEnabled(false);
+        ui->actInsertPz->setEnabled(false);
+        ui->actDelPz->setEnabled(false);
+        ui->actGoFirst->setEnabled(false);
+        ui->actGoNext->setEnabled(false);
+        ui->actGoPrev->setEnabled(false);
+        ui->actGoLast->setEnabled(false);
+        ui->actAddAction->setEnabled(false);
+        ui->actInsertBa->setEnabled(false);
+        ui->actDelAction->setEnabled(false);
+        ui->actMvUpAction->setEnabled(false);
+        ui->actMvDownAction->setEnabled(false);
+
+        //......
+    }
+
 }
 
 /**
@@ -2547,9 +2581,9 @@ void MainWindow::subWindowClosed(QMdiSubWindow* subWin)
     }
     else if(subWin == subWindows.value(ACCOUNTPROPERTY)){
         winEnum = ACCOUNTPROPERTY;
-        AccountPropertyDialog* dlg =
-                static_cast<AccountPropertyDialog*>(subWin->widget());
-        dlg->save(true);
+        AccountPropertyConfig* dlg =
+                static_cast<AccountPropertyConfig*>(subWin->widget());
+        //dlg->save(true);
         delete dlg;
     }
     else if(subWin == subWindows.value(VIEWPZSETERROR)){
@@ -3476,7 +3510,7 @@ void MainWindow::on_actAccProperty_triggered()
     QByteArray* sinfo;
     SubWindowDim* winfo;
     dbUtil->getSubWinInfo(ACCOUNTPROPERTY,winfo,sinfo);
-    AccountPropertyDialog* dlg = new AccountPropertyDialog(curAccount);
+    AccountPropertyConfig* dlg = new AccountPropertyConfig(curAccount);
     showSubWindow(ACCOUNTPROPERTY,winfo,dlg);
     if(sinfo)
         delete sinfo;

@@ -464,19 +464,19 @@ void ShowDZDialog2::moveTo()
         int pidCol;
         switch(tf){
         case CASHDAILY:
-            pidCol = 9;
-            break;
-        case BANKRMB:
             pidCol = 10;
             break;
+        case BANKRMB:
+            pidCol = 11;
+            break;
         case BANKWB:
-            pidCol = 14;
+            pidCol = 15;
             break;
         case COMMON:
             pidCol = 9;
             break;
         case THREERAIL:
-            pidCol = 12;
+            pidCol = 13;
             break;
         }
         int pid = imodel->data(imodel->index(row, pidCol)).toInt();
@@ -1774,7 +1774,7 @@ int ShowDZDialog2::genDataForCommon(QList<DailyAccountData2*> datas,
         l<<new ApStandardItem(dirStr(datas[i]->dir)); //7：余额方向
         l<<new ApStandardItem(datas[i]->etm);    //8：余额
         //添加两个隐藏列（业务活动所属凭证id和业务活动本身的id）
-        l<<new ApStandardItem(datas[i]->pid);//8
+        l<<new ApStandardItem(datas[i]->pid);//9
         l<<new ApStandardItem(datas[i]->bid);//10
         pdatas<<l;
         rows++;

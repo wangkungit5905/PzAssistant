@@ -173,8 +173,8 @@ QLineEdit:active { background-color: rgb(255, 255, 127)}</string>
      <rect>
       <x>0</x>
       <y>10</y>
-      <width>311</width>
-      <height>20</height>
+      <width>316</width>
+      <height>25</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout">

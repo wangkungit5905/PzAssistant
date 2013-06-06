@@ -269,7 +269,7 @@ void CurStatDialog::save()
         QMessageBox::critical(this,tr("错误提示"),tr("保存余额时，发生错误！"));
         return;
     }
-    emit pzsExtraSaved();
+    //emit pzsExtraSaved();
     ui->btnSave->setEnabled(false);
     ui->btnCancel->setEnabled(false);
     ui->btnClose->setEnabled(true);
@@ -1026,4 +1026,7 @@ void CurStatDialog::on_actToExcel_triggered()
     QMessageBox::information(this,tr("提示信息"),tr("本功能未实现！"));
 }
 
-
+void CurStatDialog::on_btnSave_clicked()
+{
+    save();
+}

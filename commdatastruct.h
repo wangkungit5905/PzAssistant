@@ -7,6 +7,10 @@
 #include "cal.h"
 #include "securitys.h"
 
+class PingZheng;
+class BusiAction;
+class User;
+
 const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
 const int UNCLASS   = 0;    //未知的分类
 const int ALLCLASS  = 0;    //所有类别
@@ -136,6 +140,18 @@ enum PzClass{
     Pzc_Jzlr      =   50       //结转本年利润到利润分配
 };
 Q_DECLARE_METATYPE(PzClass)
+
+/**
+ * @brief 一级科目大类类别枚举
+ */
+enum SubjectClass{
+    SC_ZC   = 1,        //资财类
+    SC_FZ   = 2,        //负债类
+    SC_QY   = 3,        //所有者权益类
+    SC_CB   = 4,        //成本类
+    SC_SY   = 5,        //损益类
+    SC_GT   = 6         //共同类
+};
 
 ////凭证子类别
 //enum PzSubClass{
@@ -288,48 +304,21 @@ struct TotalAccountData2{
 
 };
 
-
-//表示凭证中的单项业务活动的数据结构
-//struct BaData{
-//    QString summary; //摘要
-//    QString subject; //科目
-//    int  dir;        //借贷方向
-//    int mt;          //币种代码
-//    double v;        //金额
-//};
-
-//struct BaData2{
-//    QString summary; //摘要
-//    QString subject; //科目
-//    int  dir;        //借贷方向
-//    int mt;          //币种代码
-//    Double v;        //金额
-//};
-
-//打印凭证时，每张凭证需包含的数据
-//struct PzPrintData{
-//    QDate date;           //凭证日期
-//    int attNums;          //附件数
-//    QString pzNum;        //凭证号
-//    QString pzZbNum;      //自编号
-//    QList<BaData*> baLst; //凭证业务活动列表
-//    double jsum,dsum;     //借贷合计值
-//    int producer;     //制单者
-//    int verify;       //审核者
-//    int bookKeeper;   //记账者
-//};
-
-//struct PzPrintData2{
-//    QDate date;           //凭证日期
-//    int attNums;          //附件数
-//    QString pzNum;        //凭证号
-//    QString pzZbNum;      //自编号
-//    QList<BaData2*> baLst; //凭证业务活动列表
-//    Double jsum,dsum;     //借贷合计值
-//    int producer;     //制单者
-//    int verify;       //审核者
-//    int bookKeeper;   //记账者
-//};
+/**
+ * @brief The PzPrintData struct
+ *  打印一页凭证需要的数据结构（如果一个凭证对象包含的分录对象超出了一页凭证可拥有的最大行数，则用多个此对象表示属于同一张凭证的凭证数据）
+ */
+struct PzPrintData{
+    QDate date;           //凭证日期
+    int attNums;          //附件数
+    QString pzNum;        //凭证号
+    QString pzZbNum;      //自编号
+    QList<BusiAction*> baLst; //凭证业务活动列表
+    Double jsum,dsum;     //借贷合计值
+    User* producer;     //制单者
+    User* verify;       //审核者
+    User* bookKeeper;   //记账者
+};
 
 //包含业务活动数据的结构
 struct BusiActionData{
@@ -485,13 +474,12 @@ enum PingZhengErrorLevel{
     PZE_ERROR     = 2        //错误级
 };
 
-//凭证错误信息
+//凭证错误信息（由凭证集检错方法使用）
 struct PingZhengError{
     PingZhengErrorLevel errorLevel;      //错误级别
     int errorType;       //错误类型
-    int pzNum;           //凭证号
-    int baNum;           //会计分录序号
-    int pid,bid;         //凭证id和会计分录id
+    PingZheng* pz;       //出现错误的凭证对象
+    BusiAction* ba;      //出现错误的分录对象
     QString extraInfo;   //额外补充信息
     QString explain;     //描述错误的信息
 };

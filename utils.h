@@ -595,56 +595,56 @@ class VariousUtils{
 public:
 
     //将整数集合转为简写的文本形式（每个连续的数字区段用比如“4-8”的形式，多个区段用逗号分隔）
-    static QString IntSetToStr(QSet<int> set)
-    {
-        QString s;
-        if(set.count() > 0){
-            QList<int> pzs = set.toList();
-            qSort(pzs.begin(),pzs.end());
-            int prev = pzs[0],next = pzs[0];
-            for(int i = 1; i < pzs.count(); ++i){
-                if((pzs[i] - next) == 1){
-                    next = pzs[i];
-                }
-                else{
-                    if(prev == next)
-                        s.append(QString::number(prev)).append(",");
-                    else
-                        s.append(QString("%1-%2").arg(prev).arg(next)).append(",");
-                    prev = next = pzs[i];
-                }
-            }
-            if(prev == next)
-                s.append(QString::number(prev));
-            else
-                s.append(QString("%1-%2").arg(prev).arg(pzs[pzs.count() - 1]));
-        }
-        return s;
-    }
+//    static QString IntSetToStr(QSet<int> set)
+//    {
+//        QString s;
+//        if(set.count() > 0){
+//            QList<int> pzs = set.toList();
+//            qSort(pzs.begin(),pzs.end());
+//            int prev = pzs[0],next = pzs[0];
+//            for(int i = 1; i < pzs.count(); ++i){
+//                if((pzs[i] - next) == 1){
+//                    next = pzs[i];
+//                }
+//                else{
+//                    if(prev == next)
+//                        s.append(QString::number(prev)).append(",");
+//                    else
+//                        s.append(QString("%1-%2").arg(prev).arg(next)).append(",");
+//                    prev = next = pzs[i];
+//                }
+//            }
+//            if(prev == next)
+//                s.append(QString::number(prev));
+//            else
+//                s.append(QString("%1-%2").arg(prev).arg(pzs[pzs.count() - 1]));
+//        }
+//        return s;
+//    }
 
     //将简写的文本格式转为整数集合
-    static bool strToIntSet(QString s, QSet<int>& set)
-    {
-        //首先用规则表达式验证字符串中是否存在不可解析的字符，如有则返回false
-        if(false)
-            return false;
+//    static bool strToIntSet(QString s, QSet<int>& set)
+//    {
+//        //首先用规则表达式验证字符串中是否存在不可解析的字符，如有则返回false
+//        if(false)
+//            return false;
 
-        set.clear();
-        //对打印范围的编辑框文本进行解析，生成凭证号集合
-        QStringList sels = s.split(",");
-        for(int i = 0; i < sels.count(); ++i){
-            if(sels[i].indexOf('-') == -1)
-                set.insert(sels[i].toInt());
-            else{
-                QStringList ps = sels[i].split("-");
-                int start = ps[0].toInt();
-                int end = ps[1].toInt();
-                for(int j = start; j <= end; ++j)
-                    set.insert(j);
-            }
-        }
-        return true;
-    }
+//        set.clear();
+//        //对打印范围的编辑框文本进行解析，生成凭证号集合
+//        QStringList sels = s.split(",");
+//        for(int i = 0; i < sels.count(); ++i){
+//            if(sels[i].indexOf('-') == -1)
+//                set.insert(sels[i].toInt());
+//            else{
+//                QStringList ps = sels[i].split("-");
+//                int start = ps[0].toInt();
+//                int end = ps[1].toInt();
+//                for(int j = start; j <= end; ++j)
+//                    set.insert(j);
+//            }
+//        }
+//        return true;
+//    }
 
     //获取子窗口信息
     //static bool getSubWinInfo(int winEnum, SubWindowDim*& info, QByteArray*& otherInfo);

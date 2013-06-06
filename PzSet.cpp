@@ -6,6 +6,7 @@
 #include "statutil.h"
 
 
+
 /////////////////PzSetMgr///////////////////////////////////////////
 PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent),
     account(account),user(user),curY(0),curM(0)
@@ -15,8 +16,8 @@ PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent
     undoStack->setUndoLimit(MAXUNDOSTACK);
     statUtil = NULL;
     c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
-    isReStat = false;
-    isReSave = false;
+    //isReStat = false;
+    //isReSave = false;
     maxPzNum = 0;
     maxZbNum = 0;
     curPz=NULL;
@@ -45,14 +46,23 @@ bool PzSetMgr::open(int y, int m)
             return false;
         if(!dbUtil->getPzsState(y,m,states[key]))
             return false;        
-    }
-    scanPzCount();
-    extraStates[key] = dbUtil->getExtraState(y,m);
+    }    
+    curY=y,curM=m;
     pzs = &pzSetHash[key];
+    scanPzCount();
+    //凭证集的状态以实际凭证为准
+    PzsState state;
+    _determinePzSetState(state);
+    if(state != states.value(key)){
+        states[key] = state;
+        dirty = true;
+    }
+    extraStates[key] = dbUtil->getExtraState(y,m);    
     for(int i = 0; i < pzs->count(); ++i){
         PingZheng* pz = pzs->at(i);
         connect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
         connect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
+        connect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
     }
 
     maxPzNum = pzSetHash.value(key).count() + 1;
@@ -62,10 +72,9 @@ bool PzSetMgr::open(int y, int m)
             maxZbNum = pz->number();
     }
     maxZbNum++;
-    curY=y,curM=m;
     if(!statUtil)
         delete statUtil;
-    statUtil = new StatUtil(pzSetHash.value(key),account);
+    statUtil = new StatUtil(pzs,account);
     if(!pzs->isEmpty()){
         curPz = pzs->first();
         curIndex = 0;
@@ -105,6 +114,7 @@ void PzSetMgr::close()
         PingZheng* pz = pzs->at(i);
         disconnect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
         disconnect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
+        disconnect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
     }
     qDeleteAll(pz_dels);
     pz_dels.clear();
@@ -114,8 +124,8 @@ void PzSetMgr::close()
     c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
     maxPzNum = 0;
     maxZbNum = 0;
-    isReStat = false;
-    isReSave = false;
+    //isReStat = false;
+    //isReSave = false;
     delete statUtil;
     pzs=NULL;
     PingZheng* oldPz = curPz;
@@ -141,6 +151,23 @@ int PzSetMgr::getPzCount()
     if(curY==0 && curM==0)
         return 0;
     return maxPzNum-1;
+}
+
+/**
+ * @brief PzSetMgr::getAllJzhdPzs
+ *  返回所有结转汇兑损益的凭证对象列表
+ * @return
+ */
+QList<PingZheng *> PzSetMgr::getAllJzhdPzs()
+{
+    QList<PingZheng*> pzLst;
+    if(curY==0 && curM==0)
+        return pzLst;
+    foreach(PingZheng* pz, *pzs){
+        if(pz->getPzClass() == Pzc_Jzhd)
+            pzLst<<pz;
+    }
+    return pzLst;
 }
 
 //重置凭证号
@@ -183,6 +210,9 @@ PzsState PzSetMgr::getState(int y, int m)
     int yy,mm;
     if(y==0 && m == 0){
         yy = curY; mm = curM;
+    }
+    else{
+        yy = y; mm = m;
     }
     int key = genKey(yy,mm);
     if(states.contains(key))
@@ -251,6 +281,7 @@ void PzSetMgr::setExtraState(bool state, int y, int m)
         return;
     extraStates[key] = state;
     dirty = true;
+    emit pzExtraStateChanged(state);
 }
 
 /**
@@ -281,37 +312,73 @@ bool PzSetMgr::getPzSet(int y, int m, QList<PingZheng *> &pzs)
  * @param nums  凭证号集合（集合为空，则返回凭证集内的所有凭证）
  * @return
  */
-QList<PingZheng *> PzSetMgr::getPzSpecRange(int y, int m, QSet<int> nums)
+QList<PingZheng *> PzSetMgr::getPzSpecRange(QSet<int> nums)
 {
-    QList<PingZheng*> pzs;
-    int key = genKey(y,m);
-    if(!pzSetHash.contains(key)){
-        if(!dbUtil->loadPzSet(y,m,pzSetHash[key],this))
-            return pzs;
-        if(!dbUtil->getPzsState(y,m,states[key]))
-            return pzs;
-        extraStates[key] = dbUtil->getExtraState(y,m);
-    }
+    QList<PingZheng*> pzLst;
+    if(!isOpened())
+        return pzLst;
     if(nums.isEmpty())
-        return pzSetHash.value(key);
-    foreach(PingZheng* pz, pzSetHash.value(key)){
-        if(nums.contains(pz->number()))
-            pzs<<pz;
+        pzLst = *pzs;
+    else{
+        foreach(PingZheng* pz, *pzs){
+            if(nums.contains(pz->number()))
+                pzLst<<pz;
+        }
     }
-    return pzs;
+    return pzLst;
 }
 
 /**
  * @brief PzSetMgr::contains
  *  在指定年月的凭证集内是否包含了指定id的凭证
- * @param y
- * @param m
  * @param pid
+ * @param y
+ * @param m 
  * @return
  */
-bool PzSetMgr::contains(int y, int m, int pid)
+bool PzSetMgr::contains(int pid, int y, int m)
 {
-    return dbUtil->isContainPz(y,m,pid);
+    if(isOpened() && ((y == 0 && m == 0) || (y == curY && m == curM))){
+        foreach(PingZheng* pz, *pzs){
+            if(pid == pz->id())
+                return true;
+        }
+        return false;
+    }
+    else
+        return dbUtil->isContainPz(y,m,pid);
+}
+
+/**
+ * @brief PzSetMgr::readPz
+ *  获取指定id的凭证
+ *  此方法可以用来得到任意时间点的凭证（比如在明细账视图的某个发生行上选择转到该凭证，则要调用该方法来获取历史凭证）
+ * @param pid
+ * @param in    如果凭证在当前打开的凭证集内，则为true，否则是历史凭证
+ * @return  如果为空则表示凭证不存在
+ */
+PingZheng *PzSetMgr::readPz(int pid, bool& in)
+{
+    foreach(PingZheng* pz, *pzs){
+        if(pz->id() == pid){
+            in = true;
+            return pz;
+        }
+    }
+
+    foreach(PingZheng* pz, historyPzs){
+        if(pz->id() == pid){
+            in = false;
+            return pz;
+        }
+    }
+    PingZheng* pz;
+    if(!dbUtil->getPz(pid,pz,this)){
+        QMessageBox::critical(0,tr("错误信息"),tr("读取id=%1的凭证时发生错误！").arg(pid));
+        return NULL;
+    }
+    in = false;
+    return pz;
 }
 
 /**
@@ -327,13 +394,156 @@ int PzSetMgr::getStatePzCount(PzState state)
             c++;
     return c;
 }
+
+/**
+ * @brief PzSetMgr::inspectPzError
+ *  凭证集检错
+ *  （1）凭证号连续性
+ *  （2）自编号是否为空
+ *  （3）自编号是否重复
+ *  （4）借贷是否平衡
+ *  （5）摘要栏是否为空
+ *  （6）科目是否未设值
+ *  （7）金额是否未设值
+ *  （8）借贷方向是否违反约定性
+ *  （9）币种设置是否与科目的货币使用属性相符
+ * @return
+ */
+bool PzSetMgr::inspectPzError(QList<PingZhengError*>& errors)
+{
+    if(!isOpened())
+        return false;
+    errors.clear();
+
+    PingZhengError* e;
+    PingZheng* pz;
+    BusiAction* ba;
+    QSet<int> zbNums;
+    int pzNum = 0;
+    QString errStr;
+    for(int i = 0; i < pzs->count(); ++i){
+        pz = pzs->at(i);
+        //（1）凭证号连续性
+        if((pz->number() - pzNum) != 1){
+            e = new PingZhengError;
+            e->errorLevel = PZE_WARNING;
+            e->errorType = 2;
+            e->pz = pz;
+            e->ba = NULL;
+            e->explain = tr("在%1号凭证前存在不连续的凭证号！").arg(pz->number());
+            errors<<e;
+        }
+        pzNum = pz->number();
+        //（2）自编号是否为空
+        if(pz->zbNumber() == 0){
+            e = new PingZhengError;
+            e->errorLevel = PZE_WARNING;
+            e->errorType = 1;
+            e->pz = pz;
+            e->ba = NULL;
+            e->explain = tr("%1号凭证的自编号未设置！").arg(pz->number());
+            errors<<e;
+        }
+        else{
+            //（3）自编号是否重复
+            if(zbNums.contains(pz->zbNumber())){
+                e = new PingZhengError;
+                e->errorLevel = PZE_WARNING;
+                e->errorType = 3;
+                e->pz = pz;
+                e->ba = NULL;
+                e->explain = tr("%1号凭证的自编号与其他凭证重复！").arg(pz->number());
+                errors<<e;
+            }
+            else
+                zbNums.insert(pz->zbNumber());
+        }
+        //（4）借贷是否平衡
+        if(!pz->isBalance()){
+            e = new PingZhengError;
+            e->errorLevel = PZE_ERROR;
+            e->errorType = 1;
+            e->pz = pz;
+            e->ba = NULL;
+            e->explain = tr("%1号凭证借贷不平衡！").arg(pz->number());
+            errors<<e;
+        }
+        for(int j = 0; j < pz->baCount(); ++j){
+            ba = pz->getBusiAction(j);
+            //（5）摘要栏是否为空
+            if(ba->getSummary().isEmpty()){
+                e = new PingZhengError;
+                e->errorLevel = PZE_WARNING;
+                e->errorType = 4;
+                e->pz = pz;
+                e->ba = ba;
+                e->explain = tr("%1号凭证第%2条会计分录没有设置摘要！").arg(pz->number()).arg(ba->getNumber());
+                errors<<e;
+            }
+            //（6）科目是否未设值
+            if(!ba->getFirstSubject() || !ba->getSecondSubject()){
+                e = new PingZhengError;
+                e->errorLevel = PZE_ERROR;
+                e->errorType = 2;
+                e->pz = pz;
+                e->ba = ba;
+                e->explain = tr("%1号凭证第%2条会计分录科目未设置！").arg(pz->number()).arg(ba->getNumber());
+                errors<<e;
+            }
+            //（7）金额是否未设值
+            if(ba->getValue() == 0.0){
+                e = new PingZhengError;
+                e->errorLevel = PZE_ERROR;
+                e->errorType = 5;
+                e->pz = pz;
+                e->ba = ba;
+                e->explain = tr("%1号凭证第%2条会计分录金额未设置！").arg(pz->number()).arg(ba->getNumber());
+                errors<<e;
+            }
+            //（8）借贷方向是否违反约定性
+            if(!_inspectDirEngageError(ba->getFirstSubject(),ba->getDir(),pz->getPzClass(),errStr)){
+                e = new PingZhengError;
+                e->errorLevel = PZE_ERROR;
+                e->errorType = 4;
+                e->pz = pz;
+                e->ba = ba;
+                e->explain = errStr;
+                errors<<e;
+            }
+            //（9）币种设置是否与科目的货币使用属性相符
+            if(ba->getFirstSubject() && !ba->getFirstSubject()->isUseForeignMoney() &&
+                    (ba->getMt() != account->getMasterMt())){
+                e = new PingZhengError;
+                e->errorLevel = PZE_ERROR;
+                e->errorType = 3;
+                e->pz = pz;
+                e->ba = ba;
+                e->explain = tr("%1号凭证第%2条会计分录在不允许使用外币的科目上使用了外币").arg(pz->number()).arg(ba->getNumber());
+                errors<<e;
+            }
+        }
+
+
+
+
+
+
+    }
+    return true;
+}
+
 //保存当期余额
 bool PzSetMgr::PzSetMgr::saveExtra()
 {
-    //保存当期余额之前，需要判断是否需要再次计算当期余额
-    //（比如在凭证集打开后，进行了会影响当期余额的编辑操作）
-    //return BusiUtil::savePeriodBeginValues(y,m,endExtra,endDir,
-    //                                       endDetExtra,endDetDir,state,false);
+    if(!isOpened())
+        return false;
+    if(getExtraState())
+        return true;
+    if(!statUtil->save())
+        return false;
+    //setExtraState(true);
+    //if(!dbUtil->setExtraState(curY,curM,true))
+    //    return false;
     return true;
 }
 
@@ -372,13 +582,39 @@ bool PzSetMgr::readPreExtra()
  *  获取当前打开凭证集所使用的汇率表
  * @return
  */
-QHash<int, Double> PzSetMgr::getRates()
+bool PzSetMgr::getRates(QHash<int, Double>& rates, int y, int m)
 {
-    QHash<int,Double> rates;
     if(curY==0 && curM==0)
-        return rates;
-    account->getRates(curY,curM,rates);
-    return rates;
+        return false;
+    if(y==0 && m == 0){
+        y = curY; m = curM;
+    }
+    if(!account->getRates(y,m,rates)){
+        QMessageBox::critical(0,tr("错误信息"),tr("在读取%1年%月的汇率时出错！").arg(y).arg(m));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief PzSetMgr::setRates
+ * @param rates
+ * @param y
+ * @param m
+ * @return
+ */
+bool PzSetMgr::setRates(QHash<int, Double> rates, int y, int m)
+{
+    if(curY == 0 && curM == 0)
+        return false;
+    if(y == 0 && m == 0){
+        y = curY; m = curM;
+    }
+    if(!account->setRates(y,m,rates)){
+        QMessageBox::critical(0,tr("错误信息"),tr("在保存%1年%月的汇率时出错！").arg(y).arg(m));
+        return false;
+    }
+    return true;
 }
 
 /**
@@ -451,8 +687,10 @@ PingZheng *PzSetMgr::previou()
             curIndex = -1;
             curPz = NULL;
         }
-        else
-            curPz = pzs->at(--curIndex);
+        else{
+            curIndex--;
+            curPz = pzs->at(curIndex);
+        }
     }
     _determineCurPzChanged(oldPz);
     return curPz;
@@ -499,6 +737,28 @@ PingZheng *PzSetMgr::seek(int num)
     return curPz;
 }
 
+/**
+ * @brief PzSetMgr::seek
+ *  查找并定位到凭证集内的指定凭证
+ * @param pz
+ * @return 如果正确定位则返回true，反之返回false
+ */
+bool PzSetMgr::seek(PingZheng *pz)
+{
+    PingZheng* oldPz = curPz;
+    PingZheng* p;
+    for(int i = 0; i < pzs->count(); ++i){
+        p = pzs->at(i);
+        if(*p == *pz){
+            curPz = pz;
+            curIndex = i;
+            _determineCurPzChanged(oldPz);
+            return true;
+        }
+    }
+    return false;
+}
+
 //添加空白凭证
 PingZheng* PzSetMgr::appendPz(PzClass pzCls)
 {
@@ -534,7 +794,8 @@ bool PzSetMgr::append(PingZheng *pz)
     if(restorePz(pz))
         return true;
     *pzs<<pz;
-    pz->setNumber(pzs->count());
+    pz->setNumber(maxPzNum++);
+    pz->setZbNumber(maxZbNum++);
     PingZheng* oldPz = curPz;
     curPz = pz;
     curIndex = pz->number()-1;
@@ -556,6 +817,7 @@ bool PzSetMgr::append(PingZheng *pz)
     if(pz->baCount() > 0)
         setExtraState(false);
     _determineCurPzChanged(oldPz);
+    _determinePzSetState(states[genKey(curY,curM)]);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
     return true;
@@ -602,6 +864,8 @@ bool PzSetMgr::insert(PingZheng* pz)
         pzs->insert(index,pz);
         curPz = pz;
         curIndex = index;
+        maxPzNum++;
+        maxZbNum++;
         //调整插入凭证后的凭证号
         index++;
         while(index < pzs->count()){
@@ -627,6 +891,7 @@ bool PzSetMgr::insert(PingZheng* pz)
     if(pz->baCount() > 0)
         setExtraState(false);
     _determineCurPzChanged(oldPz);
+    _determinePzSetState(states[genKey(curY,curM)]);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
     return true;
@@ -661,6 +926,8 @@ bool PzSetMgr::insert(int index, PingZheng *pz)
         pzs->at(i)->setNumber(i+1);
     curPz = pz;
     curIndex = index;
+    maxPzNum++;
+    maxZbNum++;
     switch(pz->getPzState()){
     case Pzs_Recording:
         c_recording++;
@@ -679,6 +946,7 @@ bool PzSetMgr::insert(int index, PingZheng *pz)
     if(pz->baCount() > 0)
         setExtraState(false);
     _determineCurPzChanged(oldPz);
+    _determinePzSetState(states[genKey(curY,curM)]);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
     return true;
@@ -748,6 +1016,7 @@ void PzSetMgr::scanPzCount()
  */
 void PzSetMgr::_determinePzSetState(PzsState &state)
 {
+    PzsState oldState = state;
     if(curY==0 && curM==0)
         state = Ps_NoOpen;
     else if(getState() == Ps_Jzed)
@@ -759,6 +1028,8 @@ void PzSetMgr::_determinePzSetState(PzsState &state)
         else
             state = Ps_AllVerified;
     }
+    if(oldState != state)
+        emit pzSetStateChanged(state);
 }
 
 /**
@@ -771,6 +1042,105 @@ void PzSetMgr::_determineCurPzChanged(PingZheng *oldPz)
     if((!curPz && oldPz) || (curPz && !oldPz) || (*curPz != *oldPz))
         emit currentPzChanged(curPz,oldPz);
 }
+
+/**
+ * @brief PzSetMgr::_inspectDirEngageError
+ *  借贷方向约定正确性检测：
+ *  1、手工凭证：对于损益类的收入型科目只能出现在贷方，成本型科目只能出现在借方；
+ *  2、特种凭证：
+ *  （1）结转汇兑损益类凭证：
+ *      结转的科目（银行、应收和应付）在贷方，财务费用科目在借方；
+ *  （2）结转损益类凭证：
+ *      结转收入时，收入在借方，本年利润在贷方
+ *      结转成本时，成本在贷方，本年利润在借方
+ *  （3）结转利润类凭证：
+ *      本年利润在借方，利润分配在贷方
+ * @param fsub  分录的一级科目
+ * @param dir   金额方向
+ * @param pzc   凭证的类别
+ * @param eStr  错误说明
+ * @return
+ */
+bool PzSetMgr::_inspectDirEngageError(FirstSubject *fsub, MoneyDirection dir, PzClass pzc, QString &eStr)
+{
+    SubjectManager* sm = account->getSubjectManager(account->getCurSuite()->subSys);
+    if(pzc == Pzc_Hand){
+        if(fsub->getSubClass() == SC_SY){
+            if(!fsub->getJdDir() && (dir == MDIR_J)){
+                eStr = tr("手工凭证中，收入类科目必须在贷方");
+                return false;
+            }
+            else if(fsub->getJdDir() && (dir == MDIR_D)){
+                eStr = tr("手工凭证中，费用类科目必须在借方");
+                return false;
+            }
+            else
+                return true;
+        }
+        else
+            return true;
+    }
+    if(pzc == Pzc_Jzhd){
+        if(fsub->isUseForeignMoney() && (dir == MDIR_J)){
+            eStr = tr("结转汇兑损益类凭证中，拟结转科目必须在贷方");
+            return false;
+        }
+        else if((fsub == sm->getCwfySub()) && (dir == MDIR_D)){
+            eStr = tr("结转汇兑损益类凭证中，财务费用科目必须在借方");
+            return false;
+        }
+        else
+            return true;
+    }
+    else if(pzc == Pzc_JzsyIn){
+        if((fsub != sm->getBnlrSub()) && (fsub->getSubClass() != SC_SY) &&
+                ((fsub->getSubClass() == SC_SY && fsub->getJdDir()))){
+            eStr = tr("在结转损益（收入类）的凭证中，只能存在损益类（收入）科目或本年利润科目");
+            return false;
+        }
+        else if((fsub == sm->getBnlrSub()) && (dir == MDIR_J)){
+            eStr = tr("结转收入的凭证中，本年利润必须在贷方");
+            return false;
+        }
+        else if((fsub != sm->getBnlrSub()) && !fsub->getJdDir() && (dir == MDIR_D)){
+            eStr = tr("结转收入的凭证中，收入类科目必须在借方");
+            return false;
+        }
+
+        else
+            return true;
+    }
+    else if(pzc == Pzc_JzsyFei){
+        if(fsub != sm->getBnlrSub() && (fsub->getSubClass() == SC_SY) &&
+                ((fsub->getSubClass() == SC_SY && !fsub->getJdDir()))){
+            eStr = tr("在结转损益（费用类）的凭证中，只能存在损益类（费用）科目或本年利润科目");
+            return false;
+        }
+        else if((fsub == sm->getBnlrSub()) && (dir == MDIR_D)){
+            eStr = tr("结转费用的凭证中，本年利润必须在借方");
+            return false;
+        }
+        else if((fsub != sm->getBnlrSub()) && fsub->getJdDir() && (dir == MDIR_J)){
+            eStr = tr("结转费用的凭证中，费用类科目必须在贷方");
+            return false;
+        }        
+        else
+            return true;
+    }
+    else if(pzc == Pzc_Jzlr){
+        if((fsub == sm->getBnlrSub()) && (dir == MDIR_D)){
+            eStr = tr("结转利润的凭证中，本年利润必须在借方");
+            return false;
+        }
+        else if((fsub == sm->getLrfpSub()) && (dir == MDIR_J)){
+            return false;
+            eStr = tr("结转利润的凭证中，利润分配必须在贷方");
+        }
+        else
+            return true;
+    }
+}
+
 
 
 /**
@@ -785,6 +1155,14 @@ int PzSetMgr::genKey(int y, int m)
     if(m < 1 || m > 12)
         return 0;
     return y * 100 + m;
+}
+
+/**
+ * @brief PzSetMgr::pzNotOpenWarning
+ */
+void PzSetMgr::pzsNotOpenWarning()
+{
+    QMessageBox::warning(0,tr("警告信息"),tr("凭证集未打开！"));
 }
 
 //移除凭证
@@ -815,19 +1193,23 @@ bool PzSetMgr::remove(PingZheng *pz)
     if(pzs->isEmpty()){
         curPz = NULL;
         curIndex = -1;
+        maxPzNum=1;
+        maxZbNum=1;
         return true;
     }
     //调整移除凭证后的凭证号
-    for(i;i<pzs->count();++i)
-        pzs->at(i)->setNumber(i+1);
-    if(pz->number() == pzs->count()+1){
+    for(int j = i;j<pzs->count();++j)
+        pzs->at(j)->setNumber(j+1);
+    if(pz->number() == pzs->count()+1){ //移除的是最后一张凭证
         curPz = pzs->last();
         curIndex = pzs->count()-1;
     }
     else{
-        curPz = pzs->at(pz->number()-1);
-        curIndex = pz->number() - 1;
+        curPz = pzs->at(i);
+        curIndex = i;
     }
+    maxPzNum--;
+    maxZbNum--;
     switch(pz->getPzState()){
     case Pzs_Recording:
         c_recording--;
@@ -842,10 +1224,7 @@ bool PzSetMgr::remove(PingZheng *pz)
         c_repeal--;
         break;
     }
-    PzsState state;
-    _determinePzSetState(state);
-    if(state != getState())
-        setState(state);
+    _determinePzSetState(states[genKey(curY,curM)]);
     _determineCurPzChanged(oldPz);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
@@ -930,7 +1309,7 @@ bool PzSetMgr::restorePz(PingZheng *pz)
  */
 PingZheng *PzSetMgr::getPz(int num)
 {
-    if(num < 1 || num > pzs->count())
+    if(!isOpened() || num < 1 || num > pzs->count())
         return NULL;
     return pzs->at(num-1);
 }
@@ -1026,6 +1405,304 @@ bool PzSetMgr::save(SaveWitch witch)
     return true;
 }
 
+/**
+ * @brief PzSetMgr::_crtJzhdsyPz
+ *  创建指定月份结转汇兑损益的凭证
+ * @param y             年
+ * @param m             月
+ * @param createdPzs    创建的凭证对象列表
+ * @param sRate         期初汇率
+ * @param erate         期末汇率
+ * @param user          执行此操作的用户
+ * @return
+ */\
+bool PzSetMgr::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdPzs, QHash<int, Double> sRate, QHash<int, Double> eRate, User *user)
+{
+    //计算汇率差
+    QHash<int,Double> diffRates;
+    QHashIterator<int,Double> it(sRate);
+    while(it.hasNext()){
+        it.next();
+        Double diff = it.value() - eRate.value(it.key()); //期初汇率 - 期末汇率
+        if(diff != 0)
+            diffRates[it.key()] = diff;
+    }
+    if(diffRates.count() == 0)   //如果所有的外币汇率都没有变化，则无须进行汇兑损益的结转
+        return true;
+
+    //获取财务费用、及其下的汇兑损益科目id
+    SubjectManager* subMgr = account->getSubjectManager(account->getSuite(y)->subSys);
+    FirstSubject* cwfySub = subMgr->getCwfySub();
+    SecondSubject* hdsySub = NULL;
+    foreach(SecondSubject* ssub, cwfySub->getChildSubs()){
+        if(ssub->getName() == tr("汇兑损益")){
+            hdsySub = ssub;
+            break;
+        }
+    }
+    if(!hdsySub){
+        QMessageBox::critical(0,tr("错误信息"),tr("不能获取到财务费用下的汇兑损益科目！"));
+        return false;
+    }
+
+    //QList<Money*> mts;              //要结转的外币对象列表
+    //mts = account->getAllMoneys().values();
+   // mts.removeOne(account->getMasterMt());
+    //Double ev,wv,sum;  //原币和本币形式的余额，合计值
+    //MoneyDirection dir;
+
+    QList<int> mtCodes;
+    foreach(Money* mt, account->getAllMoneys()){
+        if(mt != account->getMasterMt())
+            mtCodes<<mt->code();
+    }
+
+    QDate d(year(),month(),1);
+    d.setDate(year(),month(),d.daysInMonth());
+    QString ds = d.toString(Qt::ISODate);
+
+    PingZheng* pz;
+    BusiAction* ba;
+    QHash<int,Double> vs;
+    QHash<int,MoneyDirection> dirs;
+    QList<FirstSubject*> fsubs;
+    Double sum,v;
+    subMgr->getUseWbSubs(fsubs);
+    int num=0;
+    foreach(FirstSubject* fsub, fsubs){
+        vs.clear();
+        dirs.clear();
+        if(!dbUtil->readAllWbExtraForFSub(y,m,fsub->getAllSSubIds(),mtCodes,vs,dirs))
+            return false;
+        if(vs.isEmpty())
+            continue;
+        num++;
+        pz = new PingZheng(this);
+        //pz->setNumber(maxPzNum + num);
+        //pz->setZbNumber(maxZbNum + num);
+        pz->setDate(ds);
+        pz->setEncNumber(0);
+        pz->setPzClass(Pzc_Jzhd);
+        pz->setRecordUser(user);
+        pz->setPzState(Pzs_Recording);
+        QList<int> subIds;
+        foreach(int key, vs.keys())
+            subIds<<key / 10;
+        subIds = QList<int>::fromSet(subIds.toSet());
+        qSort(subIds.begin(),subIds.end());
+        sum = 0.0;
+        int key;
+        for(int i = 0; i < subIds.count(); ++i){            
+            MoneyDirection dir = fsub->getJdDir()?MDIR_J:MDIR_D;
+            for(int j = 0; j < mtCodes.count(); ++j){
+                ba = pz->appendBlank();
+                ba->setFirstSubject(fsub);
+                ba->setSecondSubject(subMgr->getSndSubject(subIds.at(i)));
+                ba->setMt(account->getMasterMt());
+                ba->setDir(MDIR_D);
+                key = subIds.at(i) * 10 + mtCodes.at(j);
+                v = diffRates.value(mtCodes.at(j)) * vs.value(key);
+                if(dirs.value(key) == MDIR_D)
+                    v.changeSign();
+                ba->setValue(v);
+                ba->setSummary(tr("结转汇兑损益"));
+                sum += ba->getValue();
+            }
+        }
+        ba = pz->appendBlank();
+        ba->setFirstSubject(subMgr->getCwfySub());
+        ba->setSecondSubject(hdsySub);
+        ba->setMt(account->getMasterMt());
+        ba->setDir(MDIR_J);
+        ba->setValue(sum);
+        ba->setSummary(tr("结转自%1的汇兑损益").arg(fsub->getName()));
+        createdPzs<<pz;
+    }
+
+//    //创建结转银行存款汇兑损益的凭证
+//    PingZheng* bankPz = new PingZheng(this);
+//    foreach(SecondSubject* ssub, subMgr->getBankSub()->getChildSubs()){
+//        if(ssub->getName().indexOf(account->getMasterMt()->name()) != -1)
+//            continue;
+//        for(int i = 0; i < mts.count(); ++i){
+//            if(!dbUtil->readExtraForMS(y,m,mts.at(i)->code(),ssub->getId(),ev,wv,dir))
+//                return false;
+//            if(dir == MDIR_P)
+//                continue;
+//            BusiAction* ba = bankPz->appendBlank();
+//            ba->setFirstSubject(subMgr->getBankSub());
+//            ba->setSecondSubject(ssub);
+//            ba->setMt(mts.at(i));
+//            ba->setSummary(tr("结转汇兑损益"));
+//            ba->setDir(MDIR_D);
+//            ba->setValue(diffRates.value(mts.at(i).code) * ev);
+//            sum += ba->getValue();
+//        }
+//    }
+//    if(sum != 0.0){
+//        BusiAction* ba = bankPz->appendBlank();
+//        ba->setFirstSubject(subMgr->getCwfySub());
+//        ba->setSecondSubject(hdsySub);
+//        ba->setMt(account->getMasterMt());
+//        ba->setDir(MDIR_J);
+//        ba->setSummary(tr("结转自银行存款的汇兑损益"));
+//        ba->setValue(sum);
+//        createdPzs<<bankPz;
+//    }
+
+    //创建结转应收账款汇兑损益的凭证
+    //PingZheng* ysPz = new PingZheng(this);
+
+    //创建结转应付账款汇兑损益的凭证
+    //PingZheng* yfPz = new PingZheng(this);
+    return true;
+}
+
+/**
+ * @brief PzSetMgr::getJzhdsyPz
+ *  获取打开凭证集内的结转汇兑损益的凭证对象
+ * @param pzLst
+ */
+void PzSetMgr::getJzhdsyPz(QList<PingZheng *> &pzLst)
+{
+    if(!isOpened())
+        return;
+    foreach(PingZheng* pz, *pzs){
+        if(pz->getPzClass() == Pzc_Jzhd)
+            pzLst<<pz;
+    }
+}
+
+/**
+ * @brief PzSetMgr::crtJzsyPz
+ *  创建结转汇兑损益凭证
+ * @param y
+ * @param m
+ * @param createdPzs
+ * @return
+ */
+bool PzSetMgr::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs)
+{
+    //读取余额
+    QList<int> in_sids, fei_sids; //分别是收入类和费用类损益类二级科目的id集合
+    SubjectManager* subMgr = account->getSubjectManager(account->getSuite(y)->subSys);
+    //QList<FirstSubject*> in_subs,fei_subs; //收入类和费用类的损益类一级科目
+    //in_subs = subMgr->getSyClsSubs();
+    foreach(FirstSubject* fsub, subMgr->getSyClsSubs()){
+        in_sids<<fsub->getChildSubIds();
+    }
+    //fei_subs = subMgr->getSyClsSubs(false);
+    foreach(FirstSubject* fsub, subMgr->getSyClsSubs(false))
+        fei_sids<<fsub->getChildSubIds();
+    QHash<int,Double> vs;
+    QHash<int,MoneyDirection> dirs;
+    //QList<int> sids = in_sids + fei_sids;
+    FirstSubject* bnlrFSub = subMgr->getBnlrSub();  //本年利润一级科目
+    SecondSubject* jzSSub = NULL;                   //本年利润——结转子目
+    foreach(SecondSubject* ssub, bnlrFSub->getChildSubs()){
+        if(ssub->getName() == tr("结转")){
+            jzSSub = ssub;
+            break;
+        }
+    }
+    if(!jzSSub){
+        QMessageBox::warning(0,tr("警告信息"),tr("不能获取本年利润——结转科目，结转不能继续不能"));
+        return false;
+    }
+
+    //创建结转收入类的结转凭证
+    if(!dbUtil->readAllExtraForSSubMMt(y,m,account->getMasterMt()->code(),in_sids,vs,dirs))
+        return false;
+    QDate d(year(),month(),1);
+    d.setDate(year(),month(),d.daysInMonth());
+    QString ds = d.toString(Qt::ISODate);
+
+    PingZheng* pz = new PingZheng(this);
+    pz->setDate(ds);
+    pz->setEncNumber(0);
+    pz->setPzClass(Pzc_JzsyIn);
+    pz->setPzState(Pzs_Recording);
+    pz->setRecordUser(user);
+    SecondSubject* ssub;
+    BusiAction* ba;
+    Double sum = 0.0;
+    for(int i = 0; i < in_sids.count(); ++i){
+        ssub = subMgr->getSndSubject(in_sids.at(i));
+        if(!vs.contains(ssub->getId()))
+            continue;
+        ba = pz->appendBlank();
+        ba->setSummary(tr("结转（%1-%2）至本年利润").arg(ssub->getParent()->getName()).arg(ssub->getName()));
+        ba->setFirstSubject(ssub->getParent());
+        ba->setSecondSubject(ssub);
+        ba->setMt(account->getMasterMt());
+        //结转收入类到本年利润，一般是损益类科目放在借方，本年利润放在贷方
+        //而且，损益类中收入类科目余额约定是贷方，故不做方向检测
+        ba->setDir(MDIR_J);
+        ba->setValue(vs.value(ssub->getId()));
+        sum += ba->getValue();
+    }
+    ba = pz->appendBlank();
+    ba->setSummary(tr("结转收入至本年利润"));
+    ba->setFirstSubject(bnlrFSub);
+    ba->setSecondSubject(jzSSub);
+    ba->setMt(account->getMasterMt());
+    ba->setDir(MDIR_D);
+    ba->setValue(sum);
+    createdPzs<<pz;
+
+    //创建结转费用类的结转凭证
+    if(!dbUtil->readAllExtraForSSubMMt(y,m,account->getMasterMt()->code(),fei_sids,vs,dirs))
+        return false;
+    sum = 0.0;
+    pz = new PingZheng(this);
+    pz->setDate(ds);
+    pz->setEncNumber(0);
+    pz->setPzClass(Pzc_JzsyFei);
+    pz->setPzState(Pzs_Recording);
+    pz->setRecordUser(user);
+    for(int i = 0; i < fei_sids.count(); ++i){
+        ssub = subMgr->getSndSubject(fei_sids.at(i));
+        if(!vs.contains(ssub->getId()))
+            continue;
+        ba = pz->appendBlank();
+        ba->setSummary(tr("结转（%1-%2）至本年利润").arg(ssub->getParent()->getName()).arg(ssub->getName()));
+        ba->setFirstSubject(ssub->getParent());
+        ba->setSecondSubject(ssub);
+        ba->setMt(account->getMasterMt());
+        //结转费用类到本年利润，一般是损益类科目放在贷方，本年利润方在借方
+        //而且，损益类中费用类科目余额是约定在借方，故不做方向检测
+        ba->setDir(MDIR_D);
+        ba->setValue(vs.value(ssub->getId()));
+        sum += ba->getValue();
+    }
+    ba = pz->appendBlank();
+    ba->setSummary(tr("结转费用至本年利润"));
+    ba->setFirstSubject(bnlrFSub);
+    ba->setSecondSubject(jzSSub);
+    ba->setMt(account->getMasterMt());
+    ba->setDir(MDIR_J);
+    ba->setValue(sum);
+    createdPzs<<pz;
+    return true;
+}
+
+/**
+ * @brief PzSetMgr::getJzsyPz
+ *  获取打开凭证集内的结转损益凭证对象
+ * @param pzLst
+ */
+void PzSetMgr::getJzsyPz(QList<PingZheng *> &pzLst)
+{
+    if(!isOpened())
+        return;
+    foreach(PingZheng* pz, *pzs){
+        PzClass pzCls = pz->getPzClass();
+        if(pzCls == Pzc_JzsyIn || pzCls == Pzc_JzsyFei)
+            pzLst<<pz;
+    }
+}
+
+
 //创建当期固定资产折旧凭证
 bool PzSetMgr::crtGdzcPz()
 {
@@ -1072,20 +1749,8 @@ bool PzSetMgr::delDtfyPz()
     return Dtfy::repealTxPz(curY,curM);
 }
 
-//创建当期结转汇兑损益凭证
-bool PzSetMgr::crtJzhdsyPz()
-{
-
-}
-
-//创建当期结转损益凭证（将损益类科目余额结转至本年利润）
-bool PzSetMgr::crtJzsyPz()
-{
-
-}
-
 //创建当期结转利润凭证（将本年利润科目的余额结转至利润分配）
-bool PzSetMgr::crtJzlyPz()
+bool PzSetMgr::crtJzlyPz(int y, int m, PingZheng *pz)
 {
 
 }
@@ -1151,6 +1816,7 @@ bool PzSetMgr::find(int y, int sm, int em)
 void PzSetMgr::needRestat()
 {
     setExtraState(false);
+    emit pzExtraStateChanged(false);
 }
 
 /**
@@ -1162,6 +1828,40 @@ void PzSetMgr::pzChangedInSet(PingZheng *pz)
 {
     //目前的实现只触发凭证集改变信号以启用主窗口的保存按钮
     emit pzSetChanged();
+}
+
+void PzSetMgr::pzStateChanged(PzState oldState, PzState newState)
+{
+//    switch(oldState){
+//    case Pzs_Recording:
+//        c_recording--;
+//        break;
+//    case Pzs_Verify:
+//        c_verify--;
+//        break;
+//    case Pzs_Instat:
+//        c_instat--;
+//        break;
+//    case Pzs_Repeal:
+//        c_repeal--;
+//        break;
+//    }
+//    switch(newState){
+//    case Pzs_Recording:
+//        c_recording++;
+//        break;
+//    case Pzs_Verify:
+//        c_verify++;
+//        break;
+//    case Pzs_Instat:
+//        c_instat++;
+//        break;
+//    case Pzs_Repeal:
+//        c_repeal++;
+//        break;
+//    }
+    _determinePzSetState(states[genKey(curY,curM)]);
+    emit pzCountChanged(pzs->count());
 }
 
 

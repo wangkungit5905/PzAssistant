@@ -38,7 +38,7 @@ FirstSubject::FirstSubject(const FirstSubject &other)
     defSub = other.defSub;
 }
 
-FirstSubject::FirstSubject(int id, int subcls, QString subName, QString subCode, QString remCode,
+FirstSubject::FirstSubject(int id, SubjectClass subcls, QString subName, QString subCode, QString remCode,
             int subWeight,bool isEnable,bool jdDir, bool isUseWb, QString explain, QString usage, int subSys):
     SubjectBase(),md(FSTSUBMD++),id(id),subClass(subcls),name(subName),code(subCode),remCode(remCode),
     weight(subWeight),isEnable(isEnable),jdDir(jdDir),isUseWb(isUseWb),
@@ -112,7 +112,7 @@ void FirstSubject::setIsUseForeignMoney(bool isUse)
     }
 }
 
-void FirstSubject::setSubClass(int c)
+void FirstSubject::setSubClass(SubjectClass c)
 {
     if(subClass != c){
         subClass=c;
@@ -136,6 +136,19 @@ void FirstSubject::setUsage(QString s)
         usage = u;
         witchEdited |= ES_FS_USAGE;
     }
+}
+
+/**
+ * @brief FirstSubject::getAllSSubIds
+ *  返回所有属于该一级科目的二级科目的id列表
+ * @return
+ */
+QList<int> FirstSubject::getAllSSubIds()
+{
+    QList<int> ids;
+    foreach(SecondSubject* ssub, childSubs)
+        ids<<ssub->getId();
+    return ids;
 }
 
 /**
@@ -283,6 +296,19 @@ SecondSubject *FirstSubject::getChildSub(int index)
         return 0;
     else
         return childSubs.at(index);
+}
+
+/**
+ * @brief FirstSubject::getChildSubIds
+ *  获取所有子科目的id列表
+ * @return
+ */
+QList<int> FirstSubject::getChildSubIds()
+{
+    QList<int> ids;
+    for(int i = 0; i < childSubs.count(); ++i)
+        ids<<childSubs.at(i)->getId();
+    return ids;
 }
 
 /**
@@ -665,6 +691,36 @@ bool SubjectManager::containNI(SubjectNameItem *ni)
 }
 
 /**
+ * @brief SubjectManager::getUseWbSubs
+ *  获取所有使用外币的科目
+ * @param
+ * @return
+ */
+void SubjectManager::getUseWbSubs(QList<FirstSubject*>& fsubs)
+{
+    foreach(FirstSubject* fsub, fstSubHash.values()){
+        if(fsub->isUseForeignMoney())
+            fsubs<<fsub;
+    }
+}
+
+/**
+ * @brief SubjectManager::getSyClsSubs
+ *  返回所有损益类（费用类或收入类）科目
+ * @param in    费用类（false）或收入类（true，默认）
+ * @return
+ */
+QList<FirstSubject *> SubjectManager::getSyClsSubs(bool in)
+{
+    QList<FirstSubject *> fsubs;
+    foreach(FirstSubject* fsub, fstSubHash.values()){
+        if((fsub->getSubClass() == SC_SY) && ((fsub->getJdDir() && !in) || (!fsub->getJdDir() && in)))
+            fsubs<<fsub;
+    }
+    return fsubs;
+}
+
+/**
  * @brief SubjectManager::getFstSubject
  * @param code  科目代码
  * @return
@@ -767,7 +823,7 @@ bool SubjectManager::init()
 bool SubjectManager::isSySubject(int sid)
 {
     FirstSubject* sub = getFstSubject(sid);
-    return sySubCls == sub->getSubClass();
+    return sub->getSubClass() == SC_SY;
 }
 
 /**
@@ -789,7 +845,7 @@ bool SubjectManager::isSyClsSubject(int sid, bool &yes, bool isFst)
         LOG_ERROR("fsub is null");
         return false;
     }
-    if(fsub->getSubClass() != sySubCls)
+    if(fsub->getSubClass() != SC_SY)
         return false;
     yes = !fsub->getJdDir();
     return true;

@@ -24,7 +24,8 @@
 //const int PZEW_DEFCW_V         150  //金额列列宽
 
 namespace Ui {
-class pzDialog;
+    class pzDialog;
+    class HistoryPzForm;
 }
 
 //编辑和显示凭证的会计分录的类
@@ -125,12 +126,15 @@ public:
     void moveToPrev();
     void moveToNext();
     void moveToLast();
-    //void seek(int num);
+    void seek(int num);
+    void seek(PingZheng* pz, BusiAction *ba = NULL);
 
     //凭证增删方法
     void addPz();
     void insertPz();
     void removePz();
+    bool crtJzhdPz();
+    bool crtJzsyPz();
 
     //会计分录操作方法
     void moveUpBa();
@@ -144,6 +148,7 @@ public:
     //void selectedRows(QList<int>& rows);
 public slots:
     void save();
+    void setPzState(PzState state);
 private slots:
     void updatePzCount(int count);
     void curPzChanged(PingZheng* newPz, PingZheng* oldPz);
@@ -285,6 +290,28 @@ private:
     QShortcut* sc_paster;    //粘贴会计分录
 };
 
+class HistoryPzForm : public QDialog
+{
+    Q_OBJECT
 
+public:
+    explicit HistoryPzForm(PingZheng* pz, QByteArray* sinfo, QWidget *parent = 0);
+    ~HistoryPzForm();
+    void setPz(PingZheng* pz);
+    void setCurBa(int bid);
+    void setState(QByteArray* info);
+    QByteArray* getState();
+private slots:
+    void colWidthChanged(int logicalIndex, int oldSize, int newSize);
+private:
+    void viewPzContent();
+    void viewBusiactions();
+    void refreshSingleBa(int row, BusiAction *ba);
+    void adjustTableSize();
+
+    Ui::HistoryPzForm *ui;
+    PingZheng* pz;
+    QList<int> colWidths;  //表格列宽
+};
 
 #endif // PZDIALOG_H

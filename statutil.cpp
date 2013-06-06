@@ -6,13 +6,14 @@
 #include "account.h"
 #include "pz.h"
 #include "dbutil.h"
+#include "PzSet.h"
 
-StatUtil::StatUtil(const QList<PingZheng *> &pzs, Account *account):pzs(pzs),account(account)
+StatUtil::StatUtil(QList<PingZheng *> *pzs, Account *account):pzs(pzs),account(account)
 {
     dbUtil = account->getDbUtil();
-    if(pzs.isEmpty())
+    if(pzs->isEmpty())
         return;
-    PingZheng* pz = pzs.first();
+    PingZheng* pz = pzs->first();
     y = pz->getDate2().year();
     m = pz->getDate2().month();
     smg = account->getSubjectManager(account->getSuite(y)->subSys);
@@ -29,11 +30,11 @@ bool StatUtil::stat()
 {
     _clearDatas();
     if(!_readPreExtra()){
-        QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在读取%1年%2的前期余额时发生错误！"));
+        QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在读取%1年%2的前期余额时发生错误！").arg(y).arg(m));
         return false;
     }
     if(!_statCurHappen()){
-        QMessageBox::warning(0,QObject::tr("错误提示"),QObject::tr("在统计%1年%2的本期发生额时，发现凭证有误，请使用凭证集检错工具查看或调阅日志信息！"));
+        QMessageBox::warning(0,QObject::tr("错误提示"),QObject::tr("在统计%1年%2的本期发生额时，发现凭证有误，请使用凭证集检错工具查看或调阅日志信息！").arg(y).arg(m));
         return false;
     }
     //qDebug()<<QString("cwfy-j:%1").arg(curJF.value(821).toString());
@@ -70,6 +71,10 @@ bool StatUtil::save()
     if(!dbUtil->saveExtraForPm(y,m,endFExa,endFDir,endSExa,endSDir))
         return false;
     if(!dbUtil->saveExtraForMm(y,m,endFExaM,endSExaM))
+        return false;
+    PzSetMgr* pzMgr = account->getPzSet();
+    pzMgr->setExtraState(true);
+    if(!dbUtil->setExtraState(y,m,true))
         return false;
     return true;
 }
@@ -123,8 +128,8 @@ bool StatUtil::_statCurHappen()
     //SecondSubject* hdsySub = cwfySub->getChildSub(smg->getNameItem(QObject::tr("汇兑损益")));
 
 
-    for(int i = 0; i < pzs.count(); ++i){
-        pz = pzs.at(i);
+    for(int i = 0; i < pzs->count(); ++i){
+        pz = pzs->at(i);
         for(int j = 0; j < pz->baCount(); ++j){
             ba = pz->getBusiAction(j);
             fsub = ba->getFirstSubject();

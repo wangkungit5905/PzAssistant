@@ -21,7 +21,7 @@ Account::Account(QString fname, QObject *parent):QObject(parent)
     accInfos.fileName = fname;
     if(!init())
         QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("账户在初始化时发生错误！"));
-    pzSetMgr = new PzSetMgr(this);
+    pzSetMgr = new PzSetMgr(this,curUser);
 }
 
 Account::~Account()

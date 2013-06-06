@@ -188,6 +188,8 @@ public:
     void setRecordUser(User* user);
     User* bookKeeperUser(){return bu;}
     void setBookKeeperUser(User* user);
+    QString memInfo(){return "";}
+    void setMemInfo(QString info){}
 
 
     //会计分录方法
@@ -228,6 +230,7 @@ signals:
     void mustRestat();          //告诉父对象，由于其包含的分录发生了影响统计结果的改变
     void pzContentChanged(PingZheng* pz); //凭证内容的任何改变都将触发
     void indexBoundaryChanged(bool first, bool last);
+    void pzStateChanged(PzState oldState, PzState newState);
 private:
     bool hasBusiAction(BusiAction* ba);
     void calSum();

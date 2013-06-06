@@ -162,14 +162,7 @@ private slots:
     //处理创建新账户的向导
     void toCrtAccNextStep(int curStep, int nextStep);
 
-    //处理移动业务活动按钮是否启用
-    //void canMoveUp(bool isCan);
-    //void canMoveDown(bool isCan);
-
-    //打开指定id值的凭证（接受外部对话框窗口的请求，比如显示日记账或明细账的对话框）
     void openSpecPz(int pid,int bid);
-
-    void curPzNumChanged(int pzNum);
 
     void subWindowClosed(QMdiSubWindow* subWin);
     void subWindowActivated(QMdiSubWindow *window);
@@ -186,6 +179,8 @@ private slots:
     //void extraChanged(){isExtraVolid = false;} //由于凭证集发生了影响统计余额的改变，导致当前余额失效，
                                                //目前主要由凭证编辑窗口的编辑动作引起，反馈给主窗口
     void extraValid();
+    void pzSetStateChanged(PzsState newState);
+    void pzSetExtraStateChanged(bool valid);
 
     //Undo框架相关槽
     void undoViewItemClicked(const QModelIndex &indexes);
@@ -258,10 +253,6 @@ private slots:
 
     void on_actAllInstat_triggered();
 
-    void on_actAntiVerify_triggered();
-
-
-
     void on_actReassignPzNum_triggered();
 
     void on_actImpOtherPz_triggered();
@@ -290,8 +281,6 @@ private slots:
 
     void on_actAccProperty_triggered();
 
-    void on_actJzHdsy_triggered();
-
     void on_actPzErrorInspect_triggered();
 
     void on_actForceDelPz_triggered();
@@ -303,6 +292,14 @@ private slots:
     void on_actCurStatNew_triggered();
 
     void on_actDetailView_triggered();
+
+    void on_actInStatPz_triggered();
+
+    void on_actVerifyPz_triggered();
+
+    void on_actAntiVerify_triggered();
+
+    void on_actRefreshActInfo_triggered();
 
 private:
     void allPzToRecording(int year, int month);
@@ -316,7 +313,7 @@ private:
     void rfLogin(bool login = true);
     void rfMainAct(bool open = true);
     void rfPzSetAct(bool open = true);
-    void rfPzAct();
+    void rfPzAct(bool enable);
     void rfAdvancedAct();
     void rfEditAct();
     void rfAct();
@@ -333,7 +330,6 @@ private:
     void showSubWindow(subWindowType winType, SubWindowDim* dinfo = NULL, QDialog* w = NULL);
 
     bool jzsy();
-    bool jzhdsy();
 
     void initUndoView();
     void clearUndo();
@@ -356,7 +352,7 @@ private:
     int cursy,cursm,curey,curem,cursd,cured; //当前打开的凭证集的起始年、月、日
 
     QSet<int> PrintPznSet; //欲打印的凭证号集合
-    int curPzn; //当前凭证号（打印功能所需）
+    //int curPzn; //当前凭证号（打印功能所需）
     bool sortBy; //凭证集的排序方式（true：按凭证号，false：按自编号）
 
     //QSet<subWindowType> subWinSet;  //需要保存子窗口信息的窗口枚举类型集合（这些子窗口都是单例的）

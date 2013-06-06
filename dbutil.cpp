@@ -355,8 +355,12 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             .arg(fld_fsc_name).arg(tbl_fsclass).arg(fld_fsc_subSys).arg(subSys);
     if(!q.exec(s))
         return false;
-    while(q.next())
-        smg->fstSubCls[q.value(0).toInt()] = q.value(1).toString();
+    int cls;
+    QHash<int,SubjectClass> subClsMaps = AppConfig::getInstance()->getSubjectClassMaps(subSys);
+    while(q.next()){
+        cls = q.value(0).toInt();
+        smg->fsClsNames[subClsMaps.value(cls)] = q.value(1).toString();
+    }
 
     //2、装载所有一级科目
     s = QString("select * from %1 where %2=%3 order by %4")
@@ -366,12 +370,13 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
 
     QString name,code,remCode,explain,usage;
     bool jdDir,isUseWb,isEnable;
-    int id, subCls,weight;
+    int id, weight;
+    SubjectClass subCls;
     FirstSubject* fsub;
 
     while(q.next()){
         id = q.value(0).toInt();
-        subCls = q.value(FSUB_CLASS).toInt();
+        subCls = subClsMaps.value(q.value(FSUB_CLASS).toInt());
         name = q.value(FSUB_SUBNAME).toString();
         code = q.value(FSUB_SUBCODE).toString();
         remCode = q.value(FSUB_REMCODE).toString();
@@ -399,6 +404,10 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             smg->bnlrSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_LRFP))
             smg->lrfpSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_YS))
+            smg->ysSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_YF))
+            smg->yfSub = fsub;
     }
 
     //3、装载所有二级科目
@@ -662,8 +671,159 @@ bool DbUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &veri
 }
 
 /**
+ * @brief DbUtil::readAllExtraForSSubMMt
+ *  读取指定年月，指定二级科目集合的本币余额
+ *  此方法主要用于在创建结转损益凭证时，一次性读取所有损益类二级科目的余额
+ * @param y
+ * @param m
+ * @param mt    币种
+ * @param sids  二级科目id集合
+ * @param vs    余额（键为二级科目的id）
+ * @param dirs  余额方向
+ * @return
+ */
+bool DbUtil::readAllExtraForSSubMMt(int y, int m, int mt, QList<int> sids, QHash<int, Double> &vs, QHash<int, MoneyDirection> &dirs)
+{
+    QSqlQuery q(db);
+    QString s;
+    int pid;
+    if(!_readExtraPoint(y,m,1,pid))
+        return false;
+    s = QString("select %1,%2,%3 from %4 where %5=%6")
+            .arg(fld_nse_value).arg(fld_nse_dir).arg(fld_nse_sid)
+            .arg(tbl_nse_p_s).arg(fld_nse_pid).arg(pid);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int sid;
+    MoneyDirection dir;
+    Double v;
+    while(q.next()){
+        sid = q.value(2).toInt();
+        if(!sids.contains(sid))
+            continue;
+        dir = (MoneyDirection)q.value(1).toInt();
+        v = Double(q.value(0).toDouble());
+        vs[sid] = v;
+        dirs[sid] = dir;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::readAllWbExtraForFSub
+ *  读取指定年、月、一级科目下的所有指定币种的二级科目原币形式的余额
+ *  此方法用来在结转汇兑损益时，为了提高读取余额的性能而一次性读取指定一级科目下的所有二级科目余额
+ * @param y
+ * @param m
+ * @param sids  指定一级科目下的所有二级科目的id
+ * @param mts   要读取余额的币种代码列表
+ * @param vs    余额（原币形式）（键为二级科目id * 10 + 币种代码）
+ * @param dirs  余额方向
+ * @return
+ */
+bool DbUtil::readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts, QHash<int, Double> &vs, QHash<int, MoneyDirection> &dirs)
+{
+    QSqlQuery q(db);
+    QString s;
+    QHash<int,int> pids;
+    int pid;
+    foreach(int mt, mts){
+        if(!_readExtraPoint(y,m,mt,pid))
+            return false;
+        pids[mt] = pid;
+    }
+    QHashIterator<int,int> it(pids);
+    while(it.hasNext()){
+        it.next();
+        s = QString("select %1,%2,%3 from %4 where %5=%6")
+                .arg(fld_nse_value).arg(fld_nse_dir).arg(fld_nse_sid)
+                .arg(tbl_nse_p_s).arg(fld_nse_pid).arg(it.value());
+        if(!q.exec(s))
+            return false;
+        int sid,key;
+        while(q.next()){
+            sid = q.value(2).toInt();
+            if(!sids.contains(sid))
+                continue;
+            key = sid*10+it.key();
+            vs[key] = Double(q.value(0).toDouble());
+            dirs[key] = (MoneyDirection)q.value(1).toInt();
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::readExtraForMF
+ *  读取指定年、月、币种、一级科目的余额
+ * @param y
+ * @param m
+ * @param mt    币种代码
+ * @param fid   一级科目id
+ * @param v     余额（原币形式）
+ * @param wv    余额（本币形式）
+ * @param dir   方向
+ * @return
+ */
+bool DbUtil::readExtraForMF(int y, int m, int mt, int fid, Double& v, Double& wv, MoneyDirection& dir)
+{
+    return _readExtraForSubMoney(y,m,mt,fid,v,wv,dir);
+}
+
+/**
+ * @brief DbUtil::readExtraForMS
+ *  读取指定年、月、币种、二级科目的余额
+ * @param y
+ * @param m
+ * @param mt    币种代码
+ * @param sid   二级科目id
+ * @param v     余额（原币形式）
+ * @param wv    余额（本币形式）
+ * @param dir   方向
+ * @return
+ */
+bool DbUtil::readExtraForMS(int y, int m, int mt, int sid, Double &v, Double &wv, MoneyDirection& dir)
+{
+    return _readExtraForSubMoney(y,m,mt,sid,v,wv,dir,false);
+}
+
+/**
+ * @brief DbUtil::readExtraForFSub
+ *  读取指定一级科目在指定年月的各币种余额
+ * @param y     年
+ * @param m     月
+ * @param fid   一级科目id
+ * @param v     余额（原币形式）
+ * @param wv    余额（本币形式）
+ * @param dir   余额方向
+ * @return
+ */
+bool DbUtil::readExtraForFSub(int y, int m, int fid, QHash<int, Double> &v, QHash<int, Double> &wv, QHash<int, MoneyDirection> &dir)
+{
+    return _readExtraForFSub(y,m,fid,v,wv,dir);
+}
+
+/**
+ * @brief DbUtil::readExtraForSSub
+ *  读取指定一级科目在指定年月的各币种余额
+ * @param y     年
+ * @param m     月
+ * @param sid   二级科目id
+ * @param v     余额（原币形式）
+ * @param wv    余额（本币形式）
+ * @param dir   余额方向
+ * @return
+ */
+bool DbUtil::readExtraForSSub(int y, int m, int sid, QHash<int, Double> &v, QHash<int, Double> &wv, QHash<int, MoneyDirection> &dir)
+{
+    return _readExtraForSSub(y,m,sid,v,wv,dir);
+}
+
+/**
  * @brief DbUtil::readExtraForPm
- *  读取指定年月的余额值（原币形式）
+ *  读取指定年月所有科目（包括二级科目）的余额值（原币形式）
  * @param y     年
  * @param m     月
  * @param fsums 一级科目余额值（注意：hash表的键是 “科目代码 * 10 + 币种代码”）
@@ -1892,6 +2052,85 @@ bool DbUtil::clearExtras(int y, int m)
 }
 
 /**
+ * @brief DbUtil::getPz
+ *  读取指定id的凭证内容并创建凭证对象
+ * @param pid
+ * @param pz
+ * @return
+ */
+bool DbUtil::getPz(int pid, PingZheng *&pz, PzSetMgr* parent)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where id=%2").arg(tbl_pz).arg(pid);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        pz = NULL;
+        return true;
+    }
+    Account* account = parent->getAccount();
+    QHash<int,Money*> mts = account->getAllMoneys();
+    BusiAction* ba;
+    int num;
+    MoneyDirection dir;
+    QString summary;
+    FirstSubject* fsub;
+    SecondSubject* ssub;
+    Double v;
+    Money* mt;
+    int id = q.value(0).toInt();
+    QString d = q.value(PZ_DATE).toString();
+    int pnum = q.value(PZ_NUMBER).toInt();
+    int znum = q.value(PZ_ZBNUM).toInt();
+    Double jsum = q.value(PZ_JSUM).toDouble();
+    Double dsum = q.value(PZ_DSUM).toDouble();
+    PzClass pzCls = (PzClass)q.value(PZ_CLS).toInt();
+    int encnum = q.value(PZ_ENCNUM).toInt();
+    PzState pzState = (PzState)q.value(PZ_PZSTATE).toInt();
+    User* vu = allUsers.value(q.value(PZ_VUSER).toInt());
+    User* ru = allUsers.value(q.value(PZ_RUSER).toInt());
+    User* bu = allUsers.value(q.value(PZ_BUSER).toInt());
+
+    pz = new PingZheng(parent,id,d,pnum,znum,jsum,dsum,pzCls,encnum,pzState,
+                       vu,ru,bu);
+    SubjectManager* smg = account->getSubjectManager(account->getSuite(pz->getDate2().year())->subSys);
+    QHash<int,Double> rates;
+    account->getRates(pz->getDate2().year(),pz->getDate2().month(),rates);
+    s = QString("select * from %1 where %2=%3 order by %4")
+            .arg(tbl_ba).arg(fld_ba_pid).arg(pz->id()).arg(fld_ba_number);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    Double js = 0.0,ds = 0.0;
+    while(q.next()){
+        id = q.value(0).toInt();
+        summary = q.value(BACTION_SUMMARY).toString();
+        fsub = smg->getFstSubject(q.value(BACTION_FID).toInt());
+        ssub = smg->getSndSubject(q.value(BACTION_SID).toInt());
+        mt = mts.value(q.value(BACTION_MTYPE).toInt());
+        dir = (MoneyDirection)q.value(BACTION_DIR).toInt();
+        v = Double(q.value(BACTION_VALUE).toDouble());
+        num = q.value(BACTION_NUMINPZ).toInt();
+        ba = new BusiAction(id,pz,summary,fsub,ssub,mt,dir,v,num);
+        pz->baLst<<ba;
+        if(dir == MDIR_J)
+            js += v*rates.value(mt->code(),1.0);
+        else
+            ds += v*rates.value(mt->code(),1.0);
+    }
+    //纠正凭证表中的借贷合计值
+    if(js != pz->jsum())
+        pz->js = js;
+    if(ds != pz->dsum())
+        pz->ds = ds;
+    js=0.0;ds=0.0;
+    return true;
+}
+
+/**
  * @brief DbUtil::savePingZhengs
  *  保存一组凭证
  * @param   pzs
@@ -2773,7 +3012,7 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
                 .arg(fld_pz_jsum).arg(fld_pz_dsum).arg(fld_pz_class).arg(fld_pz_encnum)
                 .arg(fld_pz_state).arg(fld_pz_ru).arg(fld_pz_vu).arg(fld_pz_bu)
                 .arg(pz->getDate()).arg(pz->number()).arg(pz->zbNumber())
-                .arg(pz->jsum().getv()).arg(pz->dsum().getv()).arg(pz->getPzClass())
+                .arg(pz->jsum().toString()).arg(pz->dsum().toString()).arg(pz->getPzClass())
                 .arg(pz->encNumber()).arg(pz->getPzState())
                 .arg(pz->recordUser()?pz->recordUser()->getUserId():0)
                 .arg(pz->verifyUser()?pz->verifyUser()->getUserId():0)
@@ -2803,9 +3042,9 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
         if(state.testFlag(ES_PZ_PZSTATE))
             s.append(QString("%1=%2,").arg(fld_pz_state).arg(pz->getPzState()));
         if(state.testFlag(ES_PZ_JSUM))
-            s.append(QString("%1=%2,").arg(fld_pz_jsum).arg(pz->jsum().getv()));
+            s.append(QString("%1=%2,").arg(fld_pz_jsum).arg(pz->jsum().toString()));
         if(state.testFlag(ES_PZ_DSUM))
-            s.append(QString("%1=%2,").arg(fld_pz_dsum).arg(pz->dsum().getv()));
+            s.append(QString("%1=%2,").arg(fld_pz_dsum).arg(pz->dsum().toString()));
         if(state.testFlag(ES_PZ_CLASS))
             s.append(QString("%1=%2,").arg(fld_pz_class).arg(pz->getPzClass()));
         if(state.testFlag(ES_PZ_RUSER))
@@ -2859,7 +3098,7 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
                     .arg(ba->getFirstSubject()?ba->getFirstSubject()->getId():0)
                     .arg(ba->getSecondSubject()?ba->getSecondSubject()->getId():0)
                     .arg(ba->getMt()?ba->getMt()->code():0)
-                    .arg(ba->getValue().getv()).arg(ba->getDir())
+                    .arg(ba->getValue().toString()).arg(ba->getDir())
                     .arg(i+1);
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
@@ -2888,7 +3127,7 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
             if(state.testFlag(ES_BA_MT))
                 s.append(QString("%1=%2,").arg(fld_ba_mt).arg(ba->getMt()->code()));
             if(state.testFlag(ES_BA_VALUE))
-                s.append(QString("%1=%2,").arg(fld_ba_value).arg(ba->getValue().getv()));
+                s.append(QString("%1=%2,").arg(fld_ba_value).arg(ba->getValue().toString()));
             if(state.testFlag(ES_BA_DIR))
                 s.append(QString("%1=%2,").arg(fld_ba_dir).arg(ba->getDir()));
             if(s.endsWith(',')){
@@ -2986,10 +3225,39 @@ bool DbUtil::_readExtraPoint(int y, int m, QHash<int, int>& mtHashs)
     s = QString("select id,%1 from %2 where %3=%4 and %5=%6")
             .arg(fld_nse_mt).arg(tbl_nse_point)
             .arg(fld_nse_year).arg(y).arg(fld_nse_month).arg(m);
-    if(!q.exec(s))
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
         return false;
+    }
     while(q.next())
         mtHashs[q.value(1).toInt()] = q.value(0).toInt();
+    return true;
+}
+
+/**
+ * @brief DbUtil::_readExtraPoint
+ *  读取指定年、月、币种的指针
+ * @param y
+ * @param m
+ * @param mt
+ * @return
+ */
+bool DbUtil::_readExtraPoint(int y, int m, int mt, int& pid)
+{
+    QSqlQuery q(db);
+    QString s;
+    s = QString("select id from %1 where %2=%3 and %4=%5 and %6=%7")
+            .arg(tbl_nse_point).arg(fld_nse_year).arg(y).arg(fld_nse_month).arg(m)
+            .arg(fld_nse_mt).arg(mt);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        pid = 0;
+        return false;
+    }
+    pid = q.value(0).toInt();
     return true;
 }
 
@@ -3197,7 +3465,7 @@ bool DbUtil::_saveExtrasForPm(int y, int m, const QHash<int, Double> &sums, cons
             s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,%8,%9)")
                     .arg(tname).arg(fld_nse_pid).arg(fld_nse_sid)
                     .arg(fld_nse_value).arg(fld_nse_dir).arg(mtHashs.value(mt))
-                    .arg(sid).arg(it.value().toString()).arg(dirs.value(it.key()));
+                    .arg(sid).arg(it.value().toString2()).arg(dirs.value(it.key()));
 
         }
         //（3）、如果新老值或者方向不同，则更新值或方向
@@ -3207,7 +3475,7 @@ bool DbUtil::_saveExtrasForPm(int y, int m, const QHash<int, Double> &sums, cons
             if(dirs.value(it.key()) != oldDirs.value(it.key())) //方向不同
                 s.append(QString("%1=%2,").arg(fld_nse_dir).arg(dirs.value(it.key())));
             if(it.value() != oldSums.value(it.key())) //值不同
-                s.append(QString("%1=%2,").arg(fld_nse_value).arg(it.value().toString()));
+                s.append(QString("%1=%2,").arg(fld_nse_value).arg(it.value().toString2()));
             s.chop(1);
             s.append(QString(" where %1=%2 and %3=%4").arg(fld_nse_pid).arg(mtHashs.value(mt)).arg(fld_nse_sid).arg(sid));
         }
@@ -3288,13 +3556,13 @@ bool DbUtil::_saveExtrasForMm(int y, int m, const QHash<int, Double> &sums, bool
             s = QString("insert into %1(%2,%3,%4) values(%5,%6,%7)")
                     .arg(tname).arg(fld_nse_pid).arg(fld_nse_sid)
                     .arg(fld_nse_value).arg(mtHashs.value(mt))
-                    .arg(sid).arg(it.value().toString());
+                    .arg(sid).arg(it.value().toString2());
 
         }
         //（3）、如果新老值不同，则更新值
         else if(it.value() != oldSums.value(it.key())){
             s = QString("update %1 set %2=%3 where %4=%5 and %6=%7").arg(tname)
-                    .arg(fld_nse_value).arg(it.value().toString())
+                    .arg(fld_nse_value).arg(it.value().toString2())
                     .arg(fld_nse_pid).arg(mtHashs.value(mt)).arg(fld_nse_sid).arg(sid);
 
         }
@@ -3321,6 +3589,53 @@ bool DbUtil::_saveExtrasForMm(int y, int m, const QHash<int, Double> &sums, bool
             }
         }
     }
+    return true;
+}
+
+/**
+ * @brief DbUtil::_readExtraForSubMoney
+ *  读取指定年、月、币种的科目余额及其方向
+ * @param y
+ * @param m
+ * @param mt    币种代码
+ * @param sid   科目id
+ * @param v     余额（原币形式）
+ * @param wv    余额（本币形式）
+ * @param dir   余额方向
+ * @param fst   一级科目（true）或二级科目（false）
+ * @return
+ */
+bool DbUtil::_readExtraForSubMoney(int y, int m, int mt, int sid, Double &v, Double &wv, MoneyDirection &dir, bool fst)
+{
+    QSqlQuery q(db);
+    QString s;
+    int pid;
+    if(_readExtraPoint(y,m,mt,pid))
+        return false;
+    s = QString("select %1,%2 from %3 where %4=%5 and %6=%7")
+            .arg(fld_nse_value).arg(fld_nse_dir).arg(fst?tbl_nse_p_f:tbl_nse_p_s).arg(fld_nse_pid)
+            .arg(pid).arg(fld_nse_sid).arg(sid);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        v = 0.0;
+        dir = MDIR_P;
+    }
+    v = Double(q.value(0).toDouble());
+    dir = (MoneyDirection)q.value(1).toInt();
+
+    s = QString("select %1 from %2 where %3=%4 and %5=%6")
+            .arg(fld_nse_value).arg(fst?tbl_nse_m_f:tbl_nse_m_s).arg(fld_nse_pid)
+            .arg(pid).arg(fld_nse_sid).arg(sid);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())
+        wv = 0.0;
+    wv = Double(q.value(0).toDouble());
     return true;
 }
 

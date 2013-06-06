@@ -432,6 +432,31 @@ const int PZSSN_CODE  = 1;
 const int PZSSN_SNAME = 2;
 const int PZSSN_LNAME = 3;
 
+//本地账户缓存表（LocalAccountCaches)
+//字段名
+const QString tbl_localAccountCache = "LocalAccountCaches";
+const QString fld_lac_code          = "code";               //账户编码
+const QString fld_lac_name          = "name";               //账户简称
+const QString fld_lac_lname         = "lname";              //账户全称
+const QString fld_lac_filename      = "fname";              //账户文件名
+const QString fld_lac_isLastOpen    = "isLastOpen";         //是否是最近打开的账户
+const QString fld_lac_tranState     = "tstate";             //转移状态
+const QString fld_lac_tranInTime    = "tranInTime";         //转入时间
+const QString fld_lac_tranOutMid    = "tranOutMid";         //转出主机的MID
+const QString fld_lac_tranOutTime   = "tranOutTime";        //转出时间
+const QString fld_lac_hash       = "hashValue";            //账户文件的Hash值
+//字段索引
+const int LAC_CODE      = 1;
+const int LAC_NAEM      = 2;
+const int LAC_LNAME     = 3;
+const int LAC_FNAME     = 4;
+const int LAC_ISLAST    = 5;
+const int LAC_TSTATE    = 6;
+const int LAC_INTIME    = 7;
+const int LAC_OUTMID    = 8;
+const int LAC_OUTTIME   = 9;
+const int LAC_HASH      = 10;
+
 //主机表（machines）
 //CREATE TABLE machines(id integer primary key, type integer, mid integer,
 //isLocal integer, sname text, lname text)

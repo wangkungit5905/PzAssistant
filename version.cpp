@@ -948,6 +948,8 @@ bool VMAccount::updateTo1_4()
     while(q.next()){
         id = q.value(0).toInt();
         pid = q.value(1).toInt();
+        if(pid == 0)
+            continue;
         summary = q.value(2).toString();
         fid = q.value(3).toInt();
         sid = q.value(4).toInt();
@@ -963,9 +965,10 @@ bool VMAccount::updateTo1_4()
                 .arg(tbl_ba).arg(fld_ba_pid).arg(fld_ba_summary).arg(fld_ba_fid)
                 .arg(fld_ba_sid).arg(fld_ba_mt).arg(fld_ba_value).arg(fld_ba_dir)
                 .arg(fld_ba_number).arg(id).arg(pid).arg(summary).arg(fid).arg(sid).arg(mt)
-                .arg(v.toString()).arg(dir).arg(num);
+                .arg(v.toString2()).arg(dir).arg(num);
         if(!q2.exec(s)){
             emit upgradeStep(verNum,tr("在试图插入id=%1的记录到“%2”时发生错误！").arg(id).arg(tbl_ba),VUR_ERROR);
+            LOG_SQLERROR(s);
             db.commit();
             return false;
         }

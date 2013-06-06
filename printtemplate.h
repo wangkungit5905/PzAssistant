@@ -38,7 +38,7 @@ public:
     void setCompany(QString name);
     void setPzDate(QDate date);
     void setAttNums(int num);
-    void setPzNum(int num);
+    void setPzNum(QString num);
     void setBaList(QList<BusiAction *> &bas);
     void setJDSums(Double jsum, Double dsum);
     void setProducer(QString name);

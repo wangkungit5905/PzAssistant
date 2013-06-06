@@ -357,9 +357,9 @@ bool AppConfig::isExist(QString code)
 //保存账户简要信息
 bool AppConfig::saveAccInfo(AccountBriefInfo accInfo)
 {
-    QSqlQuery q(db);
-    QString s = QString("select id from AccountInfos where code = '%1'")
-            .arg(accInfo.code);
+//    QSqlQuery q(db);
+//    QString s = QString("select id from AccountInfos where code = '%1'")
+//            .arg(accInfo.code);
 //    if(q->exec(s) && q->first()){
 //        int id = q->value(0).toInt();
 //        s = QString("update AccountInfos set code='%1',baseTime='%2',usedSubSys=%3,"
@@ -377,20 +377,20 @@ bool AppConfig::saveAccInfo(AccountBriefInfo accInfo)
 //                .arg(accInfo->accLName).arg(accInfo->lastTime).arg(accInfo->desc);
 //    }
 
-    if(q.exec(s) && q.first()){
-        int id = q.value(0).toInt();
-        s = QString("update AccountInfos set code='%1',filename='%2',name='%3',"
-                    "lname='%4' where id=%5").arg(accInfo.code).arg(accInfo.fname)
-                .arg(accInfo.sname).arg(accInfo.lname).arg(id);
-    }
-    else{
-        s = QString("insert into AccountInfos(code,filename,name,"
-                    "lname) values('%1','%2','%3','%4')")
-                .arg(accInfo.code).arg(accInfo.fname).arg(accInfo.sname)
-                .arg(accInfo.lname);
-    }
-    bool r = q.exec(s);
-    return r;
+//    if(q.exec(s) && q.first()){
+//        int id = q.value(0).toInt();
+//        s = QString("update AccountInfos set code='%1',filename='%2',name='%3',"
+//                    "lname='%4' where id=%5").arg(accInfo.code).arg(accInfo.fname)
+//                .arg(accInfo.sname).arg(accInfo.lname).arg(id);
+//    }
+//    else{
+//        s = QString("insert into AccountInfos(code,filename,name,"
+//                    "lname) values('%1','%2','%3','%4')")
+//                .arg(accInfo.code).arg(accInfo.fname).arg(accInfo.sname)
+//                .arg(accInfo.lname);
+//    }
+//    bool r = q.exec(s);
+//    return r;
 }
 
 //读取账户信息
@@ -526,6 +526,10 @@ QString AppConfig::getSpecSubCode(int subSys, AppConfig::SpecSubCode witch)
         return "3131";
     case SSC_LRFP:
         return "3141";
+    case SSC_YS:
+        return "1131";
+    case SSC_YF:
+        return "2121";
     }
 }
 
@@ -539,6 +543,35 @@ void AppConfig::setSpecSubCode(int subSys, AppConfig::SpecSubCode witch, QString
 {
     //待以后决定了如何保存这些特别科目的机制后，再实现
 }
+
+/**
+ * @brief AppConfig::getSubjectClassMaps
+ *  获取指定科目系统的科目类别映射表（将实际的科目类别代码映射到内置科目类别代码）
+ * @param subSys
+ * @return
+ */
+QHash<int, SubjectClass> AppConfig::getSubjectClassMaps(int subSys)
+{
+    QHash<int, SubjectClass> maps;
+    if(subSys == 1){
+        maps[1] = SC_ZC;
+        maps[2] = SC_FZ;
+        maps[3] = SC_QY;
+        maps[4] = SC_CB;
+        maps[5] = SC_SY;
+    }
+    else{
+        maps[1] = SC_ZC;
+        maps[2] = SC_FZ;
+        maps[3] = SC_GT;
+        maps[4] = SC_QY;
+        maps[5] = SC_CB;
+        maps[6] = SC_SY;
+    }
+    return maps;
+}
+
+
 
 /**
  * @brief AppConfig::getLocalMid

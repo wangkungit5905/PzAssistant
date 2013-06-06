@@ -18,13 +18,13 @@ class SubjectManager;
 class StatUtil
 {
 public:
-    StatUtil(const QList<PingZheng*> &pzs,Account* account);
+    StatUtil(QList<PingZheng *> *pzs, Account* account);
     bool stat();
     bool save();
     Account* getAccount(){return account;}
     int year(){return y;}
     int month(){return m;}
-    int count(){return pzs.count();}
+    int count(){return pzs->count();}
 
     //获取期初值和方向
     QHash<int,Double>& getPreValueFPm(){return preFExa;}
@@ -75,7 +75,7 @@ private:
     Account* account;
     DbUtil* dbUtil;
     SubjectManager* smg;
-    QList<PingZheng*> pzs;  //凭证对象集合
+    QList<PingZheng*>* pzs; //凭证对象集合
     int y,m;                //凭证集所属年月
     Money* masterMt;
     QHash<int,Double> rates;

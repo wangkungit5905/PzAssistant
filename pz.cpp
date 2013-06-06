@@ -20,6 +20,7 @@ BusiAction::BusiAction()
     dir = MDIR_D;
     v = 0.00;
     num = 0;
+
 }
 
 BusiAction::BusiAction(BusiAction& other)
@@ -158,7 +159,7 @@ void BusiAction::setEditState(BusiActionEditState state)
 
 /////////////////PingZheng/////////////////////////////////////////
 PingZheng::PingZheng(PzSetMgr *parent):ID(0),p(parent),isDeleted(false),encNum(0),
-    ru(NULL),vu(NULL),bu(NULL),oppoSub(NULL){md=PZMD++;}
+    state(Pzs_Recording),pzCls(Pzc_Hand),ru(NULL),vu(NULL),bu(NULL),oppoSub(NULL){md=PZMD++;}
 
 PingZheng::PingZheng(PzSetMgr* parent, int id, QString date, int pnum, int znum, Double js, Double ds,
           PzClass pzCls, int encnum, PzState state, User* vu, User* ru, User* bu)
@@ -192,6 +193,7 @@ void PingZheng::setDate(QString ds)
     if(d != date){
         date=ds;
         setEditState(ES_PZ_DATE);
+        emit pzContentChanged(this);
     }
 }
 
@@ -201,6 +203,7 @@ void PingZheng::setDate(QDate d)
     if(ds != date){
         date = ds;
         setEditState(ES_PZ_DATE);
+        emit pzContentChanged(this);
     }
 }
 
@@ -209,6 +212,7 @@ void PingZheng::setNumber(int num)
     if(pnum != num){
         pnum = num;
         setEditState(ES_PZ_PZNUM);
+        emit pzContentChanged(this);
     }
 }
 
@@ -217,6 +221,7 @@ void PingZheng::setZbNumber(int num)
     if(m_znum != num){
        m_znum = num;
        setEditState(ES_PZ_ZBNUM);
+       emit pzContentChanged(this);
     }
 }
 
@@ -225,6 +230,7 @@ void PingZheng::setEncNumber(int num)
     if(encNum != num){
        encNum=num;
        setEditState(ES_PZ_ENCNUM);
+       emit pzContentChanged(this);
     }
 }
 
@@ -233,14 +239,18 @@ void PingZheng::setPzClass(PzClass cls)
     if(pzCls != cls){
        pzCls=cls;
        setEditState(ES_PZ_CLASS);
+       emit pzContentChanged(this);
     }
 }
 
 void PingZheng::setPzState(PzState s)
 {
     if(state != s){
-        state=s;
+        PzState old = state;
+        state=s;        
         setEditState(ES_PZ_PZSTATE);
+        emit pzStateChanged(old,s);
+        emit pzContentChanged(this);
     }
 }
 
@@ -248,7 +258,8 @@ void PingZheng::setVerifyUser(User *user)
 {
     if(vu == NULL || vu != user){
         vu=user;
-        setEditState(ES_PZ_VUSER);
+        setEditState(ES_PZ_VUSER);        
+        emit pzContentChanged(this);
     }
 }
 
@@ -257,6 +268,7 @@ void PingZheng::setRecordUser(User *user)
     if(ru == NULL || ru != user){
         ru=user;
         setEditState(ES_PZ_RUSER);
+        emit pzContentChanged(this);
     }
 }
 
@@ -265,6 +277,7 @@ void PingZheng::setBookKeeperUser(User *user)
     if(bu == NULL || bu != user){
         bu=user;
         setEditState(ES_PZ_BUSER);
+        emit pzContentChanged(this);
     }
 }
 
@@ -920,7 +933,8 @@ void PingZheng::adjustSumForDirChanged(MoneyDirection oldDir, MoneyDirection new
             ds += ba->getValue();
         }
         else{
-            QHash<int,Double> rates = parent()->getRates();
+            QHash<int,Double> rates;
+            parent()->getRates(rates);
             Double v = ba->getValue() * rates.value(ba->getMt()->code());
             js -= v; ds += v;
         }
@@ -931,7 +945,8 @@ void PingZheng::adjustSumForDirChanged(MoneyDirection oldDir, MoneyDirection new
             ds -= ba->getValue();
         }
         else{
-            QHash<int,Double> rates = parent()->getRates();
+            QHash<int,Double> rates;
+            parent()->getRates(rates);
             Double v = ba->getValue() * rates.value(ba->getMt()->code());
             js += v; ds -= v;
         }
@@ -958,7 +973,7 @@ void PingZheng::adjustSumForValueChanged(Money *oldMt, Money *newMt, Double &old
     if(oldMt==newMt && oldValue==newValue)
         return;
     QHash<int,Double> rates;
-    rates = parent()->getRates();
+    parent()->getRates(rates);
     //rates[1] = 1.0;
     Double diffValue;
     if(oldMt){
@@ -1059,7 +1074,8 @@ void PingZheng::adjustSumForBaChanged(BusiAction *ba, bool add)
     if(ba->getMt() == p->getAccount()->getMasterMt())
         v = ba->v;
     else{
-        QHash<int,Double> rates = p->getRates();
+        QHash<int,Double> rates;
+        p->getRates(rates);
         v = ba->v * rates.value(ba->mt->code());
     }
     if(ba->dir == DIR_J){

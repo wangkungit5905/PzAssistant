@@ -81,9 +81,11 @@ private slots:
 
     void on_actToExcel_triggered();
 
+    void on_btnSave_clicked();
+
 signals:
     void infomation(QString info);       //向主窗口发送要在状态条上显示的信息
-    void pzsExtraSaved();
+    //void pzsExtraSaved();
 
 private:
     void init(Account* acc);

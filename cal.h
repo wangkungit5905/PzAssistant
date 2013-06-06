@@ -13,6 +13,7 @@ public:
     //Double(const Double &other);
 
     QString toString() const;
+    QString toString2() const;
     int getDig() const {return digs;}
     int getDigRate() const {return digRate;}
     double getv() const {return (double)lv / digRate;}

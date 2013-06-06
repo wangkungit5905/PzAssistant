@@ -190,7 +190,8 @@ FORMS    += \
     forms/apcbank.ui \
     forms/apcsubject.ui \
     forms/apcreport.ui \
-    forms/apclog.ui
+    forms/apclog.ui \
+    forms/historypzform.ui
 
 RESOURCES += \
     imgers.qrc \

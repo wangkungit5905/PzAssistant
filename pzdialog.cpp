@@ -1,5 +1,6 @@
 #include <QKeyEvent>
 #include <QBuffer>
+#include <QInputDialog>
 
 #include "pzdialog.h"
 #include "cal.h"
@@ -12,6 +13,8 @@
 #include "completsubinfodialog.h"
 
 #include "ui_pzdialog.h"
+#include "ui_historypzform.h"
+
 ////////////////////////////BaTableWidget////////////////////////////////////
 BaTableWidget::BaTableWidget(QWidget *parent):QTableWidget(parent)
 {
@@ -316,9 +319,9 @@ PzDialog::PzDialog(int y, int m, PzSetMgr *psm, QByteArray* sinfo, QWidget *pare
     else{
         ui->edtPzCount->setText(QString::number(pzMgr->getPzCount()));
         //显示本期汇率
-        rates = pzMgr->getRates();
+        pzMgr->getRates(rates);
         if(rates.isEmpty()){
-            QMessageBox::warning(this,msgTitle_warning,tr("不能获取本期汇率"));
+            QMessageBox::warning(this,msgTitle_warning,tr("本期汇率未设值"));
             return;
         }
         QHash<int, Money*> mts = account->getAllMoneys();
@@ -336,6 +339,7 @@ PzDialog::PzDialog(int y, int m, PzSetMgr *psm, QByteArray* sinfo, QWidget *pare
                 this,SLOT(moneyTypeChanged(int)));
         moneyTypeChanged(0);
         curPz = pzMgr->first();
+        //curPz = pzMgr->getCurPz();
         refreshPzContent();
 
         //connect(delegate,SIGNAL(updateSndSubject(int,int,SecondSubject*)),
@@ -520,11 +524,34 @@ void PzDialog::moveToLast()
  * @brief PzDialog::seek 快速定位指定号的凭证
  * @param num
  */
-//void PzDialog::seek(int num)
-//{
-//    curPz = pzMgr->seek(num);
-//    refreshPzContent();
-//}
+void PzDialog::seek(int num)
+{
+    curPz = pzMgr->seek(num);
+    refreshPzContent();
+}
+
+/**
+ * @brief PzDialog::seek
+ *  快速定位到指定凭证
+ * @param pz
+ */
+void PzDialog::seek(PingZheng *pz, BusiAction* ba)
+{
+    if(!pzMgr->seek(pz)){
+        QMessageBox::warning(this,tr("警告信息"),tr("无法定位到该凭证！"));
+        return;
+    }
+    curPz = pzMgr->getCurPz();
+    refreshPzContent();
+    if(!ba)
+        return;
+    for(int i = 0; i < pz->baCount(); ++i){
+        if(*ba == *pz->getBusiAction(i)){
+            ui->tview->selectRow(i);
+            return;
+        }
+    }
+}
 
 void PzDialog::addPz()
 {
@@ -574,6 +601,138 @@ void PzDialog::removePz()
     pzMgr->getUndoStack()->push(cmd);
     curPz = pzMgr->getCurPz();
     refreshPzContent();
+}
+
+/**
+ * @brief PzDialog::crtJzhdPz
+ *  创建结转汇兑损益的凭证
+ * @return
+ */
+bool PzDialog::crtJzhdPz()
+{
+    if(pzMgr->getState() != Ps_AllVerified){
+        QMessageBox::warning(0,tr("警告信息"),tr("凭证集内存在未审核凭证，不能结转！"));
+        return true;
+    }
+    if(!pzMgr->getExtraState()){
+        QMessageBox::warning(0,tr("警告信息"),tr("余额无效，请重新进行统计并保存正确余额！"));
+        return true;
+    }
+    //因为汇兑损益的结转要涉及到期末汇率，即下期的汇率，要求用户确认汇率是否正确
+    QHash<int,Double> startRates,endRates;
+    account->getRates(pzMgr->year(),pzMgr->month(),startRates);
+    int yy,mm;
+    if(pzMgr->month() == 12){
+        yy = pzMgr->year()+1;
+        mm = 1;
+    }
+    else{
+        yy = pzMgr->year();
+        mm = pzMgr->month()+1;
+    }
+    account->getRates(yy,mm,endRates);
+    QString tip = tr("请确认汇率是否正确：%1年%2月美金汇率：").arg(yy).arg(mm);
+    bool ok;
+    double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,endRates.value(USD).getv(),0,100,2,&ok);
+    if(!ok)
+        return true;
+    endRates[USD] = Double(rate);
+    account->setRates(yy,mm,endRates);
+    //创建一个总命令以包容所有涉及到创建结转汇兑损益的各类动作
+    QUndoCommand* mainCmd = new QUndoCommand(tr("结转汇兑损益"));
+    //创建移除原先存在的结转汇兑损益的凭证的命令
+    QList<PingZheng*> pzLst = pzMgr->getAllJzhdPzs();
+    if(!pzLst.isEmpty()){
+        foreach(PingZheng* pz, pzLst){
+            DelPzCmd* cmd = new DelPzCmd(pzMgr,pz,mainCmd);
+        }
+    }
+    //调用凭证集管理对象创建新的结转汇兑损益凭证对象
+    pzLst.clear();
+    if(!pzMgr->crtJzhdsyPz(pzMgr->year(),pzMgr->month(),pzLst,startRates,endRates,curUser)){
+        delete mainCmd;
+        return false;
+    }
+    //创建一个添加多个凭证对象到当前凭证集的命令对象
+    foreach(PingZheng* pz, pzLst){
+        AppendPzCmd* cmd = new AppendPzCmd(pzMgr,pz,mainCmd);
+    }
+    pzMgr->getUndoStack()->push(mainCmd);
+    //刷新状态
+    refreshPzContent();
+    return true;
+}
+
+/**
+ * @brief PzDialog::crtJzsyPz
+ *  创建结转损益类科目余额到本年利润的凭证
+ * @return
+ */
+bool PzDialog::crtJzsyPz()
+{
+    if(pzMgr->getState() != Ps_AllVerified){
+        QMessageBox::warning(0,tr("警告信息"),tr("凭证集内存在未审核凭证，不能结转！"));
+        return true;
+    }
+    if(!pzMgr->getExtraState()){
+        QMessageBox::warning(0,tr("警告信息"),tr("余额无效，请重新进行统计并保存正确余额！"));
+        return true;
+    }
+    //1、检测本期和下期汇率是否有变动，如果有，则检测是否执行了结转汇兑损益，如果没有，则退出
+    QHash<int,Double> sRates,eRates;
+    int y=pzMgr->year();
+    int m=pzMgr->month();
+    if(!pzMgr->getRates(sRates,y,m))
+        return false;
+    if(m == 12){
+        y++;
+        m = 1;
+    }
+    else{
+        m++;
+    }
+    if(!pzMgr->getRates(eRates,y,m))
+        return false;
+
+    if(eRates.empty()){
+        QString tip = tr("下期汇率未设置，请先设置：%1年%2月美金汇率：").arg(y).arg(m);
+        bool ok;
+        double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,0,0,100,2,&ok);
+        if(!ok)
+            return true;
+        eRates[USD] = Double(rate);
+        if(!pzMgr->setRates(eRates,y,m))
+            return false;
+    }
+    //汇率不等，则检查是否执行了结转汇兑损益
+    QList<PingZheng*> oldPzs;
+    if(sRates.value(USD) != eRates.value(USD)){
+        pzMgr->getJzhdsyPz(oldPzs);
+        QList<FirstSubject*> fsubs;
+        subMgr->getUseWbSubs(fsubs);
+        if(oldPzs.count() != fsubs.count()){
+            QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证有误！"));
+            return true;
+        }
+    }
+    oldPzs.clear();
+    pzMgr->getJzsyPz(oldPzs);
+    QList<PingZheng*> createdPzs;
+    if(!pzMgr->crtJzsyPz(pzMgr->year(),pzMgr->month(),createdPzs))
+        return false;
+    QUndoCommand* mainCmd = new QUndoCommand(tr("结转损益"));
+    PingZheng* pz;
+    for(int i = 0; i < oldPzs.count(); ++i){
+        pz = oldPzs.at(i);
+        DelPzCmd* cmd = new DelPzCmd(pzMgr,pz,mainCmd);
+    }
+    for(int i = 0; i < createdPzs.count(); ++i){
+        pz = createdPzs.at(i);
+        AppendPzCmd* cmd = new AppendPzCmd(pzMgr,pz,mainCmd);
+    }
+    pzMgr->getUndoStack()->push(mainCmd);
+    refreshPzContent();
+    return true;
 }
 
 /**
@@ -848,7 +1007,13 @@ void PzDialog::processShortcut()
 void PzDialog::save()
 {
     //LOG_INFO("shortcut save is actived!");
-    pzMgr->save(PzSetMgr::SW_PZS);
+    pzMgr->save(PzSetMgr::SW_ALL);
+}
+
+void PzDialog::setPzState(PzState state)
+{
+    ModifyPzVStateCmd* cmd = new ModifyPzVStateCmd(pzMgr,curPz,state);
+    pzMgr->getUndoStack()->push(cmd);
 }
 
 /**
@@ -1305,7 +1470,7 @@ void PzDialog::refreshPzContent()
         ui->spnZbNum->setValue(curPz->zbNumber());
         ui->spnEncNum->setReadOnly(false);
         ui->spnEncNum->setValue(curPz->encNumber());
-        ui->edtRUser->setText(curPz->recordUser()->getName());
+        ui->edtRUser->setText(curPz->recordUser()?curPz->recordUser()->getName():"");
         ui->edtVUser->setText(curPz->verifyUser()?curPz->verifyUser()->getName():"");
         ui->edtBUser->setText(curPz->bookKeeperUser()?curPz->bookKeeperUser()->getName():"");
         ui->edtComment->setReadOnly(false);
@@ -1633,4 +1798,213 @@ void PzDialog::initBlankBa(int row)
     dItem = new BAMoneyValueItem_new(DIR_D, 0);
     ui->tview->setItem(row,BaTableWidget::JVALUE,jItem);
     ui->tview->setItem(row,BaTableWidget::DVALUE,dItem);
+}
+
+
+/////////////////////////////////HistoryPzForm////////////////////////////////////
+
+
+HistoryPzForm::HistoryPzForm(PingZheng *pz, QByteArray *sinfo, QWidget *parent) :QDialog(parent),
+    ui(new Ui::HistoryPzForm),pz(pz)
+{
+    ui->setupUi(this);
+    //ui->tview->setColumnCount(6);
+    setState(sinfo);
+    connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
+            this,SLOT(colWidthChanged(int,int,int)));
+    viewPzContent();
+}
+
+HistoryPzForm::~HistoryPzForm()
+{
+    delete ui;
+}
+
+void HistoryPzForm::setPz(PingZheng *pz)
+{
+    this->pz = pz;
+    viewPzContent();
+}
+
+/**
+ * @brief HistoryPzForm::setCurBa
+ *  如果指定的会计分录存在于当前显示的凭证中，则选中它
+ * @param bid
+ */
+void HistoryPzForm::setCurBa(int bid)
+{
+    if(!pz || !bid || (pz->baCount() == 0))
+        return;
+    for(int i = 0; i < pz->baCount(); ++i){
+        if(pz->getBusiAction(i)->getId() == bid){
+            ui->tview->selectRow(i);
+            ui->tview->scrollTo(ui->tview->model()->index(i,0));
+            return;
+        }
+    }
+}
+
+void HistoryPzForm::setState(QByteArray *info)
+{
+    if(info == NULL){
+        colWidths<<300<<100<<100<<50<<200<<200;
+    }
+    else{
+        QBuffer bf(info);
+        QDataStream in(&bf);
+        bf.open(QIODevice::ReadOnly);
+        qint8 i8;
+        qint16 i16;
+
+        in>>i8;
+        for(int i = 0; i < i8; ++i){
+            in>>i16;
+            colWidths<<i16;
+        }
+        bf.close();
+    }
+    for(int i = 0; i < colWidths.count(); ++i)
+        ui->tview->setColumnWidth(i,colWidths.at(i));
+
+}
+
+QByteArray *HistoryPzForm::getState()
+{
+    QByteArray* info = new QByteArray;
+    QBuffer bf(info);
+    QDataStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    qint8 i8;
+    qint16 i16;
+
+    //显示业务活动的表格，固定为6列
+    i8 = 6;
+    out<<i8;
+    for(int i = 0; i < 6; ++i){
+        i16 = colWidths[i];
+        out<<i16;
+    }
+    bf.close();
+    return info;
+}
+
+void HistoryPzForm::colWidthChanged(int logicalIndex, int oldSize, int newSize)
+{
+    colWidths[logicalIndex] = newSize;
+    if(logicalIndex == BaTableWidget::JVALUE){
+        disconnect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
+                    this,SLOT(colWidthChanged(int,int,int)));
+        ui->tview->setColumnWidth(BaTableWidget::DVALUE,newSize);
+        connect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
+                this,SLOT(colWidthChanged(int,int,int)));
+    }
+    else if(logicalIndex == BaTableWidget::DVALUE){
+        disconnect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
+                    this,SLOT(colWidthChanged(int,int,int)));
+        ui->tview->setColumnWidth(BaTableWidget::JVALUE,newSize);
+        connect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
+                this,SLOT(colWidthChanged(int,int,int)));
+    }
+    ui->tview->updateSubTableGeometry();
+}
+
+void HistoryPzForm::viewPzContent()
+{
+    if(!pz){
+        ui->edtDate->clear();
+        ui->edtNumber->clear();
+        ui->edtEncNum->clear();
+        ui->tview->clearContents();
+        ui->edtRUser->clear();
+        ui->edtVUser->clear();
+        ui->edtBUser->clear();
+        ui->edtRate->clear();
+        ui->edtMem->clear();
+    }
+    else{
+        ui->edtDate->setText(pz->getDate());
+        ui->edtNumber->setText(QString::number(pz->number()));
+        ui->edtEncNum->setText(QString::number(pz->encNumber()));
+        ui->edtRUser->setText(pz->recordUser()?pz->recordUser()->getName():"");
+        ui->edtVUser->setText(pz->verifyUser()?pz->verifyUser()->getName():"");
+        ui->edtBUser->setText(pz->bookKeeperUser()?pz->bookKeeperUser()->getName():"");
+        ui->edtMem->setPlainText(pz->memInfo());
+        viewBusiactions();
+    }
+
+}
+
+void HistoryPzForm::viewBusiactions()
+{
+    if(!pz)
+        return;
+    ui->tview->clearContents();
+    ui->tview->setRowCount(pz->baCount());
+    //ui->tview->setValidRows(pz->baCount());
+    for(int i = 0; i < pz->baCount(); ++i)
+        refreshSingleBa(i,pz->getBusiAction(i));
+    ui->tview->setBalance(pz->isBalance());
+    ui->tview->setJSum(pz->jsum());
+    ui->tview->setDSum(pz->dsum());
+    ui->tview->scrollToTop();
+}
+
+void HistoryPzForm::refreshSingleBa(int row, BusiAction *ba)
+{
+    QTableWidgetItem* item,*item2;
+    item = new QTableWidgetItem(ba->getSummary());
+    item->setTextAlignment(Qt::AlignCenter);
+    ui->tview->setItem(row,BaTableWidget::SUMMARY,item);
+    item = new QTableWidgetItem(ba->getFirstSubject()->getName());
+    item->setTextAlignment(Qt::AlignCenter);
+    ui->tview->setItem(row,BaTableWidget::FSTSUB,item);
+    item = new QTableWidgetItem(ba->getSecondSubject()->getName());
+    item->setTextAlignment(Qt::AlignCenter);
+    ui->tview->setItem(row,BaTableWidget::SNDSUB,item);
+    item = new QTableWidgetItem(ba->getMt()->name());
+    item->setTextAlignment(Qt::AlignCenter);
+    ui->tview->setItem(row,BaTableWidget::MONEYTYPE,item);
+    if(ba->getDir() == MDIR_J){
+        item = new QTableWidgetItem(ba->getValue().toString());
+        item->setTextAlignment(Qt::AlignRight|Qt::AlignVCenter);
+        item2 = NULL;
+    }
+    else{
+        item = NULL;
+        item2 = new QTableWidgetItem(ba->getValue().toString());
+        item2->setTextAlignment(Qt::AlignRight|Qt::AlignVCenter);
+    }
+    ui->tview->setItem(row,BaTableWidget::JVALUE,item);
+    ui->tview->setItem(row,BaTableWidget::DVALUE,item2);
+
+//    BASummaryItem_new* smItem = new BASummaryItem_new(ba->getSummary(), subMgr);
+//    ui->tview->setItem(row,BaTableWidget::SUMMARY,smItem);
+//    BAFstSubItem_new* fstItem = new BAFstSubItem_new(ba->getFirstSubject(), subMgr);
+//    QVariant v;
+//    v.setValue(ba->getFirstSubject());
+//    fstItem->setData(Qt::EditRole, v);
+//    ui->tview->setItem(row,BaTableWidget::FSTSUB,fstItem);
+//    BASndSubItem_new* sndItem = new BASndSubItem_new(ba->getSecondSubject(), subMgr);
+//    v.setValue(ba->getSecondSubject());
+//    sndItem->setData(Qt::EditRole,v);
+//    ui->tview->setItem(row,BaTableWidget::SNDSUB,sndItem);
+//    BAMoneyTypeItem_new* mtItem = new BAMoneyTypeItem_new(ba->getMt());
+//    v.setValue(ba->getMt());
+//    mtItem->setData(Qt::EditRole, v);
+//    ui->tview->setItem(row,BaTableWidget::MONEYTYPE,mtItem);
+//    BAMoneyValueItem_new* jItem,*dItem;
+//    if(ba->getDir() == DIR_J){
+//        jItem = new BAMoneyValueItem_new(DIR_J, ba->getValue());
+//        dItem = new BAMoneyValueItem_new(DIR_D, 0);
+//    }
+//    else{
+//        jItem = new BAMoneyValueItem_new(DIR_J, 0);
+//        dItem = new BAMoneyValueItem_new(DIR_D, ba->getValue());
+//    }
+//    ui->tview->setItem(row,BaTableWidget::JVALUE,jItem);
+    //    ui->tview->setItem(row,BaTableWidget::DVALUE,dItem);
+}
+
+void HistoryPzForm::adjustTableSize()
+{
 }

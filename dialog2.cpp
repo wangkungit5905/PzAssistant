@@ -26,6 +26,8 @@
 #include "subject.h"
 #include "cal.h"
 #include "dbutil.h"
+#include "PzSet.h"
+#include "pz.h"
 
 //tem
 //#include "dialog3.h"
@@ -1278,11 +1280,22 @@ void ViewExtraDialog::initHashs()
 
 
 ////////////////////////PrintSelectDialog////////////////////////////////////
-PrintSelectDialog::PrintSelectDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::PrintSelectDialog)
+PrintSelectDialog::PrintSelectDialog(PzSetMgr *pzMgr, QWidget *parent) :
+    QDialog(parent),ui(new Ui::PrintSelectDialog),pzMgr(pzMgr)
 {
     ui->setupUi(this);
+    if(pzMgr->getPzCount() == 0)
+        enableWidget(false);
+    else{
+        ui->edtCur->setText(QString::number(pzMgr->getCurPz()->number()));
+        QString allText;
+        if(pzMgr->getPzCount() == 1)
+            allText = "1";
+        else
+            allText = QString("1-%1").arg(pzMgr->getPzCount());
+        ui->edtAll->setText(allText);
+    }
+    connect(ui->rdoSel,SIGNAL(toggled(bool)),this,SLOT(selectedSelf(bool)));
 }
 
 PrintSelectDialog::~PrintSelectDialog()
@@ -1290,45 +1303,12 @@ PrintSelectDialog::~PrintSelectDialog()
     delete ui;
 }
 
-//添加一张要打印的凭证
-void PrintSelectDialog::append(int num)
-{
-    pznSet.insert(num);
-}
-
 //设置要打印的凭证号集合
 void PrintSelectDialog::setPzSet(QSet<int> pznSet)
 {
-    this->pznSet = pznSet;
-    QString ps = VariousUtils::IntSetToStr(pznSet);
-    //VariousUtils::IntSetToStr(pznSet, ps);
-
+    QString ps = IntSetToStr(pznSet);
     ui->edtSel->setText(ps); //将集合解析为简写文本表示形式
-//    if(pznSet.count() > 0){
-//        QList<int> pzs = pznSet.toList();
-//        qSort(pzs.begin(),pzs.end());
-//        int prev = pzs[0],next = pzs[0];
-//        QString s;
-//        for(int i = 1; i < pzs.count(); ++i){
-//            if((pzs[i] - next) == 1){
-//                next = pzs[i];
-//            }
-//            else{
-//                if(prev == next)
-//                    s.append(QString::number(prev)).append(",");
-//                else
-//                    s.append(QString("%1-%2").arg(prev).arg(next)).append(",");
-//                prev = next = pzs[i];
-//            }
-//        }
-//        if(prev == next)
-//            s.append(QString::number(prev));
-//        else
-//            s.append(QString("%1-%2").arg(prev).arg(pzs[pzs.count() - 1]));
-//        //s.chop(1);
-//        ui->edtSel->setText(s);
-//    }
-
+    ui->rdoSel->setChecked(true);
 }
 
 //设置当前的凭证号
@@ -1343,45 +1323,34 @@ void PrintSelectDialog::setCurPzn(int pzNum)
 
 }
 
-//移除指定凭证
-void PrintSelectDialog::remove(int num)
-{
-    pznSet.remove(num);
-}
-
 /**
- * @brief PrintSelectDialog::getPrintPzSet
- *  获取欲打印的凭证号集合
- * @param pznSet
- * @return 0：所有凭证，1：当前凭证，2：自选凭证
+ * @brief PrintSelectDialog::getSelectedPzs
+ *  获取选择要打印的凭证对象
+ * @param pzs
+ * @return 0：未选，1：所有凭证，2：当前凭证，3：自选凭证
  */
-int PrintSelectDialog::getPrintPzSet(QSet<int>& pznSet)
+int PrintSelectDialog::getSelectedPzs(QList<PingZheng *> &pzs)
 {
-    if((ui->rdoCur->isChecked()) && (ui->edtCur->text() != "")){
-        pznSet.insert(ui->edtCur->text().toInt());
-        return 1;
-    }
-    else if(ui->rdoSel->isChecked()){
-        VariousUtils::strToIntSet(ui->edtSel->text(), pznSet);
-
-//        pznSet.clear();
-//        //对打印范围的编辑框文本进行解析，生成凭证号集合
-//        QStringList sels = ui->edtSel->text().split(",");
-//        for(int i = 0; i < sels.count(); ++i){
-//            if(sels[i].indexOf('-') == -1)
-//                pznSet.insert(sels[i].toInt());
-//            else{
-//                QStringList ps = sels[i].split("-");
-//                int start = ps[0].toInt();
-//                int end = ps[1].toInt();
-//                for(int j = start; j <= end; ++j)
-//                    pznSet.insert(j);
-//            }
-//        }
+    pzs.clear();
+    if(pzMgr->getPzCount() == 0)
+        return 0;
+    if(ui->rdoCur->isChecked()){
+        pzs<<pzMgr->getCurPz();
         return 2;
     }
-    else
-        return 0;
+    else if(ui->rdoAll->isChecked()){
+        pzs = pzMgr->getPzSpecRange(QSet<int>());
+        return 1;
+    }
+    else{
+        QSet<int> pzNums;
+        if(!strToIntSet(ui->edtSel->text(),pzNums)){
+            QMessageBox::warning(this,tr("警告信息"),tr("凭证范围选择格式有误！"));
+            return 0;
+        }
+        pzs = pzMgr->getPzSpecRange(pzNums);
+        return 3;
+    }
 }
 
 //获取打印模式（返回值 1：输出地打印机，2:打印预览，3：输出到PDF）
@@ -1395,7 +1364,91 @@ int PrintSelectDialog::getPrintMode()
         return 3;
 }
 
+/**
+ * @brief PrintSelectDialog::selectedSelf
+ *  选择自选模式后，启用右边的编辑框
+ * @param checked
+ */
+void PrintSelectDialog::selectedSelf(bool checked)
+{
+    ui->edtSel->setReadOnly(!checked);
+}
 
+/**
+ * @brief PrintSelectDialog::enableWidget
+ * @param en
+ */
+void PrintSelectDialog::enableWidget(bool en)
+{
+    ui->rdoAll->setEnabled(en);
+    ui->rdoCur->setEnabled(en);
+    ui->rdoSel->setEnabled(en);
+    ui->edtAll->setEnabled(en);
+    ui->edtCur->setEnabled(en);
+    ui->edtSel->setEnabled(en);
+}
+
+/**
+ * @brief PrintSelectDialog::IntSetToStr
+ *  将凭证号集合转换为文本表示的简略范围表示形式
+ * @param set
+ * @return
+ */
+QString PrintSelectDialog::IntSetToStr(QSet<int> set)
+{
+    QString s;
+    if(set.count() > 0){
+        QList<int> pzs = set.toList();
+        qSort(pzs.begin(),pzs.end());
+        int prev = pzs[0],next = pzs[0];
+        for(int i = 1; i < pzs.count(); ++i){
+            if((pzs[i] - next) == 1){
+                next = pzs[i];
+            }
+            else{
+                if(prev == next)
+                    s.append(QString::number(prev)).append(",");
+                else
+                    s.append(QString("%1-%2").arg(prev).arg(next)).append(",");
+                prev = next = pzs[i];
+            }
+        }
+        if(prev == next)
+            s.append(QString::number(prev));
+        else
+            s.append(QString("%1-%2").arg(prev).arg(pzs[pzs.count() - 1]));
+    }
+    return s;
+}
+
+/**
+ * @brief PrintSelectDialog::strToIntSet
+ *  将文本表示的凭证号选择范围转换为等价的凭证号集合
+ * @param s
+ * @param set
+ * @return
+ */
+bool PrintSelectDialog::strToIntSet(QString s, QSet<int> &set)
+{
+    //首先用规则表达式验证字符串中是否存在不可解析的字符，如有则返回false
+    set.clear();
+    if(false)
+        return false;
+    //对打印范围的编辑框文本进行解析，生成凭证号集合
+    QStringList sels = s.split(",");
+    for(int i = 0; i < sels.count(); ++i){
+        if(sels[i].indexOf('-') == -1)
+            set.insert(sels[i].toInt());
+        else{
+            QStringList ps = sels[i].split("-");
+            int start = ps[0].toInt();
+            int end = ps[1].toInt();
+            for(int j = start; j <= end; ++j)
+                set.insert(j);
+        }
+    }
+    return true;
+}
 
 ////////////////////////SetupBaseDialog2/////////////////////////////////////////
 SetupBaseDialog2::SetupBaseDialog2(Account *account, QWidget *parent) :
@@ -1490,28 +1543,27 @@ void SetupBaseDialog2::initTree()
 
     //获取科目余额节点对应的树项目，并加入一级科目类别节点
     sjtItem = ui->twDir->topLevelItem(0);
-    QHashIterator<int,QString>* i = new QHashIterator<int,QString>(fstClass);
-    while(i->hasNext()){
-        i->next();
+    QHashIterator<SubjectClass,QString> i(fstClass);
+    while(i.hasNext()){
+        i.next();
         QStringList strs;
-        strs.append(i->value());
-        //QTreeWidgetItem* item = new QTreeWidgetItem(strs);
-        QTreeWidgetItem* item = new QTreeWidgetItem(i->value().split(" "));
+        strs.append(i.value());
+        QTreeWidgetItem* item = new QTreeWidgetItem(i.value().split(" "));
         sjtItem->addChild(item);
-        sjtClsItems[i->key()] = item;
+        sjtClsItems[(int)i.key()] = item;
     }
 
     //将各个科目按照它们所属类别分别加入到对应分支中
-    i = new QHashIterator<int,QString>(fstSubNames);
-    while(i->hasNext()){
-        i->next();
+    QHashIterator<int,QString> it(fstSubNames);
+    while(it.hasNext()){
+        it.next();
         QStringList subName;
-        subName.append(i->value());
+        subName.append(it.value());
         QTreeWidgetItem* item = new QTreeWidgetItem(subName, FSTSUBTYPE);
-        int clsId = fstSubCodes.value(i->key()).left(1).toInt();//科目的类别代码
+        int clsId = fstSubCodes.value(it.key()).left(1).toInt();//科目的类别代码
         sjtClsItems.value(clsId)->addChild(item);
-        item->setData(1,Qt::EditRole,i->key()); //在节点的第二列保存科目的id
-        sjtNodes[i->key()] = item;  //保存对此科目节点的引用
+        item->setData(1,Qt::EditRole,it.key()); //在节点的第二列保存科目的id
+        sjtNodes[it.key()] = item;  //保存对此科目节点的引用
     }
     isInit = false;
 }

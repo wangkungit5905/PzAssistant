@@ -86,6 +86,18 @@ private:
     PingZheng* pz;   //凭证对象
 };
 
+//class DelMultiPzCmd : public QUndoCommand
+//{
+//public:
+//    DelMultiPzCmd(PzSetMgr* pm, QList<PingZheng*> pzLst, QUndoCommand *parent = 0);
+//    void undo();
+//    void redo();
+
+//private:
+//    PzSetMgr* pm;     //凭证集
+//    QList<PingZheng*> pzLst;   //要删除的凭证对象
+//};
+
 //1、修改凭证的日期
 //2、批量修改凭证的号码（当按凭证日期或自编号顺序重置凭证号时调用）
 //3、修改凭证的自编号

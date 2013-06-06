@@ -60,24 +60,21 @@ private:
 class PrintPzUtils : public QObject{
     Q_OBJECT
 public:
-    //PrintPzUtils(Account* account);
     PrintPzUtils(Account* account, QPrinter* printer);
-    void setPzDatas(QList<PingZheng*> pzs);
-    void setCompanyName(QString name);
-    void setRates(QHash<int,Double> rates);
+    void setPzs(QList<PingZheng*> pzs);
 
 public slots:
     void print(QPrinter* printer);
 
 private:
     void printPage(QPainter* paint, int index, bool newPage = false);
-
+    void genPzPrintDatas();
     QPrinter* printer;
     int pageW,pageH;         //可打印区域的宽和高
     QList<PingZheng*> pzs;   //凭证数据集合
+    QList<PzPrintData*> datas; //经分页处理后的凭证打印数据集
     QString company;         //凭证的单位名称
     QHash<int,Double> rates; //汇率
     Account* account;
-    //qreal LEFTMARGIN,TOPMARGIN,RIGHTMARGIN,BUTTOMMARGIN;
 };
 #endif // PRINTUTILS_H

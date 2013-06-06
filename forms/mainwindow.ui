@@ -302,7 +302,6 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actRecordPz"/>
    <addaction name="actVerifyPz"/>
    <addaction name="actInStatPz"/>
    <addaction name="separator"/>
@@ -981,7 +980,7 @@
   <action name="actAntiVerify">
    <property name="icon">
     <iconset resource="../imgers.qrc">
-     <normaloff>:/images/verify-not.png</normaloff>:/images/verify-not.png</iconset>
+     <normaloff>:/images/recordPz_ok.png</normaloff>:/images/recordPz_ok.png</iconset>
    </property>
    <property name="text">
     <string>取消审核</string>
@@ -1130,22 +1129,6 @@
    </property>
    <property name="toolTip">
     <string>临时任务1</string>
-   </property>
-  </action>
-  <action name="actJzHdsy">
-   <property name="text">
-    <string>结转汇兑损益</string>
-   </property>
-   <property name="toolTip">
-    <string>结转汇兑损益至财务费用</string>
-   </property>
-  </action>
-  <action name="actJzsyAfterJzhd">
-   <property name="text">
-    <string>结转汇兑后结转损益</string>
-   </property>
-   <property name="toolTip">
-    <string>在执行了结转汇兑损益凭证后结转损益类科目到本年利润</string>
    </property>
   </action>
   <action name="actImpYsYf">
@@ -1305,7 +1288,7 @@
     <string>录入</string>
    </property>
    <property name="toolTip">
-    <string>是凭证回到录入态以便编辑它</string>
+    <string>使凭证回到录入态以便编辑它</string>
    </property>
   </action>
  </widget>

@@ -38,7 +38,8 @@ using namespace YExcel;
 
 #define FSTSUBTYPE QTreeWidgetItem::UserType+1  //放置一级科目的树节点的类型
 
-
+class PingZheng;
+class PzSetMgr;
 class BASummaryForm : public QWidget
 {
     Q_OBJECT
@@ -187,19 +188,23 @@ class PrintSelectDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit PrintSelectDialog(QWidget *parent = 0);
+    explicit PrintSelectDialog(PzSetMgr* pzMgr,QWidget *parent = 0);
     ~PrintSelectDialog();
-    void append(int num);
     void setPzSet(QSet<int> pznSet);
     void setCurPzn(int pzNum);
-    void remove(int num);
-    int getPrintPzSet(QSet<int>& pznSet);
+    int getSelectedPzs(QList<PingZheng*>& pzs);
     int getPrintMode();
 
-
+private slots:
+    void selectedSelf(bool checked);
 private:
+    void enableWidget(bool en);
+    QString IntSetToStr(QSet<int> set);
+    bool strToIntSet(QString s, QSet<int>& set);
+
     Ui::PrintSelectDialog *ui;
     QSet<int> pznSet;  //欲对应的凭证号码的集合
+    PzSetMgr* pzMgr;
 };
 
 
@@ -279,7 +284,7 @@ private:
     QHash<int,Double> rates; //期初汇率
     QHash<int,QString> mts;  //币种代码表
     QHash<int,QString> dirs; //借贷方向的文字显示表
-    QHash<int,QString> fstClass;    //一级科目类别
+    QHash<SubjectClass,QString> fstClass;    //一级科目类别
     QHash<int,QString> fstSubNames; //一级科目名
     QHash<int,QString> fstSubCodes; //一级科目代码
     QHash<int,int> sidTofids;       //二级科目id到一级科目id的反向映射

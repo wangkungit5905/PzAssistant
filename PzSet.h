@@ -12,6 +12,7 @@ class PingZheng;
 class Account;
 class StatUtil;
 class QUndoStack;
+class FirstSubject;
 
 const int MAXUNDOSTACK = 100;    //Undo栈的最大容量
 
@@ -47,14 +48,18 @@ public:
     bool getExtraState(int y=0,int m=0);
     void setExtraState(bool state, int y=0,int m=0);
     bool getPzSet(int y, int m, QList<PingZheng *> &pzs);
-    QList<PingZheng*> getPzSpecRange(int y ,int m, QSet<int> nums);
-    bool contains(int y, int m, int pid);
+    QList<PingZheng*> getPzSpecRange(QSet<int> nums);
+    bool contains(int pid, int y=0, int m=0);
+    PingZheng* readPz(int pid, bool &in);
     int getStatePzCount(PzState state);
+
+    bool inspectPzError(QList<PingZhengError *> &errors);
 
     bool saveExtra();
     bool readExtra();
     bool readPreExtra();
-    QHash<int, Double> getRates();
+    bool getRates(QHash<int, Double> &rates, int y=0, int m=0);
+    bool setRates(QHash<int,Double> rates, int y=0, int m=0);
 
     //导航方法
     PingZheng* first();
@@ -62,6 +67,7 @@ public:
     PingZheng* previou();
     PingZheng* last();
     PingZheng* seek(int num);
+    bool seek(PingZheng* pz);
     bool isFirst(){return curIndex == 0;}
     bool isLast(){return !pzs || (curIndex == pzs->count()-1);}
 
@@ -71,6 +77,7 @@ public:
     int getVerifyCount(){return c_verify;}
     int getInstatCount(){return c_instat;}
     int getRepealCount(){return c_repeal;}
+    QList<PingZheng*> getAllJzhdPzs();
 
     PingZheng* appendPz(PzClass pzCls=Pzc_Hand);
     bool append(PingZheng* pz);
@@ -84,13 +91,19 @@ public:
     bool savePzSet();
     bool save(SaveWitch witch=SW_ALL);
 
+    //期末处理方法
+    bool crtJzhdsyPz(int y, int m, QList<PingZheng*>& createdPzs,
+                      QHash<int,Double> sRate,QHash<int,Double> erate, User* user);
+    void getJzhdsyPz(QList<PingZheng*>& pzLst);
+    bool crtJzsyPz(int y, int m, QList<PingZheng*>& createdPzs);
+    void getJzsyPz(QList<PingZheng*>& pzLst);
+    bool crtJzlyPz(int y, int m, PingZheng* pz);
+
     bool crtGdzcPz();
     bool crtDtfyImpPz(int y, int m, QList<PzData *> pzds);
     bool crtDtfyTxPz();
     bool delDtfyPz();
-    bool crtJzhdsyPz();
-    bool crtJzsyPz();
-    bool crtJzlyPz();
+
 
     void finishAccount();
 
@@ -107,18 +120,23 @@ public:
 private slots:
     void needRestat();
     void pzChangedInSet(PingZheng* pz);
+    void pzStateChanged(PzState oldState, PzState newState);
 signals:
     void currentPzChanged(PingZheng* newPz, PingZheng* oldPz);
-    void pzCountChanged(int count);
+    void pzCountChanged(int count); //凭证总数或处于不同状态的凭证数的改变
     void pzSetChanged();//包括凭证集内凭证数和凭证内容的改变，用于通知其他窗口有未保存的修改
+    void pzSetStateChanged(PzsState newState);
+    void pzExtraStateChanged(bool newState);
 private:
     void cachePz(PingZheng* pz);
     bool isZbNumConflict(int num);
     void scanPzCount();
     void _determinePzSetState(PzsState& state);
     void _determineCurPzChanged(PingZheng* oldPz);
+    bool _inspectDirEngageError(FirstSubject* fsud, MoneyDirection dir, PzClass pzc, QString& eStr);
 
     int genKey(int y, int m);
+    void pzsNotOpenWarning();
 
 private:
     QString errorStr;
@@ -128,8 +146,8 @@ private:
     QHash<int,Double> curHpJ,curHpD;        //当期借方和贷方发生额
     QHash<int,Double> endExtra,endDetExtra; //期末主目和子目余额
     QHash<int,MoneyDirection>    endDir,endDetDir;     //期末主目和子目余额方向
-    bool isReStat;                          //是否需要重新进行统计标志
-    bool isReSave;                          //是否需要保存余额
+    //bool isReStat;                          //是否需要重新进行统计标志
+    //bool isReSave;                          //是否需要保存余额
 
 
     QHash<int,QList<PingZheng*> > pzSetHash;  //保存所有已经装载的凭证集（键为年月所构成的整数高4位表示年，低2为表示月）
@@ -137,8 +155,8 @@ private:
     QHash<int,bool> extraStates;//凭证集余额状态（键同上）
     QList<PingZheng*>* pzs;      //当前打开的凭证集对象列表
     QList<PingZheng*> pz_dels;  //已被删除的凭证对象列表
-
     QList<PingZheng*> cachedPzs; //保存被删除后执行了保存操作的凭证对象（用以支持恢复任何情况下被删除的凭证对象）
+    QList<PingZheng*> historyPzs;//历史凭证
 
     int curY, curM;               //当前以只读方式打开的凭证集所属年月
     PingZheng* curPz;             //当前显示在凭证编辑窗口内的凭证对象

@@ -2097,12 +2097,12 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
 
     //因为在主窗口调用此函数时已经检测了凭证集的状态，因此这里忽略凭证集状态检测
     //结转损益类科目，不会涉及到外币，因此用不着使用汇率
-    QHash<int,Double>rates;
-    if(!getRates2(y,m,rates)){
-        qDebug() << QObject::tr("不能获取%1年%2月的汇率").arg(y).arg(m);
-        return false;
-    }
-    rates[RMB] = Double(1.00);
+//    QHash<int,Double>rates;
+//    if(!getRates2(y,m,rates)){
+//        qDebug() << QObject::tr("不能获取%1年%2月的汇率").arg(y).arg(m);
+//        return false;
+//    }
+//    rates[RMB] = Double(1.00);
 
     //基本步骤：
     //1、读取科目余额
@@ -2239,7 +2239,8 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
                     bd1->dir = DIR_J;
                     bd1->v = extraDet.value(key);
                     iad.append(bd1);
-                    iv += (bd1->v * rates.value(bd1->mt));
+                    //iv += (bd1->v * rates.value(bd1->mt));
+                    iv += bd1->v;
                 }
             }
     //创建本年利润-结转的借方会计分录
@@ -2278,7 +2279,8 @@ bool BusiUtil::genForwordPl2(int y, int m, User *user)
                     bd1->dir = DIR_D;
                     bd1->v = extraDet.value(key);
                     fad.append(bd1);
-                    fv += (bd1->v * rates.value(bd1->mt));
+                    //fv += (bd1->v * rates.value(bd1->mt));
+                    fv == bd1->v;
                 }
             }
 

@@ -267,9 +267,9 @@ enum PzsState{
 //#define TOPMARGIN 10;
 //#define BUTTOMMARGIN 10;
 
-#define MAXROWS 8   //在凭证打印模板中最多可以有的业务活动行数(不包括标题和合计行)
-#define MIDGAP  120  //两张凭证之间的间隔距离(一张A4纸打印2张凭证)
-#define TITLEHEIGHT 15 //业务活动列表标题条高度
+const int PZPRINTE_MAXROWS = 8;      //在凭证打印模板中最多可以有的业务活动行数(不包括标题和合计行)
+const int PZPRINTE_MIDGAP  = 120;    //两张凭证之间的间隔距离(一张A4纸打印2张凭证)
+const int PZPRINTE_TITLEHEIGHT = 15; //会计分录列表标题条高度
 
 //////////////////////凭证大类代码/////////////////////////////////////////
 enum PzdClass{

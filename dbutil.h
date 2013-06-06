@@ -74,6 +74,12 @@ public:
     bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
 
     //余额相关
+    bool readAllExtraForSSubMMt(int y, int m, int mt, QList<int> sids,QHash<int,Double>& vs, QHash<int,MoneyDirection>& dirs);
+    bool readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts, QHash<int,Double>& vs, QHash<int,MoneyDirection>& dirs);
+    bool readExtraForMF(int y, int m, int mt, int fid, Double &v, Double &wv, MoneyDirection& dir);
+    bool readExtraForMS(int y, int m, int mt, int sid, Double &v, Double &wv, MoneyDirection& dir);
+    bool readExtraForFSub(int y,int m, int fid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
+    bool readExtraForSSub(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
     bool readExtraForPm(int y,int m, QHash<int,Double>& fsums,
                                      QHash<int,MoneyDirection>& fdirs,
                                      QHash<int,Double>& ssums,
@@ -121,11 +127,14 @@ public:
     bool isContainPz(int y, int m, int pid);
     bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
 
+
+
     bool clearPzSet(int y, int m);
     bool clearRates(int y, int m);
     bool clearExtras(int y, int m);
 
     //凭证相关
+    bool getPz(int pid, PingZheng*& pz, PzSetMgr *parent);
     bool savePingZhengs(QList<PingZheng*> pzs);
     bool savePingZheng(PingZheng* pz);
     bool delPingZhengs(QList<PingZheng*> pzs);
@@ -167,12 +176,14 @@ private:
 
     //余额相关辅助函数
     bool _readExtraPoint(int y, int m, QHash<int, int> &mtHashs);
+    bool _readExtraPoint(int y, int m, int mt, int& pid);
     bool _readExtraForPm(int y, int m, QHash<int,Double> &sums, QHash<int,MoneyDirection> &dirs, bool isFst = true);
     bool _readExtraForMm(int y, int m, QHash<int,Double> &sums, bool isFst = true);
     void _replaeAccurateExtra(QHash<int,Double> &sums, QHash<int,Double> &asums);
     bool _crtExtraPoint(int y, int m, int mt, int& pid);
     bool _saveExtrasForPm(int y, int m, const QHash<int,Double> &sums, const QHash<int,MoneyDirection> &dirs, bool isFst = true);
     bool _saveExtrasForMm(int y, int m, const QHash<int,Double> &sums, bool isFst = true);
+    bool _readExtraForSubMoney(int y, int m, int mt, int sid, Double &v, Double &wv, MoneyDirection& dir,bool fst=true);
     bool _readExtraForFSub(int y,int m, int fid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
     bool _readExtraForSSub(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
     //

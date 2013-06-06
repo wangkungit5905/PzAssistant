@@ -32,7 +32,9 @@ public:
         SSC_GDZC    = 3,    //固定资产
         SSC_CWFY    = 4,    //财务费用
         SSC_BNLR    = 5,    //本年利润
-        SSC_LRFP    = 6     //利润分配
+        SSC_LRFP    = 6,    //利润分配
+        SSC_YS      = 7,    //应收账款
+        SSC_YF      = 8     //应付账款
     };
 
     /**
@@ -42,6 +44,8 @@ public:
         SNIC_CLIENT = 1,    //业务客户类
         SNIC_GDZC   = 2     //固定资产类
     };
+
+
 
 
     ~AppConfig();
@@ -62,6 +66,7 @@ public:
     void setSpecNameItemcls(SpecNameItemClass witch, int code);
     QString getSpecSubCode(int subSys, SpecSubCode witch);
     void setSpecSubCode(int subSys, SpecSubCode witch, QString code);
+    QHash<int,SubjectClass> getSubjectClassMaps(int subSys);
 
     int getLocalMid();
 

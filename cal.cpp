@@ -46,6 +46,18 @@ QString Double::toString() const
     return QString::number(v,'f',2);
 }
 
+QString Double::toString2() const
+{
+    if(lv == 0)
+        return "0";
+    double v = (double)lv / digRate;
+    if(lv % 100 == 0)
+        return QString::number(v,'f',0);
+    else if(lv % 10 == 0)
+        return QString::number(v,'f',1);
+    return QString::number(v,'f',2);
+}
+
 //变更符号
 void Double::changeSign()
 {

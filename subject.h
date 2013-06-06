@@ -65,7 +65,7 @@ class FirstSubject : public SubjectBase{
 public:
     FirstSubject():md(FSTSUBMD++),id(0){}
     FirstSubject(const FirstSubject &other);
-    FirstSubject(int id,int subcls,QString subName,QString subCode,QString remCode,int subWeight,bool isEnable,
+    FirstSubject(int id,SubjectClass subcls,QString subName,QString subCode,QString remCode,int subWeight,bool isEnable,
                  bool jdDir = true,bool isUseWb = true,QString explain = "",QString usage = "",int subSys=1);
     ~FirstSubject();
 
@@ -93,13 +93,13 @@ public:
     FirstSubjectEditStates getEditState(){return witchEdited;}
     void resetEditState(){witchEdited=ES_FS_INIT;}
     void childEdited(){witchEdited |= ES_FS_CHILD;} //当子目被编辑后，要调用此方法
-    int getSubClass(){return subClass;}
-    void setSubClass(int c);
+    SubjectClass getSubClass(){return subClass;}
+    void setSubClass(SubjectClass c);
     QString getBriefExplain(){return briefExplain;}
     void setBriefExplain(QString s);
     QString getUsage(){return usage;}
     void setUsage(QString s);
-
+    QList<int> getAllSSubIds();
 
     //子科目操作方法
     void addChildSub(SecondSubject* sub);
@@ -117,6 +117,7 @@ public:
 
     SecondSubject* getChildSub(int index);
     QList<SecondSubject*>& getChildSubs(){return childSubs;}
+    QList<int> getChildSubIds();
     bool getRangeChildSubs(SecondSubject* ssub,SecondSubject* esub, QList<SecondSubject*>& subs);
     bool containChildSub(SecondSubject* sndSub);
     bool containChildSub(SubjectNameItem* ni);
@@ -139,7 +140,7 @@ private:
 
     QString name;           //科目名称（简称）
     QString remCode;        //科目助记符
-    int subClass;           //科目类别
+    SubjectClass subClass;           //科目类别
     QString briefExplain;   //科目简介
     QString usage;          //科目用例
     QList<SecondSubject*> childSubs;  //该一级科目包含的二级科目
@@ -320,13 +321,6 @@ class DbUtil;
 class SubjectManager
 {
 public:
-    //保存FSAgent表中的一条一级科目到二级科目的映射记录
-    //    struct FsaMap{
-    //        int id;   //FSAgent表的id列
-    //        int fid;  //FSAgent表的fid列
-    //        int sid;  //FSAgent表的sid列
-    //    };
-
 
 
     SubjectManager(Account* account, int subSys = 1);
@@ -350,9 +344,12 @@ public:
     static bool containNI(QString name);
     bool containNI(SubjectNameItem* ni);
 
-    QHash<int,QString>& getFstSubClass(){return fstSubCls;}
+    QHash<SubjectClass,QString>& getFstSubClass(){return fsClsNames;}
     //按科目id获取科目对象的方法
     FirstSubject* getFstSubject(int id){fstSubHash.value(id);}
+
+    void getUseWbSubs(QList<FirstSubject*>& fsubs);
+    QList<FirstSubject*> getSyClsSubs(bool in=true);
     SecondSubject* getSndSubject(int id){return sndSubs.value(id);}
     FirstSubject* getFstSubject(QString code);
     QHash<int,FirstSubject*>& getAllFstSubHash(){return fstSubHash;}
@@ -370,6 +367,8 @@ public:
     FirstSubject* getDtfySub(){return dtfySub;}
     FirstSubject* getBnlrSub(){return bnlrSub;}
     FirstSubject* getLrfpSub(){return lrfpSub;}
+    FirstSubject* getYsSub(){return ysSub;}
+    FirstSubject* getYfSub(){return yfSub;}
     bool isSySubject(int sid);
     bool isSyClsSubject(int sid, bool &yes, bool isFst=true);
     QList<BankAccount*>& getBankAccounts();
@@ -480,7 +479,8 @@ private:
     DbUtil* dbUtil;
     int subSys;   //科目系统的类型
 
-    QHash<int,QString> fstSubCls;           //一级科目类别表
+    //QHash<int,QString> fstSubCls;           //一级科目类别名称表
+    QHash<SubjectClass,QString> fsClsNames; //一级科目类别名称表（这是程序内置的类别名称）
     QList<FirstSubject*> fstSubs;           //所有的一级科目
     QHash<int,FirstSubject*> fstSubHash;    //一级科目哈希表
     QHash<int, SecondSubject*> sndSubs;     //所有二级科目（键为二级科目id）
@@ -491,12 +491,12 @@ private:
 
 
     //特种科目
-    FirstSubject *cashSub,*bankSub;  //现金、银行科目对象
+    FirstSubject *cashSub,*bankSub,*ysSub,*yfSub;  //现金、银行科目对象
     FirstSubject *gdzcSub,*dtfySub,*ljzjSub,*bnlrSub,*lrfpSub;//固定资产、待摊费用、累计折旧、本年利润和利润分配科目id
     FirstSubject *cwfySub;
 
     //特种科目类别代码
-    int sySubCls;   //损益类科目类别
+    //int sySubCls;   //损益类科目类别
     friend class DbUtil;
     //////////////////////可能要废弃//////////////////////////////////////
 

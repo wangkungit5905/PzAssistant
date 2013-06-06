@@ -9,8 +9,7 @@
 int PzPrintTemplate::TvHeight = 0;  //初始的业务活动表格高度为0
 
 PzPrintTemplate::PzPrintTemplate(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::PzPrintTemplate)
+    QWidget(parent),ui(new Ui::PzPrintTemplate)
 {
     ui->setupUi(this);
     setLayout(ui->mLayout);
@@ -55,14 +54,14 @@ void PzPrintTemplate::resize(int w, int h)
 //    ui->tview->setRowHeight(0,TITLEHEIGHT);
 //    int th = ui->tview->height();
 //    int height = (th - TITLEHEIGHT)/(MAXROWS - 1);
-    sums = TITLEHEIGHT;
+    sums = PZPRINTE_TITLEHEIGHT;
     if(TvHeight != 0){
-        int rh = (TvHeight - TITLEHEIGHT) / (MAXROWS + 1);
-        for(int i = 1; i < MAXROWS + 1; ++i){
+        int rh = (TvHeight - PZPRINTE_TITLEHEIGHT) / (PZPRINTE_MAXROWS + 1);
+        for(int i = 1; i < PZPRINTE_MAXROWS + 1; ++i){
             ui->tview->setRowHeight(i, rh);
             sums += rh;
         }
-        ui->tview->setRowHeight(MAXROWS + 1, TvHeight - TITLEHEIGHT - sums - 2);
+        ui->tview->setRowHeight(PZPRINTE_MAXROWS + 1, TvHeight - PZPRINTE_TITLEHEIGHT - sums - 2);
         //        if(sums < h){
         //           ui->tview->setRowHeight(MAXROWS + 1);
         //        }
@@ -105,9 +104,9 @@ void PzPrintTemplate::setAttNums(int num)
 }
 
 //设置凭证号
-void PzPrintTemplate::setPzNum(int num)
+void PzPrintTemplate::setPzNum(QString num)
 {
-    ui->lblPzNum->setText(QString::number(num));
+    ui->lblPzNum->setText(num);
 }
 
 //设置业务活动
@@ -158,7 +157,6 @@ void PzPrintTemplate::setBaList(QList<BusiAction*>& bas)
         else
             ui->tview->setItem(i+1,3,new QTableWidgetItem(v.toString()));//贷方金额
 
-
     }
 }
 
@@ -166,16 +164,16 @@ void PzPrintTemplate::setBaList(QList<BusiAction*>& bas)
 void PzPrintTemplate::setJDSums(Double jsum, Double dsum)
 {
     QTableWidgetItem* item;
-    ui->tview->setSpan(MAXROWS+1,0,1,2);
+    ui->tview->setSpan(PZPRINTE_MAXROWS+1,0,1,2);
     item = new QTableWidgetItem(tr("合   计"));
     item->setTextAlignment(Qt::AlignCenter);
-    ui->tview->setItem(MAXROWS+1,0,item);
+    ui->tview->setItem(PZPRINTE_MAXROWS+1,0,item);
     item = new QTableWidgetItem(jsum.toString());
     item->setTextAlignment(Qt::AlignCenter);
-    ui->tview->setItem(MAXROWS+1,2,item);//借方合计
+    ui->tview->setItem(PZPRINTE_MAXROWS+1,2,item);//借方合计
     item = new QTableWidgetItem(dsum.toString());
     item->setTextAlignment(Qt::AlignCenter);
-    ui->tview->setItem(MAXROWS+1,3,item);//贷方合计
+    ui->tview->setItem(PZPRINTE_MAXROWS+1,3,item);//贷方合计
 }
 
 //设置制单者

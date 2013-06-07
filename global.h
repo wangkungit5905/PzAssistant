@@ -26,7 +26,6 @@ extern Logger::LogLevel logLevel; //应用程序的日志级别
 extern int screenWidth;        //屏幕宽度
 extern int screenHeight;       //屏幕高度
 
-extern int curAccountId;         //当前打开账户的id
 extern Account* curAccount;
 
 extern User* curUser;           //当前用户

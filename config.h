@@ -85,17 +85,15 @@ public:
     bool setConVar(QString name, double value);
     bool setConVar(QString name, QString value);
 
-    //保存或读取账户信息
-    bool clear();
+    //保存或读取本地账户缓存信息
+    bool initAccountCache(QList<AccountCacheItem *>& accCaches);
+    bool clearAccountCache();
     bool isExist(QString code);
-    bool saveAccInfo(AccountBriefInfo accInfo);
-    bool getAccInfo(int id, AccountBriefInfo &accInfo);
-    bool getAccInfo(QString code, AccountBriefInfo accInfo);
-    bool readAccountInfos(QList<AccountBriefInfo*>& accs);
-
-    //读取或设置最近打开的账户id
-    bool setRecentOpenAccount(int id);
-    bool getRecentOpenAccount(int& curAccId);
+    bool saveAccountCacheItem(AccountCacheItem& accInfo);
+    bool getAccountCacheItem(AccountCacheItem &accInfo);
+    bool readAccountCaches(QList<AccountCacheItem*>& accs);
+    bool getRecendOpenAccount(AccountCacheItem &accItem);
+    bool setRecentOpenAccount(QString code);
 
 private:
     AppConfig();

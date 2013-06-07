@@ -273,10 +273,6 @@ struct DVFilterRecord{
 };
 Q_DECLARE_METATYPE(DVFilterRecord*)
 
-
-
-
-
 //总账单行数据结构
 struct TotalAccountData{
     int y,m;  //帐套年份、月份
@@ -466,6 +462,42 @@ struct AccountBriefInfo{
     //int tOutMid;                //转出主机的MID
     //QDateTime tOutTime;         //转出时间
     //QString hashValue;          //账户文件的Hash值
+};
+
+//账户转移状态枚举类型（待引入账户的转入转出功能后，移到transform.h文件中）
+enum AccountTransferState{
+    ATS_INVALID     =   0,      //无效状态
+    ATS_TRANSOUT    =   1,      //已转出，还未转入
+    ATS_TRANSINDES  =   2,      //已转入目标主机
+    ATS_TRANSINOTHER =  3       //已转入其他主机
+};
+
+/**
+ * @brief 账户缓存条目结构（与本地账户缓存表对应）
+ */
+struct AccountCacheItem{
+    AccountCacheItem(){}
+    AccountCacheItem(AccountCacheItem& other){
+        code = other.code;
+        fileName = other.fileName;
+        accName = other.accName;
+        accLName = other.accLName;
+        inTime = other.inTime;
+        outTime = other.outTime;
+        outMid = other.outMid;
+        tState = other.tState;
+        lastOpened = other.lastOpened;
+    }
+
+    QString code;       //账户代码
+    QString fileName;   //账户数据库文件名
+    QString accName;    //账户简称
+    QString accLName;   //账户全称
+    QDateTime inTime;   //转入时间
+    QDateTime outTime;  //转出时间
+    int outMid;         //转出主机
+    AccountTransferState tState; //转移状态
+    bool lastOpened;    //是否是最后打开的账户
 };
 
 //凭证错误级别

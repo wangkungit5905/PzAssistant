@@ -432,7 +432,22 @@ const int PZSSN_CODE  = 1;
 const int PZSSN_SNAME = 2;
 const int PZSSN_LNAME = 3;
 
-//本地账户缓存表（LocalAccountCaches)
+/**
+ *  配置表（configs）
+ */
+//字段名
+const QString tbl_baseCnf       = "configs";
+const QString fld_bconf_type    = "type";
+const QString fld_bconf_name    = "name";
+const QString fld_bconf_value   = "value";
+//字段索引
+const int BCONF_TYPE  = 1;
+const int BCONF_NAME  = 2;
+const int BCONF_VALUE = 3;
+
+/**
+ *本地账户缓存表（LocalAccountCaches)
+ */
 //字段名
 const QString tbl_localAccountCache = "LocalAccountCaches";
 const QString fld_lac_code          = "code";               //账户编码
@@ -444,7 +459,7 @@ const QString fld_lac_tranState     = "tstate";             //转移状态
 const QString fld_lac_tranInTime    = "tranInTime";         //转入时间
 const QString fld_lac_tranOutMid    = "tranOutMid";         //转出主机的MID
 const QString fld_lac_tranOutTime   = "tranOutTime";        //转出时间
-const QString fld_lac_hash       = "hashValue";            //账户文件的Hash值
+const QString fld_lac_hash          = "hashValue";          //账户文件的Hash值
 //字段索引
 const int LAC_CODE      = 1;
 const int LAC_NAEM      = 2;

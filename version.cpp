@@ -1384,7 +1384,7 @@ VMAppConfig::VMAppConfig(QString fileName)
     appendVersion(1,0,NULL);
     appendVersion(1,1,&VMAppConfig::updateTo1_1);
     appendVersion(1,2,&VMAppConfig::updateTo1_2);
-    //appendVersion(1,3,&VMAppConfig::updateTo1_3);
+    appendVersion(1,3,&VMAppConfig::updateTo1_3);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1569,21 +1569,27 @@ bool VMAppConfig::updateTo1_2()
     return setCurVersion(1,2);
 }
 
-bool VMAppConfig::updateTo1_3()
+/**
+ * @brief VMAppConfig::updateTo1_3
+ *  1、在基本库中添加machines表，并初始化5个默认主机
+ *  2、根据用户的选择设置isLacal字段（配置本机是哪个主机标识）
+ * @return
+ */
+bool VMAppConfig::updateTo1_4()
 {
-    //1、在基本库中添加machines表，并初始化4个默认主机
-    //2、根据用户的选择设置isLacal字段（配置本机是哪个主机标识）
     QSqlQuery q(db);
     QHash<int,QString> snames;
     QHash<int,QString> lnames;
     snames[101] = QObject::tr("本家PC");
     lnames[101] = QObject::tr("家里的桌面电脑");
-    snames[102] = QObject::tr("单位电脑");
-    lnames[102] = QObject::tr("单位的桌面电脑");
-    snames[103] = QObject::tr("我的笔记本（linux）");
-    lnames[103] = QObject::tr("我的笔记本上的linux系统");
+    snames[102] = QObject::tr("章莹笔记本");
+    lnames[102] = QObject::tr("章莹的联想笔记本");
+    snames[103] = QObject::tr("单位电脑");
+    lnames[103] = QObject::tr("单位的桌面电脑");
+    snames[104] = QObject::tr("我的笔记本（linux）");
+    lnames[104] = QObject::tr("我的笔记本上的linux系统");
     snames[104] = QObject::tr("我的笔记本（Windows XP）");
-    lnames[104] = QObject::tr("我的笔记本上的Windows XP系统");
+    lnames[105] = QObject::tr("我的笔记本上的Windows XP系统");
 
     QList<int> mids = snames.keys();
     QStringList names;
@@ -1613,6 +1619,51 @@ bool VMAppConfig::updateTo1_3()
     s = QString("update machines set isLocal=1 where mid=%1").arg(mid);
     if(!q.exec(s))
         return false;
+    return setCurVersion(1,4);
+}
+
+/**
+ * @brief VMAppConfig::updateTo1_3
+ *  1、在基本库中添加本地账户缓存表，替换原先的AccountInfos表
+ *  2、删除原先的本地账户缓存信息表“AccountInfos”
+ *  3、移除全局变量“RecentOpenAccId”
+ * @return
+ */
+bool VMAppConfig::updateTo1_3()
+{
+    QSqlQuery q(db);
+    int verNum = 103;
+    emit startUpgrade(verNum, tr("开始更新到版本“1.3”..."));
+    emit upgradeStep(verNum,tr("第一步：在基本库中添加本地账户缓存表"),VUR_OK);
+    QString s = QString("create table %1(id integer primary key,%2 text,%3 text,%4 text,"
+                "%5 text,%6 integer,%7 integer,%8 text,%9 integer,%10 text)")
+            .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
+            .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
+            .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
+            .arg(fld_lac_tranOutTime);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("创建本地账户缓存表“%1”时发生错误！").arg(tbl_localAccountCache),VUR_ERROR);
+        return false;
+    }
+
+    emit upgradeStep(verNum,tr("第二步：删除原先的本地账户缓存信息表“AccountInfos”"),VUR_OK);
+    s = QString("drop table AccountInfos");
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在删除原先的本地账户缓存信息表“AccountInfos”时发生错误！"),VUR_ERROR);
+        return false;
+    }
+
+    emit upgradeStep(verNum,tr("第三步：移除全局变量“RecentOpenAccId”"),VUR_OK);
+    s = QString("delete from %1 where %2='RecentOpenAccId'")
+            .arg(tbl_baseCnf).arg(fld_bconf_name);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在移除全局变量“RecentOpenAccId”时发生错误"),VUR_ERROR);
+        return false;
+    }
+    endUpgrade(verNum,tr("成功升级到版本1.3"),true);
     return setCurVersion(1,3);
 }
 

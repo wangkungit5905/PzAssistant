@@ -2,6 +2,8 @@
 #include <QStringList>
 #include <QTextCodec>
 #include <QInputDialog>
+#include <QFileInfo>
+#include <QDir>
 
 #include "global.h"
 #include "config.h"
@@ -181,8 +183,8 @@ bool AppConfig::getConfigVar(QString name, int type)
 //初始化全局配置变量
 bool AppConfig::initGlobalVar()
 {
-    if(!getConVar("RecentOpenAccId",curAccountId))
-        curAccountId = 0;
+    //if(!getConVar("RecentOpenAccId",curAccountId))
+    //    curAccountId = 0;
     if(!getConVar("isCollapseJz",isCollapseJz))
         isCollapseJz = true;
     if(!getConVar("isByMtForOppoBa", isByMt))
@@ -204,7 +206,7 @@ bool AppConfig::initGlobalVar()
 bool AppConfig::saveGlobalVar()
 {
     bool r;
-    r = setConVar("RecentOpenAccId", curAccountId);
+    //r = setConVar("RecentOpenAccId", curAccountId);
     r = setConVar("isCollapseJz", isCollapseJz);
     r = setConVar("isByMtForOppoBa", isByMt);
     r = setConVar("autoSaveInterval", autoSaveInterval);
@@ -334,136 +336,266 @@ bool AppConfig::setConVar(QString name, QString value)
     return setConfigVar(name,STRING);
 }
 
-//清除账户信息
-bool AppConfig::clear()
+/**
+ * @brief 扫描工作目录下的账户文件，将有效的账户读入账户缓存表
+ * @return
+ */
+bool AppConfig::initAccountCache(QList<AccountCacheItem *> &accCaches)
 {
-    QSqlQuery q(db);
-    QString s = "delete from AccountInfos";
-    bool r = q.exec(s);
-    return r;
+    clearAccountCache();
+    QDir dir(DatabasePath);
+    QStringList filters;
+    filters << "*.dat";
+    dir.setNameFilters(filters);
+    QFileInfoList filelist = dir.entryInfoList(filters, QDir::Files);
+    QList<AccountCacheItem*> accItems;  //扫描到的账户
+    if(filelist.empty())
+        return true;
+
+    bool result = true;
+    QStringList invalidFiles;
+    QSqlDatabase adb = QSqlDatabase::addDatabase("QSQLITE","accountRefresh");
+    //QSqlQuery q(adb);
+    foreach(QFileInfo finfo, filelist){
+        QString fileName = finfo.absoluteFilePath();
+        adb.setDatabaseName(fileName);
+        if(!adb.open()){
+            invalidFiles<<finfo.fileName();
+            continue;
+        }
+        QSqlQuery q(adb);
+        //读取账户版本信息，以进一步确定文件是否有效
+        QString s = QString("select %1,%2 from %3").arg(fld_acci_code)
+                .arg(fld_acci_value).arg(tbl_accInfo);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            result = false;
+            break;
+        }
+        QString name,lname,fname,code,version;
+        while(q.next()){
+            Account::InfoField fi = (Account::InfoField)q.value(0).toInt();
+            switch(fi){
+            case Account::ACODE:
+                code = q.value(1).toString();
+                break;
+            case Account::SNAME:
+                name = q.value(1).toString();
+                break;
+            case Account::LNAME:
+                lname = q.value(1).toString();
+                break;
+            case Account::FNAME:
+                fname = q.value(1).toString();
+                break;
+            case Account::DBVERSION:
+                version = q.value(1).toString();
+                break;
+            }
+        }
+        if(version.isEmpty()){
+            invalidFiles<<finfo.fileName();
+            continue;
+        }
+        //读取账户的转移信息（以后实现）
+
+        AccountCacheItem *accItem = new AccountCacheItem;
+        accItem->code = code;
+        accItem->accName = name;
+        accItem->accLName = lname;
+        accItem->fileName = finfo.fileName();
+        //一些转移信息...
+        accItem->lastOpened = false;
+        if(!saveAccountCacheItem(*accItem)){
+            result = false;
+            break;
+        }
+        accCaches<<accItem;
+    }
+    QSqlDatabase::removeDatabase("accountRefresh");
+    return result;
 }
 
-//测试是否存在指定代码的账户
+/**
+ * @brief 清除账户缓存
+ * @return
+ */
+bool AppConfig::clearAccountCache()
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1").arg(tbl_localAccountCache);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 在本地缓存中是否存在指定代码的账户
+ * @param code
+ * @return
+ */
 bool AppConfig::isExist(QString code)
 {
     QSqlQuery q(db);
-    QString s = QString("select id from AccountInfos where code='%1'").arg(code);
-    if(q.exec(s) && q.first())
+    QString s = QString("select id from %1 where %2='%3'")
+            .arg(tbl_localAccountCache).arg(fld_lac_code).arg(code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first())
         return true;
     else
         return false;
 }
 
-//保存账户简要信息
-bool AppConfig::saveAccInfo(AccountBriefInfo accInfo)
-{
-//    QSqlQuery q(db);
-//    QString s = QString("select id from AccountInfos where code = '%1'")
-//            .arg(accInfo.code);
-//    if(q->exec(s) && q->first()){
-//        int id = q->value(0).toInt();
-//        s = QString("update AccountInfos set code='%1',baseTime='%2',usedSubSys=%3,"
-//                    "usedRptType=%4,filename='%5',name='%6',lname='%7',lastTime='%8',"
-//                    "desc='%9' where id=%10").arg(accInfo->code).arg(accInfo->baseTime)
-//                .arg(accInfo->usedSubSys).arg(accInfo->usedRptType).arg(accInfo->fileName)
-//                .arg(accInfo->accName).arg(accInfo->accLName).arg(accInfo->lastTime)
-//                .arg(accInfo->desc).arg(id);
-//    }
-//    else{
-//        s = QString("insert into AccountInfos(code,baseTime,usedSubSys,usedRptType,filename,name,"
-//                    "lname,lastTime,desc) values('%1','%2',%3,%4,'%5','%6','%7','%8','%9')")
-//                .arg(accInfo->code).arg(accInfo->baseTime).arg(accInfo->usedSubSys)
-//                .arg(accInfo->usedRptType).arg(accInfo->fileName).arg(accInfo->accName)
-//                .arg(accInfo->accLName).arg(accInfo->lastTime).arg(accInfo->desc);
-//    }
-
-//    if(q.exec(s) && q.first()){
-//        int id = q.value(0).toInt();
-//        s = QString("update AccountInfos set code='%1',filename='%2',name='%3',"
-//                    "lname='%4' where id=%5").arg(accInfo.code).arg(accInfo.fname)
-//                .arg(accInfo.sname).arg(accInfo.lname).arg(id);
-//    }
-//    else{
-//        s = QString("insert into AccountInfos(code,filename,name,"
-//                    "lname) values('%1','%2','%3','%4')")
-//                .arg(accInfo.code).arg(accInfo.fname).arg(accInfo.sname)
-//                .arg(accInfo.lname);
-//    }
-//    bool r = q.exec(s);
-//    return r;
-}
-
-//读取账户信息
-bool AppConfig::getAccInfo(int id, AccountBriefInfo& accInfo)
+bool AppConfig::saveAccountCacheItem(AccountCacheItem &accInfo)
 {
     QSqlQuery q(db);
-    QString s = QString("select * from AccountInfos where id=%1").arg(id);
-    if(q.exec(s) && q.first()){
-        accInfo.id = q.value(0).toInt();
-        accInfo.code = q.value(ACCIN_CODE).toString();
-        accInfo.fname = q.value(ACCIN_FNAME).toString();
-        accInfo.sname = q.value(ACCIN_NAME).toString();
-        accInfo.lname = q.value(ACCIN_LNAME).toString();
+    QString s;
+    if(accInfo.code.isEmpty() || accInfo.code == "0000")
+        return true;
+    if(isExist(accInfo.code)){
+        s = QString("update %1(%2,%3,%4,%5,%6,%7,%8,%9) values('%10','%10','%11',%12,%13,'%14',%15,'%16')")
+                .arg(tbl_localAccountCache).arg(fld_lac_name).arg(fld_lac_lname)
+                .arg(fld_lac_filename).arg(fld_lac_isLastOpen).arg(fld_lac_tranState)
+                .arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid).arg(fld_lac_tranOutTime)
+                .arg(accInfo.accName).arg(accInfo.accLName).arg(accInfo.fileName)
+                .arg(accInfo.lastOpened).arg(accInfo.tState).arg(accInfo.inTime.toString(Qt::ISODate))
+                .arg(accInfo.outMid).arg(accInfo.outTime.toString(Qt::ISODate));
+
+    }
+    else{
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) values('%11','%12','%13','%14',0,%15,'%16',%17,'%18')")
+                .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
+                .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
+                .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
+                .arg(fld_lac_tranOutTime).arg(accInfo.code).arg(accInfo.accName)
+                .arg(accInfo.accLName).arg(accInfo.fileName)/*.arg(accInfo.lastOpened)*/
+                .arg(accInfo.tState).arg(accInfo.inTime.toString(Qt::ISODate))
+                .arg(accInfo.outMid).arg(accInfo.outTime.toString(Qt::ISODate));
+
+    }
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 读取指定账户代码的账户缓存信息
+ * @param accInfo   此参数必须先设置好账户的代码
+ * @return
+ */
+bool AppConfig::getAccountCacheItem(AccountCacheItem &accInfo)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2=%3")
+            .arg(tbl_localAccountCache).arg(fld_lac_code).arg(accInfo.code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        accInfo.code.clear();
         return true;
     }
-    else
-        return false;
+    accInfo.accName = q.value(LAC_CODE).toString();
+    accInfo.accLName = q.value(LAC_LNAME).toString();
+    accInfo.fileName = q.value(LAC_FNAME).toString();
+    accInfo.lastOpened = q.value(LAC_ISLAST).toBool();
+    accInfo.tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();
+    accInfo.inTime = QDateTime::fromString(q.value(LAC_INTIME).toString(),Qt::ISODate);
+    accInfo.outMid = q.value(LAC_OUTMID).toInt();
+    accInfo.outTime = QDateTime::fromString(q.value(LAC_OUTTIME).toString(),Qt::ISODate);
+    return true;
 }
 
-bool AppConfig::getAccInfo(QString code, AccountBriefInfo accInfo)
+/**
+ * @brief 读取所有账户缓存条目
+ * @param accs
+ * @return
+ */
+bool AppConfig::readAccountCaches(QList<AccountCacheItem *> &accs)
 {
     QSqlQuery q(db);
-    QString s = QString("select * from AccountInfos where code=%1").arg(code);
-    if(q.exec(s) && q.first()){
-        accInfo.id = q.value(0).toInt();
-        accInfo.code = q.value(ACCIN_CODE).toString();
-        accInfo.fname = q.value(ACCIN_FNAME).toString();
-        accInfo.sname = q.value(ACCIN_NAME).toString();
-        accInfo.lname = q.value(ACCIN_LNAME).toString();
-        return true;
-    }
-    else
+    QString s = QString("select * from %1").arg(tbl_localAccountCache);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
         return false;
+    }
+    AccountCacheItem* accInfo;
+    while(q.next()){
+        accInfo = new AccountCacheItem;
+        accInfo->code = q.value(LAC_CODE).toString();
+        accInfo->accName = q.value(LAC_NAEM).toString();
+        accInfo->accLName = q.value(LAC_LNAME).toString();
+        accInfo->fileName = q.value(LAC_FNAME).toString();
+        accInfo->lastOpened = q.value(LAC_ISLAST).toBool();
+        accInfo->tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();
+        accInfo->inTime = QDateTime::fromString(q.value(LAC_INTIME).toString(),Qt::ISODate);
+        accInfo->outMid = q.value(LAC_OUTMID).toInt();
+        accInfo->outTime = QDateTime::fromString(q.value(LAC_OUTTIME).toString(),Qt::ISODate);
+        accs.append(accInfo);
+    }
+    return true;
 }
 
-//读取所有账户信息
-bool AppConfig::readAccountInfos(QList<AccountBriefInfo*>& accs)
+/**
+ * @brief 获取最后一次关闭的账户缓存条目
+ * @param accItem
+ * @return
+ */
+bool AppConfig::getRecendOpenAccount(AccountCacheItem &accItem)
 {
     QSqlQuery q(db);
-    QString s = "select * from AccountInfos";
-    bool r = q.exec(s);
-    if(r){
-        AccountBriefInfo* accInfo;
-        while(q.next()){
-            accInfo = new AccountBriefInfo;
-            accInfo->id = q.value(0).toInt();
-            accInfo->code = q.value(ACCIN_CODE).toString();
-            //accInfo->baseTime = q->value(ACCIN_BASETIME).toString();
-            //accInfo->usedSubSys = q->value(ACCIN_USS).toInt();
-            //accInfo->usedRptType = q->value(ACCIN_USRPT).toInt();
-            accInfo->fname = q.value(ACCIN_FNAME).toString();
-            accInfo->sname = q.value(ACCIN_NAME).toString();
-            accInfo->lname = q.value(ACCIN_LNAME).toString();
-            //accInfo->lastTime = q->value(ACCIN_LASTTIME).toString();
-            //accInfo->desc = q->value(ACCIN_DESC).toString();
-            accs.append(accInfo);
-        }
+    QString s = QString("select * from %1 where %2=1")
+            .arg(tbl_localAccountCache).arg(fld_lac_isLastOpen);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
     }
-    return r;
+    if(!q.first()){
+        //accItem.code = "0000";
+        return false;
+    }
+    accItem.code = q.value(LAC_CODE).toString();
+    accItem.accName = q.value(LAC_NAEM).toString();
+    accItem.accLName = q.value(LAC_LNAME).toString();
+    accItem.fileName = q.value(LAC_FNAME).toString();
+    accItem.lastOpened = q.value(LAC_ISLAST).toBool();
+    accItem.tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();
+    accItem.inTime = QDateTime::fromString(q.value(LAC_INTIME).toString(),Qt::ISODate);
+    accItem.outMid = q.value(LAC_OUTMID).toInt();
+    accItem.outTime = QDateTime::fromString(q.value(LAC_OUTTIME).toString(),Qt::ISODate);
+    return true;
 }
 
-//保存最近打开账户的id到配置变量中
-bool AppConfig::setRecentOpenAccount(int id)
+/**
+ * @brief 设置最近打开账户
+ * @param code
+ * @return
+ */
+bool AppConfig::setRecentOpenAccount(QString code)
 {
-    return setConVar("RecentOpenAccId", id);
+    QSqlQuery q(db);
+    QString s = QString("update %1 set %2=0 where %2=1")
+            .arg(tbl_localAccountCache).arg(fld_lac_isLastOpen);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=1 where %3='%4'").arg(tbl_localAccountCache)
+                .arg(fld_lac_isLastOpen).arg(fld_lac_code).arg(code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
 }
-
-//读取最近打开账户的id
-bool AppConfig::getRecentOpenAccount(int& curAccId)
-{
-    return getConVar("RecentOpenAccId", curAccId);
-}
-
 
 /**
  * @brief AppConfig::addAccountInfo

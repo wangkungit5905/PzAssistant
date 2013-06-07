@@ -336,21 +336,27 @@ MainWindow::MainWindow(QWidget *parent) :
         return;
 
     AppConfig* appCfg = AppConfig::getInstance();
-    if(appCfg->getRecentOpenAccount(curAccountId) && (curAccountId != 0)){
-        AccountBriefInfo curAccInfo;
-        appCfg->getAccInfo(curAccountId, curAccInfo);
+    AccountCacheItem recentAcc;
+    recentAcc.lastOpened = false;
+    if(appCfg->getRecendOpenAccount(recentAcc) && recentAcc.lastOpened){
+        //AccountBriefInfo curAccInfo;
+        //appCfg->getAccInfo(curAccountId, curAccInfo);
 
-        if(!AccountVersionMaintain(curAccInfo.fname)){
+        if(!AccountVersionMaintain(recentAcc.fileName)){
             setWindowTitle(QString("%1---%2").arg(appTitle)
                            .arg(tr("无账户被打开")));
             rfMainAct(false);
             return;
         }
 
-        QString fn = curAccInfo.fname; fn.chop(4);
-        curAccount = new Account(curAccInfo.fname);
+        curAccount = new Account(recentAcc.fileName);
         if(!curAccount->isValid()){
             showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
+            delete curAccount;
+            curAccount = NULL;
+            setWindowTitle(QString("%1---%2").arg(appTitle)
+                           .arg(tr("无账户被打开")));
+            rfMainAct(false);
             return;
         }
         accountInit();
@@ -400,7 +406,7 @@ void MainWindow::hideDockWindows()
  * @brief MainWindow::AccountVersionMaintain
  *  执行账户的文件版本升级服务
  * @param fname 账户文件名
- * @return
+ * @return true：成功升级或无须升级，false：升级出错或被用户取消，或应用版本相对于账户版本过低、或账户版本无法归集到初始版本等
  */
 bool MainWindow::AccountVersionMaintain(QString fname)
 {
@@ -442,7 +448,7 @@ void MainWindow::initActions()
     connect(ui->actCrtAccount, SIGNAL(triggered()), this, SLOT(newAccount()));
     connect(ui->actOpenAccount, SIGNAL(triggered()), this, SLOT(openAccount()));
     connect(ui->actCloseAccount, SIGNAL(triggered()), this, SLOT(closeAccount()));
-    //connect(ui->actRefreshActInfo, SIGNAL(triggered()), this, SLOT(refreshActInfo()));
+
     connect(ui->actImpActFromFile, SIGNAL(triggered()), this, SLOT(attachAccount()));
     connect(ui->actEmpActToFile, SIGNAL(triggered()), this, SLOT(detachAccount()));
     connect(ui->actExit,SIGNAL(triggered()),this,SLOT(exit()));    
@@ -813,40 +819,33 @@ void MainWindow::openAccount()
     if(dlg->exec() != QDialog::Accepted)
         return;
 
-    ui->tbrPzs->setVisible(true);
-    curAccountId = dlg->getAccountId();
-    AppConfig* appCfg = AppConfig::getInstance();
-    AccountBriefInfo curAccInfo;
-    appCfg->getAccInfo(curAccountId,curAccInfo);
-
-    if(!AccountVersionMaintain(curAccInfo.fname)){
+    //ui->tbrPzs->setVisible(true);
+    AccountCacheItem* aci =dlg->getAccountCacheItem();
+    if(!aci || !AccountVersionMaintain(aci->fileName)){
         setWindowTitle(QString("%1---%2").arg(appTitle)
                        .arg(tr("无账户被打开")));
         rfMainAct(false);
         return;
     }
-
-    //showTemInfo(curAccInfo->desc);
-    //curUsedSubSys = curAccInfo->usedSubSys;  //读取打开的账户所使用的科目系统
-    //usedRptType = curAccInfo->usedRptType;   //读取打开的账户所使用的报表类型
-    QString fn = dlg->getFileName(); fn.chop(4);
-    //ConnectionManager::openConnection(fn);
-    //adb = ConnectionManager::getConnect();
     if(curAccount){
         delete curAccount;
         curAccount = NULL;
     }
-    curAccount = new Account(curAccInfo.fname);
+    curAccount = new Account(aci->fileName);
     if(!curAccount->isValid()){
         showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
+        delete curAccount;
+        curAccount = NULL;
+        setWindowTitle(QString("%1---%2").arg(appTitle)
+                       .arg(tr("无账户被打开")));
+        rfMainAct(false);
         return;
     }
     setWindowTitle(tr("会计凭证处理系统---") + curAccount->getLName());
-    appCfg->setRecentOpenAccount(curAccountId);
+    AppConfig::getInstance()->setRecentOpenAccount(aci->code);
     rfMainAct();
     //rfTbrVisble();
     //refreshActEnanble();
-    //sfm->attachDb(&curAccount->getDbUtil()->getDb());
     accountInit();
     //initUndo();
 }
@@ -886,30 +885,18 @@ void MainWindow::closeAccount()
 
     delete curAccount;
     curAccount = NULL;
-    ui->tbrPzs->setVisible(false);
-    curAccountId = 0;
-    AppConfig::getInstance()->setRecentOpenAccount(0);
+    //ui->tbrPzs->setVisible(false);
     setWindowTitle(tr("会计凭证处理系统---无账户被打开"));
     //rfAct();
     //rfTbrVisble();
     //refreshActEnanble();
 }
 
-//刷新账户信息
-void MainWindow::refreshActInfo()
-{
-
-}
-
-
 //退出应用
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if(curAccount != NULL){       //为了在下次打开应用时自动打开最后打开的账户
-        int id = curAccountId;
+    if(curAccount)       //为了在下次打开应用时自动打开最后打开的账户
         closeAccount();
-        curAccountId = id;
-    }
     ui->mdiArea->closeAllSubWindows();
     //appExit();
     if (ui->mdiArea->currentSubWindow()) {
@@ -922,7 +909,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 void MainWindow::exit()
 {
-    if(curAccountId != 0)
+    if(curAccount)
         closeAccount();
     ui->mdiArea->closeAllSubWindows();
     close();
@@ -1341,7 +1328,7 @@ void MainWindow::rfTbrVisble()
     else
         ui->tbrMain->setVisible(false);
 
-    if(curAccountId != 0){ //如果账户已经打开
+    if(curAccount){ //如果账户已经打开
         ui->tbrPzs->setVisible(true);
     }
     else{
@@ -3194,40 +3181,49 @@ void MainWindow::on_actAntiVerify_triggered()
 void MainWindow::on_actRefreshActInfo_triggered()
 {
     //刷新前要关闭当前打开的账户
-    if(curAccountId != 0)
+    if(curAccount)
         closeAccount();
+    QList<AccountCacheItem*> accLst;
+    if(!AppConfig::getInstance()->initAccountCache(accLst)){
+        QMessageBox::critical(this,tr("错误信息"),tr("在扫描工作目录下的账户时发生错误！"));
+        return;
+    }
+    //报告发现的账户
+    QMessageBox::information(this,tr("提示信息"),tr("本次扫描共发现%1个账户！").arg(accLst.count()));
+    qDeleteAll(accLst);
+
 
     //清除已有的账户信息
-    AppConfig* appCfg = AppConfig::getInstance();
-    QDir dir(DatabasePath /*"./datas/databases"*/);
-    QStringList filters, filelist;
-    filters << "*.dat";
-    dir.setNameFilters(filters);
-    filelist = dir.entryList(filters, QDir::Files);
-    int fondCount = 0;
-    if(filelist.count() == 0)
-        QMessageBox::information(this, tr("一般信息"),
-                                 tr("当前没有可用的帐户数据库文件"));
-    else{
-        appCfg->clear();
-        foreach(QString fname, filelist){
-            DbUtil du;
-            if(!du.setFilename(fname))
-                continue;
-            AccountBriefInfo accInfo;
-            if(!du.readAccBriefInfo(accInfo))
-                continue;
-            appCfg->saveAccInfo(accInfo);
-            fondCount++;
-        }
-        //报告查找结果
-        if(fondCount == 0)
-            QMessageBox::information(this, tr("搜寻账户"), tr("没有发现账户文件"));
-        else
-            QMessageBox::information(this, tr("搜寻账户"),
-                                     QString(tr("共发现%1个账户文件")).arg(fondCount));
+//    AppConfig* appCfg = AppConfig::getInstance();
+//    QDir dir(DatabasePath /*"./datas/databases"*/);
+//    QStringList filters, filelist;
+//    filters << "*.dat";
+//    dir.setNameFilters(filters);
+//    filelist = dir.entryList(filters, QDir::Files);
+//    int fondCount = 0;
+//    if(filelist.count() == 0)
+//        QMessageBox::information(this, tr("一般信息"),
+//                                 tr("当前没有可用的帐户数据库文件"));
+//    else{
+//        appCfg->clear();
+//        foreach(QString fname, filelist){
+//            DbUtil du;
+//            if(!du.setFilename(fname))
+//                continue;
+//            AccountBriefInfo accInfo;
+//            if(!du.readAccBriefInfo(accInfo))
+//                continue;
+//            appCfg->saveAccInfo(accInfo);
+//            fondCount++;
+//        }
+//        //报告查找结果
+//        if(fondCount == 0)
+//            QMessageBox::information(this, tr("搜寻账户"), tr("没有发现账户文件"));
+//        else
+//            QMessageBox::information(this, tr("搜寻账户"),
+//                                     QString(tr("共发现%1个账户文件")).arg(fondCount));
 
-    }
+//    }
 }
 
 //显示只能有一个实例的对话框窗口（参数w是位于mdi子窗口内部的中心部件，仅对于部分子窗口有效，比如凭证编辑窗口）

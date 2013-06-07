@@ -127,7 +127,6 @@ private slots:
     void newAccount();
     void openAccount();
     void closeAccount();
-    void refreshActInfo();
     void exit();
 
     //帐务处理

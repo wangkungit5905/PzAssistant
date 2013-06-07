@@ -122,6 +122,7 @@ private:
     bool updateTo1_1();
     bool updateTo1_2();
     bool updateTo1_3();
+    bool updateTo1_4();
     bool updateTo2_0();
 
     QHash<int,UpgradeFun_Config> upgradeFuns;

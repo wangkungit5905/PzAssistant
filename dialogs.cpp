@@ -41,9 +41,9 @@ OpenAccountDialog::OpenAccountDialog(QWidget* parent) : QDialog(parent)
     ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(false);
     //从应用程序的配置信息中读取已导入的账户
     QStringList accountLst;
-    AppConfig::getInstance()->readAccountInfos(accInfoLst);
-    for(int i = 0; i < accInfoLst.count(); ++i)
-        accountLst << accInfoLst[i]->sname;
+    AppConfig::getInstance()->readAccountCaches(accList);
+    for(int i = 0; i < accList.count(); ++i)
+        accountLst << accList.at(i)->accName;
     model = new QStringListModel(accountLst);
     ui.accountList->setModel(model);
     connect(ui.accountList, SIGNAL(clicked(QModelIndex)),
@@ -52,27 +52,13 @@ OpenAccountDialog::OpenAccountDialog(QWidget* parent) : QDialog(parent)
             this, SLOT(doubleClicked(QModelIndex)));
 }
 
-QString OpenAccountDialog::getSName()
-{
-    return accInfoLst[selAcc]->sname;
-}
-
-QString OpenAccountDialog::getLName()
-{
-    return accInfoLst[selAcc]->lname;
-}
-
-QString OpenAccountDialog::getFileName()
-{
-    return accInfoLst[selAcc]->fname;
-}
-
 void OpenAccountDialog::itemClicked(const QModelIndex &index)
 {
+    ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);
     selAcc = index.row();
-    ui.lblFName->setText(accInfoLst[selAcc]->fname);
-    ui.lblCode->setText(accInfoLst[selAcc]->code);
-    ui.lname->setText(accInfoLst[selAcc]->lname);
+    ui.lblFName->setText(accList.at(selAcc)->fileName);
+    ui.lblCode->setText(accList.at(selAcc)->code);
+    ui.lname->setText(accList.at(selAcc)->accLName);
     //ui.lblLastTime->setText(accInfoLst[selAcc]->lastTime);
     //ui.lblDesc->setText(accInfoLst[selAcc]->desc);
     //ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);
@@ -84,18 +70,13 @@ void OpenAccountDialog::doubleClicked(const QModelIndex &index)
     accept();
 }
 
-//获取打开的账户的序号
-int OpenAccountDialog::getAccountId()
+AccountCacheItem *OpenAccountDialog::getAccountCacheItem()
 {
-    return accInfoLst[selAcc]->id;
+    if(selAcc >= 0 && selAcc < accList.count())
+        return accList.at(selAcc);
+    else
+        return NULL;
 }
-
-//获取打开的账户所采用的科目系统
-//int OpenAccountDialog::getUsedSubSys()
-//{
-//    return accInfoLst[selAcc]->usedSubSys;
-//}
-
 
 ////////////////////////////////////////////////////////////////////////////
 OpenPzDialog::OpenPzDialog(Account *account, QWidget* parent) :

@@ -32,21 +32,15 @@ class OpenAccountDialog : public QDialog
 
 public:
     OpenAccountDialog(QWidget* parent = 0);
-    QString getSName();
-    QString getLName();
-    QString getFileName();
-    int getAccountId();
-    //int getUsedSubSys();
+    AccountCacheItem* getAccountCacheItem();
 
 public slots:
     void itemClicked(const QModelIndex &index);
     void doubleClicked(const QModelIndex & index);
 private:
-    //QString sname, lname, fname;
     Ui::OpenAccountDialog ui;
     QStringListModel* model;
-    //PSetting setting;
-    QList<AccountBriefInfo*> accInfoLst;
+    QList<AccountCacheItem*> accList;
     int selAcc;   //选择的账户的序号
 };
 

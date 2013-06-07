@@ -13,7 +13,6 @@ QString versionStr;
 QString aboutStr;
 Logger::LogLevel logLevel;
 
-int curAccountId = 0;
 Account* curAccount = NULL;
 int screenWidth;
 int screenHeight;

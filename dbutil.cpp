@@ -107,6 +107,272 @@ void DbUtil::close()
     QSqlDatabase::removeDatabase(AccConnName);
 }
 
+bool DbUtil::getCfgVariable(QString name, QVariant &value)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1 from %2 where %3='%4'").arg(fld_cfgv_value)
+            .arg(tbl_cfgVariable).arg(fld_cfgv_name).arg(name);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        LOG_WARNING(QString("Don't exist config variable(%1)").arg(name));
+        value.clear();
+        return true;
+    }
+    value = q.value(0);
+    if(q.next()){
+        LOG_WARNING("config variable(%1) name conflict!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::setCfgVariableForBool
+ * @param vtype
+ * @param name
+ * @param value
+ * @return
+ */
+bool DbUtil::setCfgVariable(QString name, QVariant value)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR(QString("start transaction failed on set config variable(%1)").arg(name));
+        return false;
+    }
+    QString s = QString("update %1 set %2=:value where %4='%5'")
+            .arg(tbl_cfgVariable).arg(fld_cfgv_value)
+            .arg(fld_cfgv_name).arg(name);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    q.bindValue(":value", value);
+    if(!q.exec()){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int rows = q.numRowsAffected();
+    if(rows > 1){
+        db.rollback();
+        LOG_WARNING(QString("config variable(%1) name conflict!").arg(name));
+        return false;
+    }
+    if(rows == 0){
+        s = QString("insert into %1(%2,%3) values('%4',:value)")
+                .arg(tbl_cfgVariable).arg(fld_cfgv_name)
+                .arg(fld_cfgv_value).arg(name);
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.bindValue(":value",value);
+        if(!q.exec()){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR(QString("commit transaction failed on set config variable(%1)").arg(name));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 从指定的数据库文件导入指定科目系统代码的一级科目及其类别到账户数据库中
+ * @param subSys    科目系统代码
+ * @param fname     保存待导入一级科目的数据库文件名
+ * @return
+ */
+bool DbUtil::importFstSubjects(int subSys, QString fname)
+{
+    QSqlQuery q(db);
+    QString s;
+    QSqlDatabase ndb = QSqlDatabase::addDatabase("QSQLITE","importNewSub");
+    ndb.setDatabaseName(fname);
+    if(!ndb.open()){
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("不能打开数据库文件“%1”！").arg(fname));
+        LOG_ERROR(QString("Don't open database file(%1)").arg(fname));
+        return false;
+    }
+    QSqlQuery qm(ndb);
+    s = QString("select * from FirstSubs where subCls=%1 order by subCode").arg(subSys);
+    if(!qm.exec(s)){
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统的数据时出错"));
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = "insert into FirSubjects(subSys,subCode,remCode,clsId,jdDir,isView,isUseWb,weight,subName) "
+            "values(2,:code,:remCode,:clsId,:jdDir,:isView,:isUseWb,:weight,:name)";
+    if(!db.transaction()){
+        LOG_ERROR("Start transaction failed on import first subject!");
+        return false;
+    }
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(qm.next()){
+        q.bindValue(":code",qm.value(2).toString());
+        q.bindValue("remCode",qm.value(3).toString());
+        q.bindValue(":clsId",qm.value(4).toInt());
+        q.bindValue(":jdDir",qm.value(5).toInt());
+        q.bindValue(":isView",qm.value(6).toInt());
+        q.bindValue(":isUseWb",qm.value(7).toInt());
+        q.bindValue(":weight",qm.value(8).toInt());
+        q.bindValue(":name",qm.value(9).toString());
+        q.exec();
+    }
+
+    s = "select * from FirstSubCls where subCls=2 order by code";
+    if(!qm.exec(s)){
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统科目类别的数据时出错"));
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = "insert into FstSubClasses(subSys,code,name) values(2,:code,:name)";
+    //db.transaction();
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(qm.next()){
+        q.bindValue(":code",qm.value(2).toInt());
+        q.bindValue(":name",qm.value(3).toString());
+        q.exec();
+    }
+
+    if(!db.commit()){
+        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目时，提交事务失败！"));
+        LOG_ERROR("commit transaction failed on import first subject!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 根据指定的源和目标科目管理器，提取两个科目系统衔接的科目映射信息
+ * @param src
+ * @param des
+ * @param cfgs
+ * @return
+ */
+bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QList<SubSysJoinItem *> &cfgs)
+{
+    //注意：衔接映射表的命名规则：subSysJoin_n1_n2，其中n1用源科目系统代码表示，n2用目的科目系统代码表示
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getCode()).arg(des->getCode());
+    QString s = QString("select name from sqlite_master where type='table' and name='%1'").arg(tname);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        if(!db.transaction()){
+            LOG_SQLERROR("start transaction failed on read subject system join config infomation!");
+            return false;
+        }
+        s = QString("create table %1(id integer primary key, %2 integer, %3 integer, %4 integer, %5 text)")
+                .arg(tname).arg(fld_ssjc_sSub).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        //将源科目系统中配置为启用的一级科目导入到配置表中
+        s = QString("insert into %1(%2,%3,%4,%5) values(:ssub,0,0,'')").arg(tname)
+                .arg(fld_ssjc_sSub).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps);
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        FSubItrator* it = src->getFstSubItrator();
+        while(it->hasNext()){
+            it->next();
+            FirstSubject* fsub = it->value();
+            if(fsub->isEnabled()){
+                q.bindValue(":ssub",fsub->getId());
+                if(!q.exec())
+                    return false;
+            }
+        }
+        if(!db.commit()){
+            LOG_SQLERROR("commit transaction failed on read subject system join config infomation!");
+            return false;
+        }
+    }
+
+    s = QString("select * from %1").arg(tname);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QStringList sl;
+    while(q.next()){
+        sl.clear();
+        SubSysJoinItem* item = new SubSysJoinItem;
+        item->sFSub = src->getFstSubject(q.value(SSJC_SSUB).toInt());
+        item->dFSub = des->getFstSubject(q.value(SSJC_DSUB).toInt());
+        item->isMap = q.value(SSJC_ISMAP).toBool();
+        sl = q.value(SSJC_SSUBMaps).toString().split(",",QString::SkipEmptyParts);
+        if(!sl.isEmpty()){
+            for(int i = 0; i < sl.count(); ++i)
+                item->ssubMaps<<sl.at(i).toInt();
+        }
+        cfgs<<item;
+    }
+    return true;
+}
+
+/**
+ * @brief 保存科目系统衔接的科目映射信息
+ * @param src
+ * @param des
+ * @param cfgs
+ * @return
+ */
+bool DbUtil::setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs)
+{
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getCode()).arg(des->getCode());
+    QString s = QString("update %1 set %2=:dSub,%3=:isMap,%4=:ssubMaps where %5=:sSub")
+            .arg(tname).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps).arg(fld_ssjc_sSub);
+    if(!db.transaction()){
+        LOG_SQLERROR("start transaction failed on save subject system join config infomation!");
+        return false;
+    }
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(SubSysJoinItem* item,cfgs){
+        q.bindValue(":dSub",item->dFSub->getId());
+        q.bindValue(":isMap", item->isMap?1:0);
+        q.bindValue(":sSub",item->sFSub->getId());
+        if(item->ssubMaps.isEmpty())
+            q.bindValue(":ssubMaps","");
+        else{
+            QString sl;
+            for(int i = 0; i < item->ssubMaps.count(); ++i)
+                sl.append(QString("%1,").arg(item->ssubMaps.at(i)));
+            sl.chop(1);
+            q.bindValue(":ssubMaps",sl);
+        }
+        if(!q.exec()){
+            LOG_SQLERROR("exec prepare sql failed on save subject system join config infomation!");
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("commit transaction failed on save subject system join config infomation!");
+        return false;
+    }
+    return true;
+}
+
 /**
  * @brief DbUtil::readAccBriefInfo
  *  读取账户的简要信息
@@ -291,9 +557,33 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
 //        changed = false;
 //    }
     //保存帐套名表
-    if(!_saveAccountSuites(infos.suites))
+    if(!saveSuites(infos.suites))
         return false;
     return true;
+}
+
+bool DbUtil::saveSuites(QList<Account::AccountSuiteRecord *> &suites)
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save Account suites!");
+        return false;
+    }
+    foreach(Account::AccountSuiteRecord* as, suites){
+        if(!_saveAccountSuite(as))
+            return false;
+    }
+
+    if(!db.commit()){
+        if(!db.rollback())
+            LOG_SQLERROR("Rollback transaction failed on save Account suites!");
+        LOG_SQLERROR("Commit transaction failed on save Account suites!");
+        return false;
+    }
+}
+
+bool DbUtil::saveSuite(Account::AccountSuiteRecord *suite)
+{
+    return _saveAccountSuite(suite);
 }
 
 /**
@@ -386,7 +676,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
         isUseWb = q.value(FSUB_ISUSEWB).toBool();
         //读取explain和usage的内容，目前暂不支持（将来这两个内容将保存在另一个表中）
         //s = QString("select * from ")
-        fsub = new FirstSubject(id,subCls,name,code,remCode,weight,isEnable,jdDir,isUseWb,explain,usage,subSys);
+        fsub = new FirstSubject(smg,id,subCls,name,code,remCode,weight,isEnable,jdDir,isUseWb,explain,usage,subSys);
         smg->fstSubs<<fsub;
         smg->fstSubHash[id]=fsub;
 
@@ -450,30 +740,109 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     return true;
 }
 
-bool DbUtil::saveNameItem(SubjectNameItem *ni)
+/**
+ * @brief 保存名称条目类别
+ * @param code
+ * @param name
+ * @param explain
+ * @return
+ */
+bool DbUtil::saveNameItemClass(int code, QString name, QString explain)
 {
     QSqlQuery q(db);
-    QString s;
-    if(ni->getId() == UNID)
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,'%9','%10','%11','%12',%13)")
-                .arg(tbl_nameItem).arg(fld_ni_class).arg(fld_ni_name).arg(fld_ni_lname)
-                .arg(fld_ni_remcode).arg(fld_ni_crtTime).arg(fld_ni_creator)
-                .arg(ni->getClassId()).arg(ni->getShortName()).arg(ni->getLongName())
-                .arg(ni->getRemCode()).arg(ni->getCreateTime().toString(Qt::ISODate))
-                .arg(ni->getCreator()->getUserId());
-    else
-        s = QString("update %1 set %2=%3,%4='%5',%6='%7',%8='%9',%10='%11',%12='%13',%14=%15 where id=%16")
-                .arg(tbl_nameItem).arg(fld_ni_class).arg(ni->getClassId())
-                .arg(fld_ni_name).arg(ni->getShortName()).arg(fld_ni_lname).arg(ni->getLongName())
-                .arg(fld_ni_remcode).arg(ni->getRemCode()).arg(fld_ni_crtTime)
-                .arg(ni->getCreateTime().toString(Qt::ISODate)).arg(fld_ni_creator)
-                .arg(ni->getCreator()->getUserId()).arg(ni->getId());
-    return q.exec(s);
+    QString s = QString("update %1 set %2='%3',%4='%5' where %6=%7")
+            .arg(tbl_nameItemCls).arg(fld_nic_name).arg(name)
+            .arg(fld_nic_explain).arg(explain).arg(fld_nic_clscode).arg(code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.numRowsAffected() == 0){
+        s = QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')")
+                .arg(tbl_nameItemCls).arg(fld_nic_clscode).arg(fld_nic_name)
+                .arg(fld_nic_explain).arg(code).arg(name).arg(explain);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    return true;
+}
+
+bool DbUtil::saveNameItem(SubjectNameItem *ni)
+{
+    return _saveNameItem(ni);
+
+//    QSqlQuery q(db);
+//    QString s;
+//    if(ni->getId() == UNID)
+//        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,'%9','%10','%11','%12',%13)")
+//                .arg(tbl_nameItem).arg(fld_ni_class).arg(fld_ni_name).arg(fld_ni_lname)
+//                .arg(fld_ni_remcode).arg(fld_ni_crtTime).arg(fld_ni_creator)
+//                .arg(ni->getClassId()).arg(ni->getShortName()).arg(ni->getLongName())
+//                .arg(ni->getRemCode()).arg(ni->getCreateTime().toString(Qt::ISODate))
+//                .arg(ni->getCreator()->getUserId());
+//    else{
+//        NameItemEditStates estate = ni->getEditState();
+//        if(estate == ES_NI_INIT)
+//            return true;
+//        s = QString("update %1 set ").arg(tbl_nameItem);
+//        if(estate.testFlag(ES_NI_CLASS))
+//            s.append(QString("%1=%2,").arg(fld_ni_class).arg(ni->getClassId()));
+//        if(estate.testFlag(ES_NI_SNAME))
+//            s.append(QString("%1='%2',").arg(fld_ni_name).arg(ni->getShortName()));
+//        if(estate.testFlag(ES_NI_LNAME))
+//            s.append(QString("%1='%2',").arg(fld_ni_lname).arg(ni->getLongName()));
+//        if(estate.testFlag(ES_NI_SYMBOL))
+//            s.append(QString("%1='%2',").arg(fld_ni_remcode).arg(ni->getRemCode()));
+//        if(s.endsWith(","))
+//            s.chop(1);
+//        s.append(QString(" where id=%1").arg(ni->getId()));
+//    }
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    if(ni->getId() == UNID){
+//        s = "select last_insert_rowid()";
+//        if(!q.exec(s)){
+//            LOG_SQLERROR(s);
+//            return false;
+//        }
+//        q.first();
+//        ni->id = q.value(0).toInt();
+//    }
+//    return true;
 }
 
 bool DbUtil::saveSndSubject(SecondSubject *sub)
 {
     return _saveSecondSubject(sub);
+}
+
+/**
+ * @brief 批量保存二级科目
+ * @param subs
+ * @return
+ */
+bool DbUtil::saveSndSubjects(QList<SecondSubject *> subs)
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on banch save second subject!");
+        return false;
+    }
+    foreach(SecondSubject* ssub, subs){
+        if(!_saveSecondSubject(ssub)){
+            if(!db.rollback())
+                LOG_SQLERROR("Rollback transaction failed on banch save second subject!");
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on banch save second subject!");
+        return false;
+    }
+    return true;
 }
 
 bool DbUtil::savefstSubject(FirstSubject *fsub)
@@ -519,6 +888,56 @@ int DbUtil::getBankSubMatchMoney(SecondSubject *sub)
         return 0;
     }
     return mt;
+}
+
+/**
+ * @brief 查询数据库以判断指定的名称条目是否已被使用了，这是删除名称条目前的检查手段
+ * @param ni
+ * @return true：已被使用，false：未被使用或出错
+ */
+bool DbUtil::nameItemIsUsed(SubjectNameItem *ni)
+{
+    QSqlQuery q(db);
+    QString s = QString("select count() from %1 where %2=%3").arg(tbl_ssub).arg(fld_ssub_nid).arg(ni->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    q.first();
+    int c = q.value(0).toInt();
+    return c != 0;
+}
+
+/**
+ * @brief 查找会计分录表，是否指定的二级科目已被采用
+ * @param ssub
+ * @return true：被采用了，false：未被采用
+ */
+bool DbUtil::ssubIsUsed(SecondSubject *ssub)
+{
+    QSqlQuery q(db);
+    QString s = QString("select id from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_sid).arg(ssub->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return q.first();
+}
+
+/**
+ * @brief 返回指定的科目系统下的科目是否已被导入一级科目表
+ * @param subSys
+ * @return
+ */
+bool DbUtil::isSubSysImported(int subSys)
+{
+    QSqlQuery q(db);
+    QString s = QString("select id from %1 where %2=%3").arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return q.first();
 }
 
 /**
@@ -2816,6 +3235,7 @@ bool DbUtil::_readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
     Account::AccountSuiteRecord* as;
     while(q.next()){
         as = new Account::AccountSuiteRecord;
+        as->isUsed = false;
         as->id = q.value(0).toInt();
         as->year = q.value(ACCS_YEAR).toInt();
         as->subSys = q.value(ACCS_SUBSYS).toInt();
@@ -2826,6 +3246,16 @@ bool DbUtil::_readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
         as->endMonth = q.value(ACCS_ENDMONTH).toInt();
         suites<<as;
     }
+    foreach(Account::AccountSuiteRecord* as, suites){
+        s = QString("select id from %1 where %2 like '%3%'")
+                .arg(tbl_pz).arg(fld_pz_date).arg(as->year);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        as->isUsed = q.first();
+    }
+
     return true;
 }
 
@@ -2835,43 +3265,26 @@ bool DbUtil::_readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
  * @param suites
  * @return
  */
-bool DbUtil::_saveAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
+bool DbUtil::_saveAccountSuite(Account::AccountSuiteRecord *suite)
 {
     QString s;
     QSqlQuery q(db);
-    if(!db.transaction()){
-        Logger::write(QDateTime::currentDateTime(),Logger::Error,"",0,"", QObject::tr("Start transaction failed!"));
-        return false;
-    }
-    QList<Account::AccountSuiteRecord *> oldSuites;
-    if(!_readAccountSuites(oldSuites))
-        return false;
-    QHash<int,Account::AccountSuiteRecord*> oldHash;
-    foreach(Account::AccountSuiteRecord* as, oldSuites)
-        oldHash[as->id] = as;
-    foreach(Account::AccountSuiteRecord* as, suites){
-        if(as->id == 0)
-            s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(%9,%10,%11,%12,'%13',%14,%15)")
-                    .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys).arg(fld_accs_isCur)
-                    .arg(fld_accs_recentMonth).arg(fld_accs_name).arg(fld_accs_startMonth)
-                    .arg(fld_accs_endMonth).arg(as->year).arg(as->subSys).arg(as->isCur?1:0)
-                    .arg(as->recentMonth).arg(as->name).arg(as->startMonth).arg(as->endMonth);
-        else if(*as != *(oldHash.value(as->id)))
-            s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10='%11',%12=%13,%14=%15 where id=%16")
-                    .arg(tbl_accSuites).arg(fld_accs_year).arg(as->year)
-                    .arg(fld_accs_subSys).arg(as->subSys).arg(fld_accs_isCur).arg(as->isCur?1:0)
-                    .arg(fld_accs_recentMonth).arg(as->recentMonth).arg(fld_accs_name).arg(as->name)
-                    .arg(fld_accs_startMonth).arg(as->startMonth).arg(fld_accs_endMonth).arg(as->endMonth)
-                    .arg(as->id);
+    if(suite->id == 0)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(%9,%10,%11,%12,'%13',%14,%15)")
+                .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys).arg(fld_accs_isCur)
+                .arg(fld_accs_recentMonth).arg(fld_accs_name).arg(fld_accs_startMonth)
+                .arg(fld_accs_endMonth).arg(suite->year).arg(suite->subSys).arg(suite->isCur?1:0)
+                .arg(suite->recentMonth).arg(suite->name).arg(suite->startMonth).arg(suite->endMonth);
+    else
+        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10='%11',%12=%13,%14=%15 where id=%16")
+                .arg(tbl_accSuites).arg(fld_accs_year).arg(suite->year)
+                .arg(fld_accs_subSys).arg(suite->subSys).arg(fld_accs_isCur).arg(suite->isCur?1:0)
+                .arg(fld_accs_recentMonth).arg(suite->recentMonth).arg(fld_accs_name).arg(suite->name)
+                .arg(fld_accs_startMonth).arg(suite->startMonth).arg(fld_accs_endMonth).arg(suite->endMonth)
+                .arg(suite->id);
 
-        if(!s.isEmpty()){
-            q.exec(s);
-            s.clear();
-        }
-    }
-
-    if(!db.commit()){
-        Logger::write(QDateTime::currentDateTime(),Logger::Error,"",0,"", QObject::tr("Transaction commit failed!"));
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
         return false;
     }
     return true;
@@ -2884,7 +3297,61 @@ bool DbUtil::_saveAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
  */
 bool DbUtil::_saveFirstSubject(FirstSubject *sub)
 {
-    return false;
+    QSqlQuery q(db);
+    QString s;
+    if(sub->getId() == UNID){
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%,10) values(%11,'%12','%13',%14,%15,%16,%17,%18,'%19')")
+                .arg(tbl_fsub).arg(fld_fsub_subSys).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
+                .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isview).arg(fld_fsub_isUseWb)
+                .arg(fld_fsub_weight).arg(fld_fsub_name).arg(sub->parent()->getCode())
+                .arg(sub->getCode()).arg(sub->getRemCode()).arg(sub->getSubClass())
+                .arg(sub->getJdDir()?1:0).arg(sub->isEnabled()?1:0).arg(sub->isUseForeignMoney()?1:0)
+                .arg(sub->getWeight()).arg(sub->getName());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        //保存子目
+        foreach(SecondSubject* ssub, sub->getChildSubs()){
+            if(!_saveSecondSubject(ssub))
+                return false;
+        }
+    }
+    else{
+        FirstSubjectEditStates estate = sub->getEditState();
+        if(estate == ES_FS_INIT)
+            return true;
+        s = QString("update %1 set ").arg(tbl_fsub);
+        if(estate.testFlag(ES_FS_CLASS))
+            s.append(QString("%1=%2,").arg(fld_fsub_class).arg(sub->getSubClass()));
+        if(estate.testFlag(ES_FS_CODE))
+            s.append(QString("%1='%2,'").arg(fld_fsub_subcode).arg(sub->getCode()));
+        if(estate.testFlag(ES_FS_JDDIR))
+            s.append(QString("%1=%2,").arg(fld_fsub_jddir).arg(sub->getJdDir()?1:0));
+        if(estate.testFlag(ES_FS_ISENABLED))
+            s.append(QString("%1=%2,").arg(fld_fsub_isview).arg(sub->isEnabled()?1:0));
+        if(estate.testFlag(ES_FS_ISUSEWB))
+            s.append(QString("%1=%2,").arg(fld_fsub_isUseWb).arg(sub->isUseForeignMoney()?1:0));
+        if(estate.testFlag(ES_FS_WEIGHT))
+            s.append(QString("%1=%2,").arg(fld_fsub_weight).arg(sub->getWeight()));
+        if(estate.testFlag(ES_FS_NAME))
+            s.append(QString("%1='%2',").arg(fld_fsub_name).arg(sub->getName()));
+        if(!s.endsWith(","))
+            return true;
+        s.chop(1);
+        s.append(QString(" where id=%1").arg(sub->getId()));
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        //保存子目
+        if(estate.testFlag(ES_FS_CHILD)){
+            if(!saveSndSubjects(sub->getChildSubs()))
+                return false;
+        }
+    }
+    sub->resetEditState();
+    return true;
 }
 
 /**
@@ -2943,6 +3410,7 @@ bool DbUtil::_saveSecondSubject(SecondSubject *sub)
             return false;
         sub->id = q.value(0).toInt();
     }
+    sub->resetEditState();
     return true;
 }
 
@@ -2988,8 +3456,8 @@ bool DbUtil::_saveNameItem(SubjectNameItem *ni)
             return false;
         ni->id = q.value(0).toInt();
     }
+    ni->resetEditState();
     return true;
-
 }
 
 /**

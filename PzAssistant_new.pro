@@ -127,7 +127,8 @@ HEADERS  += \
     widgets/bawidgets.h \
     delegates.h \
     widgets/variousWidgets.h \
-    accountpropertyconfig.h
+    accountpropertyconfig.h \
+    configvariablenames.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -191,7 +192,8 @@ FORMS    += \
     forms/apcsubject.ui \
     forms/apcreport.ui \
     forms/apclog.ui \
-    forms/historypzform.ui
+    forms/historypzform.ui \
+    forms/subsysjoincfgform.ui
 
 RESOURCES += \
     imgers.qrc \

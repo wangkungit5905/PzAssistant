@@ -10,11 +10,20 @@
 class PingZheng;
 class BusiAction;
 class User;
+class FirstSubject;
 
 const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
 const int UNCLASS   = 0;    //未知的分类
 const int ALLCLASS  = 0;    //所有类别
 
+
+//变量值类型枚举
+enum VariableType{
+    VT_BOOL    = 1, //布尔型
+    VT_INTEGER = 2, //整形
+    VT_FLOAT   = 3, //浮点型
+    VT_STRING  = 4  //字符串
+};
 
 //剪贴板操作
 enum ClipboardOperate{
@@ -145,6 +154,8 @@ Q_DECLARE_METATYPE(PzClass)
  * @brief 一级科目大类类别枚举
  */
 enum SubjectClass{
+    SC_NULL = -1,       //不属于任何类别
+    SC_ALL  = 0,        //所有
     SC_ZC   = 1,        //资财类
     SC_FZ   = 2,        //负债类
     SC_QY   = 3,        //所有者权益类
@@ -498,6 +509,24 @@ struct AccountCacheItem{
     int outMid;         //转出主机
     AccountTransferState tState; //转移状态
     bool lastOpened;    //是否是最后打开的账户
+};
+
+/**
+ * @brief 科目系统名称条目
+ */
+struct SubSysNameItem{
+    int code;               //科目系统代码
+    QString name,explain;   //科目系统名称及其解释
+    bool isImport;          //是否已导入给科目系统的科目
+};
+
+/**
+ * @brief 科目系统衔接配置条目结构
+ */
+struct SubSysJoinItem{
+    FirstSubject *sFSub, *dFSub; //源一级科目，目的一级科目
+    bool isMap;                 //是否建立衔接映射
+    QList<int> ssubMaps;        //子目映射列表（每两个元素为一组，前一个是源子目id，后一个是目的子目id）
 };
 
 //凭证错误级别

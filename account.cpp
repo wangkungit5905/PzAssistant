@@ -11,6 +11,7 @@
 #include "version.h"
 #include "subject.h"
 #include "PzSet.h"
+#include "configvariablenames.h"
 
 QSqlDatabase* Account::db;
 
@@ -280,6 +281,11 @@ int Account::getCurMonth()
     return 0;
 }
 
+bool Account::saveSuite(Account::AccountSuiteRecord *as)
+{
+    return dbUtil->saveSuite(as);
+}
+
 //获取账户期初年份（即开始记账的前一个月所处的年份）
 int Account::getBaseYear()
 {
@@ -353,6 +359,22 @@ SubjectManager *Account::getSubjectManager(int subSys)
     return smgs.value(ssCode);
 }
 
+/**
+ * @brief 获取账户支持的科目系统
+ * @return
+ */
+QList<SubSysNameItem *> Account::getSupportSubSys()
+{
+    if(subSysLst.isEmpty()){
+        AppConfig::getInstance()->getSubSysItems(subSysLst);
+        for(int i = 0; i < subSysLst.count(); ++i){
+            if(dbUtil->isSubSysImported(subSysLst.at(i)->code))
+                subSysLst.at(i)->isImport = true;
+        }
+    }
+    return subSysLst;
+}
+
 //SubjectManager *Account::getSubjectManager()
 //{
 //    int subSys = getCurSuite()->subSys;
@@ -384,6 +406,93 @@ bool Account::setRates(int y, int m, QHash<int, Double> &rates)
 
 void Account::setDatabase(QSqlDatabase *db)
 {Account::db=db;}
+
+/**
+ * @brief 获取账户的科目系统衔接配置信息
+ * @param src   源科目系统代码
+ * @param des   目的科目系统代码
+ * @param cfgs  科目的映射
+ * @return
+ */
+bool Account::getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cfgs)
+{
+    return dbUtil->getSubSysJoinCfgInfo(getSubjectManager(src),getSubjectManager(des),cfgs);
+}
+
+bool Account::setSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cfgs)
+{
+    return dbUtil->setSubSysJoinCfgInfo(getSubjectManager(src),getSubjectManager(des),cfgs);
+}
+
+/**
+ * @brief 返回是否已完成从源科目系统（src）到目的科目系统（des）的配置
+ * @param src
+ * @param des
+ * @param subCloned 二级科目是否已克隆
+ * @return
+ */
+bool Account::isCompleteSubSysCfg(int src, int des, bool &completed, bool &subCloned)
+{
+    QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_COMPLETE_PRE).arg(src).arg(des);
+    QVariant v;
+    v.setValue(completed);
+    if(!dbUtil->getCfgVariable(vname,v))
+        return false;
+    if(v.isValid())
+        completed = v.toBool();
+    else
+        completed = false;
+    vname = QString("%1_%2_%3").arg(CFG_SUBSYS_SUBCLONE_PRE).arg(src).arg(des);
+    v.setValue(subCloned);
+    if(!dbUtil->getCfgVariable(vname,v))
+        return false;
+    if(v.isValid())
+        subCloned = v.toBool();
+    else
+        subCloned = false;
+    return true;
+}
+
+/**
+ * @brief 设置是否已完成从源科目系统（src）到目的科目系统（des）的配置
+ * @param src
+ * @param des
+ * @param subCloned 二级科目是否已克隆
+ */
+bool Account::setCompleteSubSysCfg(int src, int des, bool completed, bool subCloned)
+{
+    QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_COMPLETE_PRE).arg(src).arg(des);
+    QVariant v;
+    v.setValue(completed);
+    if(!dbUtil->setCfgVariable(vname,v))
+        return false;
+    vname = QString("%1_%2_%3").arg(CFG_SUBSYS_SUBCLONE_PRE).arg(src).arg(des);
+    v.setValue(subCloned);
+    if(!dbUtil->setCfgVariable(vname,v))
+        return false;
+    return true;
+}
+
+/**
+ * @brief 获取是否完成余额的衔接
+ * @param src
+ * @param des
+ * @param completed
+ * @return
+ */
+bool Account::isCompletedExtraJoin(int src, int des, bool &completed)
+{
+    QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_EXTRA_JOIN).arg(src).arg(des);
+    QVariant v;
+    v.setValue(completed);
+    if(!dbUtil->getCfgVariable(vname,v))
+        return false;
+    if(v.isValid())
+        completed = v.toBool();
+    else
+        completed = false;
+    return true;
+}
 
 
 

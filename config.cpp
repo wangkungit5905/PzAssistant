@@ -598,6 +598,30 @@ bool AppConfig::setRecentOpenAccount(QString code)
 }
 
 /**
+ * @brief 读取所有应用支持的科目系统
+ * @param items
+ * @return
+ */
+bool AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        SubSysNameItem* si = new SubSysNameItem;
+        si->code = q.value(SS_CODE).toInt();
+        si->name = q.value(SS_NAME).toString();
+        si->explain = q.value(SS_EXPLAIN).toString();
+        si->isImport = false;
+        items<<si;
+    }
+    return true;
+}
+
+/**
  * @brief AppConfig::addAccountInfo
  *  添加账户信息
  * @param code

@@ -53,18 +53,36 @@ public:
     bool init();
     void close();
 
+    //账户配置变量访问函数
+    bool getCfgVariable(QString name, QVariant &value);
+    bool setCfgVariable(QString name, QVariant value);
+
+    //账户升级事务相关
+    bool importFstSubjects(int subSys, QString fname);
+    bool getSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem*>& cfgs);
+    bool setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs);
+
     //账户信息相关
     bool readAccBriefInfo(AccountBriefInfo& info);
     bool initAccount(Account::AccountInfo &infos);
     bool saveAccountInfo(Account::AccountInfo &infos);
 
+    //帐套相关
+    bool saveSuites(QList<Account::AccountSuiteRecord *> &suites);
+    bool saveSuite(Account::AccountSuiteRecord* suite);
+
     //科目相关
     bool initNameItems();
     bool initSubjects(SubjectManager* smg, int subSys);
+    bool saveNameItemClass(int code, QString name, QString explain);
     bool saveNameItem(SubjectNameItem* ni);
     bool saveSndSubject(SecondSubject* sub);
+    bool saveSndSubjects(QList<SecondSubject*> subs);
     bool savefstSubject(FirstSubject* fsub);
     int getBankSubMatchMoney(SecondSubject* sub);
+    bool nameItemIsUsed(SubjectNameItem* ni);
+    bool ssubIsUsed(SecondSubject* ssub);
+    bool isSubSysImported(int subSys);
 
     //货币相关
     bool initMoneys(Account* account);
@@ -162,7 +180,7 @@ public:
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool _readAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
-    bool _saveAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
+    bool _saveAccountSuite(Account::AccountSuiteRecord* suite);
 
     //科目相关
     bool _saveFirstSubject(FirstSubject* sub);

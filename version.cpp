@@ -110,6 +110,7 @@ VMAccount::VMAccount(QString filename):fileName(filename)
     appendVersion(1,3,&VMAccount::updateTo1_3);
     appendVersion(1,4,&VMAccount::updateTo1_4);
     appendVersion(1,5,&VMAccount::updateTo1_5);
+    appendVersion(1,6,&VMAccount::updateTo1_6);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -995,12 +996,12 @@ bool VMAccount::updateTo1_4()
 }
 
 /**
- * @brief VMAccount::updateTo1_6
+ * @brief VMAccount::updateTo1_7
  *  任务描述：
  *  1、将选项表示结转银行存款、应收账款和应付账款的结转凭证归为一个结转汇兑损益类别
  * @return
  */
-bool VMAccount::updateTo1_6()
+bool VMAccount::updateTo1_7()
 {
 //    QSqlQuery q(db);
 //    QString s = QString("update %1 set %2=%3 where %2=%4 or %2=%5 or %2=%6")
@@ -1270,68 +1271,91 @@ bool VMAccount::updateTo1_5()
 }
 
 /**
+ * @brief VMAccount::updateTo1_6
+ *  任务描述：
+ *  1、添加配置变量表
+ * @return
+ */
+bool VMAccount::updateTo1_6()
+{
+    QSqlQuery q(db);
+    int verNum = 106;
+    emit startUpgrade(verNum,tr("开始更新到版本“1.6”..."));
+
+    emit upgradeStep(verNum,tr("创建配置变量表（%1）").arg(tbl_cfgVariable),VUR_OK);
+    QString s = QString("create table %1(id integer primary key, %2 text, %3 text)")
+            .arg(tbl_cfgVariable).arg(fld_cfgv_name).arg(fld_cfgv_value);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("创建配置变量表（%1）时出错！").arg(tbl_cfgVariable),VUR_ERROR);
+        return false;
+    }
+    endUpgrade(verNum,"",VUR_OK);
+    return setCurVersion(1,6);
+}
+
+/**
  * @brief VMAccount::updateTo2_0
  *  任务描述：
  *  1、
- *  2、导入新科目系统的科目
+ *  2、导入新科目系统的科目（此升级任务已作为科目配置功能的一部分，将其数据库操作部分归并到dbutil类中）
  * @return
  */
 bool VMAccount::updateTo2_0()
 {
-    QSqlQuery q(db);
-    QString s;
+//    QSqlQuery q(db);
+//    QString s;
 
-    //2、导入新科目系统的科目
-    QSqlDatabase ndb = QSqlDatabase::addDatabase("QSQLITE","importNewSub");
-    ndb.setDatabaseName("./datas/basicdatas/firstSubjects_2.dat");
-    if(!ndb.open()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("不能打开新科目系统2的数据源表！，请检查文件夹下“datas/basicdatas/”下是否存在“firstSubjects_2.dat”文件"));
-        return false;
-    }
-    QSqlQuery qm(ndb);
-    if(!qm.exec("select * from FirstSubs")){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统的数据时出错"));
-        return false;
-    }
-    //(id,subCode,remCode,belongTo,jdDir,isView,isReqDet,weight,subName)
-    s = "insert into FirSubjects(subSys,subCode,remCode,belongTo,jdDir,isView,isUseWb,weight,subName) "
-            "values(2,:code,:remCode,:belongTo,:jdDir,:isView,:isUseWb,:weight,:name)";
-    bool r = db.transaction();
-    r = q.prepare(s);
-    while(qm.next()){
-        q.bindValue(":code",qm.value(2).toString());
-        q.bindValue("remCode",qm.value(3).toString());
-        q.bindValue(":belongTo",qm.value(4).toInt());
-        q.bindValue(":jdDir",qm.value(5).toInt());
-        q.bindValue(":isView",qm.value(6).toInt());
-        q.bindValue(":isUseWb",qm.value(7).toInt());
-        q.bindValue(":weight",qm.value(8).toInt());
-        q.bindValue(":name",qm.value(9).toString());
-        q.exec();
-    }
-    if(!db.commit()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目时，提交事务失败！"));
-        return false;
-    }
-    if(!qm.exec("select * from FirstSubCls where subCls=2")){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统科目类别的数据时出错"));
-        return false;
-    }
-    s = "insert into FstSubClasses(subSys,code,name) values(2,:code,:name)";
-    db.transaction();
-    r = q.prepare(s);
-    while(qm.next()){
-        q.bindValue(":code",qm.value(2).toInt());
-        q.bindValue(":name",qm.value(3).toString());
-        q.exec();
-    }
-    if(!db.commit()){
-        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目类别时，提交事务失败！"));
-        return false;
-    }
+//    //2、导入新科目系统的科目
+//    QSqlDatabase ndb = QSqlDatabase::addDatabase("QSQLITE","importNewSub");
+//    ndb.setDatabaseName("./datas/basicdatas/firstSubjects_2.dat");
+//    if(!ndb.open()){
+//        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("不能打开新科目系统2的数据源表！，请检查文件夹下“datas/basicdatas/”下是否存在“firstSubjects_2.dat”文件"));
+//        return false;
+//    }
+//    QSqlQuery qm(ndb);
+//    if(!qm.exec("select * from FirstSubs")){
+//        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统的数据时出错"));
+//        return false;
+//    }
+//    //(id,subCode,remCode,belongTo,jdDir,isView,isReqDet,weight,subName)
+//    s = "insert into FirSubjects(subSys,subCode,remCode,belongTo,jdDir,isView,isUseWb,weight,subName) "
+//            "values(2,:code,:remCode,:belongTo,:jdDir,:isView,:isUseWb,:weight,:name)";
+//    bool r = db.transaction();
+//    r = q.prepare(s);
+//    while(qm.next()){
+//        q.bindValue(":code",qm.value(2).toString());
+//        q.bindValue("remCode",qm.value(3).toString());
+//        q.bindValue(":belongTo",qm.value(4).toInt());
+//        q.bindValue(":jdDir",qm.value(5).toInt());
+//        q.bindValue(":isView",qm.value(6).toInt());
+//        q.bindValue(":isUseWb",qm.value(7).toInt());
+//        q.bindValue(":weight",qm.value(8).toInt());
+//        q.bindValue(":name",qm.value(9).toString());
+//        q.exec();
+//    }
+//    if(!db.commit()){
+//        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目时，提交事务失败！"));
+//        return false;
+//    }
+//    if(!qm.exec("select * from FirstSubCls where subCls=2")){
+//        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统科目类别的数据时出错"));
+//        return false;
+//    }
+//    s = "insert into FstSubClasses(subSys,code,name) values(2,:code,:name)";
+//    db.transaction();
+//    r = q.prepare(s);
+//    while(qm.next()){
+//        q.bindValue(":code",qm.value(2).toInt());
+//        q.bindValue(":name",qm.value(3).toString());
+//        q.exec();
+//    }
+//    if(!db.commit()){
+//        QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目类别时，提交事务失败！"));
+//        return false;
+//    }
 
-    QMessageBox::information(0,QObject::tr("更新成功"),QObject::tr("账户文件格式成功更新到1.5版本！"));
-    return setCurVersion(1,5);
+//    QMessageBox::information(0,QObject::tr("更新成功"),QObject::tr("账户文件格式成功更新到1.5版本！"));
+//    return setCurVersion(1,5);
 }
 
 /**
@@ -1627,6 +1651,7 @@ bool VMAppConfig::updateTo1_4()
  *  1、在基本库中添加本地账户缓存表，替换原先的AccountInfos表
  *  2、删除原先的本地账户缓存信息表“AccountInfos”
  *  3、移除全局变量“RecentOpenAccId”
+ *  4、添加科目系统名称表
  * @return
  */
 bool VMAppConfig::updateTo1_3()
@@ -1662,6 +1687,29 @@ bool VMAppConfig::updateTo1_3()
         LOG_SQLERROR(s);
         emit upgradeStep(verNum,tr("在移除全局变量“RecentOpenAccId”时发生错误"),VUR_ERROR);
         return false;
+    }
+
+    emit upgradeStep(verNum,tr("第三步：添加科目系统名称表"),VUR_OK);
+    s = QString("create table %1(id integer primary key,%2 integer,%3 text,%4 text)")
+            .arg(tbl_subSys).arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建科目系统名称表“%1”时发生错误！").arg(tbl_subSys),VUR_ERROR);
+        return false;
+    }
+    QStringList statments;
+    statments<<QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')").arg(tbl_subSys)
+               .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain).arg(1)
+               .arg(tr("科目系统1")).arg(tr("2013年前使用的老科目系统"))
+               <<QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')").arg(tbl_subSys)
+                 .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain).arg(2)
+                 .arg(tr("科目系统2")).arg(tr("2013年后使用的新科目系统"));
+    for(int i = 0; i < statments.count(); ++i){
+        if(!q.exec(statments.at(i))){
+            LOG_SQLERROR(statments.at(i));
+            emit upgradeStep(verNum,tr("在初始化科目系统名称表时发生错误！"),VUR_ERROR);
+            return false;
+        }
     }
     endUpgrade(verNum,tr("成功升级到版本1.3"),true);
     return setCurVersion(1,3);

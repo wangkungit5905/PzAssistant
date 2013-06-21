@@ -57,11 +57,12 @@ public:
      */
     struct AccountSuiteRecord{
         int id;
-        int year,recentMonth; //帐套所属年份、最后打开月份
-        int startMonth,endMonth; //开始月份和结束月份
-        int subSys;         //帐套采用的科目系统代码
-        QString name;       //帐套名
-        bool isCur;         //是否当前打开帐套
+        int year,recentMonth;       //帐套所属年份、最后打开月份
+        int startMonth,endMonth;    //开始月份和结束月份
+        int subSys;                 //帐套采用的科目系统代码
+        QString name;               //帐套名
+        bool isCur;                 //是否当前打开帐套
+        bool isUsed;                //帐套是否已启用
 
         bool operator !=(const AccountSuiteRecord& other);
     };
@@ -127,6 +128,7 @@ public:
     QString getSuiteName(int y);
     void setSuiteName(int y, QString name);
     QList<int> getSuites();
+    QList<AccountSuiteRecord*> getAllSuites(){return accInfos.suites;}
     AccountSuiteRecord* getStartSuite(){return accInfos.suites.first();}
     AccountSuiteRecord* getEndSuite(){return accInfos.suites.last();}
     AccountSuiteRecord* getCurSuite();
@@ -138,6 +140,8 @@ public:
     int getSuiteLastMonth(int y);
     void setCurMonth(int m);
     int getCurMonth();
+    void addSuite(AccountSuiteRecord* as){accInfos.suites.append(as);}
+    bool saveSuite(AccountSuiteRecord* as);
 
     int getBaseYear();
     int getBaseMonth();
@@ -147,6 +151,7 @@ public:
     void colsePzSet();
     SubjectManager* getSubjectManager(int subSys = 0);
     //SubjectManager* getSubjectManager();
+    QList<SubSysNameItem*> getSupportSubSys();
 
     bool getRates(int y, int m, QHash<int, Double> &rates);
     bool getRates(int y, int m, QHash<Money*, Double> &rates);
@@ -160,6 +165,12 @@ public:
     QList<BankAccount*> &getAllBankAccount(){return bankAccounts;}
     static void setDatabase(QSqlDatabase* db);
 
+    bool getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
+    bool setSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
+    bool isCompleteSubSysCfg(int src, int des, bool &completed, bool& subCloned);
+    bool setCompleteSubSysCfg(int src, int des, bool completed, bool subCloned);
+    bool isCompletedExtraJoin(int src, int des, bool &completed);
+
 private:
     bool init();
 
@@ -171,6 +182,7 @@ private:
 
     QList<BankAccount*> bankAccounts;
     PzSetMgr* pzSetMgr;      //凭证集对象
+    QList<SubSysNameItem*> subSysLst; //账户支持的科目系统
     QHash<int,SubjectManager*> smgs; //科目管理对象（键为科目系统代码）
 	bool isReadOnly;         //是否只读模式
 

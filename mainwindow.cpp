@@ -3760,79 +3760,42 @@ void MainWindow::on_actViewLog_triggered()
 
 bool MainWindow::impTestDatas()
 {
-    //curAccount = new Account(tr("宁波苏航.dat"));
-    //    PzSetMgr* psMgr = curAccount->getPzSet();
-    //    QList<PingZheng*> pzs;
-    //    psMgr->getPzSet(cursy,cursm,pzs);
-    //    StatUtil* sutil = new StatUtil(pzs,curAccount);
-    //    CurStatDialog* dlg = new CurStatDialog(sutil);
-    //    MyMdiSubWindow* subWin = new MyMdiSubWindow;
-    //    subWin->setWidget(dlg);
-    //    ui->mdiArea->addSubWindow(subWin);
-    //    dlg->show();
-
-//    DVFilterRecord* r = new DVFilterRecord;
-//    r->id = 0;
-//    r->isCur = false;
-//    r->curFSub = 1;
-//    r->curSSub = 0;
-//    r->isDef = true;
-//    r->isFst = true;
-//    r->curMt = 2;
-//    r->name = tr("默认");
-//    r->startDate  = QDate(2012,1,1);
-//    r->endDate = QDate(2013,1,31);
-//    r->subIds<<888<<889;
-//    curAccount->getDbUtil()->saveDetViewFilter(*r);
-//    delete r;
-//    QList<DVFilterRecord*> rs;
-//    curAccount->getDbUtil()->getDetViewFilters(rs);
-//    r = rs.first();
-//    r->curFSub = 2;
-//    r->curSSub = 89;
-//    r->isDef = false;
-//    r->isCur = true;
-//    r->isFst = false;
-//    r->curMt = 3;
-//    r->name = tr("默认修改");
-//    r->startDate = QDate(2013,1,1);
-//    r->endDate = QDate(2013,4,30);
-//    r->subIds<<11<<22<<33;
-//    curAccount->getDbUtil()->saveDetViewFilter(*r);
-
-//    QList<int> subIds;
-//    int fid;
-//    SubjectManager* smg = curAccount->getSubjectManager();
-//    fid = smg->getFstSubject("1131")->getId();
-//    subIds<<smg->getFstSubject("1131")->getChildSub(2)->getId()
-//          <<smg->getFstSubject("1131")->getChildSub(4)->getId();
-//    SubjectRangeSelectDialog* dlg = new SubjectRangeSelectDialog(smg,subIds,fid);
-//    dlg->exec();
-//    subIds.clear();
-//    FirstSubject* fsub = dlg->getSelectedFstSub();
-//    subIds = dlg->getSelectedSubIds();
-//
-
-//    QList<SubjectNameItem*> nis;
 //    SubjectManager* subMgr = curAccount->getSubjectManager();
-//    foreach(SubjectNameItem* ni, subMgr->getAllNameItems())
-//        nis<<ni;
-//    qSort(nis.begin(),nis.end(),byNameThan_ni);
+//    //SubjectNameItem* ni = new SubjectNameItem(0,2,"TestNI","Test Name Item","ti",QDateTime::currentDateTime(),curUser);
+//    SubjectNameItem* ni = subMgr->getNameItem(583);
+//    ni->setShortName("TestNI_changed");
+//    ni->setClassId(5);
+//    ni->setRemCode("tttt");
+//    ni->setLongName("test name item changed");
+//    //SecondSubject* ssub = new SecondSubject(subMgr->getBankSub(),0,ni,"01",100,true,QDateTime::currentDateTime(),QDateTime::currentDateTime(),curUser);
+//    SecondSubject* ssub = subMgr->getBankSub()->getChildSub(ni);
+//    ssub->setParent(subMgr->getCashSub());
+//    ssub->setCode("22");
+//    ssub->setEnabled(false);
+//    ssub->setDisableTime(QDateTime::currentDateTime());
+//    dbUtil->saveSndSubject(ssub);
+//    QVariant v;
+    //v.setValue(false);
+    //curAccount->getDbUtil()->setCfgVariable("boolValue",v);
+    //v.setValue(455);
+    //curAccount->getDbUtil()->setCfgVariable("integerValue",v);
+    //v.setValue(4.666);
+    //curAccount->getDbUtil()->setCfgVariable("floatValue",v);
+    //v.setValue(QString("test string modify!"));
+    //curAccount->getDbUtil()->setCfgVariable("stringValue",v);
+//    curAccount->getDbUtil()->getCfgVariable("boolValue",v);
+//    curAccount->getDbUtil()->getCfgVariable("integerValue",v);
+//    curAccount->getDbUtil()->getCfgVariable("floatValue",v);
+//    curAccount->getDbUtil()->getCfgVariable("stringValue",v);
+//    bool completed,subCloned;
+//    curAccount->isCompleteSubSysCfg(1,2,completed,subCloned);
+//    curAccount->setCompleteSubSysCfg(1,2,completed,subCloned);
 
-    SubjectManager* subMgr = curAccount->getSubjectManager();
-    //SubjectNameItem* ni = new SubjectNameItem(0,2,"TestNI","Test Name Item","ti",QDateTime::currentDateTime(),curUser);
-    SubjectNameItem* ni = subMgr->getNameItem(583);
-    ni->setShortName("TestNI_changed");
-    ni->setClassId(5);
-    ni->setRemCode("tttt");
-    ni->setLongName("test name item changed");
-    //SecondSubject* ssub = new SecondSubject(subMgr->getBankSub(),0,ni,"01",100,true,QDateTime::currentDateTime(),QDateTime::currentDateTime(),curUser);
-    SecondSubject* ssub = subMgr->getBankSub()->getChildSub(ni);
-    ssub->setParent(subMgr->getCashSub());
-    ssub->setCode("22");
-    ssub->setEnabled(false);
-    ssub->setDisableTime(QDateTime::currentDateTime());
-    dbUtil->saveSndSubject(ssub);
-
-//    int i = 0;
+    SubjectNameItem* ni = SubjectManager::getNameItem(368);
+    ni->setClassId(3);
+    ni->setShortName(tr("测试名称--"));
+    ni->setLongName(tr("测试名称的全称--"));
+    ni->setRemCode("cemc--");
+    curAccount->getDbUtil()->saveNameItem(ni);
+    int i = 0;
 }

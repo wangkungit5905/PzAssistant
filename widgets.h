@@ -110,6 +110,17 @@ private:
     SubjectManager* subManager;
 };
 
+class BAFstSubItem2 : public QTableWidgetItem
+{
+public:
+    BAFstSubItem2(FirstSubject* fsub, int type = QTableWidgetItem::UserType + 1);
+    QVariant data(int role) const;
+    void setData(int role, const QVariant &value);
+
+private:
+    FirstSubject* fsub;
+};
+
 //在QTableWidget中显示业务活动明细科目的表格项
 class BASndSubItem : public QTableWidgetItem
 {

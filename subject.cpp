@@ -9,18 +9,19 @@ QHash<int,SubjectNameItem*> SubjectManager::nameItems;
 QList<SubjectNameItem*> SubjectManager::delNameItems;
 
 //虚拟科目对象
-FirstSubject* FS_ALL;
-FirstSubject* FS_NULL;
-SubjectNameItem* NI_ALL;
-SubjectNameItem* NI_NULL;
-SecondSubject* SS_ALL;
-SecondSubject* SS_NULL;
+//FirstSubject* SubjectManager::FS_ALL = new FirstSubject(0,);
+//FirstSubject* SubjectManager::FS_NULL;
+//SubjectNameItem* NI_ALL;
+//SubjectNameItem* NI_NULL;
+//SecondSubject* SS_ALL;
+//SecondSubject* SS_NULL;
 
 
 /////////////////////////////////FirstSubject///////////////////////////
 
 FirstSubject::FirstSubject(const FirstSubject &other)
 {
+    _parent = other._parent;
     md = FSTSUBMD++;
     id = other.id;  //应该另外创建id？
     name = other.name;
@@ -38,9 +39,9 @@ FirstSubject::FirstSubject(const FirstSubject &other)
     defSub = other.defSub;
 }
 
-FirstSubject::FirstSubject(int id, SubjectClass subcls, QString subName, QString subCode, QString remCode,
+FirstSubject::FirstSubject(SubjectManager* parent, int id, SubjectClass subcls, QString subName, QString subCode, QString remCode,
             int subWeight,bool isEnable,bool jdDir, bool isUseWb, QString explain, QString usage, int subSys):
-    SubjectBase(),md(FSTSUBMD++),id(id),subClass(subcls),name(subName),code(subCode),remCode(remCode),
+    SubjectBase(),_parent(parent),md(FSTSUBMD++),id(id),subClass(subcls),name(subName),code(subCode),remCode(remCode),
     weight(subWeight),isEnable(isEnable),jdDir(jdDir),isUseWb(isUseWb),
     briefExplain(explain),usage(usage),subSys(subSys),defSub(NULL)
 {
@@ -48,7 +49,7 @@ FirstSubject::FirstSubject(int id, SubjectClass subcls, QString subName, QString
 
 FirstSubject::~FirstSubject()
 {
-    //要删除其下的二级科目对象
+    qDeleteAll(childSubs);
 }
 
 void FirstSubject::setCode(QString subCode)
@@ -162,7 +163,9 @@ void FirstSubject::addChildSub(SecondSubject *sub)
         return;
     if(childSubs.contains(sub))
         return;
+    sub->setParent(this);
     childSubs<<sub;
+    witchEdited |= ES_FS_CHILD;
 }
 
 /**
@@ -492,6 +495,8 @@ SubjectNameItem::SubjectNameItem():
         crtUser(curUser)
 {
     md=NAMEITEMMD++;
+    witchEdit = ES_NI_INIT;
+    witchEdit |= ES_NI_CLASS;
 }
 
 
@@ -746,9 +751,94 @@ SubjectManager::SubjectManager(Account *account, int subSys):
     init();
 }
 
-void SubjectManager::save()
+/**
+ * @brief 只在执行导入科目的操作后，调用此方法将导入的科目装载到对象中
+ * @return
+ */
+bool SubjectManager::loadAfterImport()
 {
+    return dbUtil->initSubjects(this,subSys);
 }
+
+bool SubjectManager::save()
+{
+//    foreach(SubjectNameItem* ni, nameItems.values()){
+//        if(ni->getEditState() != ES_NI_INIT && !dbUtil->saveNameItem(ni))
+//            return false;
+//    }
+}
+
+/**
+ * @brief 获取未使用的名称条目类别代码
+ * @return
+ */
+int SubjectManager::getNotUsedNiClsCode()
+{
+    int code = 0;
+    foreach(int c, nameItemCls.keys()){
+        if(code < c)
+            code = c;
+    }
+    return ++code;
+}
+
+/**
+ * @brief 添加新的名称条目类别
+ * @param code      类别代码
+ * @param name      类别名称
+ * @param explain   类别解释信息
+ * @return          如果新类别的代码与原有的存在冲突，则返回false
+ */
+bool SubjectManager::addNiClass(int code, QString name, QString explain)
+{
+    if(nameItemCls.contains(code))
+       return false;
+    nameItemCls[code] = QStringList();
+    nameItemCls[code].append(name);
+    nameItemCls[code].append(explain);
+}
+
+/**
+ * @brief 修改指定名称条目类别
+ * @param code
+ * @param name
+ * @param explain
+ * @return
+ */
+bool SubjectManager::modifyNiClass(int code, QString name, QString explain)
+{
+    if(!nameItemCls.contains(code))
+        return false;
+    nameItemCls[code][0] = name;
+    nameItemCls[code][1] = explain;
+}
+
+/**
+ * @brief 指定代码的名称条目类别是否被使用
+ * @param code
+ * @return
+ */
+bool SubjectManager::isUsedNiCls(int code)
+{
+    foreach(SubjectNameItem* ni, nameItems){
+        if(ni->getClassId() == code)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief 移除指定代码的名称条目类别
+ * @param code
+ */
+bool SubjectManager::removeNiCls(int code)
+{
+    if(isUsedNiCls(code))
+        return false;
+    nameItemCls.remove(code);
+    return true;
+}
+
 
 /**
  * @brief SubjectManager::removeNameItem
@@ -811,6 +901,7 @@ SubjectNameItem *SubjectManager::restoreNI(QString sname, QString lname, QString
 
 bool SubjectManager::init()
 {
+    FSub_NULL = new FirstSubject(this,-1,SC_NULL,QObject::tr("空"),"","",0,true);
     dbUtil->initSubjects(this,subSys);
 }
 
@@ -856,6 +947,16 @@ QList<BankAccount *> &SubjectManager::getBankAccounts()
 }
 
 /**
+ * @brief 指定的二级科目是否在账户中已被采用了
+ * @param ssub
+ * @return
+ */
+bool SubjectManager::isUsedSSub(SecondSubject *ssub)
+{
+    return dbUtil->ssubIsUsed(ssub);
+}
+
+/**
  * @brief SubjectManager::addNameItem
  *  添加新的名称条目
  * @param sname     简称
@@ -869,10 +970,10 @@ QList<BankAccount *> &SubjectManager::getBankAccounts()
 SubjectNameItem *SubjectManager::addNameItem(QString sname, QString lname, QString rcode, int clsId, QDateTime crtTime, User *creator)
 {
     SubjectNameItem* ni = new SubjectNameItem(0,clsId,sname,lname,rcode,crtTime,creator);
-    if(!dbUtil->saveNameItem(ni)){
-        delete ni;
-        return NULL;
-    }
+//    if(!dbUtil->saveNameItem(ni)){
+//        delete ni;
+//        return NULL;
+//    }
     SubjectManager::nameItems[ni->getId()] = ni;
     return ni;
 }
@@ -953,6 +1054,10 @@ bool SubjectManager::isBankSndSub(SecondSubject *ssub)
     else
         return true;
 }
+
+
+
+
 
 
 

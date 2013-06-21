@@ -95,6 +95,8 @@ public:
     bool getRecendOpenAccount(AccountCacheItem &accItem);
     bool setRecentOpenAccount(QString code);
 
+    bool getSubSysItems(QList<SubSysNameItem *> &items);
+
 private:
     AppConfig();
     bool getConfigVar(QString name, int type);

@@ -279,6 +279,34 @@ void BAFstSubItem::setData(int role, const QVariant &value)
     QTableWidgetItem::setData(role, value);
 }
 
+//////////////////////////////////BAFstSubItem2//////////////////////////////////////////////////
+BAFstSubItem2::BAFstSubItem2(FirstSubject *fsub, int type):QTableWidgetItem(type),fsub(fsub)
+{}
+
+QVariant BAFstSubItem2::data(int role) const
+{
+    if (role == Qt::TextAlignmentRole)
+        return (int)Qt::AlignCenter;
+    if(role == Qt::DisplayRole){
+        return fsub?fsub->getName():"";
+    }
+    if(role == Qt::EditRole){
+        QVariant v;
+        v.setValue<FirstSubject*>(fsub);
+        return v;
+    }
+    return QTableWidgetItem::data(role);
+}
+
+void BAFstSubItem2::setData(int role, const QVariant &value)
+{
+    if(role == Qt::EditRole)
+        fsub = value.value<FirstSubject*>();
+    QTableWidgetItem::setData(role, value);
+}
+
+
+
 
 ///////////////////////////BASndSubItem//////////////////////////////
 BASndSubItem::BASndSubItem(int subId, SubjectManager* smg,int type):
@@ -1032,3 +1060,6 @@ void IntentButton::mouseReleaseEvent(QMouseEvent* event)
         emit intentClicked(intent);
     QPushButton::mousePressEvent(event);
 }
+
+
+

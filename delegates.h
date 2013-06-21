@@ -289,6 +289,41 @@ private:
 };
 
 
+/////////////////////////////////////////////////////////////////////////////////////////////////////////
+/**
+ * @brief 仅用于简单的从一个下拉列表框中选择一个一级科目（它包含了一个空科目表示没有选取）
+ */
+class FSubSelectCmb : public QComboBox
+{
+    Q_OBJECT
+public:
+    FSubSelectCmb(SubjectManager* smg, QWidget* parent = 0);
+    void setSubject(FirstSubject* fsub);
+    FirstSubject* getSubject();
+private:
+    //FirstSubject* fsub;
+};
 
+/**
+ * @brief 在科目系统衔接配置窗口内部表格使用的项目代理类
+ */
+class SubSysJoinCfgItemDelegate : public QItemDelegate
+{
+    Q_OBJECT
+
+public:
+    SubSysJoinCfgItemDelegate(SubjectManager* subMgr, QObject *parent = 0);
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const;
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const;
+    void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem &option,
+                              const QModelIndex& index) const;
+    void setReadOnly(bool isReadonly){readOnly = isReadonly;}
+private:
+    SubjectManager* subMgr;
+    bool readOnly;
+};
 
 #endif // DELEGATES3_H

@@ -379,6 +379,27 @@ const int DVFS_STARTDATE    = 8;
 const int DVFS_ENDDATE      = 9;
 const int DVFS_SUBIDS       = 10;
 
+
+//科目系统衔接时一级科目的映射配置表
+const QString tbl_ssjc_pre     = "subSysJoin";
+const QString fld_ssjc_sSub    = "sSub";        //源一级科目id
+const QString fld_ssjc_dSub    = "dSub";        //目的一级科目id
+const QString fld_ssjc_isMap   = "isMap";       //是否建立映射
+const QString fld_ssjc_ssubMaps= "ssubMaps";    //子目的映射列表
+const int SSJC_SSUB     = 1;
+const int SSJC_DSUB     = 2;
+const int SSJC_ISMAP    = 3;
+const int SSJC_SSUBMaps = 4;
+
+//账户配置变量表
+const QString tbl_cfgVariable = "configVariables";
+//const QString fld_cfgv_type  = "vtype"; //值类型（布尔型、整形、浮点型、字符串）
+const QString fld_cfgv_name  = "vname"; //配置变量名
+const QString fld_cfgv_value = "value"; //变量值
+//const int CFGV_TYPE  = 1;
+const int CFGV_NAME  = 1;
+const int CFGV_VALUE = 2;
+
 //转移表（transfers）
 //create table transfers(id integer primary key, smid integer, dmid integer,
 //state integer, outTime text, inTime text)
@@ -471,6 +492,17 @@ const int LAC_INTIME    = 7;
 const int LAC_OUTMID    = 8;
 const int LAC_OUTTIME   = 9;
 const int LAC_HASH      = 10;
+
+/**
+ *  科目系统名称表
+ */
+const QString tbl_subSys = "subSysNames";
+const QString fld_ss_code = "code";     //科目系统代码（integer）
+const QString fld_ss_name = "name";     //科目系统名称（TEXT）
+const QString fld_ss_explain = "explain"; //说明信息（TEXT）
+const int SS_CODE = 1;
+const int SS_NAME = 2;
+const int SS_EXPLAIN = 3;
 
 //主机表（machines）
 //CREATE TABLE machines(id integer primary key, type integer, mid integer,

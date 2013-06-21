@@ -1557,6 +1557,86 @@ void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
     editor->setGeometry(rect);
 }
 
+///////////////////////////////FSubSelectCmb/////////////////////////////////////////////////////////
+FSubSelectCmb::FSubSelectCmb(SubjectManager *smg, QWidget *parent):QComboBox(parent)
+{
+    FirstSubject* fsub;
+    fsub = smg->getNullFSub();
+    QVariant v;
+    v.setValue<FirstSubject*>(fsub);
+    addItem(fsub->getName(),v);
+    FSubItrator* it = smg->getFstSubItrator();
+    while(it->hasNext()){
+        it->next();
+        fsub = it->value();
+        if(fsub->isEnabled()){
+            v.setValue<FirstSubject*>(fsub);
+            addItem(fsub->getName(),v);
+        }
+    }
+}
+
+void FSubSelectCmb::setSubject(FirstSubject *fsub)
+{
+    QVariant v;
+    v.setValue<FirstSubject*>(fsub);
+    setCurrentIndex(findData(v));
+}
+
+FirstSubject *FSubSelectCmb::getSubject()
+{
+    if(currentIndex() == -1)
+        return NULL;
+    return itemData(currentIndex()).value<FirstSubject*>();
+}
+
+
+////////////////////////////////SubSysJoinCfgItemDelegate/////////////////////////////////////////
+SubSysJoinCfgItemDelegate::SubSysJoinCfgItemDelegate(SubjectManager *subMgr, QObject *parent)
+    :QItemDelegate(parent),subMgr(subMgr),readOnly(false)
+{
+}
+
+QWidget *SubSysJoinCfgItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    //只为目标科目系统的科目名称列创建编辑器
+    if(readOnly || index.column() != 5)
+        return NULL;
+    FSubSelectCmb* cmb = new FSubSelectCmb(subMgr,parent);
+    return cmb;
+}
+
+void SubSysJoinCfgItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+{
+    FSubSelectCmb* cmb = qobject_cast<FSubSelectCmb*>(editor);
+    if(!cmb)
+        return;
+    FirstSubject* fsub = index.model()->data(index,Qt::EditRole).value<FirstSubject*>();
+    if(!fsub)
+        return;
+    cmb->setSubject(fsub);
+//    QVariant v;
+//    v.setValue<FirstSubject*>(fsub);
+//    int idx = cmb->findData(v);
+//    cmb->setCurrentIndex(idx);
+}
+
+void SubSysJoinCfgItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
+{
+    FSubSelectCmb* cmb = qobject_cast<FSubSelectCmb*>(editor);
+    if(!cmb)
+        return;
+    QVariant v;
+    FirstSubject* fsub = cmb->getSubject();
+    v.setValue<FirstSubject*>(fsub);
+    model->setData(index,v);
+}
+
+void SubSysJoinCfgItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    editor->setGeometry(option.rect);
+}
+
 
 
 

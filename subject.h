@@ -26,12 +26,12 @@ class FirstSubject;
 struct SubjectNameItem;
 
 //虚拟科目对象
-extern FirstSubject* FS_ALL;    //表示所有一级科目（md=1）
-extern FirstSubject* FS_NULL;   //表示空一级科目（即没有设置）（md=2）
-extern SubjectNameItem* NI_ALL; //表示“所有或全部”意思的名称条目（md=1）
-extern SubjectNameItem* NI_NULL;//表示空（md=2）
-extern SecondSubject* SS_ALL;   //表示任意一级科目下的所有二级科目（md=1）
-extern SecondSubject* SS_NULL;  //表示空二级科目（md=2）
+//extern FirstSubject* FS_ALL;    //表示所有一级科目（md=1）
+//extern FirstSubject* FS_NULL;   //表示空一级科目（即没有设置）（md=2）
+//extern SubjectNameItem* NI_ALL; //表示“所有或全部”意思的名称条目（md=1）
+//extern SubjectNameItem* NI_NULL;//表示空（md=2）
+//extern SecondSubject* SS_ALL;   //表示任意一级科目下的所有二级科目（md=1）
+//extern SecondSubject* SS_NULL;  //表示空二级科目（md=2）
 
 /**
  *@brief Subject Class
@@ -63,12 +63,14 @@ public:
 
 class FirstSubject : public SubjectBase{
 public:
-    FirstSubject():md(FSTSUBMD++),id(0){}
+    FirstSubject():md(FSTSUBMD++),id(0),_parent(NULL){}
     FirstSubject(const FirstSubject &other);
-    FirstSubject(int id,SubjectClass subcls,QString subName,QString subCode,QString remCode,int subWeight,bool isEnable,
+    FirstSubject(SubjectManager* parent, int id,SubjectClass subcls,QString subName,QString subCode,QString remCode,int subWeight,bool isEnable,
                  bool jdDir = true,bool isUseWb = true,QString explain = "",QString usage = "",int subSys=1);
     ~FirstSubject();
 
+    SubjectManager* parent(){return _parent;}
+    void setParent(SubjectManager* p){_parent=p;}
     int getMd(){return md;}
     int getId(){return id;}
     QString getCode(){return code;}
@@ -126,6 +128,7 @@ public:
     SecondSubject* getDefaultSubject(){return defSub;}
 
 private:
+    SubjectManager* _parent;
     int md;         //科目魔术字
     int id;         //科目id
     int subSys;     //所属科目系统代码
@@ -265,6 +268,7 @@ public:
     void setDelete(bool isDeleted){this->isDeleted=isDeleted;}
     bool isDelete(){return isDeleted;}
 
+
     SecondSubjectEditStates getEditState(){return witchEdit;}
     void resetEditState(){witchEdit = ES_SS_INIT;isDeleted=false;}
 
@@ -276,13 +280,15 @@ public:
     FirstSubject* getParent(){return parent;}
     SubjectNameItem* getNameItem(){return nItem;}
     QDateTime getCreateTime(){return crtTime;}
+    void setCreateTime(QDateTime time){crtTime=time;witchEdit |= ES_SS_CTIME;}
     User* getCreator(){return creator;}
+    void setCreator(User* user){creator=user; witchEdit |= ES_SS_CUSER;}
     QDateTime getDisableTime(){return disTime;}
     void setDisableTime(QDateTime time){disTime=time;witchEdit |= ES_SS_DISABLE;}
 
 
-    bool operator ==(SecondSubject& other){if(&other == SS_ALL) return true;else return md == other.md;}
-    bool operator !=(SecondSubject& other){if(&other == SS_ALL) return false;else return md != other.md;}
+    bool operator ==(SecondSubject& other){/*if(&other == SS_ALL) return true;else*/ return md == other.md;}
+    bool operator !=(SecondSubject& other){/*if(&other == SS_ALL) return false;else*/ return md != other.md;}
 
 private:
     //void setId(int id){this->id=id;}
@@ -325,19 +331,26 @@ public:
 
     SubjectManager(Account* account, int subSys = 1);
     Account* getAccount(){return account;}
+    bool loadAfterImport();
+    int getCode(){return subSys;}
 
     //保存方法
-    void save();
+    bool save();
     void rollback();
 
     //名称条目相关方法
-    /*const */QList<SubjectNameItem*> getAllNameItems(){return nameItems.values();}
+    static int getNotUsedNiClsCode();
+    static bool addNiClass(int code, QString name, QString explain);
+    static bool modifyNiClass(int code, QString name, QString explain);
+    static bool isUsedNiCls(int code);    
+    static bool removeNiCls(int code);
+    static QList<SubjectNameItem*> getAllNameItems(){return nameItems.values();}
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
     static void removeNameItem(SubjectNameItem* nItem);
     static bool restoreNI(SubjectNameItem* nItem);
     static SubjectNameItem* restoreNI(QString sname, QString lname, QString remCode, int nameCls);
-    static QHash<int,QStringList>& getAllNICls(){return nameItemCls;}
+    static QHash<int,QStringList> getAllNICls(){return nameItemCls;}
     static SubjectNameItem* getNameItem(int nid){return nameItems.value(nid);}
     static SubjectNameItem* getNameItem(QString name);
     static QHash<int,SubjectNameItem*>& getAllNI(){return nameItems;}
@@ -359,6 +372,7 @@ public:
 
 
     //获取特种科目的方法
+    FirstSubject* getNullFSub(){return FSub_NULL;}
     FirstSubject* getCashSub(){return cashSub;}
     FirstSubject* getBankSub(){return bankSub;}
     FirstSubject* getGdzcSub(){return gdzcSub;}
@@ -373,9 +387,12 @@ public:
     bool isSyClsSubject(int sid, bool &yes, bool isFst=true);
     QList<BankAccount*>& getBankAccounts();
 
+    bool isUsedSSub(SecondSubject* ssub);
+
     //
-    SubjectNameItem* addNameItem(QString sname,QString lname,QString rcode,int clsId,
+    static SubjectNameItem* addNameItem(QString sname,QString lname,QString rcode,int clsId,
                                  QDateTime crtTime=QDateTime::currentDateTime(),User* creator=curUser);
+
     //
     SecondSubject* addSndSubject(FirstSubject* fsub,SubjectNameItem* ni,QString code="",
                                  int weight=1,bool isEnabled=true,
@@ -488,9 +505,12 @@ private:
     static QHash<int,QStringList> nameItemCls;    //名称条目类别表
     static QHash<int,SubjectNameItem*> nameItems; //所有名称条目（因为多个科目管理器对象要共享名称条目信息）
     static QList<SubjectNameItem*> delNameItems;  //缓存被删除的名称条目
+    static FirstSubject* FS_ALL;
+    static FirstSubject* FS_NULL;
 
 
     //特种科目
+    FirstSubject* FSub_NULL;               //空的一级科目（其id为-1，没有任何实际的科目相对应）
     FirstSubject *cashSub,*bankSub,*ysSub,*yfSub;  //现金、银行科目对象
     FirstSubject *gdzcSub,*dtfySub,*ljzjSub,*bnlrSub,*lrfpSub;//固定资产、待摊费用、累计折旧、本年利润和利润分配科目id
     FirstSubject *cwfySub;

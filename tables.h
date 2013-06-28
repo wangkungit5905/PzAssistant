@@ -23,6 +23,7 @@ const QString fld_accs_recentMonth = "recentMonth";//最近打开月份
 const QString fld_accs_name      = "name";         //帐套名（text）
 const QString fld_accs_startMonth= "startMonth";   //帐套开始月份
 const QString fld_accs_endMonth  = "endMonth";     //帐套结束月份
+const QString fld_accs_isClosed  = "isClosed";     //帐套是否已关账
 //字段索引
 const int ACCS_YEAR         = 1;
 const int ACCS_SUBSYS       = 2;
@@ -31,6 +32,7 @@ const int ACCS_RECENTMONTH  = 4;
 const int ACCS_NAME         = 5;
 const int ACCS_STARTMONTH   = 6;
 const int ACCS_ENDMONTH     = 7;
+const int ACCS_ISCLOSED     = 8;
 
 
 
@@ -357,6 +359,7 @@ const int   SWI_TBL     = 6;
 //明细账视图过滤条件表
 //字段名
 const QString tbl_dvfilters     = "DVFilters";
+const QString fld_dvfs_suite    = "suiteId";    //帐套id（每个帐套的过滤条件是相互独立的）
 const QString fld_dvfs_isDef    = "isDef";      //是否是系统默认的
 const QString fld_dvfs_isCur    = "isCur";      //是否是最后关闭窗口时应用的过滤条件
 const QString fld_dvfs_isFstSub = "isFst";      //科目范围是一级科目还是二级科目
@@ -368,16 +371,17 @@ const QString fld_dvfs_startDate= "startDate";  //开始时间
 const QString fld_dvfs_endDate  = "endDate";    //结束时间
 const QString fld_dvfs_subIds   = "subIds";     //选定的科目代码列表
 //字段索引
-const int DVFS_ISDEF        = 1;
-const int DVFS_ISCUR        = 2;
-const int DVFS_ISFST        = 3;
-const int DVFS_CURFSUB      = 4;
-const int DVFS_CURSSUB      = 5;
-const int DVFS_MONEYTYPE    = 6;
-const int DVFS_NAME         = 7;
-const int DVFS_STARTDATE    = 8;
-const int DVFS_ENDDATE      = 9;
-const int DVFS_SUBIDS       = 10;
+const int DVFS_SUITEID      = 1;
+const int DVFS_ISDEF        = 2;
+const int DVFS_ISCUR        = 3;
+const int DVFS_ISFST        = 4;
+const int DVFS_CURFSUB      = 5;
+const int DVFS_CURSSUB      = 6;
+const int DVFS_MONEYTYPE    = 7;
+const int DVFS_NAME         = 8;
+const int DVFS_STARTDATE    = 9;
+const int DVFS_ENDDATE      = 10;
+const int DVFS_SUBIDS       = 11;
 
 
 //科目系统衔接时一级科目的映射配置表

@@ -279,7 +279,7 @@ void BaTableWidget::mousePressEvent(QMouseEvent *event)
 
 
 /////////////////////////////PzDialog////////////////////////////////
-PzDialog::PzDialog(int y, int m, PzSetMgr *psm, QByteArray* sinfo, QWidget *parent)
+PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidget *parent)
     : QDialog(parent),ui(new Ui::pzDialog),curRow(-1),isInteracting(false),pzMgr(psm)
 {
     ui->setupUi(this);
@@ -310,56 +310,28 @@ PzDialog::PzDialog(int y, int m, PzSetMgr *psm, QByteArray* sinfo, QWidget *pare
     connect(sc_paster,SIGNAL(activated()),this,SLOT(processShortcut()));
 
     account = pzMgr->getAccount();
-    subMgr = account->getSubjectManager();
+    subMgr = pzMgr->getSubjectManager();
     delegate = new ActionEditItemDelegate(subMgr,this);
     connect(delegate,SIGNAL(reqCopyPrevAction(int)),this,SLOT(copyPrewAction(int)));
+    //connect(delegate,SIGNAL(updateSndSubject(int,int,SecondSubject*)),
+    //        this,SLOT(updateSndSubject(int,int,SecondSubject*)));
+    connect(delegate,SIGNAL(crtNewNameItemMapping(int,int,FirstSubject*,SubjectNameItem*,SecondSubject*&)),
+            this,SLOT(creatNewNameItemMapping(int,int,FirstSubject*,SubjectNameItem*,SecondSubject*&)));
+    connect(delegate,SIGNAL(crtNewSndSubject(int,int,FirstSubject*,SecondSubject*&,QString)),
+            this,SLOT(creatNewSndSubject(int,int,FirstSubject*,SecondSubject*&,QString)));
+    connect(ui->tview,SIGNAL(currentCellChanged(int,int,int,int)),
+            this,SLOT(currentCellChanged(int,int,int,int)));
+    //connect(delegate,SIGNAL(moveNextRow(int)),this,SLOT(moveToNextBa(int)));
+
+    //adjustTableSize();
+    connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
+            this,SLOT(tabColWidthResized(int,int,int)));
+    connect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
+                   this,SLOT(tabRowHeightResized(int,int,int)));
     ui->tview->setItemDelegate(delegate);
-    if(!pzMgr->isOpened() && !pzMgr->open(y,m))
-        QMessageBox::warning(this,msgTitle_warning,tr("凭证集未打开"));
-    else{
-        ui->edtPzCount->setText(QString::number(pzMgr->getPzCount()));
-        //显示本期汇率
-        pzMgr->getRates(rates);
-        if(rates.isEmpty()){
-            QMessageBox::warning(this,msgTitle_warning,tr("本期汇率未设值"));
-            return;
-        }
-        QHash<int, Money*> mts = account->getAllMoneys();
-        mts.remove(account->getMasterMt()->code());  //移除本币
-        QHashIterator<int,Double> it(rates);
-        QVariant v;
-        while(it.hasNext()){
-            it.next();
-            Money* mt = mts.value(it.key());
-            v.setValue<Money*>(mt);
-            ui->cmbMt->addItem(mt->name(),v);
-        }
-        ui->cmbMt->setCurrentIndex(0);
-        connect(ui->cmbMt,SIGNAL(currentIndexChanged(int)),
-                this,SLOT(moneyTypeChanged(int)));
-        moneyTypeChanged(0);
-        curPz = pzMgr->first();
-        //curPz = pzMgr->getCurPz();
-        refreshPzContent();
-
-        //connect(delegate,SIGNAL(updateSndSubject(int,int,SecondSubject*)),
-        //        this,SLOT(updateSndSubject(int,int,SecondSubject*)));
-        connect(delegate,SIGNAL(crtNewNameItemMapping(int,int,FirstSubject*,SubjectNameItem*,SecondSubject*&)),
-                this,SLOT(creatNewNameItemMapping(int,int,FirstSubject*,SubjectNameItem*,SecondSubject*&)));
-        connect(delegate,SIGNAL(crtNewSndSubject(int,int,FirstSubject*,SecondSubject*&,QString)),
-                this,SLOT(creatNewSndSubject(int,int,FirstSubject*,SecondSubject*&,QString)));
-        connect(ui->tview,SIGNAL(currentCellChanged(int,int,int,int)),
-                this,SLOT(currentCellChanged(int,int,int,int)));
-        //connect(delegate,SIGNAL(moveNextRow(int)),this,SLOT(moveToNextBa(int)));
-
-        //adjustTableSize();
-        connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
-                this,SLOT(tabColWidthResized(int,int,int)));
-        connect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
-                       this,SLOT(tabRowHeightResized(int,int,int)));
-    }
     connect(ui->tview,SIGNAL(itemSelectionChanged()),this,SLOT(selectedRowChanged()));
     connect(pzMgr,SIGNAL(currentPzChanged(PingZheng*,PingZheng*)),this,SLOT(curPzChanged(PingZheng*,PingZheng*)));
+    setMonth(month);
 }
 
 PzDialog::~PzDialog()
@@ -415,6 +387,41 @@ QByteArray *PzDialog::getState()
     out<<states.colValueWidth;
     bf.close();
     return info;
+}
+
+/**
+ * @brief 设置要打开编辑的凭证集的月份数
+ * @param month
+ */
+void PzDialog::setMonth(int month)
+{
+    if(!pzMgr->open(month)){
+        QMessageBox::critical(this,tr("出错信息"),tr("打开%1年%2月凭证集时发生错误！"));
+        return;
+    }
+    ui->edtPzCount->setText(QString::number(pzMgr->getPzCount()));
+    //显示本期汇率
+    pzMgr->getRates(rates,month);
+    if(rates.isEmpty()){
+        QMessageBox::warning(this,msgTitle_warning,tr("本期汇率未设值"));
+        return;
+    }
+    QHash<int, Money*> mts = account->getAllMoneys();
+    mts.remove(account->getMasterMt()->code());  //移除本币
+    QHashIterator<int,Double> it(rates);
+    QVariant v;
+    while(it.hasNext()){
+        it.next();
+        Money* mt = mts.value(it.key());
+        v.setValue<Money*>(mt);
+        ui->cmbMt->addItem(mt->name(),v);
+    }
+    ui->cmbMt->setCurrentIndex(0);
+    connect(ui->cmbMt,SIGNAL(currentIndexChanged(int)),
+            this,SLOT(moneyTypeChanged(int)));
+    moneyTypeChanged(0);
+    curPz = pzMgr->first();
+    refreshPzContent();
 }
 
 /**
@@ -682,7 +689,7 @@ bool PzDialog::crtJzsyPz()
     QHash<int,Double> sRates,eRates;
     int y=pzMgr->year();
     int m=pzMgr->month();
-    if(!pzMgr->getRates(sRates,y,m))
+    if(!pzMgr->getRates(sRates,m))
         return false;
     if(m == 12){
         y++;
@@ -691,7 +698,7 @@ bool PzDialog::crtJzsyPz()
     else{
         m++;
     }
-    if(!pzMgr->getRates(eRates,y,m))
+    if(!pzMgr->getRates(eRates,m))
         return false;
 
     if(eRates.empty()){
@@ -701,7 +708,7 @@ bool PzDialog::crtJzsyPz()
         if(!ok)
             return true;
         eRates[USD] = Double(rate);
-        if(!pzMgr->setRates(eRates,y,m))
+        if(!pzMgr->setRates(eRates,m))
             return false;
     }
     //汇率不等，则检查是否执行了结转汇兑损益
@@ -1007,7 +1014,7 @@ void PzDialog::processShortcut()
 void PzDialog::save()
 {
     //LOG_INFO("shortcut save is actived!");
-    pzMgr->save(PzSetMgr::SW_ALL);
+    pzMgr->save(AccountSuiteManager::SW_ALL);
 }
 
 void PzDialog::setPzState(PzState state)

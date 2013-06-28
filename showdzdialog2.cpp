@@ -19,7 +19,8 @@ ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent
     policy.setHorizontalStretch(QSizePolicy::Maximum);
     ui->tview->setSizePolicy(policy);
 
-    smg = account->getSubjectManager();
+    curSuite = account->getCurSuite();
+    smg = account->getSubjectManager(curSuite->subSys);
     allMts = account->getAllMoneys();
     mmtObj = account->getMasterMt();
     ui->pbr->setVisible(false);
@@ -56,9 +57,13 @@ ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent
     scom = new SubjectComplete(SndSubject);
     ui->cmbSsub->setCompleter(scom);
 
-    ui->startDate->setMinimumDate(account->getStartDate());
-    ui->startDate->setMaximumDate(account->getEndDate());
-    ui->endDate->setMaximumDate(account->getEndDate());
+    QDate sd = QDate(curSuite->year,curSuite->startMonth,1);
+    QDate ed = QDate(curSuite->year,curSuite->endMonth,1);
+    ed.setDate(ed.year(),ed.month(),ed.daysInMonth());
+    ui->startDate->setMinimumDate(sd);
+    ui->startDate->setMaximumDate(ed);
+    ui->endDate->setMinimumDate(sd);
+    ui->endDate->setMaximumDate(ed);
 
     //初始化货币代码列表，并使它们以一致的顺序显示
     mts = allMts.keys();
@@ -84,7 +89,8 @@ ShowDZDialog2::~ShowDZDialog2()
     //delete fcom;  //会崩溃
     //delete scom;
     delete ui;
-    if(!account->getDbUtil()->saveDetViewFilter(filters))
+    //在直接关闭应用的情况下会导致崩溃（因为account对象已被卸载）
+    if(account && !account->getDbUtil()->saveDetViewFilter(filters))
         QMessageBox::critical(this,tr("出错信息"),tr("保存历史过滤条件时出错！"));
     qDeleteAll(filters);
 }
@@ -688,12 +694,13 @@ void ShowDZDialog2::refreshTalbe()
  */
 void ShowDZDialog2::readFilters()
 {
-    if(!account->getDbUtil()->getDetViewFilters(filters))
+    if(!account->getDbUtil()->getDetViewFilters(curSuite->id, filters))
         QMessageBox::critical(this,tr("出错信息"),tr("读取明细账的历史过滤条件时出错"));
     if(filters.isEmpty()){
         curFilter = new DVFilterRecord;
         curFilter->editState = CIES_NEW;
         curFilter->id = 0;
+        curFilter->suiteId = curSuite->id;
         curFilter->isDef = true;
         curFilter->isFst = true;
         curFilter->isCur = true;
@@ -701,8 +708,9 @@ void ShowDZDialog2::readFilters()
         curFilter->curSSub = 0;
         curFilter->curMt = account->getMasterMt()->code();
         curFilter->name = tr("默认");
-        curFilter->startDate = account->getStartDate();
-        curFilter->endDate = account->getEndDate();
+        curFilter->startDate = QDate(curSuite->year,curSuite->startMonth,1);
+        curFilter->endDate = QDate(curSuite->year,curSuite->endMonth,1);
+        curFilter->endDate.setDate(curSuite->year,curSuite->endMonth,curFilter->endDate.daysInMonth());
         filters<<curFilter;
         if(!account->getDbUtil()->saveDetViewFilter(filters))
             QMessageBox::critical(this,tr("出错信息"),tr("在保存明细账的默认历史过滤条件时出错"));
@@ -2458,6 +2466,7 @@ void ShowDZDialog2::on_btnSaveAs_clicked()
     DVFilterRecord* fr = new DVFilterRecord;
     fr->id = 0;
     fr->editState = CIES_NEW;
+    fr->suiteId = curSuite->id;
     fr->isCur = true;
     fr->isDef = false;
     fr->isFst = curFilter->isFst;

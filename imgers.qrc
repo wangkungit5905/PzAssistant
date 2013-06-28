@@ -75,5 +75,7 @@
         <file>images/accProperty/reportInfo.png</file>
         <file>images/accProperty/subjectInfo.png</file>
         <file>images/accProperty/suiteInfo.png</file>
+        <file>images/accSuite.png</file>
+        <file>images/accSuiteSelected.png</file>
     </qresource>
 </RCC>

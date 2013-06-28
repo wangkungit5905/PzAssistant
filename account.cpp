@@ -22,7 +22,7 @@ Account::Account(QString fname, QObject *parent):QObject(parent)
     accInfos.fileName = fname;
     if(!init())
         QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("账户在初始化时发生错误！"));
-    pzSetMgr = new PzSetMgr(this,curUser);
+    //pzSetMgr = new PzSetMgr(this,curUser);
 }
 
 Account::~Account()
@@ -77,7 +77,7 @@ QString Account::getWaiMtStr()
  */
 QDate Account::getStartDate()
 {
-    AccountSuiteRecord* asr = accInfos.suites.first();
+    AccountSuiteRecord* asr = suiteRecords.first();
     return QDate(asr->year,asr->startMonth,1);
 }
 
@@ -88,7 +88,7 @@ QDate Account::getStartDate()
  */
 QDate Account::getEndDate()
 {
-    AccountSuiteRecord* asr = accInfos.suites.last();
+    AccountSuiteRecord* asr = suiteRecords.last();
     QDate d = QDate(asr->year,asr->endMonth,1);
     d.setDate(asr->year,asr->endMonth,d.daysInMonth());
     return d;
@@ -101,7 +101,7 @@ QDate Account::getEndDate()
  */
 void Account::setEndTime(QDate date)
 {
-    AccountSuiteRecord* asr = accInfos.suites.last();
+    AccountSuiteRecord* asr = suiteRecords.last();
     if(asr->year == date.year())
         asr->endMonth = date.month();
 }
@@ -115,58 +115,54 @@ void Account::setEndTime(QDate date)
  * @param curMonth  帐套最近打开凭证集所属月份
  * @param subSys    帐套采用的科目系统代码
  */
-void Account::appendSuite(int y, QString name, int curMonth,int subSys)
+AccountSuiteRecord* Account::appendSuite(int y, QString name, int subSys)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
-        if(as->year == y){
-            as->name = name;
-            as->recentMonth = curMonth;
-            as->subSys = subSys;
-            as->isCur = true;
-            return;
-        }
-        else
-            as->isCur = false;
+    foreach(AccountSuiteRecord* as, suiteRecords){
+        if(as->year == y)
+            return NULL;
     }
     AccountSuiteRecord* as = new AccountSuiteRecord;
     as->id = 0; as->year = y; as->name = name;
-    as->isCur = true; as->recentMonth = curMonth;
+    as->isClosed = false; as->recentMonth = 1;
     as->startMonth = 1; as->endMonth = 1;as->subSys = subSys;
+    as->isCur = false;
     int i = 0;
-    while(i < accInfos.suites.count() && y > accInfos.suites.at(i)->year)
+    while(i < suiteRecords.count() && y > suiteRecords.at(i)->year)
         i++;
-    accInfos.suites.insert(i,as);
+    suiteRecords.insert(i,as);
+    return as;
 }
 
 void Account::setSuiteName(int y, QString name)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, suiteRecords){
         if(as->year == y)
             as->name = name;
     }
 }
 
+//考虑移除（制作打开凭证集对话框类和老的账户属性配置中被使用）
 QList<int> Account::getSuites()
 {
     QList<int> ys;
-    for(int i = 0; i < accInfos.suites.count(); ++i)
-        ys<<accInfos.suites.at(i)->year;
+    for(int i = 0; i < suiteRecords.count(); ++i)
+        ys<<suiteRecords.at(i)->year;
     return ys;
 }
 
 /**
  * @brief Account::getCurSuite
- *  获取最近打开的帐套
+ *  获取当前帐套
  * @return
  */
- Account::AccountSuiteRecord* Account::getCurSuite()
+AccountSuiteRecord* Account::getCurSuite()
  {
-     foreach(AccountSuiteRecord* as, accInfos.suites)
+     foreach(AccountSuiteRecord* as, suiteRecords)
          if(as->isCur)
              return as;
-     if(!accInfos.suites.empty()){
-         accInfos.suites.last()->isCur = true;
-         return accInfos.suites.last();
+     if(!suiteRecords.empty()){
+         suiteRecords.last()->isCur = true;
+         return suiteRecords.last();
      }
      return NULL;
  }
@@ -177,9 +173,9 @@ QList<int> Account::getSuites()
   * @param y
   * @return
   */
- Account::AccountSuiteRecord *Account::getSuite(int y)
+ AccountSuiteRecord *Account::getSuite(int y)
  {
-     foreach(AccountSuiteRecord* as, accInfos.suites){
+     foreach(AccountSuiteRecord* as, suiteRecords){
          if(as->year == y){
              return as;
          }
@@ -194,7 +190,7 @@ QList<int> Account::getSuites()
  */
 void Account::setCurSuite(int y)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, suiteRecords){
         if(as->year == y)
             as->isCur = true;
         else
@@ -202,6 +198,11 @@ void Account::setCurSuite(int y)
     }
 }
 
+/**
+ * @brief 删除账套亦将账套的凭证及其其他相关的信息都删除，而且与其承上启下的账套都将受到影响，
+ *  因此，必须严格斟酌是否有必要提供此函数
+ * @param y
+ */
 void Account::delSuite(int y)
 {
 //    foreach(AccountSuite* as, accInfos.suites){
@@ -228,16 +229,16 @@ void Account::delSuite(int y)
  */
 QString Account::getSuiteName(int y)
 {
-    for(int i = 0; i < accInfos.suites.count(); ++i){
-        if(y == accInfos.suites.at(i)->year)
-            return accInfos.suites.at(i)->name;
+    for(int i = 0; i < suiteRecords.count(); ++i){
+        if(y == suiteRecords.at(i)->year)
+            return suiteRecords.at(i)->name;
     }
 }
 
 //获取当前帐套的起始月份
 int Account::getSuiteFirstMonth(int y)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, suiteRecords){
         if(as->year == y)
             return as->startMonth;
     }
@@ -247,7 +248,7 @@ int Account::getSuiteFirstMonth(int y)
 //获取当前帐套的结束月份
 int Account::getSuiteLastMonth(int y)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, suiteRecords){
         if(as->year == y)
             return as->endMonth;
     }
@@ -258,13 +259,23 @@ int Account::getSuiteLastMonth(int y)
  * @brief Account::setCurMonth
  *  设置当前帐套的当前打开的凭证集的月份
  * @param m
+ * @param y
  */
-void Account::setCurMonth(int m)
+void Account::setCurMonth(int m, int y)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
-        if(as->isCur)
-            as->recentMonth = m;
+    if(y == 0){
+        foreach(AccountSuiteRecord* as, suiteRecords){
+            if(as->isCur)
+                as->recentMonth = m;
+        }
     }
+    else{
+        foreach(AccountSuiteRecord* as, suiteRecords){
+            if(as->year == y)
+                as->recentMonth = m;
+        }
+    }
+
 }
 
 /**
@@ -272,16 +283,24 @@ void Account::setCurMonth(int m)
  *  获取当前帐套的最近打开凭证集的月份
  * @return
  */
-int Account::getCurMonth()
+int Account::getCurMonth(int y)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
-        if(as->isCur)
-            return as->recentMonth;
+    if(y == 0){
+        foreach(AccountSuiteRecord* as, suiteRecords){
+            if(as->isCur)
+                return as->recentMonth;
+        }
+    }
+    else{
+        foreach(AccountSuiteRecord* as, suiteRecords){
+            if(as->year == y)
+                return as->recentMonth;
+        }
     }
     return 0;
 }
 
-bool Account::saveSuite(Account::AccountSuiteRecord *as)
+bool Account::saveSuite(AccountSuiteRecord *as)
 {
     return dbUtil->saveSuite(as);
 }
@@ -289,9 +308,9 @@ bool Account::saveSuite(Account::AccountSuiteRecord *as)
 //获取账户期初年份（即开始记账的前一个月所处的年份）
 int Account::getBaseYear()
 {
-    if(accInfos.suites.isEmpty())
+    if(suiteRecords.isEmpty())
         return 0;
-    AccountSuiteRecord* asr = accInfos.suites.first();
+    AccountSuiteRecord* asr = suiteRecords.first();
     if(asr->startMonth == 1)
         return asr->year-1;
     else
@@ -301,9 +320,9 @@ int Account::getBaseYear()
 //获取账户期初月份
 int Account::getBaseMonth()
 {
-    if(accInfos.suites.isEmpty())
+    if(suiteRecords.isEmpty())
         return 0;
-    AccountSuiteRecord* asr = accInfos.suites.last();
+    AccountSuiteRecord* asr = suiteRecords.last();
     if(asr->startMonth == 1)
         return 12;
     else
@@ -323,6 +342,34 @@ void Account::getVersion(int &mv, int &sv)
     sv = sl.last().toInt();
 }
 
+/**
+ * @brief 返回指定的帐套管理对象
+ * @param suiteId   帐套id，如果为0，则返回当前帐套
+ * @return
+ */
+AccountSuiteManager *Account::getPzSet(int suiteId)
+{
+    if(suiteRecords.isEmpty())
+        return NULL;
+    if(suiteId == 0){
+        foreach(AccountSuiteRecord* asr, suiteRecords){
+            if(asr->isCur){
+                suiteHash[asr->id] = new AccountSuiteManager(asr,this);
+                return suiteHash.value(asr->id);
+            }
+        }
+    }
+    if(!suiteHash.contains(suiteId)){
+        foreach(AccountSuiteRecord* asr, suiteRecords){
+            if(asr->id == suiteId){
+                suiteHash[suiteId] = new AccountSuiteManager(asr,this);
+                return suiteHash.value(suiteId);
+            }
+        }
+    }
+    return suiteHash.value(suiteId);
+}
+
 
 //获取凭证集对象
 //PzSetMgr* Account::getPzSet()
@@ -337,8 +384,8 @@ void Account::getVersion(int &mv, int &sv)
 //关闭凭证集
 void Account::colsePzSet()
 {
-    pzSetMgr->close();
-    pzSetMgr = NULL;
+    //pzSetMgr->close();
+    //pzSetMgr = NULL;
 }
 
 /**
@@ -521,7 +568,11 @@ bool Account::init()
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Account info init happen error!"));
         ok = false;
-    }    
+    }
+    if(ok && !dbUtil->initSuites(suiteRecords))    {
+        LOG_ERROR("Initial account suite happen error!");
+        ok = false;
+    }
     if(ok && !dbUtil->initNameItems()){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Name items init happen error!"));
@@ -546,7 +597,7 @@ bool Account::init()
 //获取帐套内凭证集的开始、结束月份
 bool Account::getSuiteMonthRange(int y,int& sm, int &em)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, suiteRecords){
         if(as->year == y){
             sm = as->startMonth;
             em = as->endMonth;
@@ -558,7 +609,7 @@ bool Account::getSuiteMonthRange(int y,int& sm, int &em)
 
 bool Account::containSuite(int y)
 {
-    foreach(AccountSuiteRecord* as, accInfos.suites){
+    foreach(AccountSuiteRecord* as, suiteRecords){
         if(as->year == y)
             return true;
     }
@@ -593,13 +644,13 @@ void Account::delLogs(QDateTime start, QDateTime end)
 }
 
 ////////////////////////////////////////////////////////////////
-bool byAccountSuiteThan(Account::AccountSuiteRecord *as1, Account::AccountSuiteRecord *as2)
+bool byAccountSuiteThan(AccountSuiteRecord *as1, AccountSuiteRecord *as2)
 {
     return as1->year < as2->year;
 }
 
 
-bool Account::AccountSuiteRecord::operator !=(const AccountSuiteRecord& other)
+bool AccountSuiteRecord::operator !=(const AccountSuiteRecord& other)
 {
     if(year != other.year)
         return true;
@@ -609,7 +660,7 @@ bool Account::AccountSuiteRecord::operator !=(const AccountSuiteRecord& other)
         return true;
     else if(name != other.name)
         return true;
-    else if(isCur != other.isCur)
+    else if(isClosed != other.isClosed)
         return true;
     return false;
 }

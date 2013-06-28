@@ -195,8 +195,9 @@ void OpenPzDialog::on_chkNew_clicked(bool checked)
 void OpenPzDialog::on_btnOk_clicked()
 {
     if(ui.chkNew->isChecked()){
-        if(!account->containSuite(y))
-            account->appendSuite(y,ui.cmbSuites->currentText());
+        //appendSuite函数已修改，不适合在这里调用
+        //if(!account->containSuite(y))
+        //    account->appendSuite(y,ui.cmbSuites->currentText());
         QDate endDate = QDate(y,m,1);
         endDate.setYMD(y,m,endDate.daysInMonth());
         account->setEndTime(endDate);
@@ -212,7 +213,7 @@ void OpenPzDialog::on_btnOk_clicked()
         curAccount->setRates(y,m,rates);
     }
     account->setCurSuite(y);
-    account->setCurMonth(m);
+    account->setCurMonth(m,y);
     accept();
 }
 

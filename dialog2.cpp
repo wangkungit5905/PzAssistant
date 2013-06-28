@@ -1280,7 +1280,7 @@ void ViewExtraDialog::initHashs()
 
 
 ////////////////////////PrintSelectDialog////////////////////////////////////
-PrintSelectDialog::PrintSelectDialog(PzSetMgr *pzMgr, QWidget *parent) :
+PrintSelectDialog::PrintSelectDialog(AccountSuiteManager *pzMgr, QWidget *parent) :
     QDialog(parent),ui(new Ui::PrintSelectDialog),pzMgr(pzMgr)
 {
     ui->setupUi(this);
@@ -2001,14 +2001,14 @@ void SetupBaseDialog2::on_btnOk_clicked()
 {
     if(isDirty)
         on_btnSave_clicked();
-    emit dialogClosed(MainWindow::SETUPBASE);
+    //emit dialogClosed(MainWindow::SETUPBASE);
     //close();
 }
 
 //取消按钮
 void SetupBaseDialog2::on_btnCancel_clicked()
 {
-    emit dialogClosed(MainWindow::SETUPBASE);
+    //emit dialogClosed(MainWindow::SETUPBASE);
 }
 
 //选择一个外币，显示与该外币对应的汇率

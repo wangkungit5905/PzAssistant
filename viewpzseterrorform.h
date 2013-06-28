@@ -3,12 +3,14 @@
 
 #include <QDialog>
 #include <QThread>
+#include <QByteArray>
 
 #include "commdatastruct.h"
 
 class Account;
 class SubjectManager;
-class PzSetMgr;
+class AccountSuiteManager;
+
 
 namespace Ui {
 class ViewPzSetErrorForm;
@@ -43,9 +45,12 @@ class ViewPzSetErrorForm : public QDialog
     Q_OBJECT
     
 public:
-    explicit ViewPzSetErrorForm(PzSetMgr* pzMgr, QWidget *parent = 0);
+    explicit ViewPzSetErrorForm(AccountSuiteManager* pzMgr, QByteArray* state = NULL, QWidget *parent = 0);
     ~ViewPzSetErrorForm();
     //void setErrors(QList<PingZhengError*> es);
+    void setState(QByteArray* state){}
+    QByteArray* getState(){return NULL;}
+    void inspect();
 
 private slots:
     void doubleClicked(int row, int column);
@@ -67,7 +72,7 @@ private:
     int curLevel;
     //InspectPzErrorThread* t;
     Account *account;
-    PzSetMgr* pzMgr;
+    AccountSuiteManager* pzMgr;
 };
 
 #endif // VIEWPZSETERRORFORM_H

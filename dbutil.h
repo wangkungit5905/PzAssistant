@@ -65,11 +65,12 @@ public:
     //账户信息相关
     bool readAccBriefInfo(AccountBriefInfo& info);
     bool initAccount(Account::AccountInfo &infos);
+    bool initSuites(QList<AccountSuiteRecord*> &suites);
     bool saveAccountInfo(Account::AccountInfo &infos);
 
     //帐套相关
-    bool saveSuites(QList<Account::AccountSuiteRecord *> &suites);
-    bool saveSuite(Account::AccountSuiteRecord* suite);
+    bool saveSuites(QList<AccountSuiteRecord *> &suites);
+    bool saveSuite(AccountSuiteRecord* suite);
 
     //科目相关
     bool initNameItems();
@@ -112,7 +113,7 @@ public:
                                       const QHash<int, Double>& ssums);
 
     //日记账
-    bool getDetViewFilters(QList<DVFilterRecord*>& rs);
+    bool getDetViewFilters(int suiteId, QList<DVFilterRecord*>& rs);
     bool saveDetViewFilter(const QList<DVFilterRecord *> &dvf);
     bool getDailyAccount2(QHash<int,SubjectManager*> smgs, QDate sd, QDate ed, int fid, int sid, int mt,
                             Double& prev, int& preDir,
@@ -141,7 +142,7 @@ public:
     bool getExtraState(int y, int m);
     bool getRates(int y, int m, QHash<int,Double>& rates);
     bool saveRates(int y,int m, QHash<int,Double>& rates);
-    bool loadPzSet(int y, int m, QList<PingZheng*> &pzs, PzSetMgr *parent);
+    bool loadPzSet(int y, int m, QList<PingZheng*> &pzs, AccountSuiteManager *parent);
     bool isContainPz(int y, int m, int pid);
     bool inspectJzPzExist(int y, int m, PzdClass pzCls, int& count);
 
@@ -152,7 +153,7 @@ public:
     bool clearExtras(int y, int m);
 
     //凭证相关
-    bool getPz(int pid, PingZheng*& pz, PzSetMgr *parent);
+    bool getPz(int pid, PingZheng*& pz, AccountSuiteManager *parent);
     bool savePingZhengs(QList<PingZheng*> pzs);
     bool savePingZheng(PingZheng* pz);
     bool delPingZhengs(QList<PingZheng*> pzs);
@@ -179,8 +180,8 @@ public:
 
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
-    bool _readAccountSuites(QList<Account::AccountSuiteRecord*>& suites);
-    bool _saveAccountSuite(Account::AccountSuiteRecord* suite);
+    bool _readAccountSuites(QList<AccountSuiteRecord*>& suites);
+    bool _saveAccountSuite(AccountSuiteRecord* suite);
 
     //科目相关
     bool _saveFirstSubject(FirstSubject* sub);

@@ -213,6 +213,7 @@ private:
 
     QAction* actMoveTo;  //转到该凭证的QAction
     Account* account;
+    AccountSuiteRecord* curSuite; //当前帐套
     SubjectManager* smg;
     QHash<int,Money*> allMts;
 

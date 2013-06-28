@@ -1,4 +1,5 @@
 #include "accountpropertyconfig.h"
+#include "account.h"
 #include "config.h"
 #include "subject.h"
 #include "dbutil.h"
@@ -52,7 +53,7 @@ void ApcSuite::init()
     }
 
     QListWidgetItem* item;
-    foreach(Account::AccountSuiteRecord* as, suites){
+    foreach(AccountSuiteRecord* as, suites){
         item = new QListWidgetItem(as->name);
         ui->lw->addItem(item);
     }
@@ -67,13 +68,13 @@ void ApcSuite::init()
 void ApcSuite::curSuiteChanged(int index)
 {
     if(index > -1){
-        Account::AccountSuiteRecord* as = suites.at(index);
+        AccountSuiteRecord* as = suites.at(index);
         ui->name->setText(as->name);
         ui->year->setValue(as->year);
         ui->smonth->setValue(as->startMonth);
         ui->emonth->setValue(as->endMonth);
         ui->rmonth->setValue(as->recentMonth);
-        ui->isCur->setChecked(as->isCur);
+        ui->isCur->setChecked(as->isClosed);
         ui->isUsed->setChecked(as->isUsed);
         ui->subSys->setCurrentIndex(ui->subSys->findData(as->subSys));
         ui->btnEdit->setEnabled(true);
@@ -100,7 +101,7 @@ void ApcSuite::suiteDbClicked(QListWidgetItem *item)
 
 void ApcSuite::on_btnNew_clicked()
 {
-    Account::AccountSuiteRecord* as = new Account::AccountSuiteRecord;
+    AccountSuiteRecord* as = new AccountSuiteRecord;
     as->id = UNID;
     if(suites.isEmpty()){
         as->year = account->getStartDate().year();
@@ -114,7 +115,7 @@ void ApcSuite::on_btnNew_clicked()
     as->startMonth = 1;
     as->endMonth = 1;
     as->recentMonth = 1;
-    as->isCur = false;
+    as->isClosed = false;
     as->isUsed = false;
     suites<<as;
     QListWidgetItem* item = new QListWidgetItem(as->name);
@@ -156,7 +157,7 @@ void ApcSuite::on_btnEdit_clicked()
 void ApcSuite::on_btnUsed_clicked()
 {
     int row = ui->lw->currentRow();
-    Account::AccountSuiteRecord* as = suites.at(row);
+    AccountSuiteRecord* as = suites.at(row);
     int dc = as->subSys;
     int sc = dc;
     if(row > 1)
@@ -206,7 +207,7 @@ void ApcSuite::on_btnCommit_clicked()
 {
     if(editAction == EA_NONE)
         return;
-    Account::AccountSuiteRecord* as = suites.at(ui->lw->currentRow());
+    AccountSuiteRecord* as = suites.at(ui->lw->currentRow());
     if(as->name != ui->name->text())
         ui->lw->currentItem()->setText(ui->name->text());
     as->name = ui->name->text();

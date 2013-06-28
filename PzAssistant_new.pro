@@ -66,7 +66,8 @@ SOURCES += main.cpp\
     delegates.cpp \
     widgets/variousWidgets.cpp \
     statements.cpp \
-    accountpropertyconfig.cpp
+    accountpropertyconfig.cpp \
+    suiteswitchpanel.cpp
 
 HEADERS  += \
     connection.h \
@@ -128,7 +129,8 @@ HEADERS  += \
     delegates.h \
     widgets/variousWidgets.h \
     accountpropertyconfig.h \
-    configvariablenames.h
+    configvariablenames.h \
+    suiteswitchpanel.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -193,7 +195,8 @@ FORMS    += \
     forms/apcreport.ui \
     forms/apclog.ui \
     forms/historypzform.ui \
-    forms/subsysjoincfgform.ui
+    forms/subsysjoincfgform.ui \
+    forms/suiteswitchpanel.ui
 
 RESOURCES += \
     imgers.qrc \

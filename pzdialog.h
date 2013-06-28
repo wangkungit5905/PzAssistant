@@ -107,10 +107,11 @@ public:
         qint16 colValueWidth;   //金额列列宽
     };
 
-    explicit PzDialog(int y, int m, PzSetMgr* psm, QByteArray* sinfo, QWidget *parent = NULL);
+    explicit PzDialog(int month, AccountSuiteManager* psm, QByteArray* sinfo, QWidget *parent = NULL);
     ~PzDialog();
     void setState(QByteArray* info);
     QByteArray* getState();
+    void setMonth(int month);
 
     void setReadonly();
     bool isDirty();
@@ -256,7 +257,7 @@ private:
     Ui::pzDialog *ui;
     Account* account;            //账户对象
     SubjectManager* subMgr;      //科目管理对象
-    PzSetMgr* pzMgr;             //凭证集
+    AccountSuiteManager* pzMgr;             //凭证集
     PingZheng* curPz;            //当前凭证
     BusiAction* curBa;           //当前会计分录
     int curRow;                  //当前选定的会计分录行号

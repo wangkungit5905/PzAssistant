@@ -484,8 +484,8 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
 //    }
 
     //读取账户的帐套信息
-    if(!_readAccountSuites(infos.suites))
-        return false;
+    //if(!_readAccountSuites(infos.suiteHash))
+    //    return false;
     //完善帐套的起止月份
 //    Account::AccountSuiteRecord* asr;
 //    asr = infos.suites.first();
@@ -501,6 +501,16 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
 //        }
 //    }
     return true;
+}
+
+/**
+ * @brief 初始化帐套信息
+ * @param suites
+ * @return
+ */
+bool DbUtil::initSuites(QList<AccountSuiteRecord *> &suites)
+{
+    return _readAccountSuites(suites);
 }
 
 /**
@@ -557,18 +567,18 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
 //        changed = false;
 //    }
     //保存帐套名表
-    if(!saveSuites(infos.suites))
-        return false;
+    //if(!saveSuites(infos.suiteHash))
+    //    return false;
     return true;
 }
 
-bool DbUtil::saveSuites(QList<Account::AccountSuiteRecord *> &suites)
+bool DbUtil::saveSuites(QList<AccountSuiteRecord *> &suites)
 {
     if(!db.transaction()){
         LOG_SQLERROR("Start transaction failed on save Account suites!");
         return false;
     }
-    foreach(Account::AccountSuiteRecord* as, suites){
+    foreach(AccountSuiteRecord* as, suites){
         if(!_saveAccountSuite(as))
             return false;
     }
@@ -581,7 +591,7 @@ bool DbUtil::saveSuites(QList<Account::AccountSuiteRecord *> &suites)
     }
 }
 
-bool DbUtil::saveSuite(Account::AccountSuiteRecord *suite)
+bool DbUtil::saveSuite(AccountSuiteRecord *suite)
 {
     return _saveAccountSuite(suite);
 }
@@ -1386,7 +1396,7 @@ bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const
  * @param rs
  * @return
  */
-bool DbUtil::getDetViewFilters(QList<DVFilterRecord *> &rs)
+bool DbUtil::getDetViewFilters(int suiteId, QList<DVFilterRecord *> &rs)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_dvfilters);
@@ -1400,6 +1410,7 @@ bool DbUtil::getDetViewFilters(QList<DVFilterRecord *> &rs)
         r = new DVFilterRecord;
         r->editState = CIES_INIT;
         r->id = q.value(0).toInt();
+        r->suiteId = q.value(DVFS_SUITEID).toInt();
         r->isDef = q.value(DVFS_ISDEF).toBool();
         r->isCur = q.value(DVFS_ISCUR).toBool();
         r->isFst = q.value(DVFS_ISFST).toBool();
@@ -1439,19 +1450,19 @@ bool DbUtil::saveDetViewFilter(const QList<DVFilterRecord*>& dvfs)
         for(int i = 0; i < dvf->subIds.count(); ++i)
             subIds.append(QString::number(dvf->subIds.at(i)));
         if(dvf->editState == CIES_NEW)
-            s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11) "
-                        "values(%12,%13,%14,%15,%16,%17,'%18','%19','%20','%21')")
-                    .arg(tbl_dvfilters).arg(fld_dvfs_isDef).arg(fld_dvfs_isCur).arg(fld_dvfs_isFstSub)
-                    .arg(fld_dvfs_curFSub).arg(fld_dvfs_curSSub).arg(fld_dvfs_mt)
+            s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12) "
+                        "values(%13,%14,%15,%16,%17,%18,%19,'%20','%21','%22','%23')")
+                    .arg(tbl_dvfilters).arg(fld_dvfs_suite).arg(fld_dvfs_isDef).arg(fld_dvfs_isCur)
+                    .arg(fld_dvfs_isFstSub).arg(fld_dvfs_curFSub).arg(fld_dvfs_curSSub).arg(fld_dvfs_mt)
                     .arg(fld_dvfs_name).arg(fld_dvfs_startDate).arg(fld_dvfs_endDate)
-                    .arg(fld_dvfs_subIds).arg(dvf->isDef?1:0).arg(dvf->isCur?1:0)
+                    .arg(fld_dvfs_subIds).arg(dvf->suiteId).arg(dvf->isDef?1:0).arg(dvf->isCur?1:0)
                     .arg(dvf->isFst?1:0).arg(dvf->curFSub).arg(dvf->curSSub)
                     .arg(dvf->curMt).arg(dvf->name).arg(dvf->startDate.toString(Qt::ISODate))
                     .arg(dvf->endDate.toString(Qt::ISODate)).arg(subIds.join(","));
         else if(dvf->editState == CIES_CHANGED)
-            s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10=%11,%12=%13,%14='%15',"
-                        "%16='%17',%18='%19',%20='%21' where id=%22")
-                    .arg(tbl_dvfilters).arg(fld_dvfs_isDef).arg(dvf->isDef?1:0)
+            s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10=%11,%12=%13,%14=%15,"
+                        "%16='%17',%18='%19',%20='%21',%22='%23' where id=%24")
+                    .arg(tbl_dvfilters).arg(fld_dvfs_suite).arg(dvf->suiteId).arg(fld_dvfs_isDef).arg(dvf->isDef?1:0)
                     .arg(fld_dvfs_isCur).arg(dvf->isCur?1:0).arg(fld_dvfs_isFstSub)
                     .arg(dvf->isFst?1:0).arg(fld_dvfs_curFSub).arg(dvf->curFSub)
                     .arg(fld_dvfs_curSSub).arg(dvf->curSSub)
@@ -2101,7 +2112,7 @@ bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
  * @param pzs
  * @return
  */
-bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, PzSetMgr* parent)
+bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, AccountSuiteManager* parent)
 {
     QSqlQuery q(db),q1(db);
 
@@ -2477,7 +2488,7 @@ bool DbUtil::clearExtras(int y, int m)
  * @param pz
  * @return
  */
-bool DbUtil::getPz(int pid, PingZheng *&pz, PzSetMgr* parent)
+bool DbUtil::getPz(int pid, PingZheng *&pz, AccountSuiteManager* parent)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1 where id=%2").arg(tbl_pz).arg(pid);
@@ -3225,28 +3236,29 @@ bool DbUtil::saveAccInfoPiece(DbUtil::InfoField code, QString value)
  * @param suites
  * @return
  */
-bool DbUtil::_readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
+bool DbUtil::_readAccountSuites(QList<AccountSuiteRecord *> &suites)
 {
     //读取账户的帐套信息
     QSqlQuery q(db);
     QString s = QString("select * from %1 order by %2").arg(tbl_accSuites).arg(fld_accs_year);
     if(!q.exec(s))
         return false;
-    Account::AccountSuiteRecord* as;
+    AccountSuiteRecord* as;
     while(q.next()){
-        as = new Account::AccountSuiteRecord;
+        as = new AccountSuiteRecord;
         as->isUsed = false;
         as->id = q.value(0).toInt();
         as->year = q.value(ACCS_YEAR).toInt();
         as->subSys = q.value(ACCS_SUBSYS).toInt();
         as->recentMonth = q.value(ACCS_RECENTMONTH).toInt();
-        as->isCur = q.value(ACCS_ISCUR).toBool();
+        as->isCur = q.value(ACCS_ISCUR).toInt();
+        as->isClosed = q.value(ACCS_ISCLOSED).toBool();
         as->name = q.value(ACCS_NAME).toString();
         as->startMonth = q.value(ACCS_STARTMONTH).toInt();
         as->endMonth = q.value(ACCS_ENDMONTH).toInt();
         suites<<as;
     }
-    foreach(Account::AccountSuiteRecord* as, suites){
+    foreach(AccountSuiteRecord* as, suites){
         s = QString("select id from %1 where %2 like '%3%'")
                 .arg(tbl_pz).arg(fld_pz_date).arg(as->year);
         if(!q.exec(s)){
@@ -3265,7 +3277,7 @@ bool DbUtil::_readAccountSuites(QList<Account::AccountSuiteRecord *> &suites)
  * @param suites
  * @return
  */
-bool DbUtil::_saveAccountSuite(Account::AccountSuiteRecord *suite)
+bool DbUtil::_saveAccountSuite(AccountSuiteRecord *suite)
 {
     QString s;
     QSqlQuery q(db);
@@ -3273,15 +3285,15 @@ bool DbUtil::_saveAccountSuite(Account::AccountSuiteRecord *suite)
         s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(%9,%10,%11,%12,'%13',%14,%15)")
                 .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys).arg(fld_accs_isCur)
                 .arg(fld_accs_recentMonth).arg(fld_accs_name).arg(fld_accs_startMonth)
-                .arg(fld_accs_endMonth).arg(suite->year).arg(suite->subSys).arg(suite->isCur?1:0)
+                .arg(fld_accs_endMonth).arg(suite->year).arg(suite->subSys).arg(suite->isClosed?1:0)
                 .arg(suite->recentMonth).arg(suite->name).arg(suite->startMonth).arg(suite->endMonth);
     else
-        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10='%11',%12=%13,%14=%15 where id=%16")
+        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8=%9,%10='%11',%12=%13,%14=%15,%16=%17 where id=%18")
                 .arg(tbl_accSuites).arg(fld_accs_year).arg(suite->year)
                 .arg(fld_accs_subSys).arg(suite->subSys).arg(fld_accs_isCur).arg(suite->isCur?1:0)
                 .arg(fld_accs_recentMonth).arg(suite->recentMonth).arg(fld_accs_name).arg(suite->name)
                 .arg(fld_accs_startMonth).arg(suite->startMonth).arg(fld_accs_endMonth).arg(suite->endMonth)
-                .arg(suite->id);
+                .arg(fld_accs_isClosed).arg(suite->isClosed?1:0).arg(suite->id);
 
     if(!q.exec(s)){
         LOG_SQLERROR(s);

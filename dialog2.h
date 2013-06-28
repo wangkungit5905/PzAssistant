@@ -39,7 +39,7 @@ using namespace YExcel;
 #define FSTSUBTYPE QTreeWidgetItem::UserType+1  //放置一级科目的树节点的类型
 
 class PingZheng;
-class PzSetMgr;
+class AccountSuiteManager;
 class BASummaryForm : public QWidget
 {
     Q_OBJECT
@@ -188,7 +188,7 @@ class PrintSelectDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit PrintSelectDialog(PzSetMgr* pzMgr,QWidget *parent = 0);
+    explicit PrintSelectDialog(AccountSuiteManager* pzMgr,QWidget *parent = 0);
     ~PrintSelectDialog();
     void setPzSet(QSet<int> pznSet);
     void setCurPzn(int pzNum);
@@ -204,7 +204,7 @@ private:
 
     Ui::PrintSelectDialog *ui;
     QSet<int> pznSet;  //欲对应的凭证号码的集合
-    PzSetMgr* pzMgr;
+    AccountSuiteManager* pzMgr;
 };
 
 

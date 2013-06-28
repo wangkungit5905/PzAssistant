@@ -3,7 +3,8 @@
 
 #include <QDialog>
 #include <QStack>
-#include "account.h"
+
+#include "commdatastruct.h"
 
 #include "ui_apcbase.h"
 #include "ui_apcsuite.h"
@@ -21,6 +22,7 @@ class ApcBase;
 class Account;
 class QListWidget;
 class QStackedWidget;
+class SubjectManager;
 class FirstSubject;
 class SecondSubject;
 
@@ -70,7 +72,7 @@ private:
 
     Ui::ApcSuite *ui;
     Account* account;
-    QList<Account::AccountSuiteRecord*> suites;
+    QList<AccountSuiteRecord*> suites;
     EditActionEnum editAction;
     QStack<QString> stack_s;
     QStack<int> stack_i;
@@ -288,6 +290,8 @@ class AccountPropertyConfig : public QDialog
 public:
     explicit AccountPropertyConfig(Account* account, QWidget *parent = 0);
     ~AccountPropertyConfig();
+    QByteArray* getState(){return NULL;}
+    void setState(QByteArray* state){}
     
 private slots:
     void pageChanged(int index);

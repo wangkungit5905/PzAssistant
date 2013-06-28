@@ -443,7 +443,7 @@ void CurStatDialog::initHashs()
 //        }
 //    }
 
-    PzsState pzsState = account->getPzSet()->getState(y,m);
+    PzsState pzsState = account->getPzSet(account->getSuite(statUtil->year())->id)->getState(m);
     ui->lblPzsState->setText(pzsStates.value(pzsState));
     ui->lblPzsState->setToolTip(pzsStateDescs.value(pzsState));
 
@@ -567,7 +567,7 @@ void CurStatDialog::viewTable()
         return;
     }
     //应根据凭证集的状态和当前选择的科目的范围来决定保存按钮是否启用
-    PzsState state = account->getPzSet()->getState(statUtil->year(),statUtil->month());
+    PzsState state = account->getPzSet(account->getSuite(statUtil->year())->id)->getState(statUtil->month());
     isCanSave = (state == Ps_AllVerified);
     ui->btnSave->setEnabled(!fsub && !ssub && isCanSave);
 }

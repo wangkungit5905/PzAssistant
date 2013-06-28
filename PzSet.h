@@ -13,11 +13,14 @@ class Account;
 class StatUtil;
 class QUndoStack;
 class FirstSubject;
+class SubjectManager;
 
 const int MAXUNDOSTACK = 100;    //Undo栈的最大容量
 
-//凭证集管理类
-class PzSetMgr : public QObject
+/**
+ * @brief 帐套管理类，用于管理该帐套内所有的凭证集
+ */
+class AccountSuiteManager : public QObject
 {
     Q_OBJECT
 public:
@@ -28,26 +31,29 @@ public:
         SW_STATE = 3    //凭证集状态和余额状态
     };
 
-    PzSetMgr(Account* account,User* user = NULL,QObject* parent = 0);
-    ~PzSetMgr();
+    AccountSuiteManager(AccountSuiteRecord* as, Account* account,User* user = NULL,QObject* parent = 0);
+    ~AccountSuiteManager();
     Account* getAccount(){return account;}
-    bool open(int y, int m);
+    AccountSuiteRecord* getSuiteRecord(){return suiteRecord;}
+    SubjectManager* getSubjectManager();
+    bool open(int m);
     bool isOpened();
     bool isDirty();
     void close();
+    int newPzSet();
     StatUtil &getStatObj();
     QUndoStack* getUndoStack(){return undoStack;}
     PingZheng* getCurPz(){return curPz;}
 
-    int year(){return curY;}
-    int month(){return curM;}
+    int year(){return suiteRecord->year;}
+    int month(){return curM/*suiteRecord->recentMonth*/;}
     int getMaxZbNum(){return maxZbNum;}
     bool resetPzNum(int by = 1);
-    PzsState getState(int curY=0, int curM=0);
-    void setState(PzsState state, int y=0, int m=0);
-    bool getExtraState(int y=0,int m=0);
-    void setExtraState(bool state, int y=0,int m=0);
-    bool getPzSet(int y, int m, QList<PingZheng *> &pzs);
+    PzsState getState(int curM=0);
+    void setState(PzsState state, int m=0);
+    bool getExtraState(int m=0);
+    void setExtraState(bool state, int m=0);
+    bool getPzSet(int m, QList<PingZheng *> &pzs);
     QList<PingZheng*> getPzSpecRange(QSet<int> nums);
     bool contains(int pid, int y=0, int m=0);
     PingZheng* readPz(int pid, bool &in);
@@ -58,8 +64,8 @@ public:
     bool saveExtra();
     bool readExtra();
     bool readPreExtra();
-    bool getRates(QHash<int, Double> &rates, int y=0, int m=0);
-    bool setRates(QHash<int,Double> rates, int y=0, int m=0);
+    bool getRates(QHash<int, Double> &rates, int m=0);
+    bool setRates(QHash<int,Double> rates, int m=0);
 
     //导航方法
     PingZheng* first();
@@ -116,6 +122,9 @@ public:
     bool find();
     static bool find(int y, int sm, int em);
 
+    QList<PingZheng *> getHistoryPzSet(int m);
+    //const int *getMMM();
+
 
 private slots:
     void needRestat();
@@ -135,7 +144,7 @@ private:
     void _determineCurPzChanged(PingZheng* oldPz);
     bool _inspectDirEngageError(FirstSubject* fsud, MoneyDirection dir, PzClass pzc, QString& eStr);
 
-    int genKey(int y, int m);
+    //int genKey(int y, int m);
     void pzsNotOpenWarning();
 
 private:
@@ -150,15 +159,15 @@ private:
     //bool isReSave;                          //是否需要保存余额
 
 
-    QHash<int,QList<PingZheng*> > pzSetHash;  //保存所有已经装载的凭证集（键为年月所构成的整数高4位表示年，低2为表示月）
+    QHash<int,QList<PingZheng*> > pzSetHash;  //保存所有已经装载的凭证集（键为月份）
     QHash<int,PzsState> states; //凭证集状态（键同上）
-    QHash<int,bool> extraStates;//凭证集余额状态（键同上）
+    QHash<int,bool> extraStates;//凭证集余额状态（键同）
     QList<PingZheng*>* pzs;      //当前打开的凭证集对象列表
     QList<PingZheng*> pz_dels;  //已被删除的凭证对象列表
     QList<PingZheng*> cachedPzs; //保存被删除后执行了保存操作的凭证对象（用以支持恢复任何情况下被删除的凭证对象）
     QList<PingZheng*> historyPzs;//历史凭证
 
-    int curY, curM;               //当前以只读方式打开的凭证集所属年月
+    int curM;                     //当前以编辑方式打开的凭证集所属月份
     PingZheng* curPz;             //当前显示在凭证编辑窗口内的凭证对象
     int curIndex;                 //当前凭证索引
     //PzsState state;                         //凭证集状态
@@ -167,6 +176,7 @@ private:
     int c_recording,c_verify,c_instat,c_repeal;      //录入态、审核态、入账态和作废的凭证数
     bool dirty;                   //只记录除凭证外的所有对凭证集的更改（凭证集状态、余额状态等）
     Account* account;
+    AccountSuiteRecord* suiteRecord;
     DbUtil* dbUtil;
     StatUtil* statUtil;
     User* user;

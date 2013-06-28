@@ -12,7 +12,7 @@
 #include "appmodel.h"
 #include "common.h"
 
-class PzSetMgr;
+class AccountSuiteManager;
 class DbUtil;
 class SubjectManager;
 
@@ -55,17 +55,17 @@ public:
      * @brief The AccountSuite struct
      *  描述帐套的数据结构
      */
-    struct AccountSuiteRecord{
-        int id;
-        int year,recentMonth;       //帐套所属年份、最后打开月份
-        int startMonth,endMonth;    //开始月份和结束月份
-        int subSys;                 //帐套采用的科目系统代码
-        QString name;               //帐套名
-        bool isCur;                 //是否当前打开帐套
-        bool isUsed;                //帐套是否已启用
+//    struct AccountSuiteRecord{
+//        int id;
+//        int year,recentMonth;       //帐套所属年份、最后打开月份
+//        int startMonth,endMonth;    //开始月份和结束月份
+//        int subSys;                 //帐套采用的科目系统代码
+//        QString name;               //帐套名
+//        bool isCur;                 //是否当前打开帐套
+//        bool isUsed;                //帐套是否已启用
 
-        bool operator !=(const AccountSuiteRecord& other);
-    };
+//        bool operator !=(const AccountSuiteRecord& other);
+//    };
 
     /**
      * @brief The AccountInfo struct
@@ -76,7 +76,7 @@ public:
         Money* masterMt;                       //本币代码
         QList<Money*> waiMts;                  //外币代码表
         //QString startDate,endDate;          //记账起止时间
-        QList<AccountSuiteRecord*> suites;        //帐套列表
+        //QList<AccountSuiteRecord*> suites;        //帐套列表
         QString lastAccessTime;             //账户最后访问时间
         QString dbVersion;                  //账户文件版本号
         QString logFileName;                //账户日志文件
@@ -123,14 +123,15 @@ public:
     void delLogs(QDateTime start, QDateTime end);
 
     //帐套相关
-    void appendSuite(int y, QString name, int curMonth = 1, int subSys = 1);
+    AccountSuiteRecord *appendSuite(int y, QString name, int subSys = 1);
+    void addSuite(AccountSuiteRecord* as){suiteRecords.append(as);}
     void delSuite(int y);
     QString getSuiteName(int y);
     void setSuiteName(int y, QString name);
     QList<int> getSuites();
-    QList<AccountSuiteRecord*> getAllSuites(){return accInfos.suites;}
-    AccountSuiteRecord* getStartSuite(){return accInfos.suites.first();}
-    AccountSuiteRecord* getEndSuite(){return accInfos.suites.last();}
+    QList<AccountSuiteRecord*> getAllSuites(){return suiteRecords;}
+    AccountSuiteRecord* getStartSuite(){return suiteRecords.first();}
+    AccountSuiteRecord* getEndSuite(){return suiteRecords.last();}
     AccountSuiteRecord* getCurSuite();
     AccountSuiteRecord* getSuite(int y);
     void setCurSuite(int y);
@@ -138,16 +139,15 @@ public:
     bool containSuite(int y);
     int getSuiteFirstMonth(int y);
     int getSuiteLastMonth(int y);
-    void setCurMonth(int m);
-    int getCurMonth();
-    void addSuite(AccountSuiteRecord* as){accInfos.suites.append(as);}
+    void setCurMonth(int m, int y=0);
+    int getCurMonth(int y=0);
     bool saveSuite(AccountSuiteRecord* as);
 
     int getBaseYear();
     int getBaseMonth();
     void getVersion(int &mv,int &sv);
 
-    PzSetMgr* getPzSet(){return pzSetMgr;}
+    AccountSuiteManager* getPzSet(int suiteId = 0);
     void colsePzSet();
     SubjectManager* getSubjectManager(int subSys = 0);
     //SubjectManager* getSubjectManager();
@@ -181,9 +181,11 @@ private:
     //ReportType reportType; //账户所用的报表类型
 
     QList<BankAccount*> bankAccounts;
-    PzSetMgr* pzSetMgr;      //凭证集对象
+    //AccountSuiteManager* pzSetMgr;      //凭证集对象
     QList<SubSysNameItem*> subSysLst; //账户支持的科目系统
-    QHash<int,SubjectManager*> smgs; //科目管理对象（键为科目系统代码）
+    QHash<int,SubjectManager*> smgs;  //科目管理对象（键为科目系统代码）
+    QHash<int,AccountSuiteManager*> suiteHash; //帐套管理对象表（键为帐套的id）
+    QList<AccountSuiteRecord*> suiteRecords;         //帐套记录结构列表
 	bool isReadOnly;         //是否只读模式
 
     DbUtil* dbUtil; //直接访问账户文件的数据库访问对象
@@ -195,6 +197,6 @@ private:
 };
 
 //帐套结构比较函数
-bool byAccountSuiteThan(Account::AccountSuiteRecord *as1, Account::AccountSuiteRecord *as2);
+bool byAccountSuiteThan(AccountSuiteRecord *as1, AccountSuiteRecord *as2);
 
 #endif // ACCOUNT_H

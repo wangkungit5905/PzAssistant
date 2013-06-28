@@ -321,7 +321,7 @@
 //}
 
 //////////////////////////////ViewPzSetErrorForm///////////////////////////////////
-ViewPzSetErrorForm::ViewPzSetErrorForm(PzSetMgr *pzMgr, QWidget *parent) :
+ViewPzSetErrorForm::ViewPzSetErrorForm(AccountSuiteManager *pzMgr, QByteArray* state, QWidget *parent) :
     QDialog(parent),ui(new Ui::ViewPzSetErrorForm),pzMgr(pzMgr)
 {
     ui->setupUi(this);
@@ -357,7 +357,7 @@ ViewPzSetErrorForm::ViewPzSetErrorForm(PzSetMgr *pzMgr, QWidget *parent) :
     connect(ui->tw,SIGNAL(cellDoubleClicked(int,int)),this,SLOT(doubleClicked(int,int)));
     ui->tw->setColumnHidden(5, true);
     ui->tw->setColumnWidth(3,200);
-    on_btnInspect_clicked();
+    inspect();
 }
 
 ViewPzSetErrorForm::~ViewPzSetErrorForm()
@@ -366,6 +366,19 @@ ViewPzSetErrorForm::~ViewPzSetErrorForm()
     foreach(PingZhengError *p, es)
         delete p;
     es.clear();
+}
+
+void ViewPzSetErrorForm::inspect()
+{
+    ui->btnInspect->setEnabled(false);
+    qDeleteAll(es);
+    es.clear();
+    if(!pzMgr->inspectPzError(es)){
+        QMessageBox::critical(this, tr("错误信息"),tr("在检测凭证错误时发生错误！"));
+        return;
+    }
+    viewErrors();
+    ui->btnInspect->setEnabled(true);
 }
 
 //void ViewPzSetErrorForm::setErrors(QList<PingZhengError *> es)
@@ -474,13 +487,5 @@ void ViewPzSetErrorForm::on_cmbLevel_currentIndexChanged(int index)
  */
 void ViewPzSetErrorForm::on_btnInspect_clicked()
 {
-    ui->btnInspect->setEnabled(false);
-    qDeleteAll(es);
-    es.clear();
-    if(!pzMgr->inspectPzError(es)){
-        QMessageBox::critical(this, tr("错误信息"),tr("在检测凭证错误时发生错误！"));
-        return;
-    }
-    viewErrors();
-    ui->btnInspect->setEnabled(true);
+    inspect();
 }

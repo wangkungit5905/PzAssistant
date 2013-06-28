@@ -10,7 +10,7 @@
 
 
 //////////////////////////CrtPzCommand/////////////////////////////////
-AppendPzCmd::AppendPzCmd(PzSetMgr *pm, PingZheng *pz, QUndoCommand *parent):
+AppendPzCmd::AppendPzCmd(AccountSuiteManager *pm, PingZheng *pz, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("添加凭证（P%1）").arg(pz->number()));
@@ -32,7 +32,7 @@ void AppendPzCmd::redo()
 }
 
 ////////////////////////////InsertPzCmd//////////////////////////////
-InsertPzCmd::InsertPzCmd(PzSetMgr *pm, PingZheng *pz, QUndoCommand *parent):
+InsertPzCmd::InsertPzCmd(AccountSuiteManager *pm, PingZheng *pz, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("插入凭证（P%1）").arg(pz->number()));
@@ -50,7 +50,7 @@ void InsertPzCmd::redo()
 
 
 ///////////////////////////////DelPzCommand////////////////////////
-DelPzCmd::DelPzCmd(PzSetMgr *pm, PingZheng* pz, QUndoCommand *parent):
+DelPzCmd::DelPzCmd(AccountSuiteManager *pm, PingZheng* pz, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("删除凭证（P%1）").arg(pz->number()));
@@ -67,7 +67,7 @@ void DelPzCmd::redo()
 }
 
 /////////////////////////////////ModifyPzDateCmd//////////////////////////
-ModifyPzDateCmd::ModifyPzDateCmd(PzSetMgr *pm, PingZheng *pz, QString ds, QUndoCommand *parent)
+ModifyPzDateCmd::ModifyPzDateCmd(AccountSuiteManager *pm, PingZheng *pz, QString ds, QUndoCommand *parent)
     : QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("设置日期为“%1”（P%2）").arg(ds.arg(pz->number())));
@@ -105,7 +105,7 @@ void ModifyPzDateCmd::redo()
 
 /////////////////////////ModifyPzZNumCmd///////////////////////////
 
-ModifyPzZNumCmd::ModifyPzZNumCmd(PzSetMgr *pm, PingZheng *pz, int pnum, QUndoCommand *parent)
+ModifyPzZNumCmd::ModifyPzZNumCmd(AccountSuiteManager *pm, PingZheng *pz, int pnum, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("设置自编号为“%1”（P%2）").arg(pnum).arg(pz->number()));
@@ -141,7 +141,7 @@ void ModifyPzZNumCmd::redo()
 
 
 /////////////////////////////ModifyPzEncNumCmd///////////////////////
-ModifyPzEncNumCmd::ModifyPzEncNumCmd(PzSetMgr *pm, PingZheng *pz, int encnum, QUndoCommand *parent)
+ModifyPzEncNumCmd::ModifyPzEncNumCmd(AccountSuiteManager *pm, PingZheng *pz, int encnum, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("设置附件数为“%1”（P%2）").arg(encnum).arg(pz->number()));
@@ -176,7 +176,7 @@ void ModifyPzEncNumCmd::redo()
 }
 
 ///////////////////////////////////////ModifyPzVStateCmd//////////////////////////////
-ModifyPzVStateCmd::ModifyPzVStateCmd(PzSetMgr *pm, PingZheng *pz, PzState state, QUndoCommand *parent)
+ModifyPzVStateCmd::ModifyPzVStateCmd(AccountSuiteManager *pm, PingZheng *pz, PzState state, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
 //    stateNames[Pzs_Repeal] = QObject::tr("repeal");
@@ -215,7 +215,7 @@ void ModifyPzVStateCmd::redo()
 }
 
 ///////////////////////////////ModifyPzVUserCmd////////////////////////////////////////
-ModifyPzVUserCmd::ModifyPzVUserCmd(PzSetMgr *pm, PingZheng *pz, User *user, QUndoCommand *parent)
+ModifyPzVUserCmd::ModifyPzVUserCmd(AccountSuiteManager *pm, PingZheng *pz, User *user, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("设置审核用户为“%1”（P%2）").arg(user?user->getName():"").arg(pz->number()));
@@ -236,7 +236,7 @@ void ModifyPzVUserCmd::redo()
 }
 
 ////////////////////////////////ModifyPzBUserCmd///////////////////////////////////
-ModifyPzBUserCmd::ModifyPzBUserCmd(PzSetMgr *pm, PingZheng *pz, User *user, QUndoCommand *parent)
+ModifyPzBUserCmd::ModifyPzBUserCmd(AccountSuiteManager *pm, PingZheng *pz, User *user, QUndoCommand *parent)
 :QUndoCommand(parent),pm(pm),pz(pz)
 {
     setText(QObject::tr("设置记账用户为“%1”（P%2）").arg(user?user->getName():"").arg(pz->number()));
@@ -257,7 +257,7 @@ void ModifyPzBUserCmd::redo()
 }
 
 /////////////////////////////////CrtBlankBaCmd///////////////////////////////
-AppendBaCmd::AppendBaCmd(PzSetMgr *pm, PingZheng *pz, BusiAction* ba, QUndoCommand *parent)
+AppendBaCmd::AppendBaCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction* ba, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
 //    setText(QObject::tr("append bauiaction(%1) in PingZheng(%2#)")
@@ -283,7 +283,7 @@ void AppendBaCmd::redo()
 }
 
 ////////////////////////////////InsertBaCmd/////////////////////////////////
-InsertBaCmd::InsertBaCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, int row, QUndoCommand *parent):
+InsertBaCmd::InsertBaCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, int row, QUndoCommand *parent):
     QUndoCommand(parent),pm(pm),pz(pz),ba(ba),row(row)
 {
     setText(QObject::tr("插入分录（P%1B%2）").arg(pz->number()).arg(row+1));
@@ -300,7 +300,7 @@ void InsertBaCmd::redo()
 }
 
 ///////////////////////////////ModifyBaSummaryCmd//////////////////////////////////
-ModifyBaSummaryCmd::ModifyBaSummaryCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, QString summary, QUndoCommand *parent)
+ModifyBaSummaryCmd::ModifyBaSummaryCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, QString summary, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     setText(QObject::tr("设置摘要为“%1”（P%2B%3）").arg(summary).arg(pz->number()).arg(ba->getNumber()));
@@ -338,7 +338,7 @@ void ModifyBaSummaryCmd::redo()
 }
 
 ///////////////////////////////////////ModifyBaFSubMmd/////////////////////////////
-ModifyBaFSubMmd::ModifyBaFSubMmd(QString text, PzSetMgr *pm, PingZheng *pz, BusiAction *ba, QUndoStack *stack, QUndoCommand *parent)
+ModifyBaFSubMmd::ModifyBaFSubMmd(QString text, AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, QUndoStack *stack, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),pstack(stack)
 {
     setText(text);
@@ -367,7 +367,7 @@ bool ModifyBaFSubMmd::mergeWith(const QUndoCommand *command)
 }
 
 //////////////////////////////////////////ModifyBaFSubCmd/////////////////////////
-ModifyBaFSubCmd::ModifyBaFSubCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, FirstSubject *fsub, QUndoCommand *parent)
+ModifyBaFSubCmd::ModifyBaFSubCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, FirstSubject *fsub, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     setText(QObject::tr("设置一级科目为“%1”（P%2B%3）").arg(fsub->getName())
@@ -406,7 +406,7 @@ void ModifyBaFSubCmd::redo()
 }
 
 /////////////////////////////////////ModifyBaSSubCmd////////////////////////////
-ModifyBaSSubCmd::ModifyBaSSubCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, SecondSubject *ssub, QUndoCommand *parent)
+ModifyBaSSubCmd::ModifyBaSSubCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, SecondSubject *ssub, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     if(ssub)
@@ -499,7 +499,7 @@ void ModifyBaSSubCmd::redo()
 //}
 
 ////////////////////////////////ModifyBaMtCmd////////////////////////////////////
-ModifyBaMtCmd::ModifyBaMtCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, Money *mt, QUndoCommand *parent)
+ModifyBaMtCmd::ModifyBaMtCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, Money *mt, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     setText(QObject::tr("设置币种为“%1”（P%2B%3）() of money type to '' in PingZheng(#)")
@@ -524,7 +524,7 @@ void ModifyBaMtCmd::redo()
 }
 
 /////////////////////////////////////ModifyBaMtMmd///////////////////////////////
-ModifyBaMtMmd::ModifyBaMtMmd(QString text, PzSetMgr *pm, PingZheng *pz, BusiAction *ba, QUndoStack* stack, QUndoCommand *parent)
+ModifyBaMtMmd::ModifyBaMtMmd(QString text, AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, QUndoStack* stack, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),pstack(stack)
 {
     setText(text);
@@ -556,7 +556,7 @@ bool ModifyBaMtMmd::mergeWith(const QUndoCommand *command)
 }
 
 /////////////////////////////////ModifyBaValueCmd//////////////////////////////////
-ModifyBaValueCmd::ModifyBaValueCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, Double v, MoneyDirection dir, QUndoCommand *parent)
+ModifyBaValueCmd::ModifyBaValueCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, Double v, MoneyDirection dir, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     QString ds = (dir==MDIR_J)?QObject::tr("借"):QObject::tr("贷");
@@ -604,7 +604,7 @@ void ModifyBaValueCmd::redo()
 
 ////////////////////////////CutBaCmd/////////////////////////////////////////
 
-CutBaCmd::CutBaCmd(PzSetMgr *pm, PingZheng *pz, QList<int> rows, QList<BusiAction *>* baLst, QUndoCommand *parent)
+CutBaCmd::CutBaCmd(AccountSuiteManager *pm, PingZheng *pz, QList<int> rows, QList<BusiAction *>* baLst, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),rows(rows),baLst(baLst)
 {
     QString numStr;
@@ -683,7 +683,7 @@ void PasterBaCmd::redo()
 
 
 ///////////////////////////////ModifyBaMoveCmd//////////////////////////////////
-ModifyBaMoveCmd::ModifyBaMoveCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, int rows, QUndoStack* stack, QUndoCommand *parent)
+ModifyBaMoveCmd::ModifyBaMoveCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, int rows, QUndoStack* stack, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),rows(rows),pstack(stack)
 {
     setText(QObject::tr("向%1移动分录%2行（P%3C%4）")
@@ -737,7 +737,7 @@ void ModifyBaMoveCmd::redo()
 
 
 /////////////////////////////ModifBaDelCmd////////////////////////////////////
-ModifyBaDelCmd::ModifyBaDelCmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, QUndoCommand *parent)
+ModifyBaDelCmd::ModifyBaDelCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     setText(QObject::tr("删除分录（P%1B%2）").arg(pz->number()).arg(ba->getNumber()));
@@ -781,7 +781,7 @@ void CrtSndSubUseNICmd::redo()
 }
 
 /////////////////////////////ModifyBaSndSubNMMmd//////////////////////////
-ModifyBaSndSubNMMmd::ModifyBaSndSubNMMmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, QUndoCommand *parent)
+ModifyBaSndSubNMMmd::ModifyBaSndSubNMMmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),ni(ni),ssub(0)
 {
     //注意：这里的“S”表示用已有的名称条目创建的二级科目
@@ -841,7 +841,7 @@ void CrtNameItemCmd::redo()
 }
 
 ///////////////////////////////ModifyBaSndSubNSMmd////////////////////////
-ModifyBaSndSubNSMmd::ModifyBaSndSubNSMmd(PzSetMgr *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, QString sname, QString lname, QString remCode, int nameCls, QUndoCommand *parent)
+ModifyBaSndSubNSMmd::ModifyBaSndSubNSMmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, QString sname, QString lname, QString remCode, int nameCls, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),sname(sname),lname(lname),remCode(remCode),nameCls(nameCls),ni(0),ssub(0)
 {
     //注意：这里的“SN”表示用新建的名称条目在一级科目下创建的二级科目

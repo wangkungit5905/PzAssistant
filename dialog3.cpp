@@ -1761,15 +1761,15 @@ void DtfyAdminDialog::on_actPreviewDtfyPz_triggered()
 //创建计提摊销凭证
 void DtfyAdminDialog::on_actJttx_triggered()
 {
-    PzSetMgr* pzset = curAccount->getPzSet();
-    pzset->crtDtfyTxPz();
+    //AccountSuiteManager* pzset = curAccount->getPzSet();
+    //pzset->crtDtfyTxPz();
 }
 
 //取消计提摊销凭证
 void DtfyAdminDialog::on_actRepeal_triggered()
 {
-    PzSetMgr* pzset = curAccount->getPzSet();
-    pzset->delDtfyPz();
+    //AccountSuiteManager* pzset = curAccount->getPzSet();
+    //pzset->delDtfyPz();
 }
 
 

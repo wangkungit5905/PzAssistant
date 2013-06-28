@@ -271,6 +271,7 @@ struct DailyAccountData2{
 struct DVFilterRecord{
     CommonItemEditState editState;  //
     int id;
+    int suiteId;                    //帐套id
     bool isDef;                     //是否是系统默认的过滤条件
     bool isCur;                     //是否是最后关闭窗口时应用的过滤条件
     bool isFst;                     //科目范围是一级科目还是二级科目
@@ -529,6 +530,22 @@ struct SubSysJoinItem{
     QList<int> ssubMaps;        //子目映射列表（每两个元素为一组，前一个是源子目id，后一个是目的子目id）
 };
 
+/**
+ * @brief 帐套记录结构
+ */
+struct AccountSuiteRecord{
+    int id;
+    int year,recentMonth;       //帐套所属年份、最后打开月份
+    int startMonth,endMonth;    //开始月份和结束月份
+    int subSys;                 //帐套采用的科目系统代码
+    QString name;               //帐套名
+    bool isClosed;              //是否已关账
+    bool isUsed;                //帐套是否已启用
+    bool isCur;                 //是否当前帐套
+
+    bool operator !=(const AccountSuiteRecord& other);
+};
+
 //凭证错误级别
 enum PingZhengErrorLevel{
     PZE_WARNING   = 1,       //警告级
@@ -543,6 +560,36 @@ struct PingZhengError{
     BusiAction* ba;      //出现错误的分录对象
     QString extraInfo;   //额外补充信息
     QString explain;     //描述错误的信息
+};
+
+//可以在MDI区域打开的子窗口类型代码
+enum subWindowType{
+    SUBWIN_NONE       = 0,    //不指代任何子窗口类型
+    SUBWIN_PZEDIT     = 1,    //凭证编辑窗口
+    SUBWIN_PZSTAT     = 2,    //本期统计窗口
+    SUBWIN_PZSTAT2    = 3,    //本期统计窗口（新）
+    SUBWIN_DETAILSVIEW2 = 4,  //明细账视图（新）
+    SUBWIN_PZEDIT_new     = 5,    //凭证编辑窗口（新）
+    //CASHDAILY  = 3,    //现金日记账窗口
+    //BANKDAILY  = 4,    //银行日记账窗口
+    //DETAILSDAILY=5,    //明细科目日记账窗口
+    TOTALDAILY = 6,    //总分类账窗口
+    SUBWIN_SETUPBASE  = 7,    //设置账户期初余额窗口
+    //SETUPBANK  = 8,    //设置开户行信息
+    SUBWIN_BASEDATAEDIT = 9,  //基本数据库编辑窗口
+    SUBWIN_GDZCADMIN =  10,   //固定资产管理窗口
+    //DTFYADMIN = 11,    //待摊费用管理窗口
+    TOTALVIEW = 12,    //总账视图
+    DETAILSVIEW = 13,  //明细账视图
+    SUBWIN_HISTORYVIEW = 14,  //历史凭证
+    SUBWIN_LOOKUPSUBEXTRA =15,//查看科目余额
+    SUBWIN_ACCOUNTPROPERTY=16,//查看账户属性
+    SUBWIN_VIEWPZSETERROR=17,  //查看凭证错误窗口
+    SUBWIN_SQL = 18           //SQL工具窗口
+    //设置期初余额的窗口
+    //科目配置窗口
+
+
 };
 
 #endif // COMMDATASTRUCT_H

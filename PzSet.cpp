@@ -8,8 +8,8 @@
 
 
 /////////////////PzSetMgr///////////////////////////////////////////
-PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent),
-    account(account),user(user),curY(0),curM(0)
+AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *account, User *user, QObject *parent):QObject(parent),
+    suiteRecord(as),account(account),user(user),curM(0)
 {
     dbUtil = account->getDbUtil();
     undoStack = new QUndoStack(this);
@@ -22,42 +22,51 @@ PzSetMgr::PzSetMgr(Account *account, User *user, QObject *parent):QObject(parent
     maxZbNum = 0;
     curPz=NULL;
     curIndex = -1;
-    curY=0;curM=0;
+    curM=0;
     pzs=NULL;
     dirty = false;
     if(!user)
         user = curUser;
 }
 
-PzSetMgr::~PzSetMgr()
+AccountSuiteManager::~AccountSuiteManager()
 {
     delete undoStack;
 }
 
-//打开凭证集
-bool PzSetMgr::open(int y, int m)
+SubjectManager *AccountSuiteManager::getSubjectManager()
 {
-    if(curY!=0 && curM!=0)    //同时只能打开一个凭证集
-        return false;
+    return account->getSubjectManager(suiteRecord->subSys);
+}
 
-    int key = genKey(y,m);
-    if(!pzSetHash.contains(key)){
-        if(!dbUtil->loadPzSet(y,m,pzSetHash[key],this))
+//打开凭证集
+bool AccountSuiteManager::open(int m)
+{
+    if(m>=suiteRecord->startMonth && m<=suiteRecord->endMonth && curM == m)
+        return true;
+    if(isOpened()){    //同时只能打开一个凭证集用以编辑
+        if(isDirty())
+            save();
+        close();
+    }
+    if(!pzSetHash.contains(m)){
+        if(!dbUtil->loadPzSet(suiteRecord->year,m,pzSetHash[m],this))
             return false;
-        if(!dbUtil->getPzsState(y,m,states[key]))
+        if(!dbUtil->getPzsState(suiteRecord->year,m,states[m]))
             return false;        
     }    
-    curY=y,curM=m;
-    pzs = &pzSetHash[key];
+    curM=m;
+    suiteRecord->recentMonth = m;
+    pzs = &pzSetHash[m];
     scanPzCount();
     //凭证集的状态以实际凭证为准
     PzsState state;
     _determinePzSetState(state);
-    if(state != states.value(key)){
-        states[key] = state;
+    if(state != states.value(m)){
+        states[m] = state;
         dirty = true;
     }
-    extraStates[key] = dbUtil->getExtraState(y,m);    
+    extraStates[m] = dbUtil->getExtraState(suiteRecord->year,m);
     for(int i = 0; i < pzs->count(); ++i){
         PingZheng* pz = pzs->at(i);
         connect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
@@ -65,9 +74,9 @@ bool PzSetMgr::open(int y, int m)
         connect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
     }
 
-    maxPzNum = pzSetHash.value(key).count() + 1;
+    maxPzNum = pzSetHash.value(m).count() + 1;
     maxZbNum = 0;
-    foreach(PingZheng* pz, pzSetHash.value(key)){
+    foreach(PingZheng* pz, pzSetHash.value(m)){
         if(maxZbNum < pz->number())
             maxZbNum = pz->number();
     }
@@ -89,9 +98,10 @@ bool PzSetMgr::open(int y, int m)
  *  凭证集是否已被打开
  * @return
  */
-bool PzSetMgr::isOpened()
+bool AccountSuiteManager::isOpened()
 {
-    return (curY!=0 && curM!=0);
+    //return (curY!=0 && curM!=0);
+    return curM != 0;
 }
 
 /**
@@ -99,14 +109,14 @@ bool PzSetMgr::isOpened()
  *  凭证集是否有未保存的更改
  * @return
  */
-bool PzSetMgr::isDirty()
+bool AccountSuiteManager::isDirty()
 {
     //要考虑的方面包括（凭证集内的凭证、余额状态、凭证集状态）
     return (dirty || !undoStack->isClean());
 }
 
 
-void PzSetMgr::close()
+void AccountSuiteManager::close()
 {
     //save();
     undoStack->clear();
@@ -120,7 +130,7 @@ void PzSetMgr::close()
     pz_dels.clear();
     qDeleteAll(cachedPzs);
     cachedPzs.clear();
-    curY=0;curM=0;
+    curM=0;
     c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
     maxPzNum = 0;
     maxZbNum = 0;
@@ -136,19 +146,33 @@ void PzSetMgr::close()
 }
 
 /**
+ * @brief 新建凭证集
+ * @param month 新凭证集的月份
+ * @return
+ */
+int AccountSuiteManager::newPzSet()
+{
+    if(suiteRecord->isClosed || suiteRecord->endMonth == 12)
+        return 0;
+    suiteRecord->endMonth++;
+    account->saveSuite(suiteRecord);
+    return suiteRecord->endMonth;
+}
+
+/**
  * @brief PzSetMgr::getStatObj
  *  获取当前打开凭证集的本期统计对象的引用
  * @return
  */
-StatUtil &PzSetMgr::getStatObj()
+StatUtil &AccountSuiteManager::getStatObj()
 {
     return *statUtil;
 }
 
 //获取凭证总数（也即已用的最大凭证号）
-int PzSetMgr::getPzCount()
+int AccountSuiteManager::getPzCount()
 {
-    if(curY==0 && curM==0)
+    if(!isOpened())
         return 0;
     return maxPzNum-1;
 }
@@ -158,10 +182,10 @@ int PzSetMgr::getPzCount()
  *  返回所有结转汇兑损益的凭证对象列表
  * @return
  */
-QList<PingZheng *> PzSetMgr::getAllJzhdPzs()
+QList<PingZheng *> AccountSuiteManager::getAllJzhdPzs()
 {
     QList<PingZheng*> pzLst;
-    if(curY==0 && curM==0)
+    if(!isOpened())
         return pzLst;
     foreach(PingZheng* pz, *pzs){
         if(pz->getPzClass() == Pzc_Jzhd)
@@ -171,7 +195,7 @@ QList<PingZheng *> PzSetMgr::getAllJzhdPzs()
 }
 
 //重置凭证号
-bool PzSetMgr::resetPzNum(int by)
+bool AccountSuiteManager::resetPzNum(int by)
 {
 //    if(state == Ps_NoOpen)
 //        return true;
@@ -205,37 +229,31 @@ bool PzSetMgr::resetPzNum(int by)
  * @param m
  * @return
  */
-PzsState PzSetMgr::getState(int y, int m)
+PzsState AccountSuiteManager::getState(int m)
 {
-    int yy,mm;
-    if(y==0 && m == 0){
-        yy = curY; mm = curM;
-    }
-    else{
-        yy = y; mm = m;
-    }
-    int key = genKey(yy,mm);
-    if(states.contains(key))
-        return states.value(key);
-    return Ps_NoOpen;
+    int mm;
+    if(m == 0)
+        mm = curM;
+    else
+        mm = m;
+    if(!states.contains(mm))
+       dbUtil->getPzsState(suiteRecord->year,mm,states[mm]);
+     return states.value(mm);
 }
 
 //设置凭证集状态
-void PzSetMgr::setState(PzsState state,int y, int m )
+void AccountSuiteManager::setState(PzsState state,int m )
 {
-    int yy,mm;
-    if(y==0 && m==0){
-        yy=curY;mm=curM;
-    }
-    else{
-        yy=y;mm=m;
-    }
-    int key = genKey(yy,mm);
-    if(!states.contains(key))
-        dbUtil->getPzsState(y,m,state);
-    if(state == states.value(key))
+    int mm;
+    if(m==0)
+        mm=curM;
+    else
+        mm=m;
+    if(!states.contains(mm))
+        dbUtil->getPzsState(suiteRecord->year,mm,state);
+    if(state == states.value(mm))
         return;
-    states[key] = state;
+    states[mm] = state;
     dirty = true;
 }
 
@@ -246,16 +264,16 @@ void PzSetMgr::setState(PzsState state,int y, int m )
  * @param m
  * @return
  */
-bool PzSetMgr::getExtraState(int y, int m)
+bool AccountSuiteManager::getExtraState(int m)
 {
-    int yy,mm;
-    if(y==0 && m==0){
-        yy=curY,mm=curM;
-    }
-    int key = genKey(yy,mm);
-    if(!extraStates.contains(key))
-        extraStates[key] = dbUtil->getExtraState(yy,mm);
-    return extraStates.value(key);
+    int mm;
+    if(m==0)
+        mm=curM;
+    else
+        mm = m;
+    if(!extraStates.contains(mm))
+        extraStates[mm] = dbUtil->getExtraState(suiteRecord->year,mm);
+    return extraStates.value(mm);
 }
 
 /**
@@ -265,21 +283,18 @@ bool PzSetMgr::getExtraState(int y, int m)
  * @param y
  * @param m
  */
-void PzSetMgr::setExtraState(bool state, int y, int m)
+void AccountSuiteManager::setExtraState(bool state, int m)
 {
-    int yy,mm;
-    if(y==0 && m==0){
-        yy=curY;mm=curM;
-    }
-    else{
-        yy = y;mm = m;
-    }
-    int key = genKey(yy,mm);
-    if(!extraStates.contains(key))
-        extraStates[key] = dbUtil->getExtraState(yy,mm);
-    if(state == extraStates.value(key))
+    int mm;
+    if(m==0)
+        mm=curM;
+    else
+        mm = m;
+    if(!extraStates.contains(mm))
+        extraStates[mm] = dbUtil->getExtraState(suiteRecord->year,mm);
+    if(state == extraStates.value(mm))
         return;
-    extraStates[key] = state;
+    extraStates[mm] = state;
     dirty = true;
     emit pzExtraStateChanged(state);
 }
@@ -290,17 +305,16 @@ void PzSetMgr::setExtraState(bool state, int y, int m)
  * @param y
  * @param m
  */
-bool PzSetMgr::getPzSet(int y, int m, QList<PingZheng *> &pzs)
+bool AccountSuiteManager::getPzSet(int m, QList<PingZheng *> &pzs)
 {
-    int key = genKey(y,m);
-    if(!pzSetHash.contains(key)){
-        if(!dbUtil->loadPzSet(y,m,pzSetHash[key],this))
+    if(!pzSetHash.contains(m)){
+        if(!dbUtil->loadPzSet(suiteRecord->year,m,pzSetHash[m],this))
             return false;
-        if(!dbUtil->getPzsState(y,m,states[key]))
+        if(!dbUtil->getPzsState(suiteRecord->year,m,states[m]))
             return false;
-        extraStates[key] = dbUtil->getExtraState(y,m);
+        extraStates[m] = dbUtil->getExtraState(suiteRecord->year,m);
     }
-    pzs = pzSetHash.value(key);
+    pzs = pzSetHash.value(m);
     return true;
 }
 
@@ -312,7 +326,7 @@ bool PzSetMgr::getPzSet(int y, int m, QList<PingZheng *> &pzs)
  * @param nums  凭证号集合（集合为空，则返回凭证集内的所有凭证）
  * @return
  */
-QList<PingZheng *> PzSetMgr::getPzSpecRange(QSet<int> nums)
+QList<PingZheng *> AccountSuiteManager::getPzSpecRange(QSet<int> nums)
 {
     QList<PingZheng*> pzLst;
     if(!isOpened())
@@ -336,9 +350,10 @@ QList<PingZheng *> PzSetMgr::getPzSpecRange(QSet<int> nums)
  * @param m 
  * @return
  */
-bool PzSetMgr::contains(int pid, int y, int m)
+bool AccountSuiteManager::contains(int pid, int y, int m)
 {
-    if(isOpened() && ((y == 0 && m == 0) || (y == curY && m == curM))){
+    //这个函数要重新实现，要先查找指定月份的凭证集是否已装载
+    if(isOpened() && ((m == 0) || (m == curM))){
         foreach(PingZheng* pz, *pzs){
             if(pid == pz->id())
                 return true;
@@ -357,7 +372,7 @@ bool PzSetMgr::contains(int pid, int y, int m)
  * @param in    如果凭证在当前打开的凭证集内，则为true，否则是历史凭证
  * @return  如果为空则表示凭证不存在
  */
-PingZheng *PzSetMgr::readPz(int pid, bool& in)
+PingZheng *AccountSuiteManager::readPz(int pid, bool& in)
 {
     foreach(PingZheng* pz, *pzs){
         if(pz->id() == pid){
@@ -386,7 +401,7 @@ PingZheng *PzSetMgr::readPz(int pid, bool& in)
  * @param st
  * @return
  */
-int PzSetMgr::getStatePzCount(PzState state)
+int AccountSuiteManager::getStatePzCount(PzState state)
 {
     int c = 0;
     foreach(PingZheng* pz, *pzs)
@@ -409,7 +424,7 @@ int PzSetMgr::getStatePzCount(PzState state)
  *  （9）币种设置是否与科目的货币使用属性相符
  * @return
  */
-bool PzSetMgr::inspectPzError(QList<PingZhengError*>& errors)
+bool AccountSuiteManager::inspectPzError(QList<PingZhengError*>& errors)
 {
     if(!isOpened())
         return false;
@@ -533,7 +548,7 @@ bool PzSetMgr::inspectPzError(QList<PingZhengError*>& errors)
 }
 
 //保存当期余额
-bool PzSetMgr::PzSetMgr::saveExtra()
+bool AccountSuiteManager::AccountSuiteManager::saveExtra()
 {
     if(!isOpened())
         return false;
@@ -548,7 +563,7 @@ bool PzSetMgr::PzSetMgr::saveExtra()
 }
 
 //读取当期余额（读取的是最近一次保存到余额表中的数据）
-bool PzSetMgr::readExtra()
+bool AccountSuiteManager::readExtra()
 {
     endExtra.clear();
     endDetExtra.clear();
@@ -561,17 +576,17 @@ bool PzSetMgr::readExtra()
 }
 
 //读取期初（前期）余额
-bool PzSetMgr::readPreExtra()
+bool AccountSuiteManager::readPreExtra()
 {
     preExtra.clear();
     preDetExtra.clear();
     int yy,mm;
     if(curM == 1){
-        yy = curY - 1;
+        yy = suiteRecord->year - 1;
         mm = 12;
     }
     else{
-        yy = curY;
+        yy = suiteRecord->year;
         mm = curM - 1;
     }
     return dbUtil->readExtraForPm(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
@@ -582,15 +597,14 @@ bool PzSetMgr::readPreExtra()
  *  获取当前打开凭证集所使用的汇率表
  * @return
  */
-bool PzSetMgr::getRates(QHash<int, Double>& rates, int y, int m)
+bool AccountSuiteManager::getRates(QHash<int, Double>& rates, int m)
 {
-    if(curY==0 && curM==0)
-        return false;
-    if(y==0 && m == 0){
-        y = curY; m = curM;
-    }
-    if(!account->getRates(y,m,rates)){
-        QMessageBox::critical(0,tr("错误信息"),tr("在读取%1年%月的汇率时出错！").arg(y).arg(m));
+    //if(curY==0 && curM==0)
+    //    return false;
+    if(m == 0)
+        m = curM;
+    if(!account->getRates(suiteRecord->year,m,rates)){
+        QMessageBox::critical(0,tr("错误信息"),tr("在读取%1年%2月的汇率时出错！").arg(suiteRecord->year).arg(m));
         return false;
     }
     return true;
@@ -603,15 +617,14 @@ bool PzSetMgr::getRates(QHash<int, Double>& rates, int y, int m)
  * @param m
  * @return
  */
-bool PzSetMgr::setRates(QHash<int, Double> rates, int y, int m)
+bool AccountSuiteManager::setRates(QHash<int, Double> rates, int m)
 {
-    if(curY == 0 && curM == 0)
-        return false;
-    if(y == 0 && m == 0){
-        y = curY; m = curM;
-    }
-    if(!account->setRates(y,m,rates)){
-        QMessageBox::critical(0,tr("错误信息"),tr("在保存%1年%月的汇率时出错！").arg(y).arg(m));
+    //if(curY == 0 && curM == 0)
+    //    return false;
+    if(m == 0)
+        m = curM;
+    if(!account->setRates(suiteRecord->year,m,rates)){
+        QMessageBox::critical(0,tr("错误信息"),tr("在保存%1年%月的汇率时出错！").arg(suiteRecord->year).arg(m));
         return false;
     }
     return true;
@@ -621,7 +634,7 @@ bool PzSetMgr::setRates(QHash<int, Double> rates, int y, int m)
  * @brief PzSetMgr::first 定位到第一个凭证对象
  * @return
  */
-PingZheng *PzSetMgr::first()
+PingZheng *AccountSuiteManager::first()
 {
     if(!isOpened()){
         LOG_ERROR(QObject::tr("pzSet not opened!"));
@@ -644,7 +657,7 @@ PingZheng *PzSetMgr::first()
  * @brief PzSetMgr::next 定位到下一个凭证对象
  * @return
  */
-PingZheng *PzSetMgr::next()
+PingZheng *AccountSuiteManager::next()
 {
     if(!isOpened()){
         LOG_ERROR(QObject::tr("pzSet not opened!"));
@@ -671,7 +684,7 @@ PingZheng *PzSetMgr::next()
  * @brief PzSetMgr::previou 定位到上一个凭证对象
  * @return
  */
-PingZheng *PzSetMgr::previou()
+PingZheng *AccountSuiteManager::previou()
 {
     if(!isOpened()){
         LOG_ERROR(QObject::tr("pzSet not opened!"));
@@ -700,7 +713,7 @@ PingZheng *PzSetMgr::previou()
  * @brief PzSetMgr::last 定位到最后一个凭证对象
  * @return
  */
-PingZheng *PzSetMgr::last()
+PingZheng *AccountSuiteManager::last()
 {
     if(!isOpened()){
         LOG_ERROR(QObject::tr("pzSet not opened!"));
@@ -724,7 +737,7 @@ PingZheng *PzSetMgr::last()
  * @param num
  * @return
  */
-PingZheng *PzSetMgr::seek(int num)
+PingZheng *AccountSuiteManager::seek(int num)
 {
     PingZheng* oldPz = curPz;
     if((num < 1) || num > pzs->count())
@@ -743,7 +756,7 @@ PingZheng *PzSetMgr::seek(int num)
  * @param pz
  * @return 如果正确定位则返回true，反之返回false
  */
-bool PzSetMgr::seek(PingZheng *pz)
+bool AccountSuiteManager::seek(PingZheng *pz)
 {
     PingZheng* oldPz = curPz;
     PingZheng* p;
@@ -760,12 +773,12 @@ bool PzSetMgr::seek(PingZheng *pz)
 }
 
 //添加空白凭证
-PingZheng* PzSetMgr::appendPz(PzClass pzCls)
+PingZheng* AccountSuiteManager::appendPz(PzClass pzCls)
 {
-    if(curY==0 && curM==0)
+    if(!isOpened())
         return NULL;
     PingZheng* oldPz = curPz;
-    QString ds = QDate(curY,curM,1).toString(Qt::ISODate);
+    QString ds = QDate(suiteRecord->year,curM,1).toString(Qt::ISODate);
     curPz =  new PingZheng(this,0,ds,maxPzNum++,maxZbNum++,0.0,0.0,pzCls,0,Pzs_Recording);
     c_recording++;
     setState(Ps_Rec);
@@ -783,7 +796,7 @@ PingZheng* PzSetMgr::appendPz(PzClass pzCls)
  * @param pz
  * @return
  */
-bool PzSetMgr::append(PingZheng *pz)
+bool AccountSuiteManager::append(PingZheng *pz)
 {
     if(!pz)
         return false;
@@ -817,7 +830,7 @@ bool PzSetMgr::append(PingZheng *pz)
     if(pz->baCount() > 0)
         setExtraState(false);
     _determineCurPzChanged(oldPz);
-    _determinePzSetState(states[genKey(curY,curM)]);
+    _determinePzSetState(states[curM]);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
     return true;
@@ -829,7 +842,7 @@ bool PzSetMgr::append(PingZheng *pz)
  * @param pd
  * @return
  */
-bool PzSetMgr::insert(PingZheng* pz)
+bool AccountSuiteManager::insert(PingZheng* pz)
 {
     //插入凭证要保证凭证集内凭证号和自编号的连贯性要求,参数ecode错误代码（1：凭证号越界，2：自编号冲突）
     //凭证号必须从1开始，顺序增加，中间不能间断，自编号必须保证唯一性
@@ -891,7 +904,7 @@ bool PzSetMgr::insert(PingZheng* pz)
     if(pz->baCount() > 0)
         setExtraState(false);
     _determineCurPzChanged(oldPz);
-    _determinePzSetState(states[genKey(curY,curM)]);
+    _determinePzSetState(states[curM]);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
     return true;
@@ -904,7 +917,7 @@ bool PzSetMgr::insert(PingZheng* pz)
  * @param pz
  * @return
  */
-bool PzSetMgr::insert(int index, PingZheng *pz)
+bool AccountSuiteManager::insert(int index, PingZheng *pz)
 {
     if(!isOpened()){
         LOG_ERROR(tr("pzSet not opened,don't' insert pingzheng"));
@@ -946,7 +959,7 @@ bool PzSetMgr::insert(int index, PingZheng *pz)
     if(pz->baCount() > 0)
         setExtraState(false);
     _determineCurPzChanged(oldPz);
-    _determinePzSetState(states[genKey(curY,curM)]);
+    _determinePzSetState(states[curM]);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
     return true;
@@ -957,7 +970,7 @@ bool PzSetMgr::insert(int index, PingZheng *pz)
  *  缓存指定凭证对象，以便以后在撤销删除该凭证又执行了保存操作时恢复
  * @param pz
  */
-void PzSetMgr::cachePz(PingZheng *pz)
+void AccountSuiteManager::cachePz(PingZheng *pz)
 {
     pz->ID = UNID;
     foreach(BusiAction* ba, pz->baLst){
@@ -972,9 +985,9 @@ void PzSetMgr::cachePz(PingZheng *pz)
  * @param num
  * @return true：冲突，false：不冲突
  */
-bool PzSetMgr::isZbNumConflict(int num)
+bool AccountSuiteManager::isZbNumConflict(int num)
 {
-    if(curY==0 && curM==0)
+    if(!isOpened())
         return false;
     foreach(PingZheng* pz, *pzs)
         if(num == pz->zbNumber())
@@ -986,9 +999,9 @@ bool PzSetMgr::isZbNumConflict(int num)
  * @brief PzSetMgr::scanPzCount
  *  扫描打开凭证集内各种状态的凭证数
  */
-void PzSetMgr::scanPzCount()
+void AccountSuiteManager::scanPzCount()
 {
-    if(curY==0 && curM==0)
+    if(isOpened())
         return;
     c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
     foreach(PingZheng* pz, *pzs){
@@ -1014,10 +1027,10 @@ void PzSetMgr::scanPzCount()
  *  根据当前打开凭证集内凭证的状态确定凭证集的状态
  * @param state
  */
-void PzSetMgr::_determinePzSetState(PzsState &state)
+void AccountSuiteManager::_determinePzSetState(PzsState &state)
 {
     PzsState oldState = state;
-    if(curY==0 && curM==0)
+    if(isOpened())
         state = Ps_NoOpen;
     else if(getState() == Ps_Jzed)
         state = Ps_Jzed;
@@ -1037,9 +1050,9 @@ void PzSetMgr::_determinePzSetState(PzsState &state)
  *  判断当前凭证是否改变，如果改变则触发相应信号
  * @param oldPz
  */
-void PzSetMgr::_determineCurPzChanged(PingZheng *oldPz)
+void AccountSuiteManager::_determineCurPzChanged(PingZheng *oldPz)
 {
-    if((!curPz && oldPz) || (curPz && !oldPz) || (*curPz != *oldPz))
+    if((!curPz && oldPz) || (curPz && !oldPz) || (curPz && oldPz && *curPz != *oldPz))
         emit currentPzChanged(curPz,oldPz);
 }
 
@@ -1061,7 +1074,7 @@ void PzSetMgr::_determineCurPzChanged(PingZheng *oldPz)
  * @param eStr  错误说明
  * @return
  */
-bool PzSetMgr::_inspectDirEngageError(FirstSubject *fsub, MoneyDirection dir, PzClass pzc, QString &eStr)
+bool AccountSuiteManager::_inspectDirEngageError(FirstSubject *fsub, MoneyDirection dir, PzClass pzc, QString &eStr)
 {
     SubjectManager* sm = account->getSubjectManager(account->getCurSuite()->subSys);
     if(pzc == Pzc_Hand){
@@ -1150,23 +1163,23 @@ bool PzSetMgr::_inspectDirEngageError(FirstSubject *fsub, MoneyDirection dir, Pz
  * @param m
  * @return
  */
-int PzSetMgr::genKey(int y, int m)
-{
-    if(m < 1 || m > 12)
-        return 0;
-    return y * 100 + m;
-}
+//int AccountSuiteManager::genKey(int y, int m)
+//{
+//    if(m < 1 || m > 12)
+//        return 0;
+//    return y * 100 + m;
+//}
 
 /**
  * @brief PzSetMgr::pzNotOpenWarning
  */
-void PzSetMgr::pzsNotOpenWarning()
+void AccountSuiteManager::pzsNotOpenWarning()
 {
     QMessageBox::warning(0,tr("警告信息"),tr("凭证集未打开！"));
 }
 
 //移除凭证
-bool PzSetMgr::remove(PingZheng *pz)
+bool AccountSuiteManager::remove(PingZheng *pz)
 {
     if(!pz)
         return false;
@@ -1224,7 +1237,7 @@ bool PzSetMgr::remove(PingZheng *pz)
         c_repeal--;
         break;
     }
-    _determinePzSetState(states[genKey(curY,curM)]);
+    _determinePzSetState(states[curM]);
     _determineCurPzChanged(oldPz);
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
@@ -1237,7 +1250,7 @@ bool PzSetMgr::remove(PingZheng *pz)
  * @param pz
  * @return
  */
-bool PzSetMgr::restorePz(PingZheng *pz)
+bool AccountSuiteManager::restorePz(PingZheng *pz)
 {
     //bool fonded = false;
     for(int i = 0; i < pz_dels.count(); ++i){
@@ -1307,7 +1320,7 @@ bool PzSetMgr::restorePz(PingZheng *pz)
  * @param num
  * @return
  */
-PingZheng *PzSetMgr::getPz(int num)
+PingZheng *AccountSuiteManager::getPz(int num)
 {
     if(!isOpened() || num < 1 || num > pzs->count())
         return NULL;
@@ -1319,7 +1332,7 @@ PingZheng *PzSetMgr::getPz(int num)
  * 设置当前凭证
  * @param pz
  */
-void PzSetMgr::setCurPz(PingZheng *pz)
+void AccountSuiteManager::setCurPz(PingZheng *pz)
 {
     if(curPz == pz)
         return;
@@ -1346,7 +1359,7 @@ void PzSetMgr::setCurPz(PingZheng *pz)
  * @param pz
  * @return
  */
-bool PzSetMgr::savePz(PingZheng *pz)
+bool AccountSuiteManager::savePz(PingZheng *pz)
 {
     return dbUtil->savePingZheng(pz);
 }
@@ -1359,7 +1372,7 @@ bool PzSetMgr::savePz(PingZheng *pz)
  * @param pzs
  * @return
  */
-bool PzSetMgr::savePzSet()
+bool AccountSuiteManager::savePzSet()
 {
     if(!dbUtil->savePingZhengs(*pzs))
         return false;
@@ -1377,15 +1390,15 @@ bool PzSetMgr::savePzSet()
  *  保存凭证集相关的数据和信息（凭证、余额状态、凭证集状态等）
  * @return
  */
-bool PzSetMgr::save(SaveWitch witch)
+bool AccountSuiteManager::save(SaveWitch witch)
 {
     switch(witch){
     case SW_ALL:
         if(!savePzSet())
             return false;
-        if(!dbUtil->setPzsState(curY,curM,states.value(genKey(curY,curM))))
+        if(!dbUtil->setPzsState(suiteRecord->year,curM,states.value(curM)))
             return false;
-        if(!dbUtil->setExtraState(curY,curM,extraStates.value(genKey(curY,curM))))
+        if(!dbUtil->setExtraState(suiteRecord->year,curM,extraStates.value(curM)))
             return false;
         undoStack->setClean();
         dirty = false;
@@ -1395,9 +1408,9 @@ bool PzSetMgr::save(SaveWitch witch)
         undoStack->setClean();
         break;
     case SW_STATE:
-        if(!dbUtil->setPzsState(curY,curM,getState()))
+        if(!dbUtil->setPzsState(suiteRecord->year,curM,getState()))
             return false;
-        if(!dbUtil->setExtraState(curY,curM,getExtraState()))
+        if(!dbUtil->setExtraState(suiteRecord->year,curM,getExtraState()))
             return false;
         break;
         dirty = false;
@@ -1416,7 +1429,7 @@ bool PzSetMgr::save(SaveWitch witch)
  * @param user          执行此操作的用户
  * @return
  */\
-bool PzSetMgr::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdPzs, QHash<int, Double> sRate, QHash<int, Double> eRate, User *user)
+bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdPzs, QHash<int, Double> sRate, QHash<int, Double> eRate, User *user)
 {
     //计算汇率差
     QHash<int,Double> diffRates;
@@ -1563,7 +1576,7 @@ bool PzSetMgr::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdPzs, QHash<i
  *  获取打开凭证集内的结转汇兑损益的凭证对象
  * @param pzLst
  */
-void PzSetMgr::getJzhdsyPz(QList<PingZheng *> &pzLst)
+void AccountSuiteManager::getJzhdsyPz(QList<PingZheng *> &pzLst)
 {
     if(!isOpened())
         return;
@@ -1581,7 +1594,7 @@ void PzSetMgr::getJzhdsyPz(QList<PingZheng *> &pzLst)
  * @param createdPzs
  * @return
  */
-bool PzSetMgr::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs)
+bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs)
 {
     //读取余额
     QList<int> in_sids, fei_sids; //分别是收入类和费用类损益类二级科目的id集合
@@ -1691,7 +1704,7 @@ bool PzSetMgr::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs)
  *  获取打开凭证集内的结转损益凭证对象
  * @param pzLst
  */
-void PzSetMgr::getJzsyPz(QList<PingZheng *> &pzLst)
+void AccountSuiteManager::getJzsyPz(QList<PingZheng *> &pzLst)
 {
     if(!isOpened())
         return;
@@ -1704,13 +1717,13 @@ void PzSetMgr::getJzsyPz(QList<PingZheng *> &pzLst)
 
 
 //创建当期固定资产折旧凭证
-bool PzSetMgr::crtGdzcPz()
+bool AccountSuiteManager::crtGdzcPz()
 {
 
 }
 
 //创建在指定年月中引入待摊费用的凭证
-bool PzSetMgr::crtDtfyImpPz(int y,int m,QList<PzData*> pzds)
+bool AccountSuiteManager::crtDtfyImpPz(int y,int m,QList<PzData*> pzds)
 {
     //前置条件判定
     //...
@@ -1738,82 +1751,102 @@ bool PzSetMgr::crtDtfyImpPz(int y,int m,QList<PzData*> pzds)
 }
 
 //创建当期计提待摊费用凭证
-bool PzSetMgr::crtDtfyTxPz()
+bool AccountSuiteManager::crtDtfyTxPz()
 {
-    return Dtfy::createTxPz(curY,curM,user);
+    return Dtfy::createTxPz(suiteRecord->year,curM,user);
 }
 
 //删除当期计提待摊费用凭证
-bool PzSetMgr::delDtfyPz()
+bool AccountSuiteManager::delDtfyPz()
 {
-    return Dtfy::repealTxPz(curY,curM);
+    return Dtfy::repealTxPz(suiteRecord->year,curM);
 }
 
 //创建当期结转利润凭证（将本年利润科目的余额结转至利润分配）
-bool PzSetMgr::crtJzlyPz(int y, int m, PingZheng *pz)
+bool AccountSuiteManager::crtJzlyPz(int y, int m, PingZheng *pz)
 {
 
 }
 
 //结账
-void PzSetMgr::finishAccount()
+void AccountSuiteManager::finishAccount()
 {
 
 }
 
 //统计本期发生额
-bool PzSetMgr::stat()
+bool AccountSuiteManager::stat()
 {
 
 }
 
 //统计指定年月凭证集的本期发生额
-bool PzSetMgr::stat(int y, int m)
+bool AccountSuiteManager::stat(int y, int m)
 {
 
 }
 
 //获取当期明细账数据
-bool PzSetMgr::getDetList()
+bool AccountSuiteManager::getDetList()
 {
 
 }
 
 //获取指定月份区间的明细账数据
-bool PzSetMgr::getDetList(int y, int sm, int em)
+bool AccountSuiteManager::getDetList(int y, int sm, int em)
 {
 
 }
 
 //获取当期总账数据
-bool PzSetMgr::getTotalList()
+bool AccountSuiteManager::getTotalList()
 {
     return true;
 }
 
 //获取指定月份区间的总账数据
-bool PzSetMgr::getTotalList(int y,int sm, int em)
+bool AccountSuiteManager::getTotalList(int y,int sm, int em)
 {
     return true;
 }
 
 //查找凭证
-bool PzSetMgr::find()
+bool AccountSuiteManager::find()
 {
 
 }
 
 //在指定月份区间内查找凭证
-bool PzSetMgr::find(int y, int sm, int em)
+bool AccountSuiteManager::find(int y, int sm, int em)
 {
 
+}
+
+/**
+ * @brief 返回指定月份的凭证列表（用于历史凭证浏览）
+ * @param m 月份
+ * @return
+ */
+QList<PingZheng *> AccountSuiteManager::getHistoryPzSet(int m)
+{
+    if(!pzSetHash.contains(m)){
+        if(!dbUtil->loadPzSet(suiteRecord->year,m,pzSetHash[m],this)){
+            QMessageBox::critical(0,tr("出错信息"),tr("在装载%1年%2月的凭证集时出错！").arg(suiteRecord->year).arg(m));
+            //return NULL;
+        }
+        if(!dbUtil->getPzsState(suiteRecord->year,m,states[m])){
+            QMessageBox::critical(0,tr("出错信息"),tr("在读取%1年%2月的凭证集状态时出错！").arg(suiteRecord->year).arg(m));
+            //return NULL;
+        }
+    }
+    return pzSetHash.value(m);
 }
 
 /**
  * @brief PzSetMgr::needRestat
  *  由于凭证集内的凭证数值的改变，需要进行重新统计来得到正确的余额
  */
-void PzSetMgr::needRestat()
+void AccountSuiteManager::needRestat()
 {
     setExtraState(false);
     emit pzExtraStateChanged(false);
@@ -1824,13 +1857,13 @@ void PzSetMgr::needRestat()
  *  打开的凭证集内的一个凭证的内容发生了改变，必须通知给凭证集对象
  * @param pz
  */
-void PzSetMgr::pzChangedInSet(PingZheng *pz)
+void AccountSuiteManager::pzChangedInSet(PingZheng *pz)
 {
     //目前的实现只触发凭证集改变信号以启用主窗口的保存按钮
     emit pzSetChanged();
 }
 
-void PzSetMgr::pzStateChanged(PzState oldState, PzState newState)
+void AccountSuiteManager::pzStateChanged(PzState oldState, PzState newState)
 {
 //    switch(oldState){
 //    case Pzs_Recording:
@@ -1860,7 +1893,7 @@ void PzSetMgr::pzStateChanged(PzState oldState, PzState newState)
 //        c_repeal++;
 //        break;
 //    }
-    _determinePzSetState(states[genKey(curY,curM)]);
+    _determinePzSetState(states[curM]);
     emit pzCountChanged(pzs->count());
 }
 

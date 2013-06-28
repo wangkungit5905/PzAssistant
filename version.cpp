@@ -575,10 +575,10 @@ bool VMAccount::updateTo1_3()
     //5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
     emit upgradeStep(verNum,tr("第五步：创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化"),VUR_OK);
     s = QString("create table %1(id integer primary key, %2 integer, %3 integer, "
-                "%4 integer, %5 integer, %6 text, %7 integer, %8 integer)")
+                "%4 integer, %5 integer, %6 text, %7 integer, %8 integer, %9 integer)")
             .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
             .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name)
-            .arg(fld_accs_startMonth).arg(fld_accs_endMonth);
+            .arg(fld_accs_startMonth).arg(fld_accs_endMonth).arg(fld_accs_isClosed);
 
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("创建帐套表“%1”时发生错误！").arg(tbl_accSuites),VUR_ERROR);
@@ -601,9 +601,9 @@ bool VMAccount::updateTo1_3()
         sYears<<sl.at(i).toInt();
         sNames<<sl.at(i+1);
     }
-    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:year,1,0,1,:name)")
+    s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(:year,1,0,1,:name,1)")
             .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
-            .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name);
+            .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name).arg(fld_accs_isClosed);
     r = q.prepare(s);
     for(int i = 0; i < sYears.count(); ++i){
         q.bindValue("year",sYears.at(i));
@@ -671,6 +671,13 @@ bool VMAccount::updateTo1_3()
     }
     d = QDate::fromString(q.value(0).toString(),Qt::ISODate);
     ey = d.year(),em = d.month();
+    //将最后一个账套设置为未关账
+    s = QString("update %1 set %2=0 where %3=%4").arg(tbl_accSuites).arg(fld_accs_isClosed)
+            .arg(fld_accs_year).arg(ey);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在将最后一个帐套设置为未关账时发生错误！"),VUR_ERROR);
+        return false;
+    }
     //只有一个帐套
     if(sy == ey){
         s = QString("update %1 set %2=%3,%4=%5 where %6=%7")
@@ -1203,8 +1210,8 @@ bool VMAccount::updateTo1_5()
 
     //2、添加明细账视图过滤条件表（DVFilters）
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 integer,%5 integer,"
-                "%6 integer,%7 integer,%8 text,%9 text,%10 text,%11 text)").arg(tbl_dvfilters)
-            .arg(fld_dvfs_isDef).arg(fld_dvfs_isCur).arg(fld_dvfs_isFstSub)
+                "%6 integer,%7 integer,%8 integer %9 text,%10 text,%11 text,%12 text)").arg(tbl_dvfilters)
+            .arg(fld_dvfs_suite).arg(fld_dvfs_isDef).arg(fld_dvfs_isCur).arg(fld_dvfs_isFstSub)
             .arg(fld_dvfs_curFSub).arg(fld_dvfs_curSSub).arg(fld_dvfs_mt).arg(fld_dvfs_name)
             .arg(fld_dvfs_startDate).arg(fld_dvfs_endDate).arg(fld_dvfs_subIds);
     if(!q.exec(s)){

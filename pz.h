@@ -14,7 +14,7 @@
 #include "subject.h"
 
 class PingZheng;
-class PzSetMgr;
+class AccountSuiteManager;
 class Money;
 
 //魔术数字（在比较对象时使用）
@@ -107,7 +107,7 @@ private:
     bool isDeleted;
 
     friend class PingZheng;
-    friend class PzSetMgr;
+    friend class AccountSuiteManager;
     friend class DbUtil;
 };
 
@@ -137,7 +137,7 @@ class PingZheng : public QObject
     Q_OBJECT
     Q_PROPERTY(int Md READ getMd CONSTANT)
     Q_PROPERTY(int Id READ id)
-    Q_PROPERTY(PzSetMgr* Parent READ parent WRITE setParent)
+    Q_PROPERTY(AccountSuiteManager* Parent READ parent WRITE setParent)
     Q_PROPERTY(QDate Date READ getDate2 WRITE setDate)
     Q_PROPERTY(QString DateStr READ getDate WRITE setDate)
     Q_PROPERTY(int Number READ number WRITE setNumber)
@@ -152,8 +152,8 @@ class PingZheng : public QObject
     Q_PROPERTY(User* BookKeeper READ bookKeeperUser WRITE setBookKeeperUser)
 
 public:
-    PingZheng(PzSetMgr* p = 0);
-    PingZheng(PzSetMgr* parent,int id,QString date,int pnum,int m_znum,Double js,Double ds,
+    PingZheng(AccountSuiteManager* p = 0);
+    PingZheng(AccountSuiteManager* parent,int id,QString date,int pnum,int m_znum,Double js,Double ds,
               PzClass pzCls,int encnum,PzState state,User* vu = NULL,
               User* ru = NULL, User* bu = NULL);
     ~PingZheng();
@@ -161,8 +161,8 @@ public:
     //属性访问
     long getMd(){return md;}
     int id(){return ID;}
-    PzSetMgr* parent(){return p;}
-    void setParent(PzSetMgr* parent){p = parent;}
+    AccountSuiteManager* parent(){return p;}
+    void setParent(AccountSuiteManager* parent){p = parent;}
     QString getDate(){return date;}
     QDate getDate2() const{return QDate::fromString(date,Qt::ISODate);}
     void setDate(QString ds);
@@ -244,7 +244,7 @@ private:
 
     long md;                            //表证该对象的魔术字
     int ID;                             //id
-    PzSetMgr* p;                        //该凭证所属的凭证集管理器对象
+    AccountSuiteManager* p;                        //该凭证所属的凭证集管理器对象
     QString date;                       //凭证日期（Qt::ISO格式）
     int pnum,m_znum,encNum;               //凭证号，自编号和附件数
     Double js,ds;                       //借贷方合计值
@@ -258,7 +258,7 @@ private:
     bool isDeleted;                     //是否被删除的标记
     FirstSubject* oppoSub;              //结转汇兑损益类凭证的对方科目
 
-    friend class PzSetMgr;
+    friend class AccountSuiteManager;
     friend class BusiAction;
     friend class DbUtil;
 };

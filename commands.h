@@ -27,7 +27,7 @@
 
 class SubjectManager;
 class SubjectNameItem;
-class PzSetMgr;
+class AccountSuiteManager;
 class PingZheng;
 class User;
 class BusiAction;
@@ -46,12 +46,12 @@ class Money;
 class AppendPzCmd : public QUndoCommand
 {
 public:
-    AppendPzCmd(PzSetMgr* pm, PingZheng* pz, QUndoCommand *parent = 0);
+    AppendPzCmd(AccountSuiteManager* pm, PingZheng* pz, QUndoCommand *parent = 0);
     void undo();
     void redo();
 
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;
 };
 
@@ -62,11 +62,11 @@ private:
 class InsertPzCmd : public QUndoCommand
 {
 public:
-    InsertPzCmd(PzSetMgr* pm, PingZheng* pz, QUndoCommand *parent = 0);
+    InsertPzCmd(AccountSuiteManager* pm, PingZheng* pz, QUndoCommand *parent = 0);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;
 };
 
@@ -77,12 +77,12 @@ private:
 class DelPzCmd : public QUndoCommand
 {
 public:
-    DelPzCmd(PzSetMgr* pm, PingZheng *pz, QUndoCommand *parent = 0);
+    DelPzCmd(AccountSuiteManager* pm, PingZheng *pz, QUndoCommand *parent = 0);
     void undo();
     void redo();
 
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;   //凭证对象
 };
 
@@ -114,14 +114,14 @@ private:
 class ModifyPzDateCmd : public QUndoCommand
 {
 public:
-    ModifyPzDateCmd(PzSetMgr* pm, PingZheng* pz, QString ds, QUndoCommand *parent = 0);
+    ModifyPzDateCmd(AccountSuiteManager* pm, PingZheng* pz, QString ds, QUndoCommand *parent = 0);
     int	id() const{return CMD_PZDATE;}
     bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     QString oldDate;
     QString newDate;
@@ -143,14 +143,14 @@ class BatchModifyPzNumCmd : public QUndoCommand
 class ModifyPzZNumCmd : public QUndoCommand
 {
 public:
-    ModifyPzZNumCmd(PzSetMgr* pm, PingZheng* pz, int pnum, QUndoCommand* parent = 0);
+    ModifyPzZNumCmd(AccountSuiteManager* pm, PingZheng* pz, int pnum, QUndoCommand* parent = 0);
     int	id() const{return CMD_PZZNUM;}
     bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     int oldPNum;
     int newPNum;
@@ -163,13 +163,13 @@ private:
 class ModifyPzEncNumCmd : public QUndoCommand
 {
 public:
-    ModifyPzEncNumCmd(PzSetMgr* pm, PingZheng* pz, int encnum, QUndoCommand* parent = 0);
+    ModifyPzEncNumCmd(AccountSuiteManager* pm, PingZheng* pz, int encnum, QUndoCommand* parent = 0);
     int	id() const{return CMD_PZENCNUM;}
     bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     int oldENum;
     int newENum;
@@ -182,13 +182,13 @@ private:
 class ModifyPzVStateCmd : public QUndoCommand
 {
 public:
-    ModifyPzVStateCmd(PzSetMgr* pm, PingZheng* pz, PzState state, QUndoCommand* parent = 0);
+    ModifyPzVStateCmd(AccountSuiteManager* pm, PingZheng* pz, PzState state, QUndoCommand* parent = 0);
     int	id() const{return CMD_PZVSTATE;}
     bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     PzState oldState;
     PzState newState;
@@ -202,11 +202,11 @@ private:
 class ModifyPzVUserCmd : public QUndoCommand
 {
 public:
-    ModifyPzVUserCmd(PzSetMgr* pm, PingZheng* pz, User* user, QUndoCommand* parent = 0);
+    ModifyPzVUserCmd(AccountSuiteManager* pm, PingZheng* pz, User* user, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     User* oldUser;
     User* newUser;
@@ -219,11 +219,11 @@ private:
 class ModifyPzBUserCmd : public QUndoCommand
 {
 public:
-    ModifyPzBUserCmd(PzSetMgr* pm, PingZheng* pz, User* user, QUndoCommand* parent = 0);
+    ModifyPzBUserCmd(AccountSuiteManager* pm, PingZheng* pz, User* user, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     User* oldUser;
     User* newUser;
@@ -246,11 +246,11 @@ private:
 class AppendBaCmd : public QUndoCommand
 {
 public:
-    AppendBaCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, QUndoCommand* parent = 0);
+    AppendBaCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
 };
@@ -262,11 +262,11 @@ private:
 class InsertBaCmd : public QUndoCommand
 {
 public:
-    InsertBaCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, int row, QUndoCommand* parent = 0);
+    InsertBaCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, int row, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     int row;          //插入位置
@@ -279,13 +279,13 @@ private:
 class ModifyBaSummaryCmd : public QUndoCommand
 {
 public:
-    ModifyBaSummaryCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, QString summary, QUndoCommand* parent = 0);
+    ModifyBaSummaryCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, QString summary, QUndoCommand* parent = 0);
     int	id() const{return CMD_BA_SUMMARY;}
     bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     QString newSummary;
@@ -295,11 +295,11 @@ private:
 class ModifyBaFSubMmd : public QUndoCommand
 {
 public:
-    ModifyBaFSubMmd(QString text, PzSetMgr* pm, PingZheng* pz, BusiAction* ba, QUndoStack* stack, QUndoCommand* parent = 0);
+    ModifyBaFSubMmd(QString text, AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, QUndoStack* stack, QUndoCommand* parent = 0);
     int	id() const{return CMD_BA_FSTSUB;}
     bool mergeWith(const QUndoCommand* command);
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     QUndoStack* pstack;
@@ -312,13 +312,13 @@ private:
 class ModifyBaFSubCmd : public QUndoCommand
 {
 public:
-    ModifyBaFSubCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, FirstSubject* fsub, QUndoCommand* parent = 0);
+    ModifyBaFSubCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, FirstSubject* fsub, QUndoCommand* parent = 0);
     //int	id() const{return CMD_BA_FSTSUB;}
     //bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     FirstSubject* newFSub;
@@ -334,14 +334,14 @@ private:
 class ModifyBaSSubCmd : public QUndoCommand
 {
 public:
-    ModifyBaSSubCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, SecondSubject* ssub, QUndoCommand* parent = 0);
+    ModifyBaSSubCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, SecondSubject* ssub, QUndoCommand* parent = 0);
     //int	id() const{return CMD_BA_SNDSUB;}
     //bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
     void setsub(SecondSubject* sub){newSSub=sub;} //此函数应用于宏命令中
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     SecondSubject* newSSub;
@@ -379,11 +379,11 @@ private:
 class ModifyBaMtMmd : public QUndoCommand
 {
 public:
-    ModifyBaMtMmd(QString text, PzSetMgr* pm, PingZheng* pz, BusiAction* ba, QUndoStack* stack, QUndoCommand* parent = 0);
+    ModifyBaMtMmd(QString text, AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, QUndoStack* stack, QUndoCommand* parent = 0);
     int	id() const{return CMD_BA_VALUE;}
     bool mergeWith(const QUndoCommand* command);
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     QUndoStack* pstack;
@@ -396,11 +396,11 @@ private:
 class ModifyBaMtCmd : public QUndoCommand
 {
 public:
-    ModifyBaMtCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, Money* mt, QUndoCommand* parent = 0);
+    ModifyBaMtCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, Money* mt, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     Money* newMt;
@@ -419,13 +419,13 @@ private:
 class ModifyBaValueCmd : public QUndoCommand
 {
 public:
-    ModifyBaValueCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, Double v,MoneyDirection dir, QUndoCommand* parent = 0);
+    ModifyBaValueCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, Double v,MoneyDirection dir, QUndoCommand* parent = 0);
     int	id() const{return CMD_BA_VALUE;}
     bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     Double newValue, oldValue;
@@ -439,11 +439,11 @@ private:
 class ModifyBaDelCmd : public QUndoCommand
 {
 public:
-    ModifyBaDelCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, QUndoCommand* parent = 0);
+    ModifyBaDelCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
 };
@@ -455,13 +455,13 @@ private:
 class CutBaCmd : public QUndoCommand
 {
 public:
-    CutBaCmd(PzSetMgr* pm, PingZheng* pz, QList<int> rows, QList<BusiAction*>* baLst, QUndoCommand* parent = 0);
+    CutBaCmd(AccountSuiteManager* pm, PingZheng* pz, QList<int> rows, QList<BusiAction*>* baLst, QUndoCommand* parent = 0);
     int	id() const{return CMD_BA_CUT;}
     bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     QList<BusiAction*>* baLst; //被剪切的会计分录对象的暂存位置
     QList<int> rows;  //被剪切的会计分录对象的索引号列表
@@ -478,7 +478,7 @@ public:
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     int row,rows;     //插入位置，粘贴对象的数目
     QList<BusiAction*>* baLst; //指向剪贴板缓存列表
@@ -493,13 +493,13 @@ private:
 class ModifyBaMoveCmd : public QUndoCommand
 {
 public:
-    ModifyBaMoveCmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, int rows, QUndoStack* stack, QUndoCommand* parent = 0);
+    ModifyBaMoveCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, int rows, QUndoStack* stack, QUndoCommand* parent = 0);
     //int	id() const{return CMD_BA_MOVE;}
     //bool mergeWith(const QUndoCommand* command);
     void undo();
     void redo();
 private:
-    PzSetMgr* pm;     //凭证集
+    AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
     int rows;         //移动的行数（正数：向上，负数：向下）
@@ -574,7 +574,7 @@ private:
 class ModifyBaSndSubNMMmd : public QUndoCommand
 {
 public:
-    ModifyBaSndSubNMMmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, SubjectNameItem* ni, QUndoCommand* parent = 0);
+    ModifyBaSndSubNMMmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, SubjectNameItem* ni, QUndoCommand* parent = 0);
     void undo();
     void redo();
     SecondSubject* getSecondSubject(){return ssub;}
@@ -583,7 +583,7 @@ private:
     FirstSubject* fsub;
     SubjectNameItem* ni;
     SecondSubject* ssub;
-    PzSetMgr* pm;
+    AccountSuiteManager* pm;
     PingZheng* pz;
     BusiAction* ba;
 };
@@ -596,7 +596,7 @@ private:
 class ModifyBaSndSubNSMmd : public QUndoCommand
 {
 public:
-    ModifyBaSndSubNSMmd(PzSetMgr* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, QString sname, QString lname, QString remCode, int nameCls, QUndoCommand* parent = 0);
+    ModifyBaSndSubNSMmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, QString sname, QString lname, QString remCode, int nameCls, QUndoCommand* parent = 0);
     void undo();
     void redo();
     SecondSubject* getSecondSubject(){return ssub;}
@@ -605,7 +605,7 @@ private:
     FirstSubject* fsub;
     SubjectNameItem* ni;
     SecondSubject* ssub;
-    PzSetMgr* pm;
+    AccountSuiteManager* pm;
     PingZheng* pz;
     BusiAction* ba;
     QString sname,lname,remCode;

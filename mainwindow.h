@@ -64,6 +64,39 @@ private:
 
 
 
+/**
+ * @brief 子窗口组管理类
+ */
+class SubWinGroupMgr : public QObject
+{
+    Q_OBJECT
+public:
+    SubWinGroupMgr(int gid,QMdiArea* parent):groupId(gid),parent(parent){}
+    ~SubWinGroupMgr(){}
+    void show();
+    void hide();
+    bool isShow(){return isShowed;}
+    MyMdiSubWindow* showSubWindow(subWindowType winType, QWidget* widget, SubWindowDim* winfo);
+    bool isSpecSubOpened(subWindowType winType){return subWinHashs.contains(winType);}
+    QWidget* getSubWinWidget(subWindowType winType);
+    void closeSubWindow(subWindowType winType);
+
+private slots:
+    void subWindowClosed(MyMdiSubWindow *subWin);
+
+//signals:
+//    void saveSubWinState(subWindowType winType,QByteArray* state,SubWindowDim* dim);
+
+private:
+    int groupId;
+    QMdiArea* parent;
+    QHash<subWindowType,MyMdiSubWindow*> subWinHashs; //唯一性子窗口映射表
+    //QList<QMdiSubWindow*> subWindows;                //所有子窗口列表
+    bool isShowed;                                   //当前子窗口组是否处于显示状态
+    //DbUtil* dbUtil;
+};
+
+
 extern int mdiAreaWidth;       //主窗口Mdi区域宽度
 extern int mdiAreaHeight;      //主窗口Mdi区域高度
 
@@ -72,39 +105,13 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    //可以在MDI区域打开的子窗口类型代码
-    enum subWindowType{
-        NONE       = 0,    //不指代任何字窗口类型
-        PZEDIT     = 1,    //凭证编辑窗口
-        PZSTAT     = 2,    //本期统计窗口
-        PZSTAT2    = 3,    //本期统计窗口（新）
-        DETAILSVIEW2 = 4,  //明细账视图（新）
-        PZEDIT_new     = 5,    //凭证编辑窗口（新）
-        //CASHDAILY  = 3,    //现金日记账窗口
-        //BANKDAILY  = 4,    //银行日记账窗口
-        //DETAILSDAILY=5,    //明细科目日记账窗口
-        TOTALDAILY = 6,    //总分类账窗口
-        SETUPBASE  = 7,    //设置账户期初余额窗口
-        SETUPBANK  = 8,    //设置开户行信息
-        BASEDATAEDIT = 9,  //基本数据库编辑窗口
-        GDZCADMIN =  10,   //固定资产管理窗口
-        DTFYADMIN = 11,    //待摊费用管理窗口
-        TOTALVIEW = 12,    //总账视图
-        DETAILSVIEW = 13,  //明细账视图
-        HISTORYVIEW = 14,  //历史凭证
-        LOOKUPSUBEXTRA =15,//查看科目余额
-        ACCOUNTPROPERTY=16,//查看账户属性
-        VIEWPZSETERROR=17  //查看凭证错误窗口
-        //设置期初余额的窗口
-        //科目配置窗口
 
-
-    };
 
     //工具视图类别枚举
     enum ToolViewType{
         TV_UNDO         = 1,    //UndoView工具视图
-        TV_SEARCHCLIENT = 2     //搜索客户
+        TV_SEARCHCLIENT = 2,    //搜索客户
+        TV_SUITESWITCH  = 3     //帐套切换视图
     };
 
     //undo框架类别
@@ -193,10 +200,18 @@ private slots:
     void showAndHideToolView(int vtype);
     void DockWindowVisibilityChanged(bool visible);
     void pzCountChanged(int count);
-    void rfNaveBtn(PingZheng* newPz, PingZheng* oldPz);
+    void rfNaveBtn(PingZheng* newPz=NULL, PingZheng* oldPz=NULL);
     void baIndexBoundaryChanged(bool first, bool last);
     void baSelectChanged(QList<int> rows, bool conti);
     //void PzChangedInSet();
+
+    /////////////////////////////////////////////////////////////////
+    void suiteViewSwitched(AccountSuiteManager* previous, AccountSuiteManager* current);
+    void viewOrEditPzSet(AccountSuiteManager* accSmg, int month);
+    void pzSetOpen(AccountSuiteManager* accSmg, int month);
+    void prepareClosePzSet(AccountSuiteManager* accSmg, int month);
+    void pzSetClosed(AccountSuiteManager* accSmg, int month);
+    void commonSubWindowClosed(MyMdiSubWindow *subWin);
 
     void on_actAddPz_triggered();
 
@@ -300,7 +315,11 @@ private slots:
 
     void on_actRefreshActInfo_triggered();
 
+    void on_actSuite_triggered();
+
 private:
+    bool isOnlyCommonSubWin(subWindowType winType);
+    void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
     void allPzToRecording(int year, int month);
     void initActions();
     void initToolBar();
@@ -334,6 +353,13 @@ private:
     void clearUndo();
     void adjustViewMenus(ToolViewType t, bool isRestore = false);
     void adjustEditMenus(UndoType ut=UT_PZ, bool restore = false);
+
+    /////////////////////////////////////////////////////////////////
+    void switchSubWindowGroup(int suiteId);
+
+    /////////////////////////////////////////////////////////////////
+
+
 
     Ui::MainWindow *ui;
 
@@ -371,12 +397,18 @@ private:
     //QRadioButton *rdoRecording, *rdoRepealPz, *rdoInstatPz, *rdoVerifyPz;
     //QAction *actRecording;/*, *actRepeal, *actVerify, *actInstat;*/
 
-    PzSetMgr* pzSetMgr;
+    AccountSuiteManager* curSuiteMgr;
     DbUtil* dbUtil;
 
     QUndoStack* undoStack;     //Undo命令栈
     QUndoView* undoView;       //Undo视图
     QAction *undoAction, *redoAction; //执行undo，redo操作
 
+    QHash<subWindowType,MyMdiSubWindow*> commonGroups; //公共类（唯一性子窗口）
+    QMultiHash<subWindowType,MyMdiSubWindow*> commonGroups_multi; //公共类（多子窗口共存）
+    QHash<int,SubWinGroupMgr*> subWinGroups;       //帐套视图子窗口组表（键为帐套id）                      //公共组
+    QHash<int,QList<PingZheng*> > historyPzSet;    //每个帐套视图当前正浏览的历史凭证列表
+    QHash<int,int> historyPzSetIndex;              //每个帐套视图当前正浏览的历史凭证集的当前索引
+    QHash<int,int> historyPzMonth;                 //每个账套视图当前装载的历史凭证的月份数
  };
 #endif // MAINWINDOW_H

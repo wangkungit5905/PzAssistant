@@ -48,6 +48,7 @@
     <addaction name="actOpenAccount"/>
     <addaction name="actCloseAccount"/>
     <addaction name="separator"/>
+    <addaction name="actSuite"/>
     <addaction name="actAccProperty"/>
     <addaction name="actDelAcc"/>
     <addaction name="actRefreshActInfo"/>
@@ -1289,6 +1290,14 @@
    </property>
    <property name="toolTip">
     <string>使凭证回到录入态以便编辑它</string>
+   </property>
+  </action>
+  <action name="actSuite">
+   <property name="text">
+    <string>帐套</string>
+   </property>
+   <property name="toolTip">
+    <string>切换帐套</string>
    </property>
   </action>
  </widget>

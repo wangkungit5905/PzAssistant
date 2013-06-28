@@ -72,7 +72,7 @@ bool StatUtil::save()
         return false;
     if(!dbUtil->saveExtraForMm(y,m,endFExaM,endSExaM))
         return false;
-    PzSetMgr* pzMgr = account->getPzSet();
+    AccountSuiteManager* pzMgr = account->getPzSet(account->getSuite(y)->id);
     pzMgr->setExtraState(true);
     if(!dbUtil->setExtraState(y,m,true))
         return false;

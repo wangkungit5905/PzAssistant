@@ -77,8 +77,9 @@ void AppConfig::setLogLevel(Logger::LogLevel level)
  */
 QSqlDatabase AppConfig::getBaseDbConnect()
 {
-    if(instance)
-        return db;
+    if(!instance)
+        getInstance();
+    return db;
 }
 
 void AppConfig::exit()

@@ -21,6 +21,7 @@
 #include "global.h"
 #include "subjectConfigDialog.h"
 #include "sqltooldialog.h"
+#include "databaseaccessform.h"
 #include "utils.h"
 #include "dialog2.h"
 #include "dialog3.h"
@@ -2477,7 +2478,7 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
     }
     else{
         if(winType == SUBWIN_SQL){
-            SqlToolDialog* w = static_cast<SqlToolDialog*>(subWin->widget());
+            DatabaseAccessForm* w = static_cast<DatabaseAccessForm*>(subWin->widget());
             if(w)
                 delete w;
         }
@@ -3556,7 +3557,7 @@ void MainWindow::on_actAntiImp_triggered()
 //打开Sql工具
 void MainWindow::showSqlTool()
 {
-    SqlToolDialog* dlg = new SqlToolDialog(curAccount->getDbUtil()->getDb());
+    DatabaseAccessForm* dlg = new DatabaseAccessForm(curAccount, AppConfig::getInstance());
     int winNumber = 1;
     if(commonGroups_multi.count(SUBWIN_SQL) > 0){
         QList<int> winNums;
@@ -4420,12 +4421,8 @@ bool MainWindow::impTestDatas()
 //    curAccount->isCompleteSubSysCfg(1,2,completed,subCloned);
 //    curAccount->setCompleteSubSysCfg(1,2,completed,subCloned);
 
-    SubjectNameItem* ni = SubjectManager::getNameItem(368);
-    ni->setClassId(3);
-    ni->setShortName(tr("测试名称--"));
-    ni->setLongName(tr("测试名称的全称--"));
-    ni->setRemCode("cemc--");
-    curAccount->getDbUtil()->saveNameItem(ni);
+//    DatabaseAccessForm* dlg = new DatabaseAccessForm(curAccount,AppConfig::getInstance());
+//    dlg->show();
     int i = 0;
 }
 

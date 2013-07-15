@@ -69,13 +69,17 @@
         <file>images/pz_insert.png</file>
         <file>images/recordPz_not.png</file>
         <file>images/recordPz_ok.png</file>
+        <file>images/accProperty/logInfo.png</file>
+        <file>images/accProperty/subjectInfo.png</file>
+        <file>images/accSuiteSelected.png</file>
+        <file>images/accSuite.png</file>
+        <file>images/accSuiteUnselected.png</file>
         <file>images/accProperty/bankInfo.png</file>
         <file>images/accProperty/baseInfo.png</file>
-        <file>images/accProperty/logInfo.png</file>
-        <file>images/accProperty/reportInfo.png</file>
-        <file>images/accProperty/subjectInfo.png</file>
         <file>images/accProperty/suiteInfo.png</file>
-        <file>images/accSuite.png</file>
-        <file>images/accSuiteSelected.png</file>
+        <file>images/accProperty/reportInfo.png</file>
+        <file>images/accProperty/basedata.png</file>
+        <file>images/accProperty/accProperty.png</file>
+        <file>images/accountRefresh.png</file>
     </qresource>
 </RCC>

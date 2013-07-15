@@ -623,6 +623,34 @@ bool AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
 }
 
 /**
+ * @brief AppConfig::getSupportMoneyType
+ *  获取系统支持的货币类型
+ * @param moneys
+ * @return
+ */
+bool AppConfig::getSupportMoneyType(QHash<int, Money*> &moneys)
+{
+    if(moneyTypes.isEmpty()){
+        QSqlQuery q(db);
+        QString s = QString("select * from %1").arg(tbl_base_mt);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        int code;
+        QString sign,name;
+        while(q.next()){
+            code = q.value(BASE_MT_CODE).toInt();
+            sign = q.value(BASE_MT_SIGN).toString();
+            name = q.value(BASE_MT_NAME).toString();
+            moneyTypes[code] = new Money(code,name,sign);
+        }
+    }
+    moneys = moneyTypes;
+    return true;
+}
+
+/**
  * @brief AppConfig::addAccountInfo
  *  添加账户信息
  * @param code
@@ -650,6 +678,12 @@ int AppConfig::addAccountInfo(QString code, QString aName, QString lName, QStrin
     return c;
 }
 
+/**
+ * @brief AppConfig::getSpecNameItemCls
+ *  返回特定名称条目类别的代码（因为这些代码将被硬编码到程序中，要是程序正常运行，必须获取正确的类别编码）
+ * @param witch
+ * @return
+ */
 int AppConfig::getSpecNameItemCls(AppConfig::SpecNameItemClass witch)
 {
     switch(witch){
@@ -657,6 +691,8 @@ int AppConfig::getSpecNameItemCls(AppConfig::SpecNameItemClass witch)
         return 2;
     case SNIC_GDZC:
         return 6;
+    case SNIC_BANK:
+        return 3;
     }
 }
 

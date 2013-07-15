@@ -4,6 +4,7 @@
 #include "pz.h"
 #include "dbutil.h"
 #include "statutil.h"
+#include "commands.h"
 
 
 
@@ -44,11 +45,8 @@ bool AccountSuiteManager::open(int m)
 {
     if(m>=suiteRecord->startMonth && m<=suiteRecord->endMonth && curM == m)
         return true;
-    if(isOpened()){    //同时只能打开一个凭证集用以编辑
-        if(isDirty())
-            save();
-        close();
-    }
+    if(isOpened())    //同时只能打开一个凭证集用以编辑
+        close();    
     if(!pzSetHash.contains(m)){
         if(!dbUtil->loadPzSet(suiteRecord->year,m,pzSetHash[m],this))
             return false;
@@ -118,7 +116,8 @@ bool AccountSuiteManager::isDirty()
 
 void AccountSuiteManager::close()
 {
-    //save();
+    if(isDirty())
+        save();
     undoStack->clear();
     for(int i = 0; i < pzs->count(); ++i){
         PingZheng* pz = pzs->at(i);
@@ -408,6 +407,49 @@ int AccountSuiteManager::getStatePzCount(PzState state)
         if(pz->getPzState() == state)
             c++;
     return c;
+}
+
+/**
+ * @brief 所有录入态凭证审核通过
+ * @return  受影响的凭证数
+ */
+int AccountSuiteManager::verifyAll(User *user)
+{
+    if(!isOpened() || getState() == Ps_Jzed)
+        return 0;
+    int affected = 0;
+    QUndoCommand* mainCmd = new QUndoCommand(tr("全部审核"));
+    foreach(PingZheng* pz, *pzs){
+        if(pz->getPzState() == Pzs_Recording){
+            affected++;
+            ModifyPzVStateCmd* cmd1 = new ModifyPzVStateCmd(this,pz,Pzs_Verify,mainCmd);
+            ModifyPzVUserCmd* cmd2 = new ModifyPzVUserCmd(this,pz,user,mainCmd);
+        }
+    }
+    undoStack->push(mainCmd);
+    return affected;
+}
+
+/**
+ * @brief 所有已审核凭证入账
+ * @param user
+ * @return  受影响的凭证数
+ */
+int AccountSuiteManager::instatAll(User *user)
+{
+    if(!isOpened() || getState() == Ps_Jzed)
+        return 0;
+    int affected = 0;
+    QUndoCommand* mainCmd = new QUndoCommand(tr("全部入账"));
+    foreach(PingZheng* pz, *pzs){
+        if(pz->getPzState() == Pzs_Verify){
+            affected++;
+            ModifyPzVStateCmd* cmd1 = new ModifyPzVStateCmd(this,pz,Pzs_Instat,mainCmd);
+            ModifyPzBUserCmd* cmd2 = new ModifyPzBUserCmd(this,pz,user,mainCmd);
+        }
+    }
+    undoStack->push(mainCmd);
+    return affected;
 }
 
 /**

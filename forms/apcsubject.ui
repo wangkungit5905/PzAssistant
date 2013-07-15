@@ -23,7 +23,7 @@
       <enum>QTabWidget::Triangular</enum>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="documentMode">
       <bool>false</bool>
@@ -89,7 +89,7 @@
      </widget>
      <widget class="QWidget" name="tabFst">
       <attribute name="title">
-       <string>一级科目</string>
+       <string>科目</string>
       </attribute>
       <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2,1,2">
        <item>

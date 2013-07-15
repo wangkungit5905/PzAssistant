@@ -92,7 +92,7 @@ void SuiteSwitchPanel::viewBtnClicked()
 /**
  * @brief 打开/关闭凭证集
  */
-void SuiteSwitchPanel::openBtnClicked()
+void SuiteSwitchPanel::openBtnClicked(bool checked)
 {
     AccountSuiteRecord* asr;
     int month;
@@ -115,8 +115,8 @@ void SuiteSwitchPanel::openBtnClicked()
     }
     QToolButton* btn = qobject_cast<QToolButton*>(sender());
     if(btn){
-        bool opened = btn->arrowType()==Qt::LeftArrow;
-        setBtnIcon(btn,!opened);
+        //bool opened = btn->arrowType()==Qt::LeftArrow;
+        setBtnIcon(btn,checked);
         if(!curSuite->open(month)){
             QMessageBox::critical(this,tr("出错信息"),tr("打开%1年%2月凭证集时发生错误！").arg(asr->year).arg(month));
             return;
@@ -145,7 +145,10 @@ void SuiteSwitchPanel::init()
 {
     curAsrId = 0;
     icon_selected = QIcon(":/images/accSuiteSelected.png");
-    icon_unSelected = QIcon(":/images/accSuite.png");
+    icon_unSelected = QIcon(":/images/accSuiteUnselected.png");
+    icon_open = QIcon(":/images/pzs_open.png");
+    icon_close = QIcon(":/images/pzs_close.png");
+    icon_edit = QIcon(":/images/pzs_dit.png");
     QListWidgetItem* li;
     foreach(AccountSuiteRecord* as, account->getAllSuites()){
         suiteRecords[as->id] = as;
@@ -218,9 +221,10 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw)
     tw->setCellWidget(row,COL_VIEW,btn);
     connect(btn,SIGNAL(clicked()),this,SLOT(viewBtnClicked()));
     btn = new QToolButton(this);
+    btn->setCheckable(true);
     setBtnIcon(btn,false);
     tw->setCellWidget(row,COL_OPEN,btn);
-    connect(btn,SIGNAL(clicked()),this,SLOT(openBtnClicked()));
+    connect(btn,SIGNAL(toggled(bool)),this,SLOT(openBtnClicked(bool)));
 }
 
 /**
@@ -251,11 +255,13 @@ void SuiteSwitchPanel::witchSuiteMonth(AccountSuiteRecord* &suiteRecord, int &mo
 void SuiteSwitchPanel::setBtnIcon(QToolButton *btn, bool opened)
 {
     if(opened){
-        btn->setArrowType(Qt::LeftArrow);
+        btn->setIcon(icon_close);
+        //btn->setArrowType(Qt::LeftArrow);
         btn->setToolTip(tr("关闭凭证集"));
     }
     else{
-        btn->setArrowType(Qt::RightArrow);
+        btn->setIcon(icon_open);
+        //btn->setArrowType(Qt::RightArrow);
         btn->setToolTip(tr("打开凭证集"));
     }
 }

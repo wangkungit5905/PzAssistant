@@ -101,9 +101,6 @@
      <addaction name="actAllInstat"/>
      <addaction name="actPzErrorInspect"/>
     </widget>
-    <addaction name="actOpenPzs"/>
-    <addaction name="actClosePzs"/>
-    <addaction name="actEditPzs"/>
     <addaction name="separator"/>
     <addaction name="mnuEndProcess"/>
     <addaction name="mnuAdvOper"/>
@@ -179,7 +176,6 @@
     <addaction name="actSetupAccInfos"/>
     <addaction name="actImpBasicDatas"/>
     <addaction name="actSetupBase"/>
-    <addaction name="actSetupBankInfos"/>
     <addaction name="actGdzcAdmin"/>
     <addaction name="actDtfyAdmin"/>
     <addaction name="separator"/>
@@ -198,7 +194,6 @@
     <property name="title">
      <string>选项</string>
     </property>
-    <addaction name="actSubConfig"/>
    </widget>
    <widget class="QMenu" name="mnuWindow">
     <property name="title">
@@ -241,11 +236,14 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actRefreshActInfo"/>
    <addaction name="actCrtAccount"/>
    <addaction name="actOpenAccount"/>
    <addaction name="actCloseAccount"/>
    <addaction name="actImpActFromFile"/>
    <addaction name="actEmpActToFile"/>
+   <addaction name="actAccProperty"/>
+   <addaction name="actSuite"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QToolBar" name="tbrPzEdit">
@@ -286,10 +284,7 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
-   <addaction name="actOpenPzs"/>
    <addaction name="actSave"/>
-   <addaction name="actClosePzs"/>
-   <addaction name="actEditPzs"/>
    <addaction name="actSearch"/>
    <addaction name="actNaviToPz"/>
   </widget>
@@ -374,8 +369,15 @@
    <property name="enabled">
     <bool>true</bool>
    </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/accountRefresh.png</normaloff>:/images/accountRefresh.png</iconset>
+   </property>
    <property name="text">
-    <string>刷新账户信息</string>
+    <string>刷新本地账户</string>
+   </property>
+   <property name="toolTip">
+    <string>重新载入保存在本地的账户</string>
    </property>
   </action>
   <action name="actImpActFromFile">
@@ -446,17 +448,6 @@
     <string>设置会计记账的开始时间、科目余额和各期报表数据</string>
    </property>
   </action>
-  <action name="actSetupBankInfos">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="text">
-    <string>设置开户行信息</string>
-   </property>
-   <property name="toolTip">
-    <string>设置账户所使用的开户银行账户信息</string>
-   </property>
-  </action>
   <action name="actImpTestDatas">
    <property name="text">
     <string>测试入口</string>
@@ -486,7 +477,7 @@
   </action>
   <action name="actSubExtra">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="text">
     <string>科目余额</string>
@@ -519,41 +510,6 @@
   <action name="actOwnerChanged">
    <property name="text">
     <string>所有者权益变动表</string>
-   </property>
-  </action>
-  <action name="actEditPzs">
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../imgers.qrc">
-     <normaloff>:/images/pzs_edit.png</normaloff>:/images/pzs_edit.png</iconset>
-   </property>
-   <property name="text">
-    <string>编辑凭证集</string>
-   </property>
-  </action>
-  <action name="actSubConfig">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="text">
-    <string>科目配置</string>
-   </property>
-   <property name="toolTip">
-    <string>配置科目的各种使用信息</string>
-   </property>
-  </action>
-  <action name="actClosePzs">
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
-   <property name="icon">
-    <iconset resource="../imgers.qrc">
-     <normaloff>:/images/pzs_close.png</normaloff>:/images/pzs_close.png</iconset>
-   </property>
-   <property name="text">
-    <string>关闭凭证集</string>
    </property>
   </action>
   <action name="actAddPz">
@@ -1072,18 +1028,6 @@
     <string>访问基本数据库</string>
    </property>
   </action>
-  <action name="actOpenPzs">
-   <property name="icon">
-    <iconset resource="../imgers.qrc">
-     <normaloff>:/images/pzs_open.png</normaloff>:/images/pzs_open.png</iconset>
-   </property>
-   <property name="text">
-    <string>打开凭证集</string>
-   </property>
-   <property name="toolTip">
-    <string>打开指定年月的凭证集合</string>
-   </property>
-  </action>
   <action name="actGdzcAdmin">
    <property name="text">
     <string>固定资产管理</string>
@@ -1117,6 +1061,10 @@
    </property>
   </action>
   <action name="actAccProperty">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/accProperty/accProperty.png</normaloff>:/images/accProperty/accProperty.png</iconset>
+   </property>
    <property name="text">
     <string>属性</string>
    </property>
@@ -1293,6 +1241,10 @@
    </property>
   </action>
   <action name="actSuite">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/accSuite.png</normaloff>:/images/accSuite.png</iconset>
+   </property>
    <property name="text">
     <string>帐套</string>
    </property>

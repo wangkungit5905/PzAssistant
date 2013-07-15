@@ -339,10 +339,11 @@ public:
     void rollback();
 
     //名称条目相关方法
+    static int getBankClsCode();
     static int getNotUsedNiClsCode();
     static bool addNiClass(int code, QString name, QString explain);
     static bool modifyNiClass(int code, QString name, QString explain);
-    static bool isUsedNiCls(int code);    
+    static bool isUsedNiCls(int code);
     static bool removeNiCls(int code);
     static QList<SubjectNameItem*> getAllNameItems(){return nameItems.values();}
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
@@ -385,7 +386,7 @@ public:
     FirstSubject* getYfSub(){return yfSub;}
     bool isSySubject(int sid);
     bool isSyClsSubject(int sid, bool &yes, bool isFst=true);
-    QList<BankAccount*>& getBankAccounts();
+
 
     bool isUsedSSub(SecondSubject* ssub);
 

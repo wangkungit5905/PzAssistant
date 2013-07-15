@@ -433,7 +433,19 @@ const int TRANSDESC_TID  = 1;
 const int TRANSDESC_OUT  = 2;
 const int TRANSDESC_IN   = 3;
 
+
+
+
 //////////*****************基本库数据表********************************//////////
+//币种类别表
+const QString tbl_base_mt = "MoneyTypes";
+const QString fld_base_mt_code = "code";
+const QString fld_base_mt_sign = "sign";
+const QString fld_base_mt_name = "name";
+const int BASE_MT_CODE = 1;
+const int BASE_MT_SIGN = 2;
+const int BASE_MT_NAME = 3;
+
 //凭证状态名表
 //CREATE TABLE pzStateNames(id INTEGER PRIMARY KEY, code INTEGER, state TEXT)
 //字段名

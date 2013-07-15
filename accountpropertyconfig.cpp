@@ -5,6 +5,7 @@
 #include "dbutil.h"
 #include "widgets.h"
 #include "delegates.h"
+#include "widgets/bawidgets.h"
 
 
 #include <QListWidget>
@@ -12,18 +13,171 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QFileDialog>
+#include <QInputDialog>
+#include <QKeyEvent>
 
 ApcBase::ApcBase(Account *account, QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::ApcBase)
+    QWidget(parent),ui(new Ui::ApcBase),account(account)
 {
     ui->setupUi(this);
+    iniTag = false;
+    changed = false;
 }
 
 ApcBase::~ApcBase()
 {
     delete ui;
 }
+
+void ApcBase::init()
+{
+    if(iniTag)
+        return;
+    wbs = account->getWaiMt();
+    ui->edtName->setText(account->getSName());
+    ui->edtLName->setText(account->getLName());
+    ui->edtCode->setText(account->getCode());
+    ui->edtFName ->setText(account->getFileName());
+    ui->startDate->setDate(account->getStartDate());
+    ui->endDate->setDate(account->getEndDate());
+    ui->edtMMt->setText(account->getMasterMt()->name());
+    foreach(Money* mt, wbs){
+        QListWidgetItem* item = new QListWidgetItem(mt->name());
+        QVariant v; v.setValue<Money*>(mt);
+        item->setData(Qt::UserRole,v);
+        ui->lstWMt->addItem(item);
+    }
+    connect(ui->edtName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
+    connect(ui->edtLName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
+    iniTag = true;
+}
+
+/**
+ * @brief ApcBase::windowShallClosed
+ *  关闭前的保存操作
+ */
+void ApcBase::windowShallClosed()
+{
+    bool tag = false;
+    if(ui->edtName->text() != account->getSName()){
+        tag = true;
+        account->setSName(ui->edtName->text());
+    }
+    if(ui->edtLName->text() != account->getLName()){
+        tag = true;
+        account->setLName(ui->edtLName->text());
+    }
+//    QHash<int,Money*> moneys;
+//    moneys = account->getAllMoneys();
+//    for(int i = 0; i < ui->lstWMt->count(); ++i){
+//        Money* mt = ui->lstWMt->item(i)->data(Qt::UserRole).value<Money*>();
+//        if(!moneys.contains(mt->code())){
+//            account->addWaiMt(mt);
+//            tag = true;
+//        }
+//        else
+//            moneys.remove(mt->code());
+//    }
+//    if(!moneys.isEmpty()){
+//        foreach(Money* mt, moneys)
+//            account->delWaiMt(mt);
+//        tag = true;
+//    }
+    //如果外币数目不同或相同但币种不同，则认为外币发生了改变
+    if(wbs.count() != account->getWaiMt().count()){
+        account->setWaiMts(wbs);
+        tag = true;
+    }
+    else{
+        qSort(wbs.begin(),wbs.end());
+        QList<Money*> mts;
+        mts = account->getWaiMt();
+        qSort(mts.begin(),mts.end());
+        foreach(Money* mt, mts){
+            if(!wbs.contains(mt)){
+                tag = true;
+                break;
+            }
+        }
+    }
+    if(tag)
+        account->saveAccountInfo();
+}
+
+void ApcBase::textEdited()
+{
+    changed = true;
+}
+
+void ApcBase::on_addWb_clicked()
+{
+    QList<Money*> mts;
+    QHash<int,Money*> moneys;
+    if(!AppConfig::getInstance()->getSupportMoneyType(moneys))
+        return;
+    mts = moneys.values();
+    mts.removeOne(account->getMasterMt());
+    Money* mt;
+//    for(int i = 0; i < ui->lstWMt->count(); ++i){
+//        mt = ui->lstWMt->item(i)->data(Qt::UserRole).value<Money*>();
+//        mts.removeOne(mt);
+//    }
+    foreach(Money* mt, wbs){
+        mts.removeOne(mt);
+    }
+
+    if(mts.isEmpty()){
+        QMessageBox::information(this,tr("提示信息"),tr("应用支持的所有货币类型已全部被账户利用，已没有新的可用的外币类型！"));
+        return;
+    }
+    QDialog dlg;
+    QListWidget lstMt(&dlg);
+    QVariant v; QListWidgetItem* item;
+
+    for(int i = 0; i < mts.count(); ++i){
+        mt = mts.at(i);
+        v.setValue<Money*>(mt);
+        item = new QListWidgetItem(mt->name(),&lstMt);
+        item->setData(Qt::UserRole,v);
+    }
+    QVBoxLayout lm;
+    lm.addWidget(&lstMt);
+    QPushButton btnOk(tr("确定")),btnCancel(tr("取消"));
+    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+    QHBoxLayout lb;
+    lb.addWidget(&btnOk);
+    lb.addWidget(&btnCancel);
+    lm.addLayout(&lb);
+    dlg.setLayout(&lm);
+    if(dlg.exec() == QDialog::Accepted){
+        if(lstMt.currentRow() > -1){
+            mt = lstMt.currentItem()->data(Qt::UserRole).value<Money*>();
+            QListWidgetItem* item = new QListWidgetItem(mt->name());
+            v.setValue<Money*>(mt);
+            item->setData(Qt::UserRole,v);
+            ui->lstWMt->addItem(item);
+            wbs.append(mt);
+        }
+    }
+}
+
+
+void ApcBase::on_delWb_clicked()
+{
+    if(!ui->lstWMt->currentItem())
+        return;
+    Money* mt = ui->lstWMt->currentItem()->data(Qt::UserRole).value<Money*>();
+    bool used;
+    account->getDbUtil()->moneyIsUsed(mt,used);
+    if(used){
+        QMessageBox::warning(this,tr("警告信息"),tr("该货币已被账户使用了，不能删除！"));
+        return;
+    }
+    ui->lstWMt->takeItem(ui->lstWMt->currentRow());
+    wbs.removeOne(mt);
+    }
+
 
 //////////////////////////////ApcSuite////////////////////////////////////////////////
 ApcSuite::ApcSuite(Account *account, QWidget *parent) :
@@ -59,6 +213,14 @@ void ApcSuite::init()
     }
     iniTag = true;
     curSuiteChanged(-1);
+}
+
+void ApcSuite::windowShallClosed()
+{
+    if(editAction != EA_NONE){
+        if(QMessageBox::warning(this,tr("警告信息"),tr("账套设置信息被修改，但未保存！"),QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
+            on_btnCommit_clicked();
+    }
 }
 
 /**
@@ -346,18 +508,436 @@ bool ApcSuite::joinExtra(int year, int sc, int dc)
     return true;
 }
 
+//////////////////////////BankCfgNiCellWidget/////////////////////////////////////////////
+BankCfgNiCellWidget::BankCfgNiCellWidget(SubjectNameItem *ni):QTableWidgetItem(),ni(ni)
+{
+}
+
+QVariant BankCfgNiCellWidget::data(int role) const
+{
+    if(role == Qt::DisplayRole){
+        if(!ni)
+            return "";
+        else
+            return ni->getShortName();
+    }
+    if(role == Qt::EditRole){
+        QVariant v;
+        v.setValue(ni);
+        return v;
+    }
+    return QTableWidgetItem::data(role);
+}
+
+void BankCfgNiCellWidget::setData(int role, const QVariant &value)
+{
+    if(role == Qt::EditRole){
+        ni = value.value<SubjectNameItem*>();
+        QTableWidgetItem::setData(Qt::DisplayRole,ni?ni->getShortName():"");
+    }
+    else
+        QTableWidgetItem::setData(role, value);
+}
+
+
+////////////////////////BankCfgItemDelegate/////////////////////////////////////////////
+BankCfgItemDelegate::BankCfgItemDelegate(Account *account, QObject *parent)
+    : QItemDelegate(parent),account(account)
+{
+}
+
+QWidget *BankCfgItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    if(readOnly)
+        return NULL;
+    int col = index.column();
+    if(col == ApcBank::CI_MONEY){
+        QComboBox* cmb = new QComboBox(parent);
+        QVariant v;
+        foreach(Money* mt, account->getAllMoneys().values()){
+            v.setValue<Money*>(mt);
+            cmb->addItem(mt->name(),v);
+        }
+        return cmb;
+    }
+    else if(col == ApcBank::CI_ACCOUNTNUM){
+        QLineEdit* edt = new QLineEdit(parent);
+        return edt;
+    }
+}
+
+void BankCfgItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+{
+    int col = index.column();
+    if(col == ApcBank::CI_MONEY){
+        QComboBox* cmb = qobject_cast<QComboBox*>(editor);
+        if(cmb){
+            Money* mt = index.model()->data(index,Qt::EditRole).value<Money*>();
+            QVariant v;
+            v.setValue<Money*>(mt);
+            int index = cmb->findData(v);
+            cmb->setCurrentIndex(index);
+        }
+    }
+    else if(col == ApcBank::CI_ACCOUNTNUM){
+        QLineEdit* edt = qobject_cast<QLineEdit*>(editor);
+        if(edt)
+            edt->setText(index.model()->data(index).toString());
+    }
+}
+
+void BankCfgItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
+{
+    int col = index.column();
+    if(col == ApcBank::CI_MONEY){
+        QComboBox* cmb = qobject_cast<QComboBox*>(editor);
+        if(cmb){
+            Money* mt = cmb->itemData(cmb->currentIndex()).value<Money*>();
+            QVariant v; v.setValue<Money*>(mt);
+            model->setData(index,v,Qt::EditRole);
+            //model->setData(index,cmb->currentText(),Qt::DisplayRole);
+        }
+    }
+    else if(col == ApcBank::CI_ACCOUNTNUM){
+        QLineEdit* edt = qobject_cast<QLineEdit*>(editor);
+        if(edt)
+            model->setData(index,edt->text(),Qt::DisplayRole);
+    }
+}
+
+void BankCfgItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    editor->setGeometry(option.rect);
+}
+
 
 ////////////////////////////ApcBank///////////////////////////////////////////////
-ApcBank::ApcBank(QWidget *parent) :
-    QWidget(parent),
-    ui(new Ui::ApcBank)
+ApcBank::ApcBank(Account* account, QWidget *parent) : QWidget(parent), ui(new Ui::ApcBank),account(account)
 {
     ui->setupUi(this);
+    iniTag = false;
+    curBank = NULL;
+    editAction = EA_NONE;
+    delegate = new BankCfgItemDelegate(account,this);
+    ui->tvAccList->setItemDelegate(delegate);
 }
 
 ApcBank::~ApcBank()
 {
     delete ui;
+}
+
+void ApcBank::init()
+{
+    if(iniTag)
+        return;
+    ui->tvAccList->setColumnHidden(CI_ID,true);
+    banks = account->getAllBank();
+    QListWidgetItem* item;
+    foreach(Bank* bank, banks){
+        editTags<<false;
+        item = new QListWidgetItem(bank->name);
+        ui->lstBank->addItem(item);
+    }
+    connect(ui->lstBank,SIGNAL(currentRowChanged(int)),this,SLOT(curBankChanged(int)));
+    connect(ui->lstBank,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(bankDbClicked()));
+    if(!banks.isEmpty())
+        ui->lstBank->setCurrentRow(0);
+    enWidget(false);
+}
+
+void ApcBank::windowShallClosed()
+{
+    if(editAction != EA_NONE){
+        if(QMessageBox::warning(this,tr("警告信息"),tr("银行设置信息已被修改，但未保存！"),QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
+            on_submit_clicked();
+    }
+}
+
+/**
+ * @brief 当前选择的银行改变
+ * @param index
+ */
+void ApcBank::curBankChanged(int index)
+{
+    if(index < 0 || index >= ui->lstBank->count()){
+        curBank = NULL;
+        return;
+    }
+    curBank = banks.at(index);
+    viewBankAccounts();
+}
+
+/**
+ * @brief 为银行账户创建对应的名称条目
+ */
+void ApcBank::crtNameBtnClicked()
+{
+    if(editAction == EA_NONE)
+        return;
+    int row = -1;
+    for(int i = 0; i < ui->tvAccList->rowCount(); ++i){
+        QPushButton* btn = qobject_cast<QPushButton*>(ui->tvAccList->cellWidget(i,CI_NAME));
+        if(btn && btn == qobject_cast<QPushButton*>(sender())){
+            row = i;
+            break;
+        }
+    }
+    Money* mt = ui->tvAccList->item(row,CI_MONEY)->data(Qt::EditRole).value<Money*>();
+    QString suggestName = QString("%1-%2").arg(ui->bankName->text()).arg(mt->name());
+    bool ok;
+    QInputDialog::getText(this,tr("信息获取"),tr("建议的名称"),QLineEdit::Normal,suggestName,&ok);
+    if(ok){
+        int cls = AppConfig::getInstance()->getSpecNameItemCls(AppConfig::SNIC_BANK);
+        SubjectNameItem* ni = SubjectManager::addNameItem(suggestName,QString("%1-%2").arg(curBank->name).arg(mt->name()),"",cls);
+        //delete ui->tvAccList->cellWidget(row,CI_NAME);
+        ui->tvAccList->setCellWidget(row,CI_NAME,NULL);
+        BankCfgNiCellWidget* item = new BankCfgNiCellWidget(ni);
+        ui->tvAccList->setItem(row,CI_NAME,item);
+    }
+}
+
+/**
+ * @brief ApcBank::bankDbClicked
+ *  双击银行名，启动编辑
+ */
+void ApcBank::bankDbClicked()
+{
+    if(editAction == EA_NONE)
+        on_editBank_clicked();
+}
+
+void ApcBank::on_editBank_clicked()
+{
+    //开始编辑
+    if(editAction == EA_NONE){
+        editAction = EA_EDIT;
+        enWidget(true);
+    }
+    else{ //取消编辑
+        if(editAction == EA_NEW){
+            delete curBank;
+            ui->lstBank->setCurrentRow(-1);
+            //curBank = NULL;
+            //if(!banks.isEmpty())
+            //    ui->lstBank->setCurrentRow(0);
+            ui->newBank->setEnabled(true);
+        }
+        viewBankAccounts();
+        editAction = EA_NONE;
+        enWidget(false);
+    }
+}
+
+/**
+ * @brief ApcBank::on_submit_clicked
+ */
+void ApcBank::on_submit_clicked()
+{
+    if(editAction == EA_NONE)
+        return;
+    if(editAction == EA_EDIT){
+        curBank->name = ui->bankName->text();
+        curBank->lname = ui->bankLName->text();
+        curBank->isMain = ui->chkIsMain->isChecked();
+        if(curBank->isMain){
+            foreach(Bank* bank, banks){
+                if(bank != curBank && bank->isMain){
+                    bank->isMain = false;
+                    account->saveBank(bank);
+                }
+            }
+        }
+        for(int i = 0; i < ui->tvAccList->rowCount(); ++i){
+            int id = ui->tvAccList->item(i,CI_ID)->data(Qt::EditRole).toInt();
+            BankAccount* ba;
+            if(id == 0){
+                ba = new BankAccount;
+                ba->id = UNID;
+                ba->parent = curBank;
+                ba->accNumber = ui->tvAccList->item(i,CI_ACCOUNTNUM)->text();
+                ba->mt = ui->tvAccList->item(i,CI_MONEY)->data(Qt::EditRole).value<Money*>();
+                curBank->bas<<ba;
+            }
+            else{
+                ba = fondBankAccount(id);
+                ba->accNumber = ui->tvAccList->item(i,CI_ACCOUNTNUM)->text();
+                ba->mt = ui->tvAccList->item(i,CI_MONEY)->data(Qt::EditRole).value<Money*>();
+            }
+            if(ui->tvAccList->item(i,CI_NAME))
+                ba->niObj = ui->tvAccList->item(i,CI_NAME)->data(Qt::EditRole).value<SubjectNameItem*>();
+            else
+                ba->niObj = NULL;
+        }
+    }
+    else if(editAction == EA_NEW){
+        curBank->isMain = ui->chkIsMain->isChecked();
+        if(curBank->isMain){
+            foreach(Bank* bank, banks){
+                if(bank->isMain){
+                    bank->isMain = false;
+                    account->saveBank(bank);
+                }
+            }
+        }
+        curBank->name = ui->bankName->text();
+        curBank->lname = ui->bankLName->text();
+        for(int i = 0; i < ui->tvAccList->rowCount(); ++i){
+            BankAccount* ba  = new BankAccount;
+            ba->id = 0;
+            ba->parent = curBank;
+            ba->accNumber = ui->tvAccList->item(i,CI_ACCOUNTNUM)->text();
+            ba->mt = ui->tvAccList->item(i,CI_MONEY)->data(Qt::EditRole).value<Money*>();
+            if(ui->tvAccList->item(i,CI_NAME))
+                ba->niObj = ui->tvAccList->item(i,CI_NAME)->data(Qt::EditRole).value<SubjectNameItem*>();
+            else
+                ba->niObj = NULL;
+            curBank->bas<<ba;
+        }
+        banks<<curBank;
+        QListWidgetItem* item  = new QListWidgetItem(curBank->name);
+        ui->lstBank->addItem(item);
+        ui->lstBank->setCurrentRow(banks.count()-1);        
+    }
+    account->saveBank(curBank);
+    editAction = EA_NONE;
+    enWidget(false);
+    viewBankAccounts();
+}
+
+/**
+ * @brief 新建开户行
+ */
+void ApcBank::on_newBank_clicked()
+{
+    curBank = new Bank;
+    curBank->id = UNID;
+    curBank->isMain = false;
+    editAction = EA_NEW;
+    enWidget(true);
+    ui->newBank->setEnabled(false);
+    viewBankAccounts();
+    ui->bankName->setFocus();
+}
+
+
+void ApcBank::on_delBank_clicked()
+{
+    int row  = ui->lstBank->currentRow();
+    if(curBank->id != UNID){
+        foreach(BankAccount* ba, curBank->bas){
+            if(ba->niObj && account->getDbUtil()->nameItemIsUsed(ba->niObj)){
+                QMessageBox::warning(this,tr("警告信息"),tr("该银行包含了已被使用的的名称条目，不能删除！"));
+                return;
+            }
+        }
+    }
+    account->getDbUtil()->saveBankInfo(curBank,true);
+    delete ui->lstBank->takeItem(row);
+
+}
+
+void ApcBank::on_newAcc_clicked()
+{
+    int row = ui->tvAccList->rowCount();
+    ui->tvAccList->insertRow(row);
+    QTableWidgetItem* item = new QTableWidgetItem;
+    item->setData(Qt::EditRole,0);
+    ui->tvAccList->setItem(row,CI_ID,item);
+    BAMoneyTypeItem_new* cell = new BAMoneyTypeItem_new(account->getMasterMt());
+    ui->tvAccList->setItem(row,CI_MONEY,cell);
+    item = new QTableWidgetItem;
+    ui->tvAccList->setItem(row,CI_ACCOUNTNUM,item);
+    QPushButton* btn = new QPushButton(tr("创建名称"),ui->tvAccList);
+    connect(btn,SIGNAL(clicked()),this,SLOT(crtNameBtnClicked()));
+    ui->tvAccList->setCellWidget(row,CI_NAME,btn);
+}
+
+void ApcBank::on_delAcc_clicked()
+{
+    int row = ui->tvAccList->currentRow();
+    int id = ui->tvAccList->item(row,CI_ID)->data(Qt::EditRole).toInt();
+    if(id != UNID){
+        BankAccount* ba = fondBankAccount(id);
+        if(ba->niObj && account->getDbUtil()->nameItemIsUsed(ba->niObj)){
+            QMessageBox::warning(this,tr("警告信息"),tr("该银行帐号对应的名称条目已被二级科目采用，不能删除！"));
+            return;
+        }
+        curBank->bas.removeOne(ba);
+    }
+    ui->tvAccList->removeRow(row);
+    }
+
+
+/**
+ * @brief 显示当前开户行的所有信息（名称及其其下的各个账户信息）
+ */
+void ApcBank::viewBankAccounts()
+{
+    if(!curBank){
+        ui->chkIsMain->setChecked(false);
+        ui->bankName->clear();
+        ui->bankLName->clear();
+        ui->tvAccList->setRowCount(0);
+        return;
+    }
+    ui->chkIsMain->setChecked(curBank->isMain);
+    ui->bankName->setText(curBank->name);
+    ui->bankLName->setText(curBank->lname);
+    ui->tvAccList->setRowCount(0);
+    QTableWidgetItem* item;
+    int row = -1;
+    foreach(BankAccount* ba, curBank->bas){
+        row++;
+        ui->tvAccList->insertRow(row);
+        item = new QTableWidgetItem;
+        item->setData(Qt::EditRole,ba->id);
+        ui->tvAccList->setItem(row,CI_ID,item);
+        BAMoneyTypeItem_new* cell = new BAMoneyTypeItem_new(ba->mt);
+        ui->tvAccList->setItem(row,CI_MONEY,cell);
+        item = new QTableWidgetItem(ba->accNumber);
+        ui->tvAccList->setItem(row,CI_ACCOUNTNUM,item);
+        if(ba->niObj){
+            BankCfgNiCellWidget* ni = new BankCfgNiCellWidget(ba->niObj);
+            ui->tvAccList->setItem(row,CI_NAME,ni);
+        }
+        else{
+            QPushButton* btn = new QPushButton(tr("创建名称"),ui->tvAccList);
+            connect(btn,SIGNAL(clicked()),this,SLOT(crtNameBtnClicked()));
+            ui->tvAccList->setCellWidget(row,CI_NAME,btn);
+        }
+    }
+}
+
+/**
+ * @brief 对控件的编辑性进行控制
+ * @param en    true：编辑模式，false：只读模式
+ */
+void ApcBank::enWidget(bool en)
+{   ui->lstBank->setEnabled(!en);
+    delegate->setReadOnly(!en);
+    ui->chkIsMain->setEnabled(en);
+    ui->bankName->setReadOnly(!en);
+    ui->bankLName->setReadOnly(!en);
+    ui->newAcc->setEnabled(en);
+    ui->delAcc->setEnabled(en && ui->tvAccList->currentRow() != -1);
+    ui->submit->setEnabled(en);
+    ui->editBank->setText(en?tr("取消"):tr("编辑"));
+}
+
+/**
+ * @brief ApcBank::fondBankAccount
+ *  找到指定id的银行帐号
+ * @param id
+ * @return
+ */
+BankAccount *ApcBank::fondBankAccount(int id)
+{
+    foreach(BankAccount* ba, curBank->bas){
+        if(ba->id == id)
+            return ba;
+    }
+    return NULL;
 }
 
 ///////////////////////////ApcSubject////////////////////////////////////////////
@@ -399,6 +979,31 @@ void ApcSubject::save()
         if(!account->getSubjectManager(item->code)->save()){
             QMessageBox::critical(this,tr("出错信息"),tr("在保存科目时发生错误！"));
             return;
+        }
+    }
+}
+
+void ApcSubject::windowShallClosed()
+{
+    if(editAction != APCEA_NONE){
+        if(QMessageBox::warning(this,tr("警告信息"),tr("科目设置信息已被修改，但未保存！"),QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes){
+            switch(editAction){
+            case APCEA_NEW_NICLS:
+            case APCEA_EDIT_NICLS:
+                on_btnNiClsCommit_clicked();
+                break;
+            case APCEA_NEW_NI:
+            case APCEA_EDIT_NI:
+                on_btnNiCommit_clicked();
+                break;
+            case APCEA_NEW_SSUB:
+            case APCEA_EDIT_SSUB:
+                on_btnSSubCommit_clicked();
+                break;
+            case APCEA_EDIT_FSUB:
+                on_btnFSubCommit_clicked();
+                break;
+            }
         }
     }
 }
@@ -1569,6 +2174,732 @@ void SubSysJoinCfgForm::preConfig()
 
 }
 
+/////////////////////////////DirView////////////////////////////////////////////////
+DirView::DirView(MoneyDirection dir, int type):QTableWidgetItem(type),dir(dir)
+{
+}
+
+QVariant DirView::data(int role) const
+{
+    if (role == Qt::TextAlignmentRole)
+        return (int)Qt::AlignCenter;
+    if(role == Qt::DisplayRole){
+        switch(dir){
+        case MDIR_J:
+            return QObject::tr("借");
+        case MDIR_D:
+            return QObject::tr("贷");
+        case MDIR_P:
+            return QObject::tr("平");
+        }
+    }
+    if(role == Qt::EditRole)
+        return dir;
+    return QTableWidgetItem::data(role);
+}
+
+void DirView::setData(int role, const QVariant &value)
+{
+    if(role == Qt::EditRole)
+        dir = (MoneyDirection)value.toInt();
+    QTableWidgetItem::setData(role,value);
+}
+
+
+///////////////////////////DirEdit_new////////////////////////////////////////////////////////////
+DirEdit_new::DirEdit_new(MoneyDirection dir, QWidget *parent):QComboBox(parent),dir(dir)
+{
+    addItem(tr("借"), MDIR_J);
+    addItem(tr("贷"), MDIR_D);
+    //addItem(tr("平"), MDIR_P);
+}
+
+void DirEdit_new::setDir(MoneyDirection dir)
+{
+    this->dir = dir;
+    int idx = findData(dir);
+    setCurrentIndex(idx);
+}
+
+MoneyDirection DirEdit_new::getDir()
+{
+    dir = (MoneyDirection)itemData(currentIndex(), Qt::UserRole).toInt();
+    return dir;
+}
+
+void DirEdit_new::keyPressEvent(QKeyEvent *e)
+{
+    int key = e->key();
+    if((key == Qt::Key_Return) || (key == Qt::Key_Enter)){
+        emit dataEditCompleted(BT_MTYPE,true);
+        emit editNextItem(row,col);
+        e->accept();
+    }
+    else
+        e->ignore();
+    QComboBox::keyPressEvent(e);
+}
+
+
+////////////////////////////BeginCfgItemDelegate///////////////////////////////////////////////
+BeginCfgItemDelegate::BeginCfgItemDelegate(Account *account, bool readOnly, bool isFSub, QObject *parent)
+    :QItemDelegate(parent),account(account),readOnly(readOnly),isFSub(isFSub)
+{
+    mts = account->getAllMoneys();
+
+}
+
+QWidget *BeginCfgItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    if(readOnly)
+        return NULL;
+    if(isFSub)
+        return NULL;
+    int col = index.column();
+    int row = index.row();
+    if(col == ApcData::CI_MONEY){
+        MoneyTypeComboBox* cmb = new MoneyTypeComboBox(mts,parent);
+        return cmb;
+    }
+    else if(col == ApcData::CI_DIR){
+        DirEdit_new* cmb = new DirEdit_new(MDIR_J,parent);
+        return cmb;
+    }
+    else{
+        MoneyValueEdit* editor = NULL;
+        //如果是币种是本币，则不能也无须输入本币形式的余额
+        Money* mt = index.model()->data(index.model()->index(row,ApcData::CI_MONEY),Qt::EditRole).value<Money*>();
+        if(col == ApcData::CI_MV && mt == account->getMasterMt())
+            return editor;
+        MoneyDirection dir = (MoneyDirection)index.model()->data(index.model()->index(row,ApcData::CI_DIR),Qt::EditRole).toInt();
+        if(dir == MDIR_J)
+            editor = new MoneyValueEdit(row,1,Double(),parent);
+        else
+            editor = new MoneyValueEdit(row,0,Double(),parent);
+        return editor;
+    }
+}
+
+void BeginCfgItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+{
+    int col = index.column();
+    if(col == ApcData::CI_MONEY){
+        MoneyTypeComboBox* cmb = qobject_cast<MoneyTypeComboBox*>(editor);
+        Money* mt = index.model()->data(index, Qt::EditRole).value<Money*>();
+        if(mt){
+            int idx = cmb->findData(mt->code(), Qt::UserRole);
+            cmb->setCurrentIndex(idx);
+        }
+
+    }
+    else if(col == ApcData::CI_DIR){
+        DirEdit_new* cmb = qobject_cast<DirEdit_new*>(editor);
+        MoneyDirection dir = (MoneyDirection)index.model()->data(index, Qt::EditRole).toInt();
+        cmb->setDir(dir);
+    }
+    else{
+        MoneyValueEdit *edit = qobject_cast<MoneyValueEdit*>(editor);
+        if (edit) {
+            Double v;
+            if(col == ApcData::CI_PV){
+                v = index.model()->data(index, Qt::EditRole).value<Double>();
+                edit->setValue(v);
+            }
+            else{
+                v = index.model()->data(index, Qt::EditRole).value<Double>();
+                edit->setValue(v);
+            }
+        }
+    }
+}
+
+void BeginCfgItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
+{
+    int col = index.column();
+    if(col == ApcData::CI_MONEY){
+        MoneyTypeComboBox* cmb = qobject_cast<MoneyTypeComboBox*>(editor);
+        if(cmb){
+            int newMt = cmb->itemData(cmb->currentIndex(), Qt::UserRole).toInt();
+            if(newMt != 0){
+                int oldMt = 0;
+                Money* mo = model->data(index).value<Money*>();
+                if(mo)
+                   oldMt = mo->code();
+                QVariant v;
+                v.setValue<Money*>(mts.value(newMt));
+                model->setData(index, v);
+                //emit moneyChanged(oldMt,newMt);//直接触发信号，编译通不过
+            }
+        }
+    }
+    else if(col == ApcData::CI_DIR){
+        DirEdit_new* cmb = qobject_cast<DirEdit_new*>(editor);
+        if(cmb){
+            MoneyDirection dir = cmb->getDir();
+            model->setData(index, dir);
+        }
+    }
+    else{
+        MoneyValueEdit* edit = qobject_cast<MoneyValueEdit*>(editor);
+        if(edit){
+            Double v = edit->getValue();
+            QVariant va; va.setValue(v);
+            model->setData(index, va);
+        }
+    }
+}
+
+void BeginCfgItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    editor->setGeometry(option.rect);
+}
+
+void BeginCfgItemDelegate::commitAndCloseEditor(int colIndex, bool isMove)
+{
+    int i = 0;
+}
+
+
+///////////////////////////ApcData///////////////////////////////////////////
+ApcData::ApcData(Account *account, bool isCfg, QWidget *parent) :
+    QWidget(parent),ui(new Ui::ApcData),account(account),extraCfg(isCfg)
+{
+    ui->setupUi(this);
+    iniTag = false;
+    curFSub=NULL;
+    curSSub=NULL;
+    readOnly = false;
+    bg_red.setColor(QColor(Qt::red));
+    if(!isCfg)
+        init();
+}
+
+ApcData::~ApcData()
+{
+    delete ui;
+    smg = NULL;
+}
+
+void ApcData::init()
+{
+    if(iniTag)
+        return;
+    AccountSuiteRecord* asr;
+    if(extraCfg){  //期初余额配置模式
+        asr = account->getStartSuite();
+        if(!asr){
+            QMessageBox::warning(this,tr("警告信息"),tr("该账户还没有设置任何帐套，无法设置期初值"));
+            return;
+        }
+        if(asr->startMonth == 1){
+            y = asr->year - 1;
+            m = 12;
+        }
+        else{
+            y = asr->year;
+            m = asr->startMonth - 1;
+        }
+
+        ui->year->setText(QString::number(y));
+        ui->month->setValue(m);
+        //确定期初余额是否可编辑（这里如果账户的第一个月份还未结账，则视为可编辑）
+        PzsState state;
+        if(!account->getDbUtil()->getPzsState(asr->year,asr->startMonth,state)){
+            QMessageBox::critical(this,tr("警告信息"),tr("在读取首期凭证集状态时发生错误"));
+            return;
+        }
+        readOnly = (state == Ps_Jzed);
+        ui->month->setReadOnly(true);
+    }
+    else{   //余额显示模式
+        asr = account->getCurSuite();
+        if(!asr){
+            QMessageBox::warning(this,tr("警告信息"), tr("没有“”年的对应账套！"));
+            return;
+        }
+        y = asr->year; m = asr->startMonth;
+        readOnly = true;
+        ui->month->setMaximum(asr->endMonth);
+        ui->month->setMinimum(asr->startMonth);
+        ui->month->setValue(m);
+        ui->year->setText(QString::number(y));
+        ui->add->setVisible(false);
+        ui->save->setVisible(false);
+        connect(ui->month,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
+    }
+
+    mts = account->getAllMoneys();
+    mtSorts = mts.keys();
+    if(mtSorts.count() > 1){
+        qSort(mtSorts.begin(),mtSorts.end());
+        //这里应加入将本币代码移到首位的代码，但考虑到实际使用时，本币为人民币且其代码用于最小
+    }
+    if(!viewRates())
+        return;
+
+    smg = account->getSubjectManager(asr->subSys);
+    FSubItrator* it = smg->getFstSubItrator();
+    QListWidgetItem* item;
+    QVariant v;
+    while(it->hasNext()){
+        it->next();
+        if(!it->value()->isEnabled())
+            continue;
+        item = new QListWidgetItem(it->value()->getName());
+        v.setValue<FirstSubject*>(it->value());
+        item->setData(Qt::UserRole,v);
+        ui->fsubs->addItem(item);
+    }
+
+    delegate = new BeginCfgItemDelegate(account,readOnly,false,this);
+    delegate_fsub = new BeginCfgItemDelegate(account,readOnly,true,this);
+    ui->etables->setItemDelegate(delegate);
+    connect(ui->fsubs,SIGNAL(currentRowChanged(int)),this,SLOT(curFSubChanged(int)));
+    ui->ftables->setColumnCount(4);
+    ui->ftables->setItemDelegate(delegate_fsub);
+    ui->ftables->setColumnWidth(CI_MONEY, ui->etables->columnWidth(CI_MONEY));
+    ui->ftables->setColumnWidth(CI_DIR, ui->etables->columnWidth(CI_DIR));
+    ui->ftables->setColumnWidth(CI_PV, ui->etables->columnWidth(CI_PV));
+    connect(ui->etables->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),this,SLOT(adjustColWidth(int,int,int)));
+    if(ui->fsubs->count() > 0){
+        ui->fsubs->setCurrentRow(0);
+        ui->add->setEnabled(!readOnly);
+    }
+    else
+        ui->add->setEnabled(false);
+    iniTag = true;
+}
+
+/**
+ * @brief ApcData::setMonth
+ *  在余额显示模式下，设置要显示的余额的月份
+ * @param month
+ */
+void ApcData::setYM(int year, int month)
+{
+    if(extraCfg)
+        return;
+    AccountSuiteRecord* asr = account->getSuite(y);
+    if(!asr)
+        return;
+    if(m < asr->startMonth || m > asr->endMonth)
+        return;
+    y = year;
+    m = month;
+    if(ui->fsubs->currentRow() != -1)
+        curFSubChanged(ui->fsubs->currentRow());
+}
+
+void ApcData::curFSubChanged(int index)
+{
+    //读取当前一级科目下所有二级科目的余额
+    if(index < 0 || index >= ui->fsubs->count()){
+        curFSub = NULL;
+        return;
+    }
+    if(ui->save->isEnabled()){
+        if(QMessageBox::warning(this,tr("警告信息"),tr("一级科目“%1”的期初余额已被修改，要保存吗？").arg(curFSub->getName()),QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
+            on_save_clicked();
+        else
+            ui->save->setEnabled(false);
+    }
+    pvs.clear(); mvs.clear(); dirs.clear();
+    curFSub = ui->fsubs->currentItem()->data(Qt::UserRole).value<FirstSubject*>();
+    if(!account->getDbUtil()->readExtraForAllSSubInFSub(y,m,curFSub,pvs,dirs,mvs)){
+        QMessageBox::critical(this,tr("出错信息"),tr("在读取一级科目“%1”的期初余额是发生错误（%2年%3月）！")
+                              .arg(curFSub->getName()).arg(y).arg(m));
+        return;
+    }
+
+    disconnect(ui->ssubs,SIGNAL(currentRowChanged(int)),this,SLOT(curSSubChanged(int)));
+    ui->ssubs->clear();
+    QVariant v;
+    QListWidgetItem* item;    
+    foreach(SecondSubject* ssub, curFSub->getChildSubs()){
+        v.setValue<SecondSubject*>(ssub);
+        item = new QListWidgetItem(ssub->getName());
+        item->setData(Qt::UserRole,v);
+        if(exist(ssub->getId()))
+            item->setForeground(bg_red);
+        ui->ssubs->addItem(item);
+    }    
+    connect(ui->ssubs,SIGNAL(currentRowChanged(int)),this,SLOT(curSSubChanged(int)));
+    if(ui->ssubs->count()>0)
+        ui->ssubs->setCurrentRow(0);
+
+    viewCollectData();
+}
+
+void ApcData::curSSubChanged(int index)
+{
+    ui->etables->setRowCount(0);
+    if(index < 0 || index >= ui->ssubs->count()){
+        curSSub = NULL;
+        return;
+    }
+    curSSub = ui->ssubs->currentItem()->data(Qt::UserRole).value<SecondSubject*>();
+    //显示当前二级科目的期初余额
+    watchDataChanged(false);
+    int mmt = account->getMasterMt()->code();
+    int row = -1;
+    int key = curSSub->getId() * 10 + mmt;
+    if(pvs.contains(key)){
+        row++;
+        ui->etables->insertRow(row);
+        BAMoneyTypeItem_new* mtItem = new BAMoneyTypeItem_new(mts.value(mmt));
+        ui->etables->setItem(row,CI_MONEY,mtItem);
+        DirView* dirItem = new DirView(dirs.value(key,MDIR_P));
+        ui->etables->setItem(row,CI_DIR,dirItem);
+        BAMoneyValueItem_new* vItem = new BAMoneyValueItem_new(dirs.value(key),pvs.value(key));
+        ui->etables->setItem(row,CI_PV,vItem);
+        vItem = new BAMoneyValueItem_new(MDIR_P,0.0);
+        ui->etables->setItem(row,CI_MV,vItem);
+    }
+    if(mtSorts.count()>1 && curFSub->isUseForeignMoney()){
+        for(int i = 1; i < mtSorts.count(); ++i){
+            int mt = mtSorts.at(i);
+            key = curSSub->getId() * 10 + mt;
+            if(!pvs.contains(key))
+                continue;
+            row++;
+            ui->etables->insertRow(row);
+            BAMoneyTypeItem_new* mtItem = new BAMoneyTypeItem_new(mts.value(mt));
+            ui->etables->setItem(row,CI_MONEY,mtItem);
+            DirView* dirItem = new DirView(dirs.value(key,MDIR_P));
+            ui->etables->setItem(row,CI_DIR,dirItem);
+            BAMoneyValueItem_new* vItem = new BAMoneyValueItem_new(dirs.value(key),pvs.value(key));
+            ui->etables->setItem(row,CI_PV,vItem);
+            vItem = new BAMoneyValueItem_new(dirs.value(mt),mvs.value(key));
+            ui->etables->setItem(row,CI_MV,vItem);
+        }
+    }
+    watchDataChanged();
+}
+
+void ApcData::curMtChanged(int index)
+{
+    int mt = ui->cmbRate->itemData(index).toInt();
+    ui->edtRate->setText(rates.value(mt).toString());
+}
+
+void ApcData::adjustColWidth(int col, int oldSize, int newSize)
+{
+    ui->ftables->setColumnWidth(col,newSize);
+}
+
+void ApcData::dataChanged(QTableWidgetItem *item)
+{
+    if(!curSSub)
+        return;
+    bool dirty = false;
+    int col = item->column();
+    int key;
+    if(col == CI_MONEY){ //移除余额表中当前二级科目相关项
+        foreach(int mt, mtSorts){
+            key = curSSub->getId() * 10 + mt;
+            pvs.remove(key);
+            dirs.remove(key);
+            if(curFSub->isUseForeignMoney())
+                mvs.remove(key);
+        }
+        //重建当前二级科目的余额值表项（从表中读取）
+        for(int i = 0; i < ui->etables->rowCount(); ++i){
+            int mt = ui->etables->item(i,CI_MONEY)->data(Qt::EditRole).value<Money*>()->code();
+            MoneyDirection dir = (MoneyDirection)ui->etables->item(i,CI_DIR)->data(Qt::EditRole).toInt();
+            Double pv = ui->etables->item(i,CI_PV)->data(Qt::EditRole).value<Double>();
+            Double mv = ui->etables->item(i,CI_MV)->data(Qt::EditRole).value<Double>();
+            key = curSSub->getId() * 10 + mt;
+            pvs[key] = pv;
+            dirs[key] = dir;
+            if(curFSub->isUseForeignMoney())
+                mvs[key] = mv;
+        }
+        dirty = true;
+    }
+    else{
+        int row = item->row();
+        int mt = ui->etables->item(row,CI_MONEY)->data(Qt::EditRole).value<Money*>()->code();
+        key = curSSub->getId() * 10 + mt;        
+        if(col == CI_DIR){
+            MoneyDirection oldDir = dirs.value(key);
+            MoneyDirection newDir = (MoneyDirection)ui->etables->item(row,CI_DIR)->data(Qt::EditRole).toInt();
+            if(oldDir != newDir){
+                dirs[key] = newDir;
+                dirty = true;
+            }
+        }
+        else if(col == CI_PV){
+            Double oldValue = pvs.value(key);
+            Double newValue = ui->etables->item(row,CI_PV)->data(Qt::EditRole).value<Double>();
+            if(newValue != oldValue){
+                QVariant v;
+                pvs[key] = newValue;
+                //如果是外币金额发生改变，则自动根据汇率调整本币金额
+                if(mt != account->getMasterMt()->code()){
+                    Double mv = newValue * rates.value(mt);
+                    v.setValue<Double>(mv);
+                    mvs[key] = mv;
+                    ui->etables->item(row,CI_MV)->setData(Qt::EditRole,v);
+                }
+                if(newValue == 0.0){
+                    dirs[key] = MDIR_P;
+                    ui->etables->item(row,CI_DIR)->setData(Qt::EditRole,MDIR_P);
+                }
+                dirty = true;
+            }
+        }
+        else{
+            Double oldValue = mvs.value(key);
+            Double newValue = ui->etables->item(row,CI_MV)->data(Qt::EditRole).value<Double>();
+            if(newValue != oldValue){
+                mvs[key] = newValue;
+                dirty = true;
+            }
+        }
+    }
+    viewCollectData();
+    ui->save->setEnabled(dirty);
+}
+
+/**
+ * @brief ApcData::monthChanged
+ *  在余额显示模式下，当月份改变时显示指定月份的余额
+ * @param date
+ */
+void ApcData::monthChanged(int m)
+{
+    this->m = m;
+    if(ui->fsubs->currentRow() != -1)
+        curFSubChanged(ui->fsubs->currentRow());
+}
+
+/**
+ * @brief ApcData::windowShallClosed
+ *  容器窗口将关闭，在这里执行一些未保存的更改
+ */
+void ApcData::windowShallClosed()
+{
+    if(ui->save->isEnabled())
+        on_save_clicked();
+}
+
+void ApcData::on_add_clicked()
+{
+    if(readOnly)
+        return;    
+    int row = ui->etables->rowCount();
+    if(row > 0 && row == mtSorts.count())  //所有的币种都已输入
+        return;
+    //如果是银行存款，则只能添加其子目所属的币种余额条目
+    Money* mt = NULL;
+    if(curSSub && curFSub->parent()->isBankSndSub(curSSub)){
+        if(row == 1)
+            return;
+        mt = curFSub->parent()->getSubMatchMt(curSSub);
+    }
+    if(row == 0)
+        ui->ssubs->currentItem()->setForeground(bg_red);
+    watchDataChanged(false);
+    ui->etables->insertRow(row);
+    if(!mt)
+        mt = mts.value(mtSorts.at(row));
+    BAMoneyTypeItem_new* mtItem = new BAMoneyTypeItem_new(mt);
+    ui->etables->setItem(row,CI_MONEY,mtItem);
+    MoneyDirection dir = curFSub->getJdDir()?MDIR_J:MDIR_D;
+    DirView* dirItem = new DirView(dir);
+    ui->etables->setItem(row,CI_DIR,dirItem);
+    BAMoneyValueItem_new* vItem = new BAMoneyValueItem_new(dir,Double());
+    ui->etables->setItem(row,CI_PV,vItem);
+    BAMoneyValueItem_new* vItem2 = new BAMoneyValueItem_new(dir,Double());
+    ui->etables->setItem(row,CI_MV,vItem2);
+    ui->etables->editItem(vItem);
+    int key = curSSub->getId() * 10 + mt->code();
+    pvs[key] = 0.0;
+    dirs[key] = dir;
+    mvs[key] = 0.0;
+    watchDataChanged();
+}
+
+void ApcData::on_save_clicked()
+{
+    if(readOnly)
+        return;
+    if(!curFSub)
+        return;
+    if(!account->getDbUtil()->saveExtraForAllSSubInFSub(y,m,curFSub,pvs_f,mvs_f,dir_f,pvs,mvs,dirs))
+        QMessageBox::critical(this,tr("出错信息"),tr("在保存科目“%1”的期初余额时出错！").arg(curSSub->getName()));
+    ui->save->setEnabled(false);
+}
+
+
+/**
+ * @brief ApcData::viewRates
+ *  读取并显示指定年月的汇率
+ * @return
+ */
+bool ApcData::viewRates()
+{
+    disconnect(ui->cmbRate,SIGNAL(currentIndexChanged(int)),this,SLOT(curMtChanged(int)));
+    rates.clear();
+    ui->cmbRate->clear();
+    ui->edtRate->clear();
+    if(!account->getRates(y,m,rates)){
+        QMessageBox::critical(this,tr("出错信息"),tr("在读取期初汇率时出错（%1年%2月）").arg(y).arg(m));
+        return false;
+    }
+    if(rates.isEmpty()){
+        QMessageBox::warning(this,tr("警告信息"),tr("在输入期初余额前，如果要涉及到外币，则必须首先设置期初汇率！"));
+
+        bool ok;
+        double rate;
+        rate = QInputDialog::getDouble(this,tr("汇率输入"),tr("请输入期初美金（%1年%2月）汇率：").arg(y).arg(m),1,0,100,2,&ok);
+        if(!ok){
+            readOnly = true;
+            return false;
+        }
+        rates[USD] = Double(rate);
+        if(!account->setRates(y,m,rates)){
+            QMessageBox::critical(this,tr("出错信息"),tr("在保存期初汇率时出错（%1年%2月）").arg(y).arg(m));
+            readOnly = true;
+            return false;
+        }
+        readOnly = false;
+    }    
+    QHashIterator<int,Double> it(rates);
+    while(it.hasNext()){
+        it.next();
+        ui->cmbRate->addItem(mts.value(it.key())->name(),it.key());
+    }
+    connect(ui->cmbRate,SIGNAL(currentIndexChanged(int)),this,SLOT(curMtChanged(int)));
+    curMtChanged(0);
+
+    return true;
+}
+
+/**
+ * @brief ApcData::collect
+ *  汇总当前一级科目下的二级科目的期初余额
+ *  各子目的期初余额按币种汇总并最终确定主目的期初余额及其方向
+ */
+void ApcData::collect()
+{
+    pvs_f.clear();mvs_f.clear();dir_f.clear();
+    QHashIterator<int,Double>* it = new QHashIterator<int,Double>(pvs);
+    int mt;
+    Double v;
+    while(it->hasNext()){
+        it->next();
+        mt = it->key() % 10;
+        if(dirs.value(it->key()) == MDIR_D){
+            v = it->value();
+            v.changeSign();
+        }
+        else
+            v = it->value();
+        pvs_f[mt] += v;
+    }
+    it = new QHashIterator<int,Double>(pvs_f);
+    while(it->hasNext()){
+        it->next();
+        if(it->value() > 0.0)
+            dir_f[it->key()] = MDIR_J;
+        else if(it->value() < 0.0){
+            dir_f[it->key()] = MDIR_D;
+            pvs_f[it->key()].changeSign();
+        }
+        else
+            continue;
+    }
+    it = new QHashIterator<int,Double>(mvs);
+    while(it->hasNext()){
+        it->next();
+        mt = it->key() % 10;
+        if(dirs.value(it->key()) == MDIR_D){
+            v = it->value();
+            v.changeSign();
+        }
+        else
+            v = it->value();
+        mvs_f[mt] += v;
+    }
+    it = new QHashIterator<int,Double>(mvs_f);
+    while(it->hasNext()){
+        it->next();
+        if((it->value() < 0.0) && (dir_f.value(it->key()) == MDIR_D)){
+            mvs_f[it->key()].changeSign();
+        }
+    }
+}
+
+/**
+ * @brief ApcData::exist
+ *  指定二级科目是否存在于期初值表中
+ * @param sid
+ */
+bool ApcData::exist(int sid)
+{
+    QHashIterator<int,Double> it(pvs);
+    int id;
+    while(it.hasNext()){
+        it.next();
+        if(sid == it.key() / 10)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief ApcData::viewCollectData
+ *  显示汇总后的主目余额
+ */
+void ApcData::viewCollectData()
+{
+    if(!curFSub || !curSSub)
+        return;
+    ui->ftables->setRowCount(0);
+    if(curFSub->isUseForeignMoney())
+        ui->ftables->setRowCount(2);
+    else
+        ui->ftables->setRowCount(1);
+
+    collect();
+
+    int mmt = account->getMasterMt()->code();
+    QTableWidgetItem* ti = new BAMoneyTypeItem_new(account->getMasterMt());
+    ui->ftables->setItem(0,CI_MONEY,ti);
+    DirView* di = new DirView(dir_f.value(mmt,MDIR_P));
+    ui->ftables->setItem(0,CI_DIR,di);
+    BAMoneyValueItem_new *vi = new BAMoneyValueItem_new(dir_f.value(mmt,MDIR_P),pvs_f.value(mmt));
+    ui->ftables->setItem(0,CI_PV,vi);
+    vi = new BAMoneyValueItem_new(dir_f.value(mmt,MDIR_P),mvs_f.value(mmt));
+    ui->ftables->setItem(0,CI_MV,vi);
+    if(curFSub->isUseForeignMoney() && mtSorts.count() > 1){
+        int row = 0;
+        for(int i = 1; i < mtSorts.count(); ++i){
+            row++;
+            ti = new BAMoneyTypeItem_new(mts.value(mtSorts.at(i)));
+            ui->ftables->setItem(row,CI_MONEY,ti);
+            int mt = mtSorts.at(i);
+            ui->ftables->setItem(row,CI_DIR,new DirView(dir_f.value(mt,MDIR_P)));
+            ui->ftables->setItem(row,CI_PV,new BAMoneyValueItem_new(dir_f.value(mt,MDIR_P),pvs_f.value(mt)));
+            ui->ftables->setItem(row,CI_MV,new BAMoneyValueItem_new(dir_f.value(mt,MDIR_P),mvs_f.value(mt)));
+        }
+    }
+}
+
+void ApcData::watchDataChanged(bool en)
+{
+    if(en){
+        //connect(delegate,SIGNAL(moneyChanged(int,int)),this,SLOT(moneyChanged(int,int)));
+        connect(ui->etables,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(dataChanged(QTableWidgetItem*)));
+    }
+    else{
+        //disconnect(delegate,SIGNAL(moneyChanged(int,int)),this,SLOT(moneyChanged(int,int)));
+        disconnect(ui->etables,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(dataChanged(QTableWidgetItem*)));
+    }
+}
+
+
 
 
 ///////////////////////////////ApcReport/////////////////////////////////////////
@@ -1608,10 +2939,21 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QWidget *parent) 
     contentsWidget->setSpacing(12);
 
     pagesWidget = new QStackedWidget;
-    pagesWidget->addWidget(new ApcBase(account,this));
-    pagesWidget->addWidget(new ApcSuite(account,this));
-    pagesWidget->addWidget(new ApcBank(this));
-    pagesWidget->addWidget(new ApcSubject(account,this));
+    ApcBase* baseCfg = new ApcBase(account,this);
+    connect(this,SIGNAL(windowShallClosed()),baseCfg,SLOT(windowShallClosed()));
+    pagesWidget->addWidget(baseCfg);
+    ApcSuite* suiteCfg = new ApcSuite(account,this);
+    connect(this,SIGNAL(windowShallClosed()),suiteCfg,SLOT(windowShallClosed()));
+    pagesWidget->addWidget(suiteCfg);
+    ApcBank* bankCfg = new ApcBank(account,this);
+    connect(this,SIGNAL(windowShallClosed()),bankCfg,SLOT(windowShallClosed()));
+    pagesWidget->addWidget(bankCfg);
+    ApcSubject* subjectCfg = new ApcSubject(account,this);
+    connect(this,SIGNAL(windowShallClosed()),subjectCfg,SLOT(windowShallClosed()));
+    pagesWidget->addWidget(subjectCfg);
+    ApcData* dataCfg = new ApcData(account,true,this);
+    connect(this,SIGNAL(windowShallClosed()),dataCfg,SLOT(windowShallClosed()));
+    pagesWidget->addWidget(dataCfg);
     pagesWidget->addWidget(new ApcReport(this));
     pagesWidget->addWidget(new ApcLog(this));
 
@@ -1620,7 +2962,8 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QWidget *parent) 
     createIcons();
     contentsWidget->setCurrentRow(0);
 
-    connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
+    //connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
+    connect(closeButton,SIGNAL(clicked()),this,SLOT(close()));
 
     QHBoxLayout *horizontalLayout = new QHBoxLayout;
     horizontalLayout->addWidget(contentsWidget);
@@ -1645,10 +2988,30 @@ AccountPropertyConfig::~AccountPropertyConfig()
 
 }
 
+//void AccountPropertyConfig::closeEvent(QCloseEvent *event)
+//{
+//    emit windowShallClosed();
+//    event->accept();
+////    if (maybeSave()) {
+////         writeSettings();
+////         event->accept();
+////     } else {
+////         event->ignore();
+////     }
+//}
+
 void AccountPropertyConfig::pageChanged(int index)
 {
     pagesWidget->setCurrentIndex(index);
-    if(index == APC_SUBJECT){
+    if(index == APC_BASE){
+        ApcBase* w = static_cast<ApcBase*>(pagesWidget->currentWidget());
+        w->init();
+    }
+    else if(index == APC_BANK){
+        ApcBank* w = static_cast<ApcBank*>(pagesWidget->currentWidget());
+        w->init();
+    }
+    else if(index == APC_SUBJECT){
         ApcSubject* w = static_cast<ApcSubject*>(pagesWidget->currentWidget());
         w->init();
     }
@@ -1656,8 +3019,27 @@ void AccountPropertyConfig::pageChanged(int index)
         ApcSuite* w = static_cast<ApcSuite*>(pagesWidget->currentWidget());
         w->init();
     }
+    else if(index == APC_DATA){
+        ApcData* w = static_cast<ApcData*>(pagesWidget->currentWidget());
+        w->init();
+    }
 
 }
+
+bool AccountPropertyConfig::close()
+{
+    emit windowShallClosed();
+    return QDialog::close();
+}
+
+///**
+// * @brief AccountPropertyConfig::saveOnClose
+// *  当配置窗口关闭时，询问每个配置页是否有未保存的配置项，如有则执行相应的保存操作
+// */
+//void AccountPropertyConfig::saveOnClose()
+//{
+
+//}
 
 void AccountPropertyConfig::createIcons()
 {
@@ -1687,6 +3069,12 @@ void AccountPropertyConfig::createIcons()
     item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
 
     item = new QListWidgetItem(contentsWidget);
+    item->setIcon(QIcon(":/images/accProperty/basedata.png"));
+    item->setText(tr("期初数据"));
+    item->setTextAlignment(Qt::AlignHCenter);
+    item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsEnabled);
+
+    item = new QListWidgetItem(contentsWidget);
     item->setIcon(QIcon(":/images/accProperty/reportInfo.png"));
     item->setText(tr("报表"));
     item->setTextAlignment(Qt::AlignHCenter);
@@ -1701,6 +3089,23 @@ void AccountPropertyConfig::createIcons()
     connect(contentsWidget,SIGNAL(currentRowChanged(int)),
          this, SLOT(pageChanged(int)));
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

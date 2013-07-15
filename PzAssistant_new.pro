@@ -20,7 +20,6 @@ SOURCES += main.cpp\
     dialogs.cpp \
     utils.cpp \
     widgets.cpp \
-    sqltooldialog.cpp \
     completsubinfodialog.cpp \
     dialog2.cpp \
     mainwindow.cpp \
@@ -82,7 +81,6 @@ HEADERS  += \
     utils.h \
     widgets.h \
     forms/sqltooldialog.h \
-    sqltooldialog.h \
     completsubinfodialog.h \
     dialog2.h \
     mainwindow.h \
@@ -199,7 +197,8 @@ FORMS    += \
     forms/historypzform.ui \
     forms/subsysjoincfgform.ui \
     forms/suiteswitchpanel.ui \
-    forms/databaseaccessform.ui
+    forms/databaseaccessform.ui \
+    forms/apcdata.ui
 
 RESOURCES += \
     imgers.qrc \

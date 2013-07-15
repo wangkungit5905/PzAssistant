@@ -13,9 +13,9 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,2">
+  <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,3">
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout_4">
+    <layout class="QVBoxLayout" name="verticalLayout_3">
      <item>
       <widget class="QLabel" name="label">
        <property name="text">
@@ -24,19 +24,39 @@
       </widget>
      </item>
      <item>
-      <widget class="QListView" name="lstBank"/>
+      <widget class="QListWidget" name="lstBank"/>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_4">
-       <item>
-        <widget class="QPushButton" name="btnNewBank">
+      <layout class="QGridLayout" name="gridLayout">
+       <property name="horizontalSpacing">
+        <number>24</number>
+       </property>
+       <property name="verticalSpacing">
+        <number>6</number>
+       </property>
+       <item row="0" column="0">
+        <widget class="QPushButton" name="editBank">
+         <property name="text">
+          <string>编辑</string>
+         </property>
+        </widget>
+       </item>
+       <item row="0" column="1">
+        <widget class="QPushButton" name="submit">
+         <property name="text">
+          <string>提交</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QPushButton" name="newBank">
          <property name="text">
           <string>新增开户行</string>
          </property>
         </widget>
        </item>
-       <item>
-        <widget class="QPushButton" name="btnDelBank">
+       <item row="1" column="1">
+        <widget class="QPushButton" name="delBank">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -71,9 +91,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="edtBankName">
+        <widget class="QLineEdit" name="bankName">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -102,9 +122,9 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="edtBankLName">
+        <widget class="QLineEdit" name="bankLName">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -122,8 +142,16 @@
        <item>
         <widget class="QTableWidget" name="tvAccList">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <column>
+          <property name="text">
+           <string>id</string>
+          </property>
+         </column>
          <column>
           <property name="text">
            <string>货币</string>
@@ -159,7 +187,7 @@
         </spacer>
        </item>
        <item>
-        <widget class="QPushButton" name="btnNewAcc">
+        <widget class="QPushButton" name="newAcc">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -169,7 +197,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="btnDelAcc">
+        <widget class="QPushButton" name="delAcc">
          <property name="enabled">
           <bool>true</bool>
          </property>

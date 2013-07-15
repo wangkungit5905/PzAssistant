@@ -44,76 +44,9 @@ private:
     int selAcc;   //选择的账户的序号
 };
 
-class OpenPzDialog : public QDialog
-{
-    Q_OBJECT
 
-public:
-    OpenPzDialog(Account* account, QWidget* parent = 0);
-    QDate getDate();
 
-private slots:
-    void suiteChanged(int index);
-    void monthChanged(int month);
 
-    void on_chkNew_clicked(bool checked);
-
-    void on_btnOk_clicked();
-
-private:
-    Ui::openPzDialog ui;
-    int y;  //选择的帐套年份
-    int m;  //选择的凭证集月份
-    Account* account;
-};
-
-struct PZCollect{
-    int id;          //科目ID
-    QString name;    //科目名称
-    double jsum;     //借方合计值
-    double dsum;     //贷方合计值
-public:
-    bool operator<( const PZCollect &other ) const;
-//    void setName(QString name);
-//    void addJ(double value);
-//    void addD(double value);
-//    QString getName();
-//    double getJ();
-//    double getD();
-};
-
-//处理所有一级科目的汇总值
-class PzCollectProcess
-{
-public:
-//    void addJ(int id, double v);
-//    void addD(int id, double v);
-//    void setName(int id, QString name);
-    void setValue(int id, QString name, double jsum, double dsum);
-    double getJ(int id);
-    double getD(int id);
-    QString getName(int id);
-    int getCount();
-    QStandardItemModel* toModel();
-    void clear();
-
-private:
-
-    QList<PZCollect> plist;
-};
-
-////作为哈希表的复合键的结构类型
-//class CompKey{
-//public:
-//    CompKey();
-//    CompKey(int id,int code){subId = id;mtCode = code;}
-//    int getId(){return subId;}
-//    int getCode(){return mtCode;}
-
-//private:
-//    int subId;   //子目id值（在FSAgent表中的id列）
-//    int mtCode;  //币种代码
-//};
 
 
 

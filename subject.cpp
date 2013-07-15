@@ -769,6 +769,16 @@ bool SubjectManager::save()
 }
 
 /**
+ * @brief SubjectManager::getBankClsCode
+ * @return
+ */
+int SubjectManager::getBankClsCode()
+{
+
+}
+
+
+/**
  * @brief 获取未使用的名称条目类别代码
  * @return
  */
@@ -942,9 +952,7 @@ bool SubjectManager::isSyClsSubject(int sid, bool &yes, bool isFst)
     return true;
 }
 
-QList<BankAccount *> &SubjectManager::getBankAccounts()
-{
-}
+
 
 /**
  * @brief 指定的二级科目是否在账户中已被采用了
@@ -1054,6 +1062,8 @@ bool SubjectManager::isBankSndSub(SecondSubject *ssub)
     else
         return true;
 }
+
+
 
 
 

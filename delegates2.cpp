@@ -899,7 +899,7 @@ DirEdit::DirEdit(int dir, QWidget* parent) : QComboBox(parent)
     this->dir = dir;
     addItem(tr("借"), DIR_J);
     addItem(tr("贷"), DIR_D);
-    addItem(tr("平"), DIR_D);
+    addItem(tr("平"), DIR_P);
 }
 
 void DirEdit::setDir(int dir)

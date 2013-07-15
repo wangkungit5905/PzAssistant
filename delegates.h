@@ -211,7 +211,6 @@ public:
     void setCell(int row, int col);
     Money* getMoney();
 protected:
-    //void focusOutEvent(QFocusEvent* e);
     void keyPressEvent(QKeyEvent* e );
 signals:
     void dataEditCompleted(int col, bool isMove);

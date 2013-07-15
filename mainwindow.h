@@ -12,7 +12,6 @@
 
 #include "dialogs.h"
 #include "dialog3.h"
-#include "sqltooldialog.h"
 #include "pzdialog2.h"
 #include "widgets.h"
 #include "subjectsearchform.h"
@@ -136,13 +135,6 @@ private slots:
     void closeAccount();
     void exit();
 
-    //帐务处理
-    void openPzs();
-    void closePzs();
-    void editPzs();
-    void autoAssignPzNum();
-    void handAssignPzNum();
-
     //数据菜单
     void viewSubjectExtra();      //显示科目余额
     void generateBalanceSheet();  //生成资产负债表
@@ -152,11 +144,9 @@ private slots:
     void setupAccInfos();
     bool impBasicDatas();
     void setupBase();
-    void setupBankInfos();
     void showSqlTool();
 
     //选项菜单
-    void subjectConfig();
 
     //窗口菜单
     void updateWindowMenu();
@@ -171,14 +161,10 @@ private slots:
     void openSpecPz(int pid,int bid);
 
     void subWindowClosed(QMdiSubWindow* subWin);
-    void subWindowActivated(QMdiSubWindow *window);
 
-    void pzStateChange(int scode);
-    //void pzContentChanged(bool isChanged = true);
-    //void pzContentSaved();
 
-    void userModifyPzState(bool checked);
-    void userSelBaAction(bool isSel);
+
+
     void showTemInfo(QString info);
     void showRuntimeInfo(QString info, AppErrorLevel level);
     void refreshShowPzsState();
@@ -281,8 +267,6 @@ private slots:
 
     void on_actAntiImp_triggered();
 
-    void on_actBasicDB_triggered();
-
     void on_actGdzcAdmin_triggered();
 
     void on_actDtfyAdmin_triggered();
@@ -339,15 +323,14 @@ private:
     void refreshActEnanble();    
     void refreshAdvancPzOperBtn();
     void enaActOnLogin(bool isEnabled);
+
     void rightWarnning(int right);
     void pzsWarning();
-    void sqlWarning();
+    void sqlWarning();    
     void showPzNumsAffected(int num);
+
     void saveSubWinInfo(subWindowType winEnum, QByteArray* sinfo = NULL);
-
     void showSubWindow(subWindowType winType, SubWindowDim* dinfo = NULL, QDialog* w = NULL);
-
-    bool jzsy();
 
     void initUndoView();
     void clearUndo();
@@ -368,34 +351,25 @@ private:
 
     //创建新账户的4个步骤的对话框
     //CreateAccountDialog* dlgAcc;
-    SetupBankDialog* dlgBank;
+    //SetupBankDialog* dlgBank;
     BasicDataDialog* dlgData;
 
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
     QSignalMapper* tvMapper;     //用于处理从视图菜单中选择显示的工具视图
 
-    int cursy,cursm,curey,curem,cursd,cured; //当前打开的凭证集的起始年、月、日
-
     QSet<int> PrintPznSet; //欲打印的凭证号集合
-    //int curPzn; //当前凭证号（打印功能所需）
     bool sortBy; //凭证集的排序方式（true：按凭证号，false：按自编号）
 
-    //QSet<subWindowType> subWinSet;  //需要保存子窗口信息的窗口枚举类型集合（这些子窗口都是单例的）
+    ////////--------------------
     QHash<subWindowType, MyMdiSubWindow*> subWindows; //已打开的子窗口（这些窗口只能有一个实例）
+    QHash<subWindowType,bool> subWinActStates;   //子窗口的激活状态
+    //////---------------------------
+
     QHash<ToolViewType,QDockWidget*> dockWindows;      //工具视图窗口集
     QHash<ToolViewType,QAction*> tvActions;           //与工具视图类型对应的QAction对象表
-    QHash<subWindowType,bool> subWinActStates;   //子窗口的激活状态
 
     //工具条上的部件
     CustomSpinBox* spnNaviTo;
-
-
-    int curPzState;  //当前凭证的状态代码，用以确定高级凭证操作按钮的启用状态
-    //bool isExtraVolid; //当前凭证集的余额是否有效
-    PzClass curPzCls; //当前凭证类别
-    //PzsState curPzSetState; //当前凭证集状态
-    //QRadioButton *rdoRecording, *rdoRepealPz, *rdoInstatPz, *rdoVerifyPz;
-    //QAction *actRecording;/*, *actRepeal, *actVerify, *actInstat;*/
 
     AccountSuiteManager* curSuiteMgr;
     DbUtil* dbUtil;

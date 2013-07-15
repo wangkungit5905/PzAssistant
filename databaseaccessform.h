@@ -43,6 +43,7 @@ private slots:
     void dataChanged(const QModelIndex & topLeft, const QModelIndex & bottomRight);
     void sqlTextChanged();
     void tableDoubleClicked(QListWidgetItem* item);
+    void currentChanged();
     void on_btnRevert_clicked();
 
     void on_btnCommit_clicked();
@@ -51,9 +52,14 @@ private slots:
 
     void on_btnClear_clicked();
 
+    void on_insertRowAction_triggered();
+
+    void on_deleteRowAction_triggered();
+
 private:
+    void updateActions();
     void adjustColWidth(QString t, bool isAccount);
-    void enButton(bool en);
+    void enWidget(bool en);
     Ui::DatabaseAccessForm *ui;
     Account* account;
     AppConfig* appCfg;

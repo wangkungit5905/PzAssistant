@@ -68,6 +68,9 @@ public:
     bool initSuites(QList<AccountSuiteRecord*> &suites);
     bool saveAccountInfo(Account::AccountInfo &infos);
 
+    //银行相关
+    bool saveBankInfo(Bank* ba,bool isDel = false);
+
     //帐套相关
     bool saveSuites(QList<AccountSuiteRecord *> &suites);
     bool saveSuite(AccountSuiteRecord* suite);
@@ -88,6 +91,9 @@ public:
     //货币相关
     bool initMoneys(Account* account);
     bool initBanks(Account* account);
+    bool moneyIsUsed(Money* mt, bool &used);
+    bool saveMoneys(QList<Money*> moneys);
+
 
     //凭证数统计
     bool scanPzSetCount(int y, int m, int &repeal, int &recording, int &verify, int &instat, int &amount);
@@ -99,6 +105,8 @@ public:
     bool readExtraForMS(int y, int m, int mt, int sid, Double &v, Double &wv, MoneyDirection& dir);
     bool readExtraForFSub(int y,int m, int fid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
     bool readExtraForSSub(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
+
+    //bool saveExtraForSSub(int y,int m, int fid, const QHash<int,Double>& v, const QHash<int,Double>& wv,const QHash<int,MoneyDirection>& dir);
     bool readExtraForPm(int y,int m, QHash<int,Double>& fsums,
                                      QHash<int,MoneyDirection>& fdirs,
                                      QHash<int,Double>& ssums,
@@ -111,6 +119,12 @@ public:
                                       const QHash<int, MoneyDirection>& sdirs);
     bool saveExtraForMm(int y, int m, const QHash<int, Double>& fsums,
                                       const QHash<int, Double>& ssums);
+    bool readExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub, QHash<int, Double>& pvs, QHash<int, MoneyDirection> &dirs,
+                                   QHash<int, Double>& mvs);
+    bool saveExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub,
+                          const QHash<int, Double> fpvs, const QHash<int, Double> fmvs,
+                          QHash<int, MoneyDirection> fdirs, const QHash<int, Double> &v,
+                          const QHash<int, Double> &wv, const QHash<int, MoneyDirection> &dir);
 
     //日记账
     bool getDetViewFilters(int suiteId, QList<DVFilterRecord*>& rs);
@@ -205,6 +219,8 @@ private:
     bool _readExtraForSubMoney(int y, int m, int mt, int sid, Double &v, Double &wv, MoneyDirection& dir,bool fst=true);
     bool _readExtraForFSub(int y,int m, int fid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
     bool _readExtraForSSub(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
+    bool _readExtrasForSubLst(int y,int m, const QList<int> sids, QHash<int,Double>& pvs, QHash<int,Double>& mvs,QHash<int,MoneyDirection>& dirs,bool isFst = true);
+    bool _saveExtrasForSubLst(int y,int m, const QList<int> sids, const QHash<int,Double>& pvs, const QHash<int,Double>& mvs, const QHash<int,MoneyDirection>& dirs,bool isFst = true);
     //
     int _genKeyForExtraPoint(int y, int m, int mt);
 

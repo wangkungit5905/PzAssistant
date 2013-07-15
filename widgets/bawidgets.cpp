@@ -188,7 +188,7 @@ QVariant BASndSubItem_new::data(int role) const
         if(subMgr->isBankSndSub(ssub)){
             BankAccount* ba = subMgr->getBankAccount(ssub);
             tip.append(QObject::tr("\n账户：%1\n是否基本户：%2").arg(ba->accNumber).
-                       arg(ba->bank->isMain?yesStr:noStr));
+                       arg(ba->parent->isMain?yesStr:noStr));
 //            tip.append("\n").append(QObject::tr("账号：%1\n").arg(ba->accNumber));
 //            tip.append(QObject::tr("是否基本户："));
 //            if(ba->bank->isMain)

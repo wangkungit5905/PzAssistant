@@ -173,31 +173,24 @@ enum SubjectClass{
 //    Pzc_sub_jzhd_yuf    = 5     //结转预付账款
 //};
 
-//银行账户
-//struct BankAccount{
-//    bool isMain;     //是否基本户
-//    QString name;    //账户名（由银行名-币种名组成）
-//    int mt;          //币种
-//    QString accNum;  //帐号
-//};
-
-struct Bank{
-    int id;
-    bool isMain;    //是否基本户
-    QString name,lname; //简称和全称
-};
-
 class SubjectNameItem;
 class SecondSubject;
+struct Bank;
 
 struct BankAccount{
-    CommonItemEditState editState;
     int id;
-    Bank* bank;             //账户所属银行对象
+    Bank* parent;
     Money* mt;              //该账户所对应的币种
     QString accNumber;      //帐号
     SubjectNameItem* niObj; //对应的名称条目对象（这个域在Account对象初始化阶段就要设置）
     //SecondSubject* subObj;  //对应的二级科目对象（这个域只在科目管理器返回此结构时设置）
+};
+
+struct Bank{
+    int id;
+    bool isMain;                //是否基本户
+    QString name,lname;         //简称和全称
+    QList<BankAccount*> bas;    //该开户行下开设的账户
 };
 
 //保存日记账表格行数据的结构

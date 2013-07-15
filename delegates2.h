@@ -291,7 +291,7 @@ private:
 //编辑和显示借贷方向
 class DirEdit : public QComboBox
 {
-    Q_OBJECT;
+    Q_OBJECT
 public:
     DirEdit(int dir = DIR_J, QWidget* parent = 0);
     void setDir(int dir);

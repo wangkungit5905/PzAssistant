@@ -38,9 +38,13 @@ void DatabaseAccessForm::init()
     connect(ui->rdo_acc,SIGNAL(toggled(bool)),this,SLOT(loadTable(bool)));
     connect(ui->sqlInput,SIGNAL(textChanged()),this,SLOT(sqlTextChanged()));
     connect(ui->lwTables,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(tableDoubleClicked(QListWidgetItem*)));
-    enButton(false);
+    enWidget(false);
     ui->btnExec->setEnabled(false);
     ui->btnClear->setEnabled(false);
+    //connect(ui->tw->selectionModel(), SIGNAL(currentRowChanged(QModelIndex,QModelIndex)),
+    //            this, SLOT(currentChanged()));
+    ui->tw->addAction(ui->insertRowAction);
+    ui->tw->addAction(ui->deleteRowAction);
 }
 
 /**
@@ -168,6 +172,7 @@ void DatabaseAccessForm::curTableChanged(int index)
     else
         ui->stateInfo->clear();
     adjustColWidth(tableName,ui->rdo_acc->isChecked());
+    updateActions();
 }
 
 /**
@@ -179,7 +184,7 @@ void DatabaseAccessForm::dataChanged(const QModelIndex &topLeft, const QModelInd
 {
     if(!editMode)
         return;
-    enButton(true);
+    enWidget(true);
 }
 
 void DatabaseAccessForm::sqlTextChanged()
@@ -196,6 +201,15 @@ void DatabaseAccessForm::sqlTextChanged()
 void DatabaseAccessForm::tableDoubleClicked(QListWidgetItem *item)
 {
     editMode = true;
+    enWidget(true);
+    connect(ui->tw->selectionModel(), SIGNAL(currentRowChanged(QModelIndex,QModelIndex)),
+                this, SLOT(currentChanged()));
+    updateActions();
+}
+
+void DatabaseAccessForm::currentChanged()
+{
+    updateActions();
 }
 
 /**
@@ -216,8 +230,9 @@ void DatabaseAccessForm::adjustColWidth(QString t,bool isAccount)
  * @brief 根据当前的编辑模式和表格数据是否被修改的情况，启用或禁用相关按钮
  * @param en
  */
-void DatabaseAccessForm::enButton(bool en)
+void DatabaseAccessForm::enWidget(bool en)
 {
+    ui->lwTables->setEnabled(!en);
     ui->btnCommit->setEnabled(en);
     ui->btnRevert->setEnabled(en);
 }
@@ -231,7 +246,7 @@ void DatabaseAccessForm::on_btnRevert_clicked()
         return;
     tModel->revertAll();
     editMode = false;
-    enButton(false);
+    enWidget(false);
 }
 
 /**
@@ -246,7 +261,7 @@ void DatabaseAccessForm::on_btnCommit_clicked()
     else
         ui->stateInfo->clear();
     editMode = false;
-    enButton(false);
+    enWidget(false);
 }
 
 /**
@@ -265,11 +280,12 @@ void DatabaseAccessForm::on_btnExec_clicked()
     ui->tw->setModel(model);
     if (model->lastError().type() != QSqlError::NoError)
             ui->stateInfo->setText(model->lastError().text());
-        else if (model->query().isSelect())
-            ui->stateInfo->setText(tr("查询成功！"));
-        else
-            ui->stateInfo->setText(tr("执行成功，受影响的行数：%1").arg(
-                               model->query().numRowsAffected()));
+    else if (model->query().isSelect())
+        ui->stateInfo->setText(tr("查询成功！"));
+    else
+        ui->stateInfo->setText(tr("执行成功，受影响的行数：%1").arg(
+                           model->query().numRowsAffected()));
+    updateActions();
 }
 
 void DatabaseAccessForm::on_btnClear_clicked()
@@ -277,4 +293,45 @@ void DatabaseAccessForm::on_btnClear_clicked()
     ui->sqlInput->clear();
     ui->btnExec->setEnabled(false);
     ui->btnClear->setEnabled(false);
+}
+
+void DatabaseAccessForm::on_insertRowAction_triggered()
+{
+    QSqlTableModel *model = qobject_cast<QSqlTableModel*>(ui->tw->model());
+    if (!model)
+        return;
+
+    QModelIndex insertIndex = ui->tw->currentIndex();
+    int row = insertIndex.row() == -1 ? 0 : insertIndex.row();
+    model->insertRow(row);
+    insertIndex = model->index(row, 0);
+    ui->tw->setCurrentIndex(insertIndex);
+    ui->tw->edit(insertIndex);
+}
+
+void DatabaseAccessForm::on_deleteRowAction_triggered()
+{
+    QSqlTableModel *model = qobject_cast<QSqlTableModel*>(ui->tw->model());
+    if (!model)
+        return;
+
+    QModelIndexList currentSelection = ui->tw->selectionModel()->selectedIndexes();
+    for(int i = 0; i < currentSelection.count(); ++i){
+        if (currentSelection.at(i).column() != 0)
+            continue;
+        model->removeRow(currentSelection.at(i).row());
+    }
+
+    model->submitAll();
+    ui->btnCommit->setEnabled(false);
+    updateActions();
+}
+
+void DatabaseAccessForm::updateActions()
+{
+    bool enableIns = editMode && qobject_cast<QSqlTableModel*>(ui->tw->model());
+    bool enableDel = editMode && enableIns && ui->tw->currentIndex().isValid();
+
+    ui->insertRowAction->setEnabled(enableIns);
+    ui->deleteRowAction->setEnabled(enableDel);
 }

@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QStack>
+#include <QItemDelegate>
 
 #include "commdatastruct.h"
 
@@ -10,6 +11,7 @@
 #include "ui_apcsuite.h"
 #include "ui_apcbank.h"
 #include "ui_apcsubject.h"
+#include "ui_apcdata.h"
 #include "ui_apcreport.h"
 #include "ui_apclog.h"
 #include "ui_subsysjoincfgform.h"
@@ -34,10 +36,21 @@ class ApcBase : public QWidget
 public:
     explicit ApcBase(Account* account, QWidget *parent = 0);
     ~ApcBase();
+    void init();
+
+private slots:
+    void windowShallClosed();
+    void textEdited();
+    void on_addWb_clicked();
+
+    void on_delWb_clicked();
 
 private:
     Ui::ApcBase *ui;
     Account* account;
+    bool iniTag;
+    QList<Money*> wbs; //外币列表
+    bool changed;
 };
 
 class ApcSuite : public QWidget
@@ -55,6 +68,7 @@ public:
     ~ApcSuite();
     void init();
 private slots:
+    void windowShallClosed();
     void curSuiteChanged(int index);
     void suiteDbClicked(QListWidgetItem* item);
     void on_btnNew_clicked();
@@ -79,16 +93,91 @@ private:
     bool iniTag;
 };
 
-class ApcBank : public QWidget
+class BankCfgNiCellWidget : public QTableWidgetItem
+{
+public:
+    BankCfgNiCellWidget(SubjectNameItem* ni);
+
+    QVariant data(int role) const;
+    void setData(int role, const QVariant &value);
+private:
+    SubjectNameItem* ni;
+};
+
+class BankCfgItemDelegate : public QItemDelegate
 {
     Q_OBJECT
 
 public:
-    explicit ApcBank(QWidget *parent = 0);
+    BankCfgItemDelegate(Account* account, QObject *parent = 0);
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const;
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const;
+    void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem &option,
+                              const QModelIndex& index) const;
+    void setReadOnly(bool isReadonly){readOnly = isReadonly;}
+private:
+    Account* account;
+    bool readOnly;
+};
+
+class ApcBank : public QWidget
+{
+    Q_OBJECT
+
+    enum EditActionEnum{
+        EA_NONE = 0,
+        EA_NEW  = 1,
+        EA_EDIT = 2
+    };    
+
+public:
+    enum ColumnIndex{
+        CI_ID         = 0,
+        CI_MONEY      = 1,
+        CI_ACCOUNTNUM = 2,
+        CI_NAME       = 3
+    };
+
+    explicit ApcBank(Account* account, QWidget *parent = 0);
     ~ApcBank();
+    void init();
+private slots:
+    void windowShallClosed();
+    void curBankChanged(int index);
+    void crtNameBtnClicked();
+    void bankDbClicked();
+    void on_editBank_clicked();
+
+    void on_submit_clicked();
+
+    void on_newBank_clicked();
+
+    void on_delBank_clicked();
+
+    void on_newAcc_clicked();
+
+    void on_delAcc_clicked();
 
 private:
+    void viewBankAccounts();
+    void enWidget(bool en);
+    BankAccount* fondBankAccount(int id);
+
     Ui::ApcBank *ui;
+    Account* account;
+    //QList<BankAccount*> ba_news,ba_dels; //分别缓存新建和删除的帐号
+    QList<Bank*> banks;
+    QList<bool> editTags; //银行对象是否被修改过的标记
+
+    Bank* curBank;
+
+    //QStack<Bank*> stack;
+    bool iniTag;
+    EditActionEnum editAction;
+    BankCfgItemDelegate* delegate;
 };
 
 class ApcSubject : public QWidget
@@ -97,7 +186,6 @@ class ApcSubject : public QWidget
     enum APC_SUB_PAGEINDEX{
         APCS_SYS = 0,   //科目系统页
         APCS_SUB = 1,   //科目页
-        //APCS_SND = 2,   //二级科目页
         APCS_NAME= 2    //名称条目页
     };
 
@@ -119,6 +207,7 @@ public:
     void save();
 
 private slots:
+    void windowShallClosed();
     //科目系统配置相关
     void importBtnClicked();
     void subSysCfgBtnClicked();
@@ -203,9 +292,6 @@ private:
     QStack<QString> stack_strs;
     QStack<int> stack_ints;
     APC_SUB_EDIT_ACTION editAction;
-    //APC_SUB_EDIT_ACTION fsubEditAction; //当前一级科目的编辑动作
-    //APC_SUB_EDIT_ACTION niEditAction;  //当前名称条目编辑动作
-    //APC_SUB_EDIT_ACTION niClsEditAction; //当前名称条目类别的编辑动作
 
     SubjectManager* curSubMgr;         //当前选择的科目系统
     FirstSubject* curFSub;
@@ -244,6 +330,135 @@ private:
     QList<bool> editTags;   //每个科目的映射条目被修改的标记列表
 };
 
+//显示期初余额的借贷方向
+class DirView : public QTableWidgetItem
+{
+public:
+    DirView(MoneyDirection dir=MDIR_P,int type = QTableWidgetItem::UserType);
+    QVariant data(int role) const;
+    void setData(int role, const QVariant &value);
+
+private:
+    MoneyDirection dir;
+};
+
+//编辑期初余额的借贷方向
+class DirEdit_new : public QComboBox
+{
+    Q_OBJECT
+public:
+    DirEdit_new(MoneyDirection dir = MDIR_J, QWidget* parent = 0);
+    void setDir(MoneyDirection dir);
+    MoneyDirection getDir();
+protected:
+    void keyPressEvent(QKeyEvent* e );
+signals:
+    void dataEditCompleted(int col, bool isMove);
+    void editNextItem(int row, int col);   //
+private:
+    MoneyDirection dir;
+    int row,col;
+};
+
+/**
+ * @brief 期初余额配置项目代理类
+ */
+class BeginCfgItemDelegate : public QItemDelegate
+{
+    Q_OBJECT
+
+public:
+    BeginCfgItemDelegate(Account* account, bool readOnly=true, bool isFSub=false, QObject *parent = 0);
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const;
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const;
+    void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem &option,
+                              const QModelIndex& index) const;
+    void setReadOnly(bool isReadonly){readOnly = isReadonly;}
+private slots:
+    void commitAndCloseEditor(int colIndex, bool isMove);
+signals:
+    void moneyChanged(int oldMt, int newMt);
+    void dirChanged(MoneyDirection oldDir, MoneyDirection newDir);
+    void pvChanged(Double ov, Double nv);
+    void mvChanged(Double ov, Double nv);
+
+private:
+    Account* account;
+    bool readOnly;
+    bool isFSub;           //是否用于一级科目的余额表格（默认为false）
+    QHash<int,Money*> mts;
+
+//    Money* oldMt;
+//    MoneyDirection oldDir;
+//    Double oldPv,oldMv;
+};
+
+
+/**
+ * @brief 账户期初余额配置类（兼具余额显示）
+ */
+class ApcData : public QWidget
+{
+    Q_OBJECT
+
+public:
+    //期初余额表的列索引
+    enum ColIndex{
+        CI_MONEY    = 0,
+        CI_DIR      = 1,
+        CI_PV       = 2,
+        CI_MV       = 3
+    };
+
+    explicit ApcData(Account* account, bool isCfg, QWidget *parent = 0);
+    ~ApcData();
+    void init();
+    void setYM(int year, int month);
+
+private slots:
+    void curFSubChanged(int index);
+    void curSSubChanged(int index);
+    void curMtChanged(int index);
+    void adjustColWidth(int col, int oldSize, int newSize);
+    void dataChanged(QTableWidgetItem *item);
+    void monthChanged(int m);
+    void windowShallClosed();
+
+    void on_add_clicked();
+
+    void on_save_clicked();
+
+private:
+    bool viewRates();
+    void collect();
+    bool exist(int sid);
+    void viewCollectData();
+    void watchDataChanged(bool en=true);
+
+
+    Ui::ApcData *ui;
+    Account *account;
+    bool iniTag;
+    SubjectManager* smg;
+    FirstSubject* curFSub;
+    SecondSubject* curSSub;
+    QHash<int,Double> rates;
+    QHash<int,Double> pvs,mvs;       //当前一级科目下所有二级科目的期初余额（原币、本币形式）（复合键：二级科目id+币种代码）
+    QHash<int,MoneyDirection> dirs;  //当前一级科目下所有二级科目的期初余额方向
+    QHash<int,Double> pvs_f,mvs_f;      //当前一级科目汇总后的期初余额（键为币种代码）
+    QHash<int,MoneyDirection> dir_f;    //当前一级科目汇总后的期初余额方向
+    int y,m;                    //期初年月（或余额年月）
+    QHash<int,Money*> mts;      //账户所使用的所有币种对象
+    QList<int> mtSorts;         //显示余额值的顺序（本币始终是第一个）
+    BeginCfgItemDelegate *delegate,*delegate_fsub;
+    bool readOnly;              //期初余额是否可编辑
+    QBrush bg_red;              //当二级科目有余额项时所采用的前景色
+    bool extraCfg;              //是期初余额配置（true：默认，还是余额显示）
+};
+
 class ApcReport : public QWidget
 {
     Q_OBJECT
@@ -279,12 +494,13 @@ class AccountPropertyConfig : public QDialog
      * @brief 账户属性配置页索引
      */
     enum APC_PAGEINDEX{
-        APC_BASE     = 0,
-        APC_SUITE    = 1,
-        APC_BANK     = 2,
-        APC_SUBJECT  = 3,
-        APC_REPORT   = 4,
-        APC_LOG      = 5
+        APC_BASE     = 0,   //账户基本信息
+        APC_SUITE    = 1,   //帐套信息
+        APC_BANK     = 2,   //开户银行信息
+        APC_SUBJECT  = 3,   //科目配置
+        APC_DATA     = 4,   //期初数据配置
+        APC_REPORT   = 5,   //报表配置
+        APC_LOG      = 6    //账户日志
     };
     
 public:
@@ -292,9 +508,17 @@ public:
     ~AccountPropertyConfig();
     QByteArray* getState(){return NULL;}
     void setState(QByteArray* state){}
-    
+
+//protected:
+//    void closeEvent(QCloseEvent *event);
+public slots:
+    bool close();
 private slots:
     void pageChanged(int index);
+
+    //void saveOnClose();
+signals:
+    void windowShallClosed();
 private:
     void createIcons();
 private:

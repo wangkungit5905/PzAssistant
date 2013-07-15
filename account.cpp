@@ -47,6 +47,11 @@ void Account::close()
     isOpened = false;
 }
 
+bool Account::saveAccountInfo()
+{
+    return dbUtil->saveAccountInfo(accInfos);
+}
+
 void Account::addWaiMt(Money* mt)
 {
     if(!accInfos.waiMts.contains(mt))
@@ -78,7 +83,10 @@ QString Account::getWaiMtStr()
 QDate Account::getStartDate()
 {
     AccountSuiteRecord* asr = suiteRecords.first();
-    return QDate(asr->year,asr->startMonth,1);
+    if(asr)
+        return QDate(asr->year,asr->startMonth,1);
+    else
+        return QDate();
 }
 
 /**
@@ -89,9 +97,13 @@ QDate Account::getStartDate()
 QDate Account::getEndDate()
 {
     AccountSuiteRecord* asr = suiteRecords.last();
-    QDate d = QDate(asr->year,asr->endMonth,1);
-    d.setDate(asr->year,asr->endMonth,d.daysInMonth());
-    return d;
+    if(asr){
+        QDate d = QDate(asr->year,asr->endMonth,1);
+        d.setDate(asr->year,asr->endMonth,d.daysInMonth());
+        return d;
+    }
+    else
+        return QDate();
 }
 
 /**
@@ -449,6 +461,23 @@ bool Account::getRates(int y, int m, QHash<Money*, Double> &rates)
 bool Account::setRates(int y, int m, QHash<int, Double> &rates)
 {
     return dbUtil->saveRates(y,m,rates);
+}
+
+/**
+ * @brief Account::getAllBankAccount
+ * @return
+ */
+QList<BankAccount *> Account::getAllBankAccount()
+{
+    QList<BankAccount*> bas;
+    foreach(Bank* bank, banks)
+        bas<<bank->bas;
+    return bas;
+}
+
+bool Account::saveBank(Bank *bank)
+{
+    return dbUtil->saveBankInfo(bank);
 }
 
 void Account::setDatabase(QSqlDatabase *db)

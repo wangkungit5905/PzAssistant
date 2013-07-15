@@ -35,7 +35,7 @@ private slots:
     void curSuiteChanged(QListWidgetItem * current, QListWidgetItem * previous);
     void swichBtnClicked();
     void viewBtnClicked();
-    void openBtnClicked();
+    void openBtnClicked(bool checked);
     void newPzSet();
 signals:
     void selectedSuiteChanged(AccountSuiteManager* previous, AccountSuiteManager* current);
@@ -56,6 +56,7 @@ private:
     QHash<int,int> openedMonths;                    //每个帐套当前以编辑模式打开的月份数（键为帐套id）
     int curAsrId;  //与当前选择的帐套记录的id
     QIcon icon_unSelected, icon_selected;
+    QIcon icon_open, icon_close, icon_edit, icon_lookup; //凭证集的打开、关闭、编辑和查看图标
 };
 
 #endif // SUITESWITCHPANEL_H

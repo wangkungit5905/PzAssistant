@@ -88,6 +88,7 @@ public:
     ~Account();
     bool isValid();
     void close();
+    bool saveAccountInfo();
     bool isOpen(){return isOpened;}
     DbUtil* getDbUtil(){return dbUtil;}
     QString getSName(){return accInfos.sname;}
@@ -106,7 +107,7 @@ public:
     Money* getMasterMt(){return accInfos.masterMt;}
     void setMasterMt(Money* mt){accInfos.masterMt = mt;}
     QList<Money*> getWaiMt(){return accInfos.waiMts;}
-    void setWaiMt(QList<Money*> mts){accInfos.waiMts = mts;}
+    void setWaiMts(QList<Money*> mts){accInfos.waiMts = mts;}
     void addWaiMt(Money *mt);
     void delWaiMt(Money *mt);
     QString getWaiMtStr();
@@ -162,7 +163,9 @@ public:
 
 	void setReadOnly(bool readOnly){isReadOnly=readOnly;}
 	bool getReadOnly(){return isReadOnly;}
-    QList<BankAccount*> &getAllBankAccount(){return bankAccounts;}
+    QList<BankAccount*> getAllBankAccount();
+    QList<Bank*> getAllBank(){return banks;}
+    bool saveBank(Bank* bank);
     static void setDatabase(QSqlDatabase* db);
 
     bool getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
@@ -180,7 +183,8 @@ private:
     int subType; //账户所用的科目类型（科目系统由帐套来定）
     //ReportType reportType; //账户所用的报表类型
 
-    QList<BankAccount*> bankAccounts;
+    //QList<BankAccount*> bankAccounts;
+    QList<Bank*> banks;
     //AccountSuiteManager* pzSetMgr;      //凭证集对象
     QList<SubSysNameItem*> subSysLst; //账户支持的科目系统
     QHash<int,SubjectManager*> smgs;  //科目管理对象（键为科目系统代码）

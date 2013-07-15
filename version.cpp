@@ -820,6 +820,7 @@ bool VMAccount::updateTo1_4()
     QHashIterator<int,QString> ib(bankNames),im(mtNames);
     while(ib.hasNext()){
         ib.next();
+        im.toFront();
         while(im.hasNext()){
             im.next();
             s = QString("select id from %1 where %2='%3'")

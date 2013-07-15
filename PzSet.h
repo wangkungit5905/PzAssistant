@@ -59,6 +59,9 @@ public:
     PingZheng* readPz(int pid, bool &in);
     int getStatePzCount(PzState state);
 
+    int verifyAll(User* user);
+    int instatAll(User* user);
+
     bool inspectPzError(QList<PingZhengError *> &errors);
 
     bool saveExtra();

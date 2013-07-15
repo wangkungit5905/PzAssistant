@@ -42,7 +42,8 @@ public:
      */
     enum SpecNameItemClass{
         SNIC_CLIENT = 1,    //业务客户类
-        SNIC_GDZC   = 2     //固定资产类
+        SNIC_GDZC   = 2,    //固定资产类
+        SNIC_BANK   = 3     //金融机构（常指银行）
     };
 
 
@@ -97,11 +98,14 @@ public:
 
     bool getSubSysItems(QList<SubSysNameItem *> &items);
 
+    bool getSupportMoneyType(QHash<int, Money *> &moneys);
+
 private:
     AppConfig();
     bool getConfigVar(QString name, int type);
     bool setConfigVar(QString name,int type);
 
+    QHash<int, Money*> moneyTypes;
     bool bv;       //分别用来保存4种类型的变量值
     int iv;
     double dv;

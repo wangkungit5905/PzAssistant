@@ -532,43 +532,152 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
         return false;
     if(infos.lname != oldInfos.lname && !saveAccInfoPiece(LNAME,infos.lname))
         return false;
-    //未实现Money类的操作符重载
-    //if(infos.masterMt != oldInfos.masterMt && !saveAccInfoPiece(MASTERMT,QString::number(infos.masterMt)))
-    //    return false;
-    //if(infos.startDate != oldInfos.startDate && !saveAccInfoPiece(STIME,infos.startDate))
-    //    return false;
-    //if(infos.endDate != oldInfos.endDate && !saveAccInfoPiece(ETIME,infos.endDate))
-    //    return false;
     if(infos.lastAccessTime != oldInfos.lastAccessTime && !saveAccInfoPiece(LASTACCESS,infos.lastAccessTime))
         return false;
     if(infos.dbVersion != oldInfos.dbVersion && !saveAccInfoPiece(DBVERSION,infos.dbVersion))
         return false;
     if(infos.logFileName != oldInfos.logFileName && !saveAccInfoPiece(LOGFILE,infos.logFileName))
         return false;
-    bool changed = false;
     //保存外币列表
-//    if(infos.waiMts.count() != oldInfos.waiMts.count())
-//        changed = true;
-//    else{
-//        for(int i = 0; i < infos.waiMts.count(); ++i){
-//            if(infos.waiMts.at(i) != oldInfos.waiMts.at(i)){
-//                changed = true;
-//                break;
-//            }
-//        }
-//    }
-//    if(changed){
-//        QString vs;
-//        for(int i = 0; i < infos.waiMts.count(); ++i)
-//            vs.append(QString("%1,").arg(infos.waiMts.at(i)));
-//        vs.chop(1);
-//        if(!saveAccInfoPiece(WAIMT,vs))
-//            return false;
-//        changed = false;
-//    }
-    //保存帐套名表
-    //if(!saveSuites(infos.suiteHash))
-    //    return false;
+    bool changed = false;
+    if(infos.waiMts.count() != oldInfos.waiMts.count())
+        changed = true;
+    else{
+        foreach(Money* mt, infos.waiMts){
+            if(!oldInfos.waiMts.contains(mt)){
+                changed = true;
+                break;
+            }
+        }
+    }
+    if(changed && !saveMoneys(infos.waiMts))
+        return false;
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveBankInfo
+ *  保存开户行信息
+ * @param ba
+ * @return
+ */
+bool DbUtil::saveBankInfo(Bank *ba, bool isDel)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save bank!");
+        return false;
+    }
+
+    if(isDel){
+        foreach(BankAccount* acc, ba->bas){
+            s = QString("delete from %1 where id=%2").arg(tbl_bankAcc).arg(acc->id);
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        s = QString("delete from %1 where id=%2").arg(tbl_bank).arg(ba->id);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        if(!db.commit()){
+            LOG_SQLERROR("Commit transaction failed on save bank!");
+            return false;
+        }
+        return true;
+    }
+    if(ba->id == UNID){
+        s = QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')").arg(tbl_bank)
+                .arg(fld_bank_isMain).arg(fld_bank_name).arg(fld_bank_lname)
+                .arg(ba->isMain?1:0).arg(ba->name).arg(ba->lname);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        s = "select last_insert_rowid()";
+        q.exec(s); q.first();
+        ba->id = q.value(0).toInt();
+        foreach(BankAccount* acc, ba->bas){
+            if(acc->niObj && (acc->niObj->getId() == 0) && !saveNameItem(acc->niObj)){
+                LOG_ERROR("Save name item failed on save bank object!");
+                return false;
+            }
+            s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,'%8',%9)").arg(tbl_bankAcc)
+                    .arg(fld_bankAcc_bankId).arg(fld_bankAcc_mt).arg(fld_bankAcc_accNum)
+                    .arg(fld_bankAcc_nameId).arg(acc->parent->id).arg(acc->mt->code())
+                    .arg(acc->accNumber).arg(acc->niObj?acc->niObj->getId():0);
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            s = "select last_insert_rowid()";
+            q.exec(s); q.first();
+            acc->id = q.value(0).toInt();
+        }
+    }
+    else{
+        s = QString("update %1 set %2=%3,%4='%5',%6='%7' where id=%8").arg(tbl_bank)
+                .arg(fld_bank_isMain).arg(ba->isMain?1:0).arg(fld_bank_name)
+                .arg(ba->name).arg(fld_bank_lname).arg(ba->lname).arg(ba->id);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        QList<int> accIds;
+        s = QString("select id from %1 where %2=%3").arg(tbl_bankAcc).arg(fld_bankAcc_bankId).arg(ba->id);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q.next())
+            accIds<<q.value(0).toInt();
+        foreach(BankAccount* acc, ba->bas){
+            if(acc->niObj && (acc->niObj->getId() == 0) && !saveNameItem(acc->niObj)){
+                LOG_ERROR("Save name item failed on save bank object!");
+                return false;
+            }
+            if(acc->id == UNID){
+                s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,'%8',%9)").arg(tbl_bankAcc)
+                        .arg(fld_bankAcc_bankId).arg(fld_bankAcc_mt).arg(fld_bankAcc_accNum)
+                        .arg(fld_bankAcc_nameId).arg(acc->parent->id).arg(acc->mt->code())
+                        .arg(acc->accNumber).arg(acc->niObj?acc->niObj->getId():0);
+                if(!q.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+                s = "select last_insert_rowid()";
+                q.exec(s); q.first();
+                acc->id = q.value(0).toInt();
+            }
+            else{
+                s = QString("update %1 set %2=%3,%4='%5',%6=%7 where id=%8")
+                        .arg(tbl_bankAcc).arg(fld_bankAcc_mt).arg(acc->mt->code())
+                        .arg(fld_bankAcc_accNum).arg(acc->accNumber).arg(fld_bankAcc_nameId)
+                        .arg(acc->niObj?acc->niObj->getId():0).arg(acc->id);
+                if(!q.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+                accIds.removeOne(acc->id);
+            }
+        }
+        if(!accIds.isEmpty()){
+            foreach(int id, accIds){
+                s = QString("delete from %1 where id=%2").arg(tbl_bankAcc).arg(id);
+                if(!q.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+            }
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save bank!");
+        return false;
+    }
     return true;
 }
 
@@ -959,16 +1068,25 @@ bool DbUtil::isSubSysImported(int subSys)
 bool DbUtil::initMoneys(Account *account)
 {
     QSqlQuery q(db);
-    QString s = QString("select * from %1").arg(tbl_moneyType);
-    if(!q.exec(s))
+    QHash<int,Money*> mts;
+    if(!AppConfig::getInstance()->getSupportMoneyType(mts)){
+        LOG_ERROR("Don't get application support money type!");
         return false;
+    }
+    QString s = QString("select %1,%2 from %3").arg(fld_mt_code).arg(fld_mt_isMaster).arg(tbl_moneyType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
     int mmt = 0;
     while(q.next()){
-        int code = q.value(MT_CODE).toInt();
-        QString sign = q.value(MT_SIGN).toString();
-        QString name = q.value(MT_NAME).toString();
-        account->moneys[code] = new Money(code,name,sign);
-        bool isMain = q.value(MT_MASTER).toBool();
+        int code = q.value(0).toInt();
+        if(!mts.contains(code)){
+            LOG_ERROR("fonded a unknowed money type on initail moneys!");
+            return false;
+        }
+        account->moneys[code] = mts.value(code);
+        bool isMain = q.value(1).toBool();
         if(isMain){
             masterMt = code;
             mmt = code;
@@ -987,31 +1105,6 @@ bool DbUtil::initMoneys(Account *account)
         QMessageBox::warning(0,QObject::tr("设置错误"),QObject::tr("没有设置本币！"));
 
     return true;
-//    //获取账户所使用的母币
-//    s = QString("select %1,%2 from %3 where %4=%5").arg(fld_acci_code)
-//            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(MASTERMT);
-//    if(!q.exec(s)){
-//        LOG_SQLERROR(s);
-//        return false;
-//    }
-//    if(!q.first()){
-//        LOG_ERROR("Master money don't set!");
-//        return false;
-//    }
-//    account->accInfos.masterMt = account->moneys.value(q.value(1).toInt());
-//    //获取账户所使用的外币
-//    s = QString("select %1,%2 from %3 where %4=%5").arg(fld_acci_code)
-//            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(WAIMT);
-//    if(!q.exec(s)){
-//        LOG_SQLERROR(s);
-//        return false;
-//    }
-//    if(!q.first())
-//        return true;
-//    QStringList sl = q.value(1).toString().split(",");
-//    foreach(QString v, sl)
-//        account->accInfos.waiMts<<account->moneys.value(v.toInt());
-//    return true;
 }
 
 /**
@@ -1022,9 +1115,11 @@ bool DbUtil::initMoneys(Account *account)
  */
 bool DbUtil::initBanks(Account *account)
 {
-    QSqlQuery q(db);
-
-    QHash<int,Bank*> banks;
+    if(!db.transaction()){
+        LOG_SQLERROR("start transaction failed on init bank!");
+        return false;
+    }
+    QSqlQuery q(db), q2(db);
     QString s = QString("select * from %1").arg(tbl_bank);
     if(!q.exec(s))
         return false;
@@ -1034,23 +1129,121 @@ bool DbUtil::initBanks(Account *account)
         bank->isMain = q.value(BANK_ISMAIN).toBool();
         bank->name = q.value(BANK_NAME).toString();
         bank->lname = q.value(BANK_LNAME).toString();
-        banks[bank->id] = bank;
+        account->banks<<bank;
+        s = QString("select * from %1 where %2=%3")
+                .arg(tbl_bankAcc).arg(fld_bankAcc_bankId).arg(bank->id);
+        if(!q2.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q2.next()){
+            BankAccount* ba = new BankAccount;
+            ba->parent = bank;
+            ba->id = q2.value(0).toInt();
+            int mt = q2.value(BA_MT).toInt();
+            int nid = q2.value(BA_ACCNAME).toInt();
+            ba->accNumber = q2.value(BA_ACCNUM).toString();
+            ba->mt = account->moneys.value(mt);
+            ba->niObj = SubjectManager::getNameItem(nid);
+            bank->bas<<ba;
+        }
     }
 
-    s = QString("select * from %1").arg(tbl_bankAcc);
-    if(!q.exec(s))
+//    s = QString("select * from %1").arg(tbl_bankAcc);
+//    if(!q.exec(s))
+//        return false;
+//    while(q.next()){
+//        BankAccount* ba = new BankAccount;
+//        ba->id = q.value(0).toInt();
+//        int bankId = q.value(BA_BANKID).toInt();
+//        int mt = q.value(BA_MT).toInt();
+//        int nid = q.value(BA_ACCNAME).toInt();
+//        ba->bank = banks.value(bankId);
+//        ba->accNumber = q.value(BA_ACCNUM).toString();
+//        ba->mt = account->moneys.value(mt);
+//        ba->niObj = SubjectManager::getNameItem(nid);
+//        account->bankAccounts<<ba;
+//    }
+    if(!db.commit()){
+        LOG_SQLERROR("commit transaction failed on init bank!");
         return false;
-    while(q.next()){
-        BankAccount* ba = new BankAccount;
-        ba->id = q.value(0).toInt();
-        int bankId = q.value(BA_BANKID).toInt();
-        int mt = q.value(BA_MT).toInt();
-        int nid = q.value(BA_ACCNAME).toInt();
-        ba->bank = banks.value(bankId);
-        ba->accNumber = q.value(BA_ACCNUM).toString();
-        ba->mt = account->moneys.value(mt);
-        ba->niObj = SubjectManager::getNameItem(nid);
-        account->bankAccounts<<ba;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::moneyIsUsed
+ *  指定货币对象是否已被账户使用
+ *  检测依据定为（余额指针表、分录表是否有指定货币）
+ * @param mt
+ * @return
+ */
+bool DbUtil::moneyIsUsed(Money *mt, bool &used)
+{
+    QSqlQuery q(db);
+    used = false;
+    QString s = QString("select id from %1 where %2=%3")
+            .arg(tbl_nse_point).arg(fld_nse_mt).arg(mt->code());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first()){
+        used = true;
+        return true;
+    }
+    s = QString("select id from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_mt).arg(mt->code());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first())
+        used = true;
+    return true;
+
+}
+
+/**
+ * @brief DbUtil::saveMoneys
+ *  保存账户所使用的外币
+ * @param moneys
+ * @return
+ */
+bool DbUtil::saveMoneys(QList<Money *> moneys)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1 from %2 where %3=%4").arg(fld_mt_code)
+            .arg(tbl_moneyType).arg(fld_mt_isMaster).arg(0);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QList<int> mtCodes;
+    while(q.next())
+        mtCodes<<q.value(0).toInt();
+    foreach(Money* mt, moneys){
+        if(!mtCodes.contains(mt->code())){
+            s = QString("insert into %1(%2,%3,%4,%5) values(%6,'%7','%8',0)")
+                    .arg(tbl_moneyType).arg(fld_mt_code).arg(fld_mt_name)
+                    .arg(fld_mt_sign).arg(fld_mt_isMaster).arg(mt->code())
+                    .arg(mt->name()).arg(mt->sign());
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        else
+            mtCodes.removeOne(mt->code());
+        moneys.removeOne(mt);
+    }
+    if(!mtCodes.isEmpty()){
+        foreach(int code, mtCodes){
+            s = QString("delete from %1 where %2=%3").arg(tbl_moneyType).arg(fld_mt_code).arg(code);
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
     }
     return true;
 }
@@ -1250,6 +1443,13 @@ bool DbUtil::readExtraForSSub(int y, int m, int sid, QHash<int, Double> &v, QHas
     return _readExtraForSSub(y,m,sid,v,wv,dir);
 }
 
+
+
+//bool DbUtil::saveExtraForSSub(int y, int m, int fid, const QHash<int, Double> &v, const QHash<int, Double> &wv, const QHash<int, MoneyDirection> &dir)
+//{
+//    return _saveExtraForSub(y,m,fid,v,wv,dir,false);
+//}
+
 /**
  * @brief DbUtil::readExtraForPm
  *  读取指定年月所有科目（包括二级科目）的余额值（原币形式）
@@ -1385,6 +1585,156 @@ bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const
         warn_transaction(Transaction_commit,QObject::tr("When save extra for master money, transaction commit failed!"));
         if(!db.rollback())
             warn_transaction(Transaction_rollback,QObject::tr("When save extra for master money,Database transaction roll back failed!"));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::readExtraForAllSSubInFSub
+ *  读取指定年月，指定一级科目下的所有二级科目的余额（主要用于设置账户期初余额时使用）
+ * @param y
+ * @param m
+ * @param fid   一级科目id
+ * @param pvs   余额（原币）（键为二级科目id + 币种代码）
+ * @param dirs  余额方向
+ * @param mvs   余额（本币）
+ * @return
+ */
+bool DbUtil::readExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub, QHash<int, Double> &pvs, QHash<int, MoneyDirection> &dirs, QHash<int, Double> &mvs)
+{
+    QSqlQuery q(db),q2(db);
+    QHash<int, int> pids;
+    if(!fsub)
+        return false;
+    if(!_readExtraPoint(y,m,pids))
+        return false;
+    QList<int> sids;
+    foreach(SecondSubject* ssub, fsub->getChildSubs())
+        sids<<ssub->getId();
+    QString s;
+
+    QHashIterator<int,int> it(pids);
+    MoneyDirection dir; int sid,key; Double v;
+    int mmt = fsub->parent()->getAccount()->getMasterMt()->code();
+    while(it.hasNext()){
+        it.next();
+        s = QString("select %1,%2,%3 from %4 where %5=%6").arg(fld_nse_dir).arg(fld_nse_value)
+                .arg(fld_nse_sid).arg(tbl_nse_p_s).arg(fld_nse_pid).arg(it.value());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q.next()){
+            sid = q.value(2).toInt();
+            if(!sids.contains(sid))
+                continue;
+            dir = (MoneyDirection)q.value(0).toInt();
+            v = Double(q.value(1).toDouble());
+            key = sid * 10 + it.key();
+            pvs[key] = v;
+            dirs[key] = dir;
+            if(it.key() != mmt){
+                s = QString("select %1,%2 from %3 where %4=%5").arg(fld_nse_sid).arg(fld_nse_value)
+                        .arg(tbl_nse_m_s).arg(fld_nse_pid).arg(it.value());
+                if(!q2.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+                while(q2.next()){
+                    sid = q2.value(0).toInt();
+                    if(!sids.contains(sid))
+                        continue;
+                    v = Double(q2.value(1).toDouble());
+                    key = sid * 10 + it.key();
+                    mvs[key] = v;
+                }
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveExtraForAllSSubInFSub
+ *  保存指定年月、指定一级科目的余额（包括其属下的所有二级科目余额）
+ * @param y
+ * @param m
+ * @param fid   一级科目id
+ * @param fpvs  一级科目余额（原币）（键为币种代码）
+ * @param fmvs  一级科目余额（本币）（键为币种代码）
+ * @param fdirs 一级科目余额方向（键为币种代码）
+ * @param v     二级科目余额（原币）（键为科目id*10+币种代码）
+ * @param wv    二级科目余额（外币）（键为科目id*10+币种代码）
+ * @param dir   二级科目余额方向（键为科目id*10+币种代码）
+ * @return
+ * @return
+ */
+bool DbUtil::saveExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub,
+                              const QHash<int, Double> fpvs, const QHash<int, Double> fmvs,
+                              QHash<int, MoneyDirection> fdirs, const QHash<int, Double> &v,
+                              const QHash<int, Double> &wv, const QHash<int, MoneyDirection> &dir)
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save first subject extra!");
+        return false;
+    }
+
+    QHash<int, Double> pvs,mvs;
+    QHash<int,MoneyDirection> dirs;
+    int key;
+
+    //保存一级科目余额
+    QHashIterator<int,Double>* it = new QHashIterator<int,Double>(fpvs);    
+    while(it->hasNext()){
+        it->next();
+        if(fdirs.value(it->key() == MDIR_P))
+            continue;
+        key = fsub->getId() * 10 + it->key();
+        pvs[key] = it->value();
+        dirs[key] = fdirs.value(it->key());
+    }
+    it = new QHashIterator<int,Double>(fmvs);
+    while(it->hasNext()){
+        it->next();
+        if(it->value() == 0)
+            continue;
+        key = fsub->getId() * 10 + it->key();
+        mvs[key] = it->value();
+    }
+
+    QList<int> ids;
+    ids<<fsub->getId();
+    if(!_saveExtrasForSubLst(y,m,ids,pvs,mvs,dirs))
+        return false;
+
+    //保存二级科目余额
+    ids.clear();
+    pvs.clear(); mvs.clear(); dirs.clear();
+    foreach(SecondSubject* ssub, fsub->getChildSubs())
+        ids<<ssub->getId();
+    it = new QHashIterator<int,Double>(v);
+    while(it->hasNext()){
+        it->next();
+        if(dir.value(it->key() == MDIR_P))
+            continue;
+        pvs[it->key()] = it->value();
+        dirs[it->key()] = dir.value(it->key());
+    }
+    it = new QHashIterator<int,Double>(wv);
+    while(it->hasNext()){
+        it->next();
+        if(it->value() == 0)
+            continue;
+        mvs[it->key()] = it->value();
+    }
+    if(!_saveExtrasForSubLst(y,m,ids,pvs,mvs,dirs,false))
+        return false;
+
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save first subject extra!");
+        if(!db.rollback())
+            LOG_SQLERROR("Rollback transaction failed on save first subject extra!");
         return false;
     }
     return true;
@@ -2017,7 +2367,7 @@ bool DbUtil::getRates(int y, int m, QHash<int, Double> &rates)
     }
     if(!q.first()){
         LOG_DEBUG(QObject::tr("没有指定汇率！"));
-        return false;
+        return true;
     }
     for(int i = 0;i<mtcs.count();++i)
         rates[mtcs.at(i)] = Double(q.value(i).toDouble());
@@ -2074,7 +2424,7 @@ bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
         for(int i = 0; i < mtFields.count(); ++i){
             if(rates.contains(wbCodes.at(i)))
                 s.append(QString("%1=%2,").arg(mtFields.at(i))
-                         .arg(rates.value(wbCodes.at(i)).toString()));
+                         .arg(rates.value(wbCodes.at(i)).toString2()));
         }
 
         s.chop(1);
@@ -2090,7 +2440,7 @@ bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
         for(int i = 0; i < mtFields.count(); ++i){
             if(rates.contains(wbCodes.at(i))){
                 s.append(mtFields.at(i)).append(",");
-                vs.append(rates.value(wbCodes[i]).toString()).append(",");
+                vs.append(rates.value(wbCodes[i]).toString2()).append(",");
             }
         }
         s.chop(1); vs.chop(1);
@@ -4147,11 +4497,7 @@ bool DbUtil::_readExtraForFSub(int y, int m, int fid, QHash<int, Double> &v, QHa
             LOG_SQLERROR(s);
             return false;
         }
-        if(!q.first()){
-            v[it.key()] = 0.0;
-            dir[it.key()] = MDIR_P;
-        }
-        else{
+        if(q.first()){
             v[it.key()] = Double(q.value(0).toDouble());
             dir[it.key()] = (MoneyDirection)q.value(1).toInt();
         }
@@ -4162,9 +4508,7 @@ bool DbUtil::_readExtraForFSub(int y, int m, int fid, QHash<int, Double> &v, QHa
             LOG_SQLERROR(s);
             return false;
         }
-        if(!q.first())
-            wv[it.key()] = 0.0;
-        else
+        if(q.first())
             wv[it.key()] = Double(q.value(0).toDouble());
     }
     return true;
@@ -4198,11 +4542,7 @@ bool DbUtil::_readExtraForSSub(int y, int m, int sid, QHash<int, Double> &v, QHa
             LOG_SQLERROR(s);
             return false;
         }
-        if(!q.first()){
-            v[it.key()] = 0.0;
-            dir[it.key()] = MDIR_P;
-        }
-        else{
+        if(q.first()){
             v[it.key()] = Double(q.value(0).toDouble());
             dir[it.key()] = (MoneyDirection)q.value(1).toInt();
         }
@@ -4213,13 +4553,214 @@ bool DbUtil::_readExtraForSSub(int y, int m, int sid, QHash<int, Double> &v, QHa
             LOG_SQLERROR(s);
             return false;
         }
-        if(!q.first())
-            wv[it.key()] = 0.0;
-        else
+        if(q.first())
             wv[it.key()] = Double(q.value(0).toDouble());
     }
     return true;
 }
+
+/**
+ * @brief DbUtil::_readExtrasForSubLst
+ *  读取指定年月、指定科目集合、指定余额类型（原币或本币）的余额
+ * @param y
+ * @param m
+ * @param sids  科目id列表
+ * @param pvs   余额（原币）
+ * @param mvs   余额（本币）
+ * @param dirs  余额方向
+ * @param isFst true：一级科目（默认），false：二级科目
+ * @return
+ */
+bool DbUtil::_readExtrasForSubLst(int y, int m, const QList<int> sids, QHash<int, Double> &pvs, QHash<int, Double> &mvs, QHash<int, MoneyDirection> &dirs, bool isFst/*, bool isPv*/)
+{
+    QHash<int,int> mtHash;
+    if(!_readExtraPoint(y,m,mtHash))
+        return false;
+    if(mtHash.isEmpty())
+        return true;
+
+    QString pt,mt;
+    if(isFst){
+        pt = tbl_nse_p_f;
+        mt = tbl_nse_m_f;
+    }
+    else{
+        pt = tbl_nse_p_s;
+        mt = tbl_nse_m_s;
+    }
+
+    QHashIterator<int,int> it(mtHash);
+    QSqlQuery q(db);
+    QString s; int key,sid;
+    while(it.hasNext()){
+        it.next();
+        s = QString("select %1,%2,%3 from %4 where %5=%6").arg(fld_nse_value).arg(fld_nse_dir)
+                .arg(fld_nse_sid).arg(pt).arg(fld_nse_pid).arg(it.value());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q.next()){
+            sid = q.value(2).toInt();
+            if(!sids.contains(sid))
+                continue;
+            key = sid*10+it.key();
+            pvs[key] = Double(q.value(0).toDouble());
+            dirs[key] = (MoneyDirection)q.value(1).toInt();
+        }
+        if(it.key() == masterMt)
+            continue;
+        s = QString("select %1,%2 from %3 where %4=%5")
+                .arg(fld_nse_value).arg(fld_nse_sid).arg(mt).arg(fld_nse_pid).arg(it.value());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q.next()){
+            sid = q.value(1).toInt();
+            if(!sids.contains(sid))
+                continue;
+            key = sid*10+it.key();
+            mvs[key] = Double(q.value(0).toDouble());
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::_saveExtrasForSubLst
+ *  保存指定年月、指定科目集合、指定余额类型（原币或本币）的余额
+ * @param y
+ * @param m
+ * @param sids  科目id列表
+ * @param pvs   余额（原币）
+ * @param mvs   余额（本币）
+ * @param dirs  余额方向
+ * @param isFst true：一级科目（默认），false：二级科目
+ * @return
+ */
+bool DbUtil::_saveExtrasForSubLst(int y, int m, const QList<int> sids, const QHash<int, Double> &pvs, const QHash<int, Double> &mvs, const QHash<int, MoneyDirection> &dirs, bool isFst)
+{
+    QHash<int, Double> old_pvs,old_mvs;
+    QHash<int, MoneyDirection> old_dirs;
+    if(!_readExtrasForSubLst(y,m,sids,old_pvs,old_mvs,old_dirs,isFst))
+        return false;
+    QHash<int,int> mtHash;
+    if(!_readExtraPoint(y,m,mtHash))
+        return false;
+
+    QString tp,tm;
+    if(isFst){
+        tp = tbl_nse_p_f;
+        tm = tbl_nse_m_f;
+    }
+    else{
+        tp = tbl_nse_p_s;
+        tm = tbl_nse_m_s;
+    }
+
+    QSqlQuery q(db);
+    int mt,sid;
+    QString s;
+    QHashIterator<int, Double>* it = new QHashIterator<int, Double>(pvs);
+    while(it->hasNext()){
+        it->next();
+        mt = it->key() % 10;
+        sid = it->key() / 10;
+        if(dirs.value(it->key()) == MDIR_P)  //余额为0，不需表保存
+            continue;
+        //原先表中不存在，则执行插入操作
+        else if(!old_pvs.contains(it->key())){
+            if(!mtHash.contains(mt) && !_crtExtraPoint(y,m,mt,mtHash[mt]))
+                return false;
+            s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,%8,%9)")
+                    .arg(tp).arg(fld_nse_pid).arg(fld_nse_sid).arg(fld_nse_value).arg(fld_nse_dir)
+                    .arg(mtHash.value(mt)).arg(sid).arg(it->value().toString2()).arg(dirs.value(it->key()));
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        //值或方向不同，则执行更新操作
+        else if(it->value() != old_pvs.value(it->key()) || dirs.value(it->key()) != old_dirs.value(it->key())){
+            s = QString("update %1 set ").arg(tp);
+            if(it->value() != old_pvs.value(it->key()))
+                s.append(QString("%1=%2,").arg(fld_nse_value).arg(it->value().toString2()));
+            if(dirs.value(it->key()) != old_dirs.value(it->key()))
+                s.append(QString("%1=%2,").arg(fld_nse_dir).arg(dirs.value(it->key())));
+            s.chop(1);
+            s.append(QString(" where %1=%2 and %3=%4").arg(fld_nse_pid).arg(mtHash.value(mt)).arg(fld_nse_sid).arg(sid));
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        old_pvs.remove(it->key());
+    }
+    //删除已不存在的余额项
+    if(!old_pvs.isEmpty()){
+        it  = new QHashIterator<int, Double>(old_pvs);
+        while(it->hasNext()){
+            it->next();
+            mt = it->key() % 10;
+            sid = it->key() / 10;
+            s = QString("delete from %1 where %2=%3 and %4=%5")
+                    .arg(tp).arg(fld_nse_pid).arg(mtHash.value(mt)).arg(fld_nse_sid).arg(sid);
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+    }
+
+    //处理本币余额
+    it = new QHashIterator<int, Double>(mvs);
+    while(it->hasNext()){
+        it->next();
+        mt = it->key() % 10;
+        sid = it->key() / 10;
+        if(it->value() == 0)
+            continue;
+        else if(!old_mvs.contains(it->key())){
+            if(!mtHash.contains(mt) && !_crtExtraPoint(y,m,mt,mtHash[mt]))
+                return false;
+            s = QString("insert into %1(%2,%3,%4) values(%5,%6,%7)")
+                    .arg(tm).arg(fld_nse_pid).arg(fld_nse_sid).arg(fld_nse_value)
+                    .arg(mtHash.value(mt)).arg(sid).arg(it->value().toString2());
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        else if(it->value() != old_mvs.value(it->key())){
+            s = QString("update %1 set %2=%3 where %4=%5 and %6=%7")
+                    .arg(tm).arg(fld_nse_value).arg(it->value().toString2()).arg(fld_nse_pid)
+                    .arg(mtHash.value(mt)).arg(fld_nse_sid).arg(sid);
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        old_mvs.remove(it->key());        
+    }
+    if(!old_mvs.isEmpty()){
+        it = new QHashIterator<int, Double>(old_mvs);
+        while(it->hasNext()){
+            it->next();
+            mt = it->key() % 10;
+            sid = it->key() / 10;
+            s = QString("delete from %1 where %2=%3 and %4=%5")
+                    .arg(tm).arg(fld_nse_pid).arg(mtHash.value(mt)).arg(fld_nse_sid).arg(sid);
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+
 
 /**
  * @brief DbUtil::_genKeyForExtraPoint

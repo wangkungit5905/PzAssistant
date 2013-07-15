@@ -2719,13 +2719,13 @@ void MainWindow::subWindowClosed(QMdiSubWindow* subWin)
         sinfo = dlg->getState();
         delete dlg;
     }
-    else if(subWin == subWindows.value(SUBWIN_LOOKUPSUBEXTRA)){
-        winEnum = SUBWIN_LOOKUPSUBEXTRA;
-        LookupSubjectExtraDialog* dlg =
-                static_cast<LookupSubjectExtraDialog*>(subWin->widget());
-        //sinfo = dlg->getState();
-        delete dlg;
-    }
+//    else if(subWin == subWindows.value(SUBWIN_LOOKUPSUBEXTRA)){
+//        winEnum = SUBWIN_LOOKUPSUBEXTRA;
+//        LookupSubjectExtraDialog* dlg =
+//                static_cast<LookupSubjectExtraDialog*>(subWin->widget());
+//        //sinfo = dlg->getState();
+//        delete dlg;
+//    }
     else if(subWin == subWindows.value(SUBWIN_ACCOUNTPROPERTY)){
         winEnum = SUBWIN_ACCOUNTPROPERTY;
         AccountPropertyConfig* dlg =

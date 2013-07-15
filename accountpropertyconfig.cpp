@@ -3032,15 +3032,6 @@ bool AccountPropertyConfig::close()
     return QDialog::close();
 }
 
-///**
-// * @brief AccountPropertyConfig::saveOnClose
-// *  当配置窗口关闭时，询问每个配置页是否有未保存的配置项，如有则执行相应的保存操作
-// */
-//void AccountPropertyConfig::saveOnClose()
-//{
-
-//}
-
 void AccountPropertyConfig::createIcons()
 {
     QListWidgetItem *item;

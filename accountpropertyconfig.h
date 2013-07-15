@@ -515,8 +515,6 @@ public slots:
     bool close();
 private slots:
     void pageChanged(int index);
-
-    //void saveOnClose();
 signals:
     void windowShallClosed();
 private:

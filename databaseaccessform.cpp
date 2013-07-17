@@ -323,7 +323,8 @@ void DatabaseAccessForm::on_deleteRowAction_triggered()
     }
 
     model->submitAll();
-    ui->btnCommit->setEnabled(false);
+    //ui->btnCommit->setEnabled(false);
+    enWidget(false);
     updateActions();
 }
 

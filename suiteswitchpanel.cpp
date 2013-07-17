@@ -3,6 +3,7 @@
 
 #include "account.h"
 #include "PzSet.h"
+#include "dbutil.h"
 
 
 #include <QTableWidget>
@@ -47,7 +48,7 @@ void SuiteSwitchPanel::swichBtnClicked()
 }
 
 /**
- * @brief 用户单击了查看按钮
+ * @brief 用户单击了查看/编辑按钮
  */
 void SuiteSwitchPanel::viewBtnClicked()
 {
@@ -63,12 +64,18 @@ void SuiteSwitchPanel::viewBtnClicked()
     }
     //如果要以编辑模式打开，则调整打开凭证集按钮的图标和文本
     if(!asr->isClosed && current->getState(month) != Ps_Jzed){
-        //在打开另一个月份的凭证集前要关闭先前打开的凭证集
-        if(current->isOpened() && current->month() != month){
+        //在同一帐套内，同时只能打开一个凭证集进行编辑操作，因此打开另一个月份的凭证集前要关闭先前打开的凭证集
+        if(current == previous && current->isOpened() && current->month() != month){
             if(current->isDirty())
                 current->save();
             emit prepareClosePzSet(current,current->month());
+            int m = current->month();
+            int row = m - asr->startMonth;
+            QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
+            QToolButton* btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_OPEN));
             current->close();
+            if(btn)
+                setBtnIcon(btn,false);
             emit pzsetClosed(current,current->month());
         }
         if(!current->open(month)){
@@ -83,10 +90,6 @@ void SuiteSwitchPanel::viewBtnClicked()
             setBtnIcon(btn,true);
     }
     emit viewPzSet(current,month);
-//    if(monthBySuites.value(curAsrId) != month){
-//        monthBySuites[curAsrId] = month;
-//        emit viewPzSet(current,month);
-    //    }
 }
 
 /**
@@ -108,8 +111,10 @@ void SuiteSwitchPanel::openBtnClicked(bool checked)
         emit pzsetClosed(curSuite,preOpedMonth);
         int row = preOpedMonth - curSuite->getSuiteRecord()->startMonth;
         QToolButton* btn = static_cast<QToolButton*>(tw->cellWidget(row,COL_OPEN));
-        if(btn)
+        if(btn){
+            btn->setChecked(false);
             setBtnIcon(btn,false);
+        }
         if(preOpedMonth == month)
             return;
     }
@@ -137,7 +142,7 @@ void SuiteSwitchPanel::newPzSet()
         AccountSuiteRecord* asr = suiteRecords.value(curAsrId);
         int row = asr->endMonth - asr->startMonth;
         tw->insertRow(row);
-        crtTableRow(row,month,tw);
+        crtTableRow(row,month,tw,false);
     }
 }
 
@@ -148,7 +153,8 @@ void SuiteSwitchPanel::init()
     icon_unSelected = QIcon(":/images/accSuiteUnselected.png");
     icon_open = QIcon(":/images/pzs_open.png");
     icon_close = QIcon(":/images/pzs_close.png");
-    icon_edit = QIcon(":/images/pzs_dit.png");
+    icon_edit = QIcon(":/images/pzs_edit.png");
+    icon_lookup = QIcon(":/images/pzs_lookup.png");
     QListWidgetItem* li;
     foreach(AccountSuiteRecord* as, account->getAllSuites()){
         suiteRecords[as->id] = as;
@@ -190,8 +196,16 @@ void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
     tw->setColumnWidth(COL_OPEN,40);
     tw->setColumnWidth(COL_VIEW,40);
     QTableWidgetItem* ti;
-    for(int row = 0,m = as->startMonth; m <= as->endMonth; ++row,++m)
-        crtTableRow(row,m,tw);
+    for(int row = 0,m = as->startMonth; m <= as->endMonth; ++row,++m){
+        bool viewAndEdit=true;
+        if(!as->isClosed){
+            PzsState state;
+            account->getDbUtil()->getPzsState(as->year,m,state);
+            if(state != Ps_Jzed)
+                viewAndEdit = false;
+        }
+        crtTableRow(row,m,tw,viewAndEdit);
+    }
     if(!as->isClosed && as->endMonth < 12){
         tw->insertRow(tw->rowCount());
         QPushButton* btn = new QPushButton(tr("新键"));
@@ -207,16 +221,22 @@ void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
 }
 
 /**
- * @brief 创建凭证集选择表的行内容
- * @param row
+ * @brief SuiteSwitchPanel::crtTableRow
+ *  创建凭证集选择表的行内容
+ * @param row           行号
+ * @param m             行指代的月份
+ * @param tw            表格部件
+ * @param viewAndEdit   true：查看凭证集（默认）、false：编辑凭证集
  */
-void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw)
+void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAndEdit)
 {
     QTableWidgetItem* ti;
     ti = new QTableWidgetItem(tr("%1月").arg(m));
     tw->setItem(row,COL_MONTH,ti);
     QToolButton* btn = new QToolButton(this);
-    btn->setIcon(QIcon(":/images/open.png"));
+    //btn->setIcon(QIcon(":/images/open.png"));
+    btn->setIcon(viewAndEdit?icon_lookup:icon_edit);
+    btn->setToolTip(viewAndEdit?tr("查看"):tr("编辑"));
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     tw->setCellWidget(row,COL_VIEW,btn);
     connect(btn,SIGNAL(clicked()),this,SLOT(viewBtnClicked()));

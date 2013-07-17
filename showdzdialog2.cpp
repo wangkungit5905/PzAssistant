@@ -715,7 +715,7 @@ void ShowDZDialog2::readFilters()
         if(!account->getDbUtil()->saveDetViewFilter(filters))
             QMessageBox::critical(this,tr("出错信息"),tr("在保存明细账的默认历史过滤条件时出错"));
     }
-    QListWidgetItem *item,*curItem;
+    QListWidgetItem *item,*curItem=NULL;
     QVariant v;
     foreach(DVFilterRecord* r, filters){
         v.setValue<DVFilterRecord*>(r);
@@ -727,7 +727,8 @@ void ShowDZDialog2::readFilters()
     }
     connect(ui->lstHistory,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
             this,SLOT(curFilterChanged(QListWidgetItem*,QListWidgetItem*)));
-    ui->lstHistory->setCurrentItem(curItem);
+    if(curItem)
+        ui->lstHistory->setCurrentItem(curItem);
 }
 
 /**

@@ -46,7 +46,7 @@ signals:
 private:
     void init();
     void initSuiteContent(AccountSuiteRecord* as);
-    void crtTableRow(int row, int m, QTableWidget* tw);
+    void crtTableRow(int row, int m, QTableWidget* tw, bool viewAndEdit=true);
     void witchSuiteMonth(AccountSuiteRecord *&suiteRecord, int &month, QObject* sender, ColType col);
     void setBtnIcon(QToolButton* btn, bool opened);
 

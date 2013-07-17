@@ -410,6 +410,28 @@ int AccountSuiteManager::getStatePzCount(PzState state)
 }
 
 /**
+ * @brief AccountSuiteManager::isAllInstat
+ *  打开的凭证集内的所有凭证是否都已入账（除作废凭证外）
+ * @return
+ */
+bool AccountSuiteManager::isAllInstat()
+{
+    if(!isOpened())
+        return true;
+    bool r = true;
+    foreach(PingZheng* pz, *pzs){
+        PzState state = pz->getPzState();
+        if(state == Pzs_Instat || state == Pzs_Repeal)
+            continue;
+        else{
+            r = false;
+            break;
+        }
+    }
+    return r;
+}
+
+/**
  * @brief 所有录入态凭证审核通过
  * @return  受影响的凭证数
  */

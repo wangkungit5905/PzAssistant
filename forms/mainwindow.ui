@@ -34,7 +34,7 @@
      <x>0</x>
      <y>0</y>
      <width>975</width>
-     <height>23</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnufile">
@@ -123,9 +123,8 @@
      <property name="title">
       <string>账簿</string>
      </property>
-     <addaction name="actShowTotal"/>
-     <addaction name="actShowDetail"/>
      <addaction name="actDetailView"/>
+     <addaction name="actShowTotal"/>
     </widget>
     <widget class="QMenu" name="mnuReport">
      <property name="enabled">
@@ -140,7 +139,6 @@
      <addaction name="actOwnerChanged"/>
     </widget>
     <addaction name="actSubExtra"/>
-    <addaction name="actCurStat"/>
     <addaction name="actCurStatNew"/>
     <addaction name="mnuAccBook"/>
     <addaction name="mnuReport"/>
@@ -173,9 +171,6 @@
      <addaction name="actSetPzCls"/>
      <addaction name="actForceDelPz"/>
     </widget>
-    <addaction name="actSetupAccInfos"/>
-    <addaction name="actImpBasicDatas"/>
-    <addaction name="actSetupBase"/>
     <addaction name="actGdzcAdmin"/>
     <addaction name="actDtfyAdmin"/>
     <addaction name="separator"/>
@@ -413,39 +408,6 @@
   <action name="actExit">
    <property name="text">
     <string>退出</string>
-   </property>
-  </action>
-  <action name="actSetupAccInfos">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="text">
-    <string>设置账户信息</string>
-   </property>
-   <property name="toolTip">
-    <string>设置账户的一般信息</string>
-   </property>
-  </action>
-  <action name="actImpBasicDatas">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="text">
-    <string>导入基础数据</string>
-   </property>
-   <property name="toolTip">
-    <string>导入会计凭证处理的基本数据信息</string>
-   </property>
-  </action>
-  <action name="actSetupBase">
-   <property name="enabled">
-    <bool>false</bool>
-   </property>
-   <property name="text">
-    <string>设置记账基点</string>
-   </property>
-   <property name="toolTip">
-    <string>设置会计记账的开始时间、科目余额和各期报表数据</string>
    </property>
   </action>
   <action name="actImpTestDatas">
@@ -1147,7 +1109,7 @@
   </action>
   <action name="actCurStatNew">
    <property name="text">
-    <string>本期统计（新）</string>
+    <string>本期统计</string>
    </property>
    <property name="toolTip">
     <string>统计本期发生额，并计算期末余额</string>
@@ -1155,7 +1117,7 @@
   </action>
   <action name="actDetailView">
    <property name="text">
-    <string>明细帐（新）</string>
+    <string>明细帐</string>
    </property>
    <property name="toolTip">
     <string>显示明细账视图</string>

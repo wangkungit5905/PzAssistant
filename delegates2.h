@@ -52,47 +52,6 @@ private:
 };
 
 
-//提供编辑明细科目余额的代理类（用于设置明细科目余额）
-class DetExtItemDelegate : public QItemDelegate
-{
-    Q_OBJECT
-
-public:
-    enum ColumnIndex{
-        SUB  = 0,   //明细科目列
-        MT   = 1,   //币种列
-        MV   = 2,   //金额列
-        RV   = 3,   //本币金额列
-        DIR  = 4,   //借贷方向
-        INDEX= 5,   //
-        TAG  = 6    //
-    };
-
-    DetExtItemDelegate(SubjectManager* smg, QObject *parent = 0);
-    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
-                          const QModelIndex &index) const;
-    void setEditorData(QWidget *editor, const QModelIndex &index) const;
-    void setModelData(QWidget *editor, QAbstractItemModel *model,
-                      const QModelIndex &index) const;
-    void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem &option,
-                              const QModelIndex& index) const;
-    void setFid(int fid);
-
-private slots:
-    void commitAndCloseEditor(int colIndex, bool isMove);
-    void newMappingItem(int fid, int sid, int row, int col);
-    void newSndSubject(int fid, QString name, int row, int col);
-    void editNextItem(int row, int col);
-
-signals:
-    void newMapping(int fid, int sid, int row, int col);
-    void newSndSub(int fid, QString name, int row, int col);
-    void editNext(int row, int col);
-
-private:
-    int fid;   //当前选定的一级科目id
-    SubjectManager* smg;
-};
 
 
 

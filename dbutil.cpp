@@ -2271,8 +2271,8 @@ bool DbUtil::setPzsState(int y, int m, PzsState state)
  */
 bool DbUtil::setExtraState(int y, int m, bool isVolid)
 {
-    if(!isNewExtraAccess())
-        return BusiUtil::setExtraState(y,m,isVolid);
+//    if(!isNewExtraAccess())
+//        return BusiUtil::setExtraState(y,m,isVolid);
 
     //余额的有效性状态只记录在“余额指针表”中保存本币余额的那条记录里
     QSqlQuery q(db);

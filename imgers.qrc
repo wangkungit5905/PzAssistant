@@ -81,5 +81,6 @@
         <file>images/accProperty/basedata.png</file>
         <file>images/accProperty/accProperty.png</file>
         <file>images/accountRefresh.png</file>
+        <file>images/pzs_lookup.png</file>
     </qresource>
 </RCC>

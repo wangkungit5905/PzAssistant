@@ -16,7 +16,6 @@ SOURCES += main.cpp\
     connection.cpp \
     config.cpp \
     appmodel.cpp \
-    subjectConfigDialog.cpp \
     dialogs.cpp \
     utils.cpp \
     widgets.cpp \
@@ -29,7 +28,6 @@ SOURCES += main.cpp\
     printetemplate.cpp \
     securitys.cpp \
     global.cpp \
-    pzdialog2.cpp \
     delegates2.cpp \
     tdpreviewdialog.cpp \
     HierarchicalHeaderView.cpp \
@@ -40,11 +38,9 @@ SOURCES += main.cpp\
     pz.cpp \
     tables.cpp \
     cal.cpp \
-    tem.cpp \
     subjectsearchform.cpp \
     viewpzseterrorform.cpp \
     aboutform.cpp \
-    jzhdsyinfoinputdlg.cpp \
     pzdsform.cpp \
     dbutil.cpp \
     logs/logview.cpp \
@@ -75,7 +71,6 @@ HEADERS  += \
     global.h \
     appmodel.h \
     common.h \
-    subjectConfigDialog.h \
     dialogs.h \
     c.h \
     utils.h \
@@ -90,7 +85,6 @@ HEADERS  += \
     printtemplate.h \
     commdatastruct.h \
     securitys.h \
-    pzdialog2.h \
     delegates2.h \
     dialog3.h \
     tdpreviewdialog.h \
@@ -101,11 +95,9 @@ HEADERS  += \
     pz.h \
     tables.h \
     cal.h \
-    tem.h \
     subjectsearchform.h \
     viewpzseterrorform.h \
     aboutform.h \
-    jzhdsyinfoinputdlg.h \
     pzdsform.h \
     dbutil.h \
     logs/logview.h \
@@ -135,52 +127,34 @@ HEADERS  += \
 FORMS    += \
     forms/createaccountdialog.ui \
     forms/openaccountdialog.ui \
-    forms/openpzdialog.ui \
     forms/collectpzdialog.ui \
-    forms/sndsubconfig.ui \
-    forms/basicdatadialog.ui \
-    forms/subjectextradialog.ui \
     forms/reportdialog.ui \
     forms/sqltooldialog.ui \
     forms/completsubinfodialog.ui \
-    forms/setupbasedialog.ui \
-    forms/setupbankdialog.ui \
-    forms/detailsviewdialog.ui \
-    forms/detailextradialog.ui \
     forms/basummaryform.ui \
     forms/mainwindow.ui \
     forms/ratesetdialog.ui \
-    forms/viewextradialog.ui \
-    forms/detailsviewdialog2.ui \
     forms/pzprinttemplate.ui \
     forms/printselectdialog.ui \
-    forms/setupbasedialog2.ui \
     forms/logindialog.ui \
     forms/seccondialog.ui \
-    forms/pzdialog2.ui \
     forms/searchdialog.ui \
     forms/impothmoddialog.ui \
     forms/antijzdialog.ui \
-    forms/basedataeditdialog.ui \
     forms/gdzcadmindialog.ui \
     forms/dtfyadmindialog.ui \
-    forms/happensubseldialog.ui \
     forms/tdpreviewdialog.ui \
     forms/showtzdialog.ui \
-    forms/showdzdialog.ui \
-    forms/historypzdialog.ui \
     forms/printTemplates/printtemplatedz.ui \
     forms/printTemplates/printtemplatetz.ui \
     forms/previewdialog.ui \
     forms/printTemplates/printtemplatestat.ui \
-    forms/lookupsubjectextradialog.ui \
     forms/accountpropertydialog.ui \
     forms/printTemplates/gdzcjtzjhztable.ui \
     forms/printTemplates/dtfyjttxhztable.ui \
     forms/subjectsearchform.ui \
     forms/viewpzseterrorform.ui \
     forms/aboutform.ui \
-    forms/jzhdsyinfoinputdlg.ui \
     forms/pzdsform.ui \
     forms/logview.ui \
     forms/versionmanager.ui \

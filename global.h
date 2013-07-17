@@ -12,6 +12,7 @@
 #include "logs/Logger.h"
 
 class BusiAction;
+class GdzcType;
 
 //动态属性名（应用于所有在运行时需要保存对象的编辑状态属性名）
 extern const char* ObjEditState;

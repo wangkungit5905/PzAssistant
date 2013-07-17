@@ -111,10 +111,10 @@ public:
     //类的初始化函数
     static bool init(QSqlDatabase &db);
 
-    static bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
+    //static bool getActionsInPz(int pid, QList<BusiActionData2*>& busiActions);
 
-    static bool saveActionsInPz2(int pid, QList<BusiActionData2*>& busiActions,
-                                QList<BusiActionData2*> dels = QList<BusiActionData2*>());
+    //static bool saveActionsInPz2(int pid, QList<BusiActionData2*>& busiActions,
+    //                            QList<BusiActionData2*> dels = QList<BusiActionData2*>());
 
     /**
         判断科目余额的借贷方向，1：借方，0：平，-1：贷方，-2：无定义（可能对于此科目类型还未作处理）
@@ -260,10 +260,10 @@ public:
 //        }
 //    }
 
-    static bool getSubCodeByName(QString& code, QString name, int subSys = 1);
+    //static bool getSubCodeByName(QString& code, QString name, int subSys = 1);
     static bool getIdByCode(int& id, QString code, int subSys = 1);
-    static bool getSidByName(QString fname, QString sname, int& id, int subSys = 1);
-    static bool getIdByName(int& id, QString name, int subSys = 1);
+    //static bool getSidByName(QString fname, QString sname, int& id, int subSys = 1);
+    //static bool getIdByName(int& id, QString name, int subSys = 1);
     //static bool getIdsByCls(QList<int>& ids, int cls, bool isByView, int subSys = 1);
     static bool getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names, bool isAll = true, int subSys = 1);
 
@@ -277,12 +277,12 @@ public:
     /**
         获取所有指定类别的损益类总账和明细科目的id列表
     */
-    static bool getAllIdForSy(bool isIncome, QHash<int, QList<int> >& ids, int subSys = 1);
+    //static bool getAllIdForSy(bool isIncome, QHash<int, QList<int> >& ids, int subSys = 1);
 
     /**
         获取所有总目id到总目名的哈希表
     */
-    static bool getAllSubFName(QHash<int,QString>& names, bool isByView = true);
+    //static bool getAllSubFName(QHash<int,QString>& names, bool isByView = true);
 
     /**
         获取所有总目id到总目代码的哈希表
@@ -298,13 +298,13 @@ public:
     /**
         获取所有子目id到子目名的哈希表
     */
-    static bool getAllSubSName(QHash<int,QString>& names);
+    //static bool getAllSubSName(QHash<int,QString>& names);
 
 
     /**
         获取所有子目id到子目全名的哈希表
     */
-    static bool getAllSubSLName(QHash<int,QString>& names);
+    //static bool getAllSubSLName(QHash<int,QString>& names);
 
     /**
         获取所有SecSubjects表中的二级科目名列表
@@ -316,20 +316,20 @@ public:
 
     //static bool getReqDetSubs(QList<int>& ids);
 
-    static bool calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
-                                 QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
-                                 bool& isSave, int& amount);
+//    static bool calAmountByMonth2(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
+//                                 QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
+//                                 bool& isSave, int& amount);
 
-    static bool calAmountByMonth3(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
-                                 QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
-                                 bool& isSave, int& amount);
+//    static bool calAmountByMonth3(int y, int m, QHash<int,Double>& jSums, QHash<int,Double>& dSums,
+//                                 QHash<int,Double>& sjSums, QHash<int,Double>& sdSums,
+//                                 bool& isSave, int& amount);
 
 
     /**
         构造统计查询语句（根据当前凭证集的状态来构造将不同类别的凭证纳入统计范围的SQL语句）
     */
     //static bool genStatSql(int y, int m, QString& s);
-    static bool genStatSql2(int y, int m, QString& s);
+    //static bool genStatSql2(int y, int m, QString& s);
 
     /**
         计算本期余额
@@ -342,21 +342,21 @@ public:
 //       QHash<int,double> &endExa, QHash<int,double>&endDetExa,    //期末余额
 //       QHash<int,int> &endExaDir, QHash<int,int> &endDetExaDir);  //期末余额方向
 
-    static bool calCurExtraByMonth2(int y,int m,
-       QHash<int,Double> preExa, QHash<int,Double> preDetExa,     //期初余额
-       QHash<int,MoneyDirection> preExaDir, QHash<int,MoneyDirection> preDetExaDir,     //期初余额方向
-       QHash<int,Double> curJHpn, QHash<int,Double> curJDHpn,     //当期借方发生额
-       QHash<int,Double> curDHpn, QHash<int,Double>curDDHpn,      //当期贷方发生额
-       QHash<int,Double> &endExa, QHash<int,Double>&endDetExa,    //期末余额
-       QHash<int,MoneyDirection> &endExaDir, QHash<int,MoneyDirection> &endDetExaDir);  //期末余额方向
+//    static bool calCurExtraByMonth2(int y,int m,
+//       QHash<int,Double> preExa, QHash<int,Double> preDetExa,     //期初余额
+//       QHash<int,MoneyDirection> preExaDir, QHash<int,MoneyDirection> preDetExaDir,     //期初余额方向
+//       QHash<int,Double> curJHpn, QHash<int,Double> curJDHpn,     //当期借方发生额
+//       QHash<int,Double> curDHpn, QHash<int,Double>curDDHpn,      //当期贷方发生额
+//       QHash<int,Double> &endExa, QHash<int,Double>&endDetExa,    //期末余额
+//       QHash<int,MoneyDirection> &endExaDir, QHash<int,MoneyDirection> &endDetExaDir);  //期末余额方向
 
-    static bool calCurExtraByMonth3(int y,int m,
+    /*static bool calCurExtraByMonth3(int y,int m,
        QHash<int,Double> preExaR, QHash<int,Double> preDetExaR,     //期初余额
        QHash<int,MoneyDirection> preExaDirR, QHash<int,MoneyDirection> preDetExaDirR,     //期初余额方向
        QHash<int,Double> curJHpnR, QHash<int,Double> curJDHpnR,     //当期借方发生额
        QHash<int,Double> curDHpnR, QHash<int,Double>curDDHpnR,      //当期贷方发生额
        QHash<int,Double> &endExaR, QHash<int,Double>&endDetExaR,    //期末余额
-       QHash<int,MoneyDirection> &endExaDirR, QHash<int,MoneyDirection> &endDetExaDirR);  //期末余额方向
+       QHash<int,MoneyDirection> &endExaDirR, QHash<int,MoneyDirection> &endDetExaDirR);*/  //期末余额方向
 
     /**
         计算科目各币种合计余额及其方向
@@ -411,12 +411,12 @@ public:
 
     static bool readExtraForDetSub2(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,int>& dir);
 
-    static bool readDetExtraForMt2(int y,int m, int sid, int mt, Double& v, int& dir);
+    //static bool readDetExtraForMt2(int y,int m, int sid, int mt, Double& v, int& dir);
 
-    static bool savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, MoneyDirection> newFDir,
-                                          QHash<int, Double> newS, QHash<int, MoneyDirection> newSDir,
-                                          bool isSetup = true);
-    static bool savePeriodEndValues(int y, int m, QHash<int, Double> newF, QHash<int, Double> newS);
+    //static bool savePeriodBeginValues2(int y, int m, QHash<int, Double> newF, QHash<int, MoneyDirection> newFDir,
+    //                                      QHash<int, Double> newS, QHash<int, MoneyDirection> newSDir,
+    //                                      bool isSetup = true);
+    //static bool savePeriodEndValues(int y, int m, QHash<int, Double> newF, QHash<int, Double> newS);
 
 
     //
@@ -438,18 +438,18 @@ public:
 //                                double lv = 0,
 //                                bool inc = false);
     //获取指定月份范围，指定科目的日记账/明细账数据
-    static bool getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
-                                Double& prev, int& preDir,
-                                QList<DailyAccountData2*>& datas,
-                                QHash<int,Double>& preExtra,
-                                QHash<int,Double>& preExtraR,
-                                QHash<int,int>& preExtraDir,
-                                QHash<int, Double>& rates,
-                                QList<int> fids = QList<int>(),
-                                QHash<int,QList<int> > sids = QHash<int,QList<int> >(),
-                                Double gv = 0.00,
-                                Double lv = 0.00,
-                                bool inc = false);
+//    static bool getDailyAccount2(int y, int sm, int em, int fid, int sid, int mt,
+//                                Double& prev, int& preDir,
+//                                QList<DailyAccountData2*>& datas,
+//                                QHash<int,Double>& preExtra,
+//                                QHash<int,Double>& preExtraR,
+//                                QHash<int,int>& preExtraDir,
+//                                QHash<int, Double>& rates,
+//                                QList<int> fids = QList<int>(),
+//                                QHash<int,QList<int> > sids = QHash<int,QList<int> >(),
+//                                Double gv = 0.00,
+//                                Double lv = 0.00,
+//                                bool inc = false);
 
 
     //获取指定月份范围，指定总账科目的总账数据
@@ -464,7 +464,7 @@ public:
 
 
     //获取指定年月指定类别的凭证id
-    static bool getPzIdForSpecCls(int y, int m, int cls, User* user, int& id);
+    //static bool getPzIdForSpecCls(int y, int m, int cls, User* user, int& id);
 
     //
     //static bool delActionsInPz(int pzId);
@@ -486,7 +486,7 @@ public:
     //static bool getSndSubNameForId(int id, QString& name, QString& lname);
 
     //获取凭证集内最大的可用凭证号
-    static int getMaxPzNum(int y, int m);
+    //static int getMaxPzNum(int y, int m);
 
     //读取凭证集状态
     static bool getPzsState(int y,int m,PzsState& state);
@@ -494,7 +494,7 @@ public:
     static bool setPzsState(int y,int m,PzsState state);
 
     //获取银行存款下所有外币账户对应的明细科目id列表
-    static bool getOutMtInBank(QList<int>& ids, QList<int>& mt);
+    //static bool getOutMtInBank(QList<int>& ids, QList<int>& mt);
 
     //新建凭证
     //static bool crtNewPz(PzData* pz);
@@ -521,16 +521,16 @@ public:
     //static bool reqGenImpOthPz(int y,int m, bool& req);
 
     //创建结转汇兑损益凭证
-    static bool genForwordEx2(int y, int m, User* user, int state = Pzs_Recording);
+    //static bool genForwordEx2(int y, int m, User* user, int state = Pzs_Recording);
     //是否需要结转汇兑损益
     //static bool reqGenJzHdsyPz(int y, int m, bool& req);
 
     //创建结转损益类科目到本年利润的凭证
-    static bool genForwordPl2(int y, int m, User *user);
+    //static bool genForwordPl2(int y, int m, User *user);
 
     //获取指定范围的科目id列表
-    static bool getSubRange(int sfid,int ssid,int efid,int esid,
-                            QList<int>& fids,QHash<int,QList<int> >& sids);
+    //static bool getSubRange(int sfid,int ssid,int efid,int esid,
+    //                        QList<int>& fids,QHash<int,QList<int> >& sids);
 
     //指定id的凭证是否处于指定的年月内
     //static bool isPzInMonth(int y, int m, int pzid, bool& isIn);
@@ -541,10 +541,10 @@ public:
     static bool isAccMtS(int sid);
 
     //判断指定的科目id是否是损益类科目的费用类或收入类科目
-    static bool isFeiSub(int fid){return feiIds.contains(fid);}
-    static bool isInSub(int fid){return inIds.contains(fid);}
-    static bool isFeiSSub(int sid){return feiSIds.contains(sid);}
-    static bool isInSSub(int sid){return inSIds.contains(sid);}
+    //static bool isFeiSub(int fid){return feiIds.contains(fid);}
+    //static bool isInSub(int fid){return inIds.contains(fid);}
+    //static bool isFeiSSub(int sid){return feiSIds.contains(sid);}
+    //static bool isInSSub(int sid){return inSIds.contains(sid);}
 
     //获取所有在二级科目类别表中名为“固定资产类”的科目（已归并到Gdzc类）
     //static QList<PzClass> getSpecClsPzCode(PzdClass cls);
@@ -563,24 +563,24 @@ private:
     //static QString genFiltStateForSpecPzCls(QList<int> pzClses);
 
     //固定资产管理模块是否需要产生凭证
-    static bool reqGenGdzcPz(int y, int m, bool& req);
+    //static bool reqGenGdzcPz(int y, int m, bool& req);
     //生成固定资产折旧凭证
-    static bool genGdzcZjPz(int y,int m);
+    //static bool genGdzcZjPz(int y,int m);
     //取消固定资产管理模块引入的凭证
-    static bool antiGdzcPz(int y, int m);
+    //static bool antiGdzcPz(int y, int m);
 
     //待摊费用管理模块是否需要产生凭证
-    static bool reqGenDtfyPz(int y, int m, bool& req);
+    //static bool reqGenDtfyPz(int y, int m, bool& req);
     //生成待摊费用凭证
-    static bool genDtfyPz(int y,int m);
+    //static bool genDtfyPz(int y,int m);
     //取消待摊费用管理模块引入的凭证
-    static bool antiDtfyPz(int y, int m);
+    //static bool antiDtfyPz(int y, int m);
 
     //判断凭证类别的方法
-    static bool isImpPzCls(PzClass pzc);     //是否是由其他模块引入的凭证类别
-    static bool isJzhdPzCls(PzClass pzc);    //是否是由系统自动产生的结转汇兑损益凭证类别
-    static bool isJzsyPzCls(PzClass pzc);    //是否是由系统自动产生的结转损益凭证类别
-    static bool isOtherPzCls(PzClass pzc);   //是否是其他由系统产生并允许用户修改的凭证类别
+    //static bool isImpPzCls(PzClass pzc);     //是否是由其他模块引入的凭证类别
+    //static bool isJzhdPzCls(PzClass pzc);    //是否是由系统自动产生的结转汇兑损益凭证类别
+    //static bool isJzsyPzCls(PzClass pzc);    //是否是由系统自动产生的结转损益凭证类别
+    //static bool isOtherPzCls(PzClass pzc);   //是否是其他由系统产生并允许用户修改的凭证类别
 
 
 };

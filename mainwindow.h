@@ -12,12 +12,12 @@
 
 #include "dialogs.h"
 #include "dialog3.h"
-#include "pzdialog2.h"
 #include "widgets.h"
 #include "subjectsearchform.h"
 
 class QUndoStack;
 class QUndoView;
+class QProgressBar;
 
 namespace Ui {
     class MainWindow;
@@ -141,9 +141,6 @@ private slots:
     void generateIncomeStatements(); //生成利润表
 
     //工具菜单
-    void setupAccInfos();
-    bool impBasicDatas();
-    void setupBase();
     void showSqlTool();
 
     //选项菜单
@@ -159,12 +156,6 @@ private slots:
     void toCrtAccNextStep(int curStep, int nextStep);
 
     void openSpecPz(int pid,int bid);
-
-    void subWindowClosed(QMdiSubWindow* subWin);
-
-
-
-
     void showTemInfo(QString info);
     void showRuntimeInfo(QString info, AppErrorLevel level);
     void refreshShowPzsState();
@@ -186,7 +177,8 @@ private slots:
     void showAndHideToolView(int vtype);
     void DockWindowVisibilityChanged(bool visible);
     void pzCountChanged(int count);
-    void rfNaveBtn(PingZheng* newPz=NULL, PingZheng* oldPz=NULL);
+    void rfNaveBtn();
+    void curPzChanged(PingZheng* newPz=NULL, PingZheng* oldPz=NULL);
     void baIndexBoundaryChanged(bool first, bool last);
     void baSelectChanged(QList<int> rows, bool conti);
     //void PzChangedInSet();
@@ -224,8 +216,6 @@ private slots:
     void on_actFordPl_triggered();
 
     void on_actFordEx_triggered();
-
-    void on_actCurStat_triggered();
 
     void on_actPrint_triggered();
 
@@ -275,8 +265,6 @@ private slots:
 
     void on_actShowTotal_triggered();
 
-    void on_actShowDetail_triggered();
-
     void on_actAccProperty_triggered();
 
     void on_actPzErrorInspect_triggered();
@@ -315,22 +303,26 @@ private:
     void rfLogin(bool login = true);
     void rfMainAct(bool open = true);
     void rfPzSetAct(bool open = true);
+
+
     void rfPzAct(bool enable);
     void rfAdvancedAct();
     void rfEditAct();
+
+    /////////////////////////////
     void rfAct();
-    void rfTbrVisble();
-    void refreshActEnanble();    
-    void refreshAdvancPzOperBtn();
-    void enaActOnLogin(bool isEnabled);
+
+
+
+    /////////////////////////////////////////
 
     void rightWarnning(int right);
     void pzsWarning();
     void sqlWarning();    
     void showPzNumsAffected(int num);
 
-    void saveSubWinInfo(subWindowType winEnum, QByteArray* sinfo = NULL);
-    void showSubWindow(subWindowType winType, SubWindowDim* dinfo = NULL, QDialog* w = NULL);
+
+
 
     void initUndoView();
     void clearUndo();
@@ -352,18 +344,12 @@ private:
     //创建新账户的4个步骤的对话框
     //CreateAccountDialog* dlgAcc;
     //SetupBankDialog* dlgBank;
-    BasicDataDialog* dlgData;
 
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
     QSignalMapper* tvMapper;     //用于处理从视图菜单中选择显示的工具视图
 
     QSet<int> PrintPznSet; //欲打印的凭证号集合
     bool sortBy; //凭证集的排序方式（true：按凭证号，false：按自编号）
-
-    ////////--------------------
-    QHash<subWindowType, MyMdiSubWindow*> subWindows; //已打开的子窗口（这些窗口只能有一个实例）
-    QHash<subWindowType,bool> subWinActStates;   //子窗口的激活状态
-    //////---------------------------
 
     QHash<ToolViewType,QDockWidget*> dockWindows;      //工具视图窗口集
     QHash<ToolViewType,QAction*> tvActions;           //与工具视图类型对应的QAction对象表

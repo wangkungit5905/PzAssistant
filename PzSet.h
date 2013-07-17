@@ -58,6 +58,7 @@ public:
     bool contains(int pid, int y=0, int m=0);
     PingZheng* readPz(int pid, bool &in);
     int getStatePzCount(PzState state);
+    bool isAllInstat();
 
     int verifyAll(User* user);
     int instatAll(User* user);

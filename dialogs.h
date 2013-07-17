@@ -9,14 +9,8 @@
 
 #include "ui_createaccountdialog.h"
 #include "ui_openaccountdialog.h"
-#include "ui_openpzdialog.h"
 #include "ui_collectpzdialog.h"
-#include "ui_basicdatadialog.h"
-#include "ui_subjectextradialog.h"
 #include "ui_reportdialog.h"
-#include "ui_setupbankdialog.h"
-#include "ui_detailsviewdialog.h"
-#include "ui_detailextradialog.h"
 
 
 #include "config.h"
@@ -50,41 +44,6 @@ private:
 
 
 
-class BasicDataDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    BasicDataDialog(bool isWizard = true, QWidget* parent = 0);
-
-signals:
-    void toNextStep(int curStep, int nextStep);
-
-public slots:
-    void btnImpOkClicked();
-    void btnImpCancelClicked();
-    void btnImpBowClicked();
-    void btnExpOkClicked();
-    void btnEXpCancelClicked();
-    void btnExpBowClicked();
-    //void chkImpSpecStateChanged(int state);
-    void chkExpSpecStateChanged(int state);
-    void nextStep();
-    void saveFstToBase();
-    void saveSndToBase();
-
-private:
-    void crtSubExtraTable(bool isTem); //创建余额表    
-    void crtReportStructTable(int clsid);
-    void demandAttachDatabase(bool isAttach);
-    void impFstSubFromBasic(int subCls);
-    void impSndSubFromBasic();
-    void impCliFromBasic();
-
-    Ui::basicDataDialog ui;
-    int usedSubCls;  //所使用的科目系统类别
-    bool isWizard;   //是否在向导中打开此对话框
-};
 
 
 
@@ -134,45 +93,6 @@ private:
 
 
 ////////////////////////////////////////////////////////////////////
-//struct BankInfo{
-//    bool isMain;
-//    QString name;
-//    QString lname;
-//    QString rmbAcc;
-//    QString usdAcc;
-//};
-
-//银行账户设置对话框
-class SetupBankDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    explicit SetupBankDialog(bool isWizared = true, QWidget *parent = 0);
-    ~SetupBankDialog();
-
-public slots:
-    void newBank();    
-    void newAcc();
-    void delBank();
-    void delAcc();
-    void save();
-    void selectedBank(const QModelIndex &index);
-    void crtSndSubject();
-    void selBankAccNum(const QModelIndex &index);
-
-signals:
-    void toNextStep(int curStep, int nextStep);
-
-private:
-    Ui::SetupBankDialog *ui;
-    QSqlTableModel model; //指向Banks表
-    QDataWidgetMapper mapper;
-    QSqlRelationalTableModel accModel;
-
-    bool isWizared;   //对话框是否是在向党中打开
-    int curBankId;    //当前选中的银行ID值
-};
 
 
 

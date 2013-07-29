@@ -218,6 +218,7 @@ private slots:
     void curFSubChanged(int row);
     void curSSubChanged(int row);
     void ssubDBClicked(QListWidgetItem* item);
+    void defSubCfgChanged(bool checked);
     //名称条目配置相关
     void on_tw_currentChanged(int index);
     void currentNiClsRowChanged(int curRow);
@@ -509,10 +510,8 @@ public:
     QByteArray* getState(){return NULL;}
     void setState(QByteArray* state){}
 
-//protected:
-//    void closeEvent(QCloseEvent *event);
 public slots:
-    bool close();
+    void closeAllPage();
 private slots:
     void pageChanged(int index);
 signals:

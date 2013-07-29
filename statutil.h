@@ -6,21 +6,28 @@
 #include "commdatastruct.h"
 
 class PingZheng;
+class BusiAction;
 class Account;
 class DbUtil;
 class SubjectManager;
+class SubjectBase;
+class FirstSubject;
+class SecondSubject;
+class AccountSuiteManager;
 
 
 /**
  * @brief The StatUtil class
  *  负债对凭证集进行统计
  */
-class StatUtil
+class StatUtil : public QObject
 {
+    Q_OBJECT
 public:
-    StatUtil(QList<PingZheng *> *pzs, Account* account);
+    StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager* parent);
     bool stat();
     bool save();
+    void clear();
     Account* getAccount(){return account;}
     int year(){return y;}
     int month(){return m;}
@@ -64,16 +71,28 @@ public:
     QHash<int,MoneyDirection>& getSumEndDirF(){return sumEndFD;}
     QHash<int,MoneyDirection>& getSumEndDirS(){return sumEndSD;}
 
+private slots:
+    void addOrDelBa(BusiAction* ba, bool add); //增加或移除分录
+    void subChangedOnBa(BusiAction* ba, FirstSubject* oldFSub, SecondSubject* oldSSub, Money* oldMt, Double oldValue); //分录的科目设置改变    
+    void valueChangedOnBa(BusiAction* ba, Money* oldMt,Double &oldValue,MoneyDirection oldDir);  //分录的值改变    
+signals:
+    void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);//f,s表示一二级科目，v,d表示余额和方向
 private:
+    void _adjustExtra(FirstSubject* fsub, SecondSubject* ssub, Money* mt,Double v, MoneyDirection dir, bool add=true);
+    bool _baIsValid(BusiAction* ba);
     void _clearDatas();
     bool _statCurHappen();
     bool _readPreExtra();
     void _calEndExtra(bool isFst=true);
-    void _calSumValue(bool isPre, bool isfst=true);
+    void _calEndExtraForSingleSub(SubjectBase* sub, Money *mt, bool isFst=true);
+    void _inspectExtraException(BusiAction* ba);
+    void _calSumValue(bool isPre, bool isfst=true);    
     void _calCurSumValue(bool isJ, bool isFst=true);
+    void _removeExtraItem(int key_f, int key_s);
 
     Account* account;
     DbUtil* dbUtil;
+    AccountSuiteManager* sm;
     SubjectManager* smg;
     QList<PingZheng*>* pzs; //凭证对象集合
     int y,m;                //凭证集所属年月

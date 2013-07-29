@@ -850,7 +850,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
         ssub = new SecondSubject(fsub,id,smg->nameItems.value(sid),code,weight,isEnable,crtTime,disTime,allUsers.value(uid));
         smg->sndSubs[id] = ssub;
         fsub->addChildSub(ssub);
-        if(ssub->getWeight() == DEFALUTSUBFS)
+        if(ssub->getWeight() == DEFALUT_SUB_WEIGHT)
             fsub->setDefaultSubject(ssub);
     }
     //初始化银行账户信息
@@ -3698,18 +3698,30 @@ bool DbUtil::_saveFirstSubject(FirstSubject *sub)
             s.append(QString("%1=%2,").arg(fld_fsub_weight).arg(sub->getWeight()));
         if(estate.testFlag(ES_FS_NAME))
             s.append(QString("%1='%2',").arg(fld_fsub_name).arg(sub->getName()));
-        if(!s.endsWith(","))
-            return true;
-        s.chop(1);
-        s.append(QString(" where id=%1").arg(sub->getId()));
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
+        if(s.endsWith(",")){
+            s.chop(1);
+            s.append(QString(" where id=%1").arg(sub->getId()));
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
         }
         //保存子目
         if(estate.testFlag(ES_FS_CHILD)){
             if(!saveSndSubjects(sub->getChildSubs()))
                 return false;
+        }
+        //清除默认科目标记-即将在此一级科目下的已不是默认科目的二级科目的权重复位到初始权重
+        //（最新的默认科目的保存在保存二级科目的权重时就完成了）
+        if(estate.testFlag(ES_FS_DEFSUB)){
+            s = QString("update %1 set %2=%3 where %4=%5 and id!=%6 and %2=%7").arg(tbl_ssub)
+                    .arg(fld_ssub_weight).arg(INIT_WEIGHT).arg(fld_ssub_fid)
+                    .arg(sub->getId()).arg(sub->getDefaultSubject()->getId())
+                    .arg(DEFALUT_SUB_WEIGHT);
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
         }
     }
     sub->resetEditState();
@@ -3772,6 +3784,8 @@ bool DbUtil::_saveSecondSubject(SecondSubject *sub)
             return false;
         sub->id = q.value(0).toInt();
     }
+    //保存是否是默认科目的属性
+
     sub->resetEditState();
     return true;
 }

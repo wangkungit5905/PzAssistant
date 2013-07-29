@@ -36,12 +36,14 @@ public:
     Account* getAccount(){return account;}
     AccountSuiteRecord* getSuiteRecord(){return suiteRecord;}
     SubjectManager* getSubjectManager();
+    int getSubSysCode(){return suiteRecord->subSys;}
     bool open(int m);
     bool isOpened();
     bool isDirty();
     void close();
     int newPzSet();
-    StatUtil &getStatObj();
+    //StatUtil &getStatObj();
+    StatUtil* getStatUtil(){return statUtil;}
     QUndoStack* getUndoStack(){return undoStack;}
     PingZheng* getCurPz(){return curPz;}
 
@@ -141,6 +143,7 @@ signals:
     void pzSetStateChanged(PzsState newState);
     void pzExtraStateChanged(bool newState);
 private:
+    void watchPz(PingZheng* pz, bool en=true);
     void cachePz(PingZheng* pz);
     bool isZbNumConflict(int num);
     void scanPzCount();

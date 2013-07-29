@@ -40,7 +40,12 @@ SubjectManager *AccountSuiteManager::getSubjectManager()
     return account->getSubjectManager(suiteRecord->subSys);
 }
 
-//打开凭证集
+/**
+ * @brief AccountSuiteManager::open
+ *  以编辑模式打开凭证集
+ * @param m 凭证集在账套中所处月份
+ * @return
+ */
 bool AccountSuiteManager::open(int m)
 {
     if(m>=suiteRecord->startMonth && m<=suiteRecord->endMonth && curM == m)
@@ -57,6 +62,8 @@ bool AccountSuiteManager::open(int m)
     suiteRecord->recentMonth = m;
     pzs = &pzSetHash[m];
     scanPzCount();
+    if(!statUtil)
+        statUtil = new StatUtil(pzs,this);
     //凭证集的状态以实际凭证为准
     PzsState state;
     _determinePzSetState(state);
@@ -67,9 +74,7 @@ bool AccountSuiteManager::open(int m)
     extraStates[m] = dbUtil->getExtraState(suiteRecord->year,m);
     for(int i = 0; i < pzs->count(); ++i){
         PingZheng* pz = pzs->at(i);
-        connect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
-        connect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
-        connect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
+        watchPz(pz);
     }
 
     maxPzNum = pzSetHash.value(m).count() + 1;
@@ -79,13 +84,14 @@ bool AccountSuiteManager::open(int m)
             maxZbNum = pz->number();
     }
     maxZbNum++;
-    if(!statUtil)
-        delete statUtil;
-    statUtil = new StatUtil(pzs,account);
+
+    if(!statUtil->stat())
+        return false;
     if(!pzs->isEmpty()){
+        PingZheng* oldPz = curPz;
         curPz = pzs->first();
         curIndex = 0;
-        emit currentPzChanged(curPz,NULL);
+        emit currentPzChanged(curPz,oldPz);
     }
     emit pzCountChanged(pzs->count());
     return true;
@@ -118,12 +124,11 @@ void AccountSuiteManager::close()
 {
     if(isDirty())
         save();
+    statUtil->clear();
     undoStack->clear();
     for(int i = 0; i < pzs->count(); ++i){
         PingZheng* pz = pzs->at(i);
-        disconnect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
-        disconnect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
-        disconnect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
+        watchPz(pz,false);
     }
     qDeleteAll(pz_dels);
     pz_dels.clear();
@@ -133,9 +138,6 @@ void AccountSuiteManager::close()
     c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
     maxPzNum = 0;
     maxZbNum = 0;
-    //isReStat = false;
-    //isReSave = false;
-    delete statUtil;
     pzs=NULL;
     PingZheng* oldPz = curPz;
     curPz=NULL;
@@ -163,10 +165,10 @@ int AccountSuiteManager::newPzSet()
  *  获取当前打开凭证集的本期统计对象的引用
  * @return
  */
-StatUtil &AccountSuiteManager::getStatObj()
-{
-    return *statUtil;
-}
+//StatUtil &AccountSuiteManager::getStatObj()
+//{
+//    return *statUtil;
+//}
 
 //获取凭证总数（也即已用的最大凭证号）
 int AccountSuiteManager::getPzCount()
@@ -847,6 +849,7 @@ PingZheng* AccountSuiteManager::appendPz(PzClass pzCls)
     c_recording++;
     setState(Ps_Rec);
     *pzs<<curPz;
+    watchPz(curPz);
     curIndex = pzs->count()-1;
     emit currentPzChanged(curPz,oldPz);
     emit pzCountChanged(pzs->count());
@@ -871,6 +874,7 @@ bool AccountSuiteManager::append(PingZheng *pz)
     if(restorePz(pz))
         return true;
     *pzs<<pz;
+    watchPz(pz);
     pz->setNumber(maxPzNum++);
     pz->setZbNumber(maxZbNum++);
     PingZheng* oldPz = curPz;
@@ -939,6 +943,7 @@ bool AccountSuiteManager::insert(PingZheng* pz)
         pzs->append(pz);
     else{
         pzs->insert(index,pz);
+        watchPz(pz);
         curPz = pz;
         curIndex = index;
         maxPzNum++;
@@ -998,6 +1003,7 @@ bool AccountSuiteManager::insert(int index, PingZheng *pz)
     PingZheng* oldPz = curPz;
     pz->setNumber(index+1);
     pzs->insert(index,pz);
+    watchPz(pz);
     if(index < pzs->count()-1)
     for(int i = index+1; i < pzs->count(); ++i)
         pzs->at(i)->setNumber(i+1);
@@ -1027,6 +1033,47 @@ bool AccountSuiteManager::insert(int index, PingZheng *pz)
     emit pzCountChanged(pzs->count());
     emit pzSetChanged();
     return true;
+}
+
+/**
+ * @brief AccountSuiteManager::watchPz
+ *  监视凭证内容的改变，以便向外界通知必要的信息
+ * @param pz
+ * @param en
+ */
+void AccountSuiteManager::watchPz(PingZheng *pz, bool en)
+{
+    if(en){
+        connect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
+        connect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
+        connect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
+
+        if(rt_update_extra){
+            connect(pz,SIGNAL(addOrDelBa(BusiAction*,bool)),statUtil,SLOT(addOrDelBa(BusiAction*,bool)));
+            //connect(pz,SIGNAL(dirChangedOnBa(BusiAction*,MoneyDirection)),statUtil,SLOT(dirChangedOnBa(BusiAction*,MoneyDirection)));
+            //connect(pz,SIGNAL(mtChangedOnBa(BusiAction*,Money*)),statUtil,SLOT(mtChangedOnBa(BusiAction*,Money*)));
+            connect(pz,SIGNAL(valueChangedOnBa(BusiAction*,Money*,Double&,MoneyDirection))
+                    ,statUtil,SLOT(valueChangedOnBa(BusiAction*,Money*,Double&,MoneyDirection)));
+            connect(pz,SIGNAL(subChangedOnBa(BusiAction*,FirstSubject*,SecondSubject*,Money*,Double)),
+                    statUtil,SLOT(subChangedOnBa(BusiAction*,FirstSubject*,SecondSubject*,Money*,Double)));
+        }
+    }
+    else{
+        disconnect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
+        disconnect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
+        disconnect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
+
+        if(rt_update_extra){
+            disconnect(pz,SIGNAL(addOrDelBa(BusiAction*,bool)),statUtil,SLOT(addOrDelBa(BusiAction*,bool)));
+            //disconnect(pz,SIGNAL(dirChangedOnBa(BusiAction*,MoneyDirection)),statUtil,SLOT(dirChangedOnBa(BusiAction*,MoneyDirection)));
+            //disconnect(pz,SIGNAL(mtChangedOnBa(BusiAction*,Money*)),statUtil,SLOT(mtChangedOnBa(BusiAction*,Money*)));
+            disconnect(pz,SIGNAL(valueChangedOnBa(BusiAction*,Money*,Double&,MoneyDirection))
+                       ,statUtil,SLOT(valueChangedOnBa(BusiAction*,Money*,Double&,MoneyDirection)));
+            disconnect(pz,SIGNAL(subChangedOnBa(BusiAction*,FirstSubject*,SecondSubject*,Money*,Double)),
+                    statUtil,SLOT(subChangedOnBa(BusiAction*,FirstSubject*,SecondSubject*,Money*,Double)));
+        }
+    }
+
 }
 
 /**
@@ -1256,6 +1303,7 @@ bool AccountSuiteManager::remove(PingZheng *pz)
     while(!fonded && i < pzs->count()){
         if(*pzs->at(i) == *pz){
             pzs->removeAt(i);
+            watchPz(pz,false);
             fonded = true;
             pz->setParent(NULL);
             pz->setDeleted(true);
@@ -1574,14 +1622,13 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
             for(int j = 0; j < mtCodes.count(); ++j){
                 ba = pz->appendBlank();
                 ba->setFirstSubject(fsub);
-                ba->setSecondSubject(subMgr->getSndSubject(subIds.at(i)));
-                ba->setMt(account->getMasterMt());
+                ba->setSecondSubject(subMgr->getSndSubject(subIds.at(i)));                
                 ba->setDir(MDIR_D);
                 key = subIds.at(i) * 10 + mtCodes.at(j);
                 v = diffRates.value(mtCodes.at(j)) * vs.value(key);
                 if(dirs.value(key) == MDIR_D)
                     v.changeSign();
-                ba->setValue(v);
+                ba->setMt(account->getMasterMt(),v);
                 ba->setSummary(tr("结转汇兑损益"));
                 sum += ba->getValue();
             }
@@ -1589,9 +1636,9 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
         ba = pz->appendBlank();
         ba->setFirstSubject(subMgr->getCwfySub());
         ba->setSecondSubject(hdsySub);
-        ba->setMt(account->getMasterMt());
+        ba->setMt(account->getMasterMt(),sum);
         ba->setDir(MDIR_J);
-        ba->setValue(sum);
+        //ba->setValue(sum);
         ba->setSummary(tr("结转自%1的汇兑损益").arg(fsub->getName()));
         createdPzs<<pz;
     }
@@ -1711,20 +1758,20 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
         ba->setSummary(tr("结转（%1-%2）至本年利润").arg(ssub->getParent()->getName()).arg(ssub->getName()));
         ba->setFirstSubject(ssub->getParent());
         ba->setSecondSubject(ssub);
-        ba->setMt(account->getMasterMt());
+        ba->setMt(account->getMasterMt(),vs.value(ssub->getId()));
         //结转收入类到本年利润，一般是损益类科目放在借方，本年利润放在贷方
         //而且，损益类中收入类科目余额约定是贷方，故不做方向检测
         ba->setDir(MDIR_J);
-        ba->setValue(vs.value(ssub->getId()));
+        //ba->setValue(vs.value(ssub->getId()));
         sum += ba->getValue();
     }
     ba = pz->appendBlank();
     ba->setSummary(tr("结转收入至本年利润"));
     ba->setFirstSubject(bnlrFSub);
     ba->setSecondSubject(jzSSub);
-    ba->setMt(account->getMasterMt());
+    ba->setMt(account->getMasterMt(),sum);
     ba->setDir(MDIR_D);
-    ba->setValue(sum);
+    //ba->setValue(sum);
     createdPzs<<pz;
 
     //创建结转费用类的结转凭证
@@ -1745,20 +1792,20 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
         ba->setSummary(tr("结转（%1-%2）至本年利润").arg(ssub->getParent()->getName()).arg(ssub->getName()));
         ba->setFirstSubject(ssub->getParent());
         ba->setSecondSubject(ssub);
-        ba->setMt(account->getMasterMt());
+        ba->setMt(account->getMasterMt(),vs.value(ssub->getId()));
         //结转费用类到本年利润，一般是损益类科目放在贷方，本年利润方在借方
         //而且，损益类中费用类科目余额是约定在借方，故不做方向检测
         ba->setDir(MDIR_D);
-        ba->setValue(vs.value(ssub->getId()));
+        //ba->setValue(vs.value(ssub->getId()));
         sum += ba->getValue();
     }
     ba = pz->appendBlank();
     ba->setSummary(tr("结转费用至本年利润"));
     ba->setFirstSubject(bnlrFSub);
     ba->setSecondSubject(jzSSub);
-    ba->setMt(account->getMasterMt());
+    ba->setMt(account->getMasterMt(),sum);
     ba->setDir(MDIR_J);
-    ba->setValue(sum);
+    //ba->setValue(sum);
     createdPzs<<pz;
     return true;
 }
@@ -1960,6 +2007,8 @@ void AccountSuiteManager::pzStateChanged(PzState oldState, PzState newState)
     _determinePzSetState(states[curM]);
     emit pzCountChanged(pzs->count());
 }
+
+
 
 
 

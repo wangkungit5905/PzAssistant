@@ -1152,6 +1152,26 @@ void ApcSubject::ssubDBClicked(QListWidgetItem *item)
 }
 
 /**
+ * @brief ApcSubject::defSubCfgChanged
+ *  默认科目设置改变
+ * @param checked
+ */
+void ApcSubject::defSubCfgChanged(bool checked)
+{
+    if(editAction != APCEA_EDIT_SSUB && editAction != APCEA_NEW_SSUB)
+        return;
+    if(checked)
+        ui->ssubWeight->setText(QString::number(DEFALUT_SUB_WEIGHT));
+    else{
+        if(editAction == APCEA_EDIT_SSUB)
+            ui->ssubWeight->setText(QString::number(stack_ints.at(1)));
+        else
+            ui->ssubWeight->setText(QString::number(1));
+    }
+    ui->ssubWeight->setReadOnly(checked);
+}
+
+/**
  * @brief 跟踪科目配置选项页选择的变化，按需调用各自的初始化函数
  * @param index
  */
@@ -1325,6 +1345,7 @@ void ApcSubject::init_subs()
     connect(ui->lwSSub,SIGNAL(currentRowChanged(int)),SLOT(curSSubChanged(int)));
     connect(ui->lwSSub,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(ssubDBClicked(QListWidgetItem*)));
     connect(ui->cmbFSubCls,SIGNAL(currentIndexChanged(int)),this,SLOT(curFSubClsChanged(int)));
+    connect(ui->ssubIsDef,SIGNAL(clicked(bool)),this,SLOT(defSubCfgChanged(bool)));
 }
 
 /**
@@ -1439,6 +1460,7 @@ void ApcSubject::viewSSub()
         ui->ssubName->setText(curSSub->getName());
         ui->ssubLName->setText(curSSub->getLName());
         ui->ssubRemCode->setText(curSSub->getRemCode());
+        ui->ssubIsDef->setChecked(curFSub->getDefaultSubject() == curSSub);
     }
     else{
         ui->ssubID->clear();
@@ -1451,6 +1473,7 @@ void ApcSubject::viewSSub()
         ui->ssubName->clear();
         ui->ssubLName->clear();
         ui->ssubRemCode->clear();
+        ui->ssubIsDef->setChecked(false);
     }
 }
 
@@ -1532,6 +1555,7 @@ void ApcSubject::enSSubWidget(bool en)
     ui->btnSSubCommit->setEnabled(en);
     ui->btnSSubEdit->setText(en?tr("取消"):tr("编辑"));
     ui->btnSSubCommit->setEnabled(en);
+    ui->ssubIsDef->setEnabled(en);
 }
 
 /**
@@ -1849,6 +1873,7 @@ void ApcSubject::on_btnSSubEdit_clicked()
         stack_strs.push(curSSub->getCode());
         stack_ints.push(curSSub->getWeight());
         stack_ints.push(curSSub->isEnabled()?1:0);
+        stack_ints.push((curFSub->getDefaultSubject() == curSSub)?1:0);
         editAction = APCEA_EDIT_SSUB;
         enSSubWidget(true);
         ui->ssubCode->setFocus();
@@ -1857,6 +1882,7 @@ void ApcSubject::on_btnSSubEdit_clicked()
         ui->ssubCode->setText(stack_strs.pop());
         ui->ssubWeight->setText(QString::number(stack_ints.pop()));
         ui->ssubIsEnable->setChecked((stack_ints.pop()==1)?true:false);
+        ui->ssubIsDef->setChecked(stack_ints.pop()==1?true:false);
         editAction = APCEA_NONE;
         enSSubWidget(false);
     }
@@ -1872,6 +1898,12 @@ void ApcSubject::on_btnSSubCommit_clicked()
     curSSub->setCode(ui->ssubCode->text());
     curSSub->setEnabled(ui->ssubIsEnable->isChecked());
     curSSub->setWeight(ui->ssubWeight->text().toInt());
+    //如果用户将本不是默认的科目设置为默认了
+    if(ui->ssubIsDef->isChecked() && !stack_ints.at(2)){
+        curFSub->setDefaultSubject(curSSub);
+        if(!account->getDbUtil()->savefstSubject(curFSub))
+            QMessageBox::critical(this,tr("出错信息"),tr("在将当前二级科目保存为当前一级科目的默认科目时出错！"));
+    }
     if(!account->getDbUtil()->saveSndSubject(curSSub))
         QMessageBox::critical(this,tr("出错信息"),tr("在将二级科目保存到账户数据库中时出错！"));
     editAction = APCEA_NONE;
@@ -2963,7 +2995,7 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QWidget *parent) 
     contentsWidget->setCurrentRow(0);
 
     //connect(closeButton, SIGNAL(clicked()), this, SLOT(close()));
-    connect(closeButton,SIGNAL(clicked()),this,SLOT(close()));
+    connect(closeButton,SIGNAL(clicked()),this,SLOT(closeAllPage()));
 
     QHBoxLayout *horizontalLayout = new QHBoxLayout;
     horizontalLayout->addWidget(contentsWidget);
@@ -3026,10 +3058,13 @@ void AccountPropertyConfig::pageChanged(int index)
 
 }
 
-bool AccountPropertyConfig::close()
+void AccountPropertyConfig::closeAllPage()
 {
     emit windowShallClosed();
-    return QDialog::close();
+    MyMdiSubWindow* w = static_cast<MyMdiSubWindow*>(parent());
+    if(w)
+        w->close();
+
 }
 
 void AccountPropertyConfig::createIcons()

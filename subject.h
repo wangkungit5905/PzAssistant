@@ -12,7 +12,8 @@
 const int SUPERUSERID   = 1;  //超级用户ID
 const int CLIENTCLASSID = 2;  //业务客户类别id
 
-const int DEFALUTSUBFS  = 65535; //默认科目的权重
+const int DEFALUT_SUB_WEIGHT  = 65535; //默认科目的权重
+const int INIT_WEIGHT         = 1;     //科目的初始权重
 
 static int FSTSUBMD = 1;     //一级科目对象使用的魔术字
 static int NAMEITEMMD = 1;   //名称条目对象使用的魔术字
@@ -124,7 +125,7 @@ public:
     bool containChildSub(SecondSubject* sndSub);
     bool containChildSub(SubjectNameItem* ni);
     SecondSubject* getChildSub(SubjectNameItem* ni);
-    void setDefaultSubject(SecondSubject* ssub){defSub=ssub;}
+    void setDefaultSubject(SecondSubject* ssub);
     SecondSubject* getDefaultSubject(){return defSub;}
 
 private:
@@ -267,7 +268,7 @@ public:
     bool isUseForeignMoney(){return parent->isUseForeignMoney();}
     void setDelete(bool isDeleted){this->isDeleted=isDeleted;}
     bool isDelete(){return isDeleted;}
-
+    bool isDef();
 
     SecondSubjectEditStates getEditState(){return witchEdit;}
     void resetEditState(){witchEdit = ES_SS_INIT;isDeleted=false;}

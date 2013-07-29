@@ -363,23 +363,33 @@ AccountSuiteManager *Account::getPzSet(int suiteId)
 {
     if(suiteRecords.isEmpty())
         return NULL;
+    if(suiteId != 0 && suiteHash.contains(suiteId))
+        return suiteHash.value(suiteId);
+    int key = 0;
+    AccountSuiteRecord* record = NULL;
     if(suiteId == 0){
         foreach(AccountSuiteRecord* asr, suiteRecords){
             if(asr->isCur){
-                suiteHash[asr->id] = new AccountSuiteManager(asr,this);
-                return suiteHash.value(asr->id);
+                key = asr->id;
+                record = asr;
+                break;
             }
         }
     }
-    if(!suiteHash.contains(suiteId)){
+    else{
+        key = suiteId;
         foreach(AccountSuiteRecord* asr, suiteRecords){
-            if(asr->id == suiteId){
-                suiteHash[suiteId] = new AccountSuiteManager(asr,this);
-                return suiteHash.value(suiteId);
+            if(asr->id == key){
+                record = asr;
+                break;
             }
         }
     }
-    return suiteHash.value(suiteId);
+    if(key == 0)
+        return NULL;
+    if(!suiteHash.contains(key))
+        suiteHash[key] = new AccountSuiteManager(record,this);
+    return suiteHash.value(key);
 }
 
 

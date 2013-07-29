@@ -151,6 +151,7 @@ public slots:
     void save();
     void setPzState(PzState state);
 private slots:
+    void rateChanged();
     void updatePzCount(int count);
     void curPzChanged(PingZheng* newPz, PingZheng* oldPz);
     void msgTimeout();
@@ -220,6 +221,8 @@ private slots:
 
     void tabColWidthResized(int index, int oldSize, int newSize);
     void tabRowHeightResized(int index, int oldSize, int newSize);
+
+    void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);
 
 signals:
     void showMessage(QString info, AppErrorLevel levelS=AE_OK);

@@ -398,6 +398,22 @@ SecondSubject *FirstSubject::getChildSub(SubjectNameItem *ni)
     return NULL;
 }
 
+/**
+ * @brief FirstSubject::setDefaultSubject
+ *  设置默认的二级科目
+ * @param ssub
+ */
+void FirstSubject::setDefaultSubject(SecondSubject *ssub)
+{
+    if(defSub == ssub)
+        return;
+    if(defSub)
+        defSub->setWeight(INIT_WEIGHT);
+    defSub = ssub;
+    defSub->setWeight(DEFALUT_SUB_WEIGHT);
+    witchEdited |= ES_FS_DEFSUB;
+}
+
 
 //针对一级科目的排序比较函数
 bool byNameThan_fs(FirstSubject *fs1, FirstSubject *fs2)
@@ -653,6 +669,20 @@ void SecondSubject::setEnabled(bool en)
         witchEdit |= ES_SS_ISENABLED;
         parent->childEdited();
     }
+}
+
+/**
+ * @brief SecondSubject::isDef
+ * @return
+ */
+bool SecondSubject::isDef()
+{
+    if(!parent)
+        return false;
+    if(parent->getDefaultSubject() == this)
+        return true;
+    else
+        return false;
 }
 
 ////////////////////////////SubjectManager////////////////////////////////////////////

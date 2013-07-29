@@ -42,6 +42,54 @@ BusiAction::BusiAction(int id,PingZheng* p,QString summary,FirstSubject* fsub,Se
     fsub(fsub),ssub(ssub),mt(mt),dir(dir),v(v),num(num),isDeleted(false)
 {md = BAMD++;}
 
+/**
+ * @brief BusiAction::integratedSetValue
+ *  统一设置分录对象的属性值，一次性调整分录对象的多个属性值
+ * @param fsub
+ * @param ssub
+ * @param mt
+ * @param v
+ * @param dir
+ */
+void BusiAction::integratedSetValue(FirstSubject* fsub,SecondSubject* ssub,Money* mt,Double v,MoneyDirection dir)
+{
+    FirstSubject* oldFSub = this->fsub;
+    SecondSubject* oldSSub = this->ssub;
+    Money* oldMt = this->mt;
+    Double oldV = this->v;
+    MoneyDirection oldDir = this->dir;
+    bool tag_sub=false,tag_mt=false,tag_v=false,tag_dir=false;
+    if(this->fsub != fsub){
+        this->fsub = fsub;
+        setEditState(ES_BA_FSUB);
+        tag_sub = true;
+    }
+    if(this->ssub != ssub){
+        this->ssub = ssub;
+        setEditState(ES_BA_SSUB);
+        tag_sub = true;
+    }
+    if(this->mt != mt){
+        this->mt = mt;
+        setEditState(ES_BA_MT);
+        tag_mt = true;
+    }
+    if(this->v != v){
+        this->v = v;
+        setEditState(ES_BA_VALUE);
+        tag_v = true;
+    }
+    if(this->dir != dir){
+        this->dir = dir;
+        setEditState(ES_BA_DIR);
+        tag_dir = true;
+    }
+    if(tag_sub)
+        emit subChanged(oldFSub,oldSSub,oldMt,oldV,this);
+    else if(tag_mt || tag_v || tag_dir)
+        emit valueChanged(oldMt,oldV,oldDir,this);
+}
+
 void BusiAction::setParent(PingZheng *p)
 {
     if(parent != p){
@@ -66,29 +114,36 @@ void BusiAction::setSummary(QString s)
 void BusiAction::setFirstSubject(FirstSubject *fsub)
 {
     if(this->fsub != fsub){
+        FirstSubject* oldFSub = this->fsub;
         this->fsub = fsub;
         setEditState(ES_BA_FSUB);
         parent->setEditState(ES_PZ_BACTION);
+        //emit subChanged(oldFSub,ssub,this);
     }
 }
 
 void BusiAction::setSecondSubject(SecondSubject *ssub)
 {
     if(this->ssub != ssub){
+        SecondSubject* oldSSub = this->ssub;
         this->ssub = ssub;
         setEditState(ES_BA_SSUB);
         parent->setEditState(ES_PZ_BACTION);
+        //emit subChanged(fsub,oldSSub,this);
     }
 }
 
-void BusiAction::setMt(Money *mt)
+void BusiAction::setMt(Money *mt, Double v)
 {
     if(this->mt != mt){
         Money* oldMt = this->mt;
+        Double oldV = this->v;
         this->mt = mt;
+        this->v = v;
+        setEditState(ES_BA_VALUE);
         setEditState(ES_BA_MT);
         if(mt)
-            emit valueChanged(oldMt,mt,v,v,this);
+            emit valueChanged(oldMt,oldV,dir,this);
         parent->setEditState(ES_PZ_BACTION);
     }
 }
@@ -100,7 +155,7 @@ void BusiAction::setValue(Double value)
         v = value;
         setEditState(ES_BA_VALUE);
         if(mt)
-            emit valueChanged(mt,mt,oldV,v,this);
+            emit valueChanged(mt,oldV,dir,this);
         parent->setEditState(ES_PZ_BACTION);
     }
 }
@@ -117,7 +172,7 @@ void BusiAction::setDir(MoneyDirection direct)
         dir = tdir;
         setEditState(ES_BA_DIR);
         if(mt)
-            emit dirChanged(oldDir,tdir,this);
+            emit valueChanged(mt,v,oldDir,this);
         parent->setEditState(ES_PZ_BACTION);
     }
 }
@@ -571,21 +626,22 @@ BusiAction* PingZheng::appendBlank()
  * @param v         金额
  * @return
  */
-BusiAction *PingZheng::append(QString summary, FirstSubject *fsub, SecondSubject *ssub, Money *mt, MoneyDirection dir, Double v)
-{
-    Q_ASSERT(dir != MDIR_P);
-    BusiAction* ba = new BusiAction(0,this,summary,fsub,ssub,mt,dir,v,baLst.count()+1);
-    baLst<<ba;
-    adjustSumForBaChanged(ba);
-    setEditState(ES_PZ_BACTION);
-    curBa = ba;
-    watchBusiaction(ba);
-    emit indexBoundaryChanged(baLst.count()==1,true);
-    emit updateBalanceState(js==ds);
-    emit pzContentChanged(this);
-    emit mustRestat();
-    return ba;
-}
+//BusiAction *PingZheng::append(QString summary, FirstSubject *fsub, SecondSubject *ssub, Money *mt, MoneyDirection dir, Double v)
+//{
+//    Q_ASSERT(dir != MDIR_P);
+//    BusiAction* ba = new BusiAction(0,this,summary,fsub,ssub,mt,dir,v,baLst.count()+1);
+//    baLst<<ba;
+//    adjustSumForBaChanged(ba);
+//    setEditState(ES_PZ_BACTION);
+//    curBa = ba;
+//    watchBusiaction(ba);
+//    emit indexBoundaryChanged(baLst.count()==1,true);
+//    emit updateBalanceState(js==ds);
+//    emit pzContentChanged(this);
+//    emit addOrDelBa(ba,true);
+//    emit mustRestat();
+//    return ba;
+//}
 
 /**
  * @brief PingZheng::append
@@ -615,6 +671,8 @@ bool PingZheng::append(BusiAction *ba, bool isUpdate)
     emit indexBoundaryChanged(baLst.count()==1,true);
     emit updateBalanceState(js==ds);
     emit pzContentChanged(this);
+    if(ba->getValue() != 0.0)
+        emit addOrDelBa(ba,true);
     emit mustRestat();
     return true;
 }
@@ -661,7 +719,9 @@ bool PingZheng::insert(int index,BusiAction *ba)
     watchBusiaction(ba);
     curBa = ba;
     emit updateBalanceState(js==ds);
-    emit pzContentChanged(this);
+    if(ba->getValue() != 0.0)
+        emit pzContentChanged(this);
+    emit addOrDelBa(ba,true);
     emit mustRestat();
     return true;
 }
@@ -670,41 +730,41 @@ bool PingZheng::insert(int index,BusiAction *ba)
  * @brief PingZheng::remove  移除会计分录
  * @param index
  */
-bool PingZheng::remove(int index)
-{
-    if(index >= baLst.count() || index < 0){
-        LOG_ERROR(QObject::tr("when remove BusiAction object in PingZheng object(id:%1,pnum:%2) index overflow!")
-                  .arg(ID).arg(pnum));
-        return false;
-    }
-    BusiAction *ba = baLst.takeAt(index);
-    if(index < baLst.count()-1)
-        for(int i = index; i < baLst.count(); ++i)
-            baLst.at(i)->setNumber(index+1);
-    if(ba->dir == DIR_J){
-        js -= ba->v;
-        setEditState(ES_PZ_JSUM);
-    }
-    else{
-        ds -= ba->v;
-        setEditState(ES_PZ_DSUM);
-    }
-    setEditState(ES_PZ_BACTION);
+//bool PingZheng::remove(int index)
+//{
+//    if(index >= baLst.count() || index < 0){
+//        LOG_ERROR(QObject::tr("when remove BusiAction object in PingZheng object(id:%1,pnum:%2) index overflow!")
+//                  .arg(ID).arg(pnum));
+//        return false;
+//    }
+//    BusiAction *ba = baLst.takeAt(index);
+//    if(index < baLst.count()-1)
+//        for(int i = index; i < baLst.count(); ++i)
+//            baLst.at(i)->setNumber(index+1);
+//    if(ba->dir == DIR_J){
+//        js -= ba->v;
+//        setEditState(ES_PZ_JSUM);
+//    }
+//    else{
+//        ds -= ba->v;
+//        setEditState(ES_PZ_DSUM);
+//    }
+//    setEditState(ES_PZ_BACTION);
 
-    ba->setDelete(true);
-    baDels<<ba;
-    watchBusiaction(ba,false);
-    bool first,last;
-    if(baLst.isEmpty()){
-        first=true,last=true;
-    }
-    else{
-        first = (baLst.count()==1) || (index==0);
-        last = (baLst.count()==1) || (index >=baLst.count()-1);
-    }
-    emit indexBoundaryChanged(first,last);
-    return true;
-}
+//    ba->setDelete(true);
+//    baDels<<ba;
+//    watchBusiaction(ba,false);
+//    bool first,last;
+//    if(baLst.isEmpty()){
+//        first=true,last=true;
+//    }
+//    else{
+//        first = (baLst.count()==1) || (index==0);
+//        last = (baLst.count()==1) || (index >=baLst.count()-1);
+//    }
+//    emit indexBoundaryChanged(first,last);
+//    return true;
+//}
 
 /**
  * @brief PingZheng::remove 移除指定会计分录对象
@@ -751,6 +811,8 @@ bool PingZheng::remove(BusiAction *ba)
     emit indexBoundaryChanged(first,last);
     emit updateBalanceState(js==ds);
     emit pzContentChanged(this);
+    if(ba->getValue() != 0.0)
+        emit addOrDelBa(ba,false);
     emit mustRestat();
     return true;
 }
@@ -810,6 +872,8 @@ BusiAction *PingZheng::take(int index)
     emit indexBoundaryChanged(first,last);
     emit updateBalanceState(js==ds);
     emit pzContentChanged(this);
+    if(ba->getValue() != 0.0)
+        emit addOrDelBa(ba,false);
     emit mustRestat();
     return ba;
 }
@@ -922,75 +986,74 @@ void PingZheng::setEditState(PingZhengEditState state)
  * @param newDir    新方向
  * @param ba        所涉及的会计分录
  */
-void PingZheng::adjustSumForDirChanged(MoneyDirection oldDir, MoneyDirection newDir,BusiAction* ba)
-{
-    if(oldDir == newDir)
-        return;
-    Money* mmt = parent()->getAccount()->getMasterMt();
-    if(oldDir == MDIR_J){
-        if(ba->getMt() == mmt){
-            js -= ba->getValue();
-            ds += ba->getValue();
-        }
-        else{
-            QHash<int,Double> rates;
-            parent()->getRates(rates);
-            Double v = ba->getValue() * rates.value(ba->getMt()->code());
-            js -= v; ds += v;
-        }
-    }
-    else{
-        if(ba->getMt() == mmt){
-            js += ba->getValue();
-            ds -= ba->getValue();
-        }
-        else{
-            QHash<int,Double> rates;
-            parent()->getRates(rates);
-            Double v = ba->getValue() * rates.value(ba->getMt()->code());
-            js += v; ds -= v;
-        }
-    }
-    setEditState(ES_PZ_JSUM);
-    setEditState(ES_PZ_DSUM);
-    emit updateBalanceState(js==ds);
-    emit mustRestat();
-}
+//void PingZheng::adjustSumForDirChanged(MoneyDirection oldDir, BusiAction* ba)
+//{
+//    if(oldDir == ba->getDir())
+//        return;
+//    Money* mmt = parent()->getAccount()->getMasterMt();
+//    if(oldDir == MDIR_J){
+//        if(ba->getMt() == mmt){
+//            js -= ba->getValue();
+//            ds += ba->getValue();
+//        }
+//        else{
+//            QHash<int,Double> rates;
+//            parent()->getRates(rates);
+//            Double v = ba->getValue() * rates.value(ba->getMt()->code());
+//            js -= v; ds += v;
+//        }
+//    }
+//    else{
+//        if(ba->getMt() == mmt){
+//            js += ba->getValue();
+//            ds -= ba->getValue();
+//        }
+//        else{
+//            QHash<int,Double> rates;
+//            parent()->getRates(rates);
+//            Double v = ba->getValue() * rates.value(ba->getMt()->code());
+//            js += v; ds -= v;
+//        }
+//    }
+//    setEditState(ES_PZ_JSUM);
+//    setEditState(ES_PZ_DSUM);
+//    emit updateBalanceState(js==ds);
+//    emit dirChangedOnBa(ba,oldDir);
+//    emit mustRestat();
+//}
 
 /**
  * @brief PingZheng::adjustSumForValueChanged
- *  由于某个会计分录的币种或金额改变，引起凭证重新调整借贷方合计值
+ *  由于某个会计分录的币种、金额或方向改变，引起凭证重新调整借贷方合计值
  * @param oldMt     原币种
- * @param newMt     新币种
  * @param oldValue  原值
- * @param newValue  新值
+ * @param oldDir    原先的发生方向
  * @param ba        所涉及的会计分录
  */
-void PingZheng::adjustSumForValueChanged(Money *oldMt, Money *newMt, Double &oldValue, Double &newValue,BusiAction* ba)
+void PingZheng::adjustSumForValueChanged(Money *oldMt, Double &oldValue,MoneyDirection oldDir, BusiAction* ba)
 {
-    if(!newMt)
-        return;
-    if(oldMt==newMt && oldValue==newValue)
-        return;
-    QHash<int,Double> rates;
-    parent()->getRates(rates);
-    //rates[1] = 1.0;
-    Double diffValue;
-    if(oldMt){
-        diffValue = newValue * rates.value(newMt->code(),1.0) - oldValue * rates.value(oldMt->code(),1.0);
-    }
-    else
-        diffValue = newValue * rates.value(newMt->code(),1.0);
-    if(ba->getDir() == MDIR_J){
-        js += diffValue;
-        setEditState(ES_PZ_JSUM);
-    }
-    else{
-        ds += diffValue;
-        setEditState(ES_PZ_DSUM);
-    }
-    emit updateBalanceState(js==ds);
-    emit mustRestat();
+    _recalSumForValueChanged(oldMt,oldValue,oldDir,ba);
+    //触发针对指定科目、币种进行重新进行统计的信号
+    emit valueChangedOnBa(ba,oldMt,oldValue,oldDir);
+
+//    if(oldMt != newMt)
+//        emit mtChangedOnBa(ba,oldMt);
+//    else
+//        emit valueChangedOnBa(ba,oldValue);
+}
+
+/**
+ * @brief PingZheng::subChanged
+ * @param oldFSub
+ * @param newFSub
+ * @param oldSSub
+ * @param newSSub
+ */
+void PingZheng::subChanged(FirstSubject *oldFSub, SecondSubject *oldSSub, Money* oldMt, Double oldValue, BusiAction* ba)
+{
+    if(oldMt != ba->getMt() || oldValue != ba->getValue())
+        _recalSumForValueChanged(oldMt,oldValue,ba->getDir(),ba);
+    emit subChangedOnBa(ba,oldFSub,oldSSub,oldMt,oldValue);
 }
 
 //移除会计分录列表中末尾的连续空白会计分录
@@ -1062,6 +1125,59 @@ void PingZheng::calSum()
 }
 
 /**
+ * @brief PingZheng::_recalSumForValueChanged
+ *  由于更改分录的值属性，而重新计算凭证的借贷合计值
+ * @param oldMt
+ * @param oldValue
+ * @param oldDir
+ * @param ba
+ */
+void PingZheng::_recalSumForValueChanged(Money* oldMt,Double &oldValue,MoneyDirection oldDir, BusiAction* ba)
+{
+    Money* newMt = ba->getMt();
+    Double newValue = ba->getValue();
+    MoneyDirection newDir = ba->getDir();
+    if(!newMt)
+        return;
+    if(oldMt==newMt && oldValue==newValue && oldDir==newDir)
+        return;
+    QHash<int,Double> rates;
+    parent()->getRates(rates);
+    if(newDir == oldDir){
+        Double diffValue;
+        if(oldMt)
+            diffValue = newValue * rates.value(newMt->code(),1.0) - oldValue * rates.value(oldMt->code(),1.0);
+        else
+            diffValue = newValue * rates.value(newMt->code(),1.0);
+
+        if(newDir == MDIR_J){
+            js += diffValue;
+            setEditState(ES_PZ_JSUM);
+        }
+        else{
+            ds += diffValue;
+            setEditState(ES_PZ_DSUM);
+        }
+    }
+    else{
+        Double v_sub = oldValue * rates.value(oldMt->code(),1.0);
+        Double v_add = newValue * rates.value(newMt->code(),1.0);
+        if(newDir == MDIR_J){
+            ds -= v_sub;
+            js += v_add;
+        }
+        else{
+            js -= v_sub;
+            ds += v_add;
+        }
+        setEditState(ES_PZ_JSUM);
+        setEditState(ES_PZ_DSUM);
+    }
+    emit updateBalanceState(js==ds);
+    emit mustRestat();
+}
+
+/**
  * @brief PingZheng::adjustSumForBaChanged
  *  调整由于会计分录的增加或移除操作引起的凭证借贷合计值的改变
  * @param ba    被增加或移除的分录对象
@@ -1070,6 +1186,8 @@ void PingZheng::calSum()
 void PingZheng::adjustSumForBaChanged(BusiAction *ba, bool add)
 {
     //调整借贷合计值
+    if(!ba->getMt())
+        return;
     Double v;
     if(ba->getMt() == p->getAccount()->getMasterMt())
         v = ba->v;
@@ -1103,16 +1221,20 @@ void PingZheng::adjustSumForBaChanged(BusiAction *ba, bool add)
 void PingZheng::watchBusiaction(BusiAction *ba, bool isWatch)
 {
     if(isWatch){
-        connect(ba,SIGNAL(dirChanged(MoneyDirection,MoneyDirection,BusiAction*)),
-                this,SLOT(adjustSumForDirChanged(MoneyDirection,MoneyDirection,BusiAction*)));
-        connect(ba,SIGNAL(valueChanged(Money*,Money*,Double&,Double&,BusiAction*)),
-                this,SLOT(adjustSumForValueChanged(Money*,Money*,Double&,Double&,BusiAction*)));
+        //connect(ba,SIGNAL(dirChanged(MoneyDirection,BusiAction*)),
+        //        this,SLOT(adjustSumForDirChanged(MoneyDirection,BusiAction*)));
+        connect(ba,SIGNAL(valueChanged(Money*,Double&,MoneyDirection,BusiAction*)),
+                this,SLOT(adjustSumForValueChanged(Money*,Double&,MoneyDirection,BusiAction*)));
+        connect(ba,SIGNAL(subChanged(FirstSubject*,SecondSubject*,Money*,Double,BusiAction*)),
+                this,SLOT(subChanged(FirstSubject*,SecondSubject*,Money*,Double,BusiAction*)));
     }
     else{
-        disconnect(ba,SIGNAL(dirChanged(MoneyDirection,MoneyDirection,BusiAction*)),
-                this,SLOT(adjustSumForDirChanged(MoneyDirection,MoneyDirection,BusiAction*)));
-        disconnect(ba,SIGNAL(valueChanged(Money*,Money*,Double&,Double&,BusiAction*)),
-                this,SLOT(adjustSumForValueChanged(Money*,Money*,Double&,Double&,BusiAction*)));
+        //disconnect(ba,SIGNAL(dirChanged(MoneyDirection,BusiAction*)),
+        //        this,SLOT(adjustSumForDirChanged(MoneyDirection,BusiAction*)));
+        disconnect(ba,SIGNAL(valueChanged(Money*,Double&,BusiAction*)),
+                this,SLOT(adjustSumForValueChanged(Money*,Double&,MoneyDirection,BusiAction*)));
+        disconnect(ba,SIGNAL(subChanged(FirstSubject*,SecondSubject*,BusiAction*)),
+                   this,SLOT(subChanged(FirstSubject*,SecondSubject*,Money*,Double,BusiAction*)));
     }
 }
 

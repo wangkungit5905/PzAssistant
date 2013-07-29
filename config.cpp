@@ -185,8 +185,6 @@ bool AppConfig::getConfigVar(QString name, int type)
 //初始化全局配置变量
 bool AppConfig::initGlobalVar()
 {
-    //if(!getConVar("RecentOpenAccId",curAccountId))
-    //    curAccountId = 0;
     if(!getConVar("isCollapseJz",isCollapseJz))
         isCollapseJz = true;
     if(!getConVar("isByMtForOppoBa", isByMt))
@@ -201,7 +199,8 @@ bool AppConfig::initGlobalVar()
         viewHideColInDailyAcc2 = false;
     if(!getConVar("canZhiRate", czRate))
         czRate = 0;
-
+    if(!getConVar("rt_update_extra", rt_update_extra))
+        rt_update_extra = true;
 }
 
 //保存全局配置变量到基础库
@@ -215,6 +214,7 @@ bool AppConfig::saveGlobalVar()
     r = setConVar("zlrByYear", autoSaveInterval);
     r = setConVar("viewHideColInDailyAcc1", viewHideColInDailyAcc1);
     r = setConVar("viewHideColInDailyAcc2", viewHideColInDailyAcc2);
+    r = setConVar("rt_update_extra", rt_update_extra);
     //r = setConVar("viewHideColInDailyAcc1", false);
     //r = setConVar("viewHideColInDailyAcc2", false);
     return r;

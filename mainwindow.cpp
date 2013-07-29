@@ -1755,7 +1755,7 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
             AccountPropertyConfig* w = static_cast<AccountPropertyConfig*>(subWin->widget());
             if(w){
                 state = w->getState();
-                w->close();
+                w->closeAllPage();
                 delete w;
             }
         }
@@ -2140,13 +2140,13 @@ void MainWindow::on_actCurStatNew_triggered()
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZSTAT2)){
         dbUtil->getSubWinInfo(SUBWIN_PZSTAT2,winfo,sinfo);
-        dlg = new CurStatDialog(&curSuiteMgr->getStatObj(), sinfo, this);
+        dlg = new CurStatDialog(curSuiteMgr->getStatUtil(), sinfo, this);
         connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
     }
     else{
         dlg = static_cast<CurStatDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZSTAT2));
         if(dlg)
-            dlg->stat(&curSuiteMgr->getStatObj());
+            dlg->stat();
     }
     subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZSTAT2,dlg,winfo);
     if(winfo)
@@ -3204,7 +3204,7 @@ void MainWindow::on_actViewLog_triggered()
     sw->show();
 }
 
-
+//#include <QToolTip>
 bool MainWindow::impTestDatas()
 {
 //    SubjectManager* subMgr = curAccount->getSubjectManager();
@@ -3240,6 +3240,9 @@ bool MainWindow::impTestDatas()
 
 //    DatabaseAccessForm* dlg = new DatabaseAccessForm(curAccount,AppConfig::getInstance());
 //    dlg->show();
+
+//    QString info = tr("科目“%1-%2”的余额发生异常！\n一级科目余额：%3（%4）\n二级科目余额：%5（%6）");
+//    QToolTip::showText(QPoint(10,10),info,0);
     int i = 0;
 }
 

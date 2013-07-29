@@ -20,6 +20,7 @@ class SecondSubject;
 class SubjectManager;
 class SubjectNameItem;
 class Money;
+class StatUtil;
 
 enum BaTableColumnIndex{
     BT_SUMMARY = 0,   //摘要列
@@ -264,6 +265,7 @@ public:
     void setReadOnly(bool readOnly){isReadOnly=readOnly;}
     void setVolidRows(int rows){validRows=rows;}
     int getVolidRows(){return validRows;}
+    //void watchExtraException();
 
 private slots:
     void commitAndCloseEditor(int colIndex, bool isMove);
@@ -273,6 +275,8 @@ private slots:
     void nextRow(int row);
     void catchCopyPrevShortcut(int row, int col);
 
+    //void cachedExtraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);
+
 signals:
     //void updateSndSubject(int row, int col, SecondSubject* ssub);
     void crtNewNameItemMapping(int row, int col, FirstSubject *fsub, SubjectNameItem *ni, SecondSubject*& ssbu);
@@ -280,11 +284,14 @@ signals:
     void moveNextRow(int row);
     void reqCopyPrevAction(int row);
 
+    void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);
+
 private:
     //int witch;  //代理当前编辑的是业务活动的哪个列
     bool isReadOnly; //表格是否只读的
     int validRows;   //表格的有效行数，这个是为了对无效行不创建编辑器（不包含备用行)
     SubjectManager* subMgr;
+    StatUtil* statUtil;
 };
 
 

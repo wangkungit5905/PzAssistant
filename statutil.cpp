@@ -8,17 +8,13 @@
 #include "dbutil.h"
 #include "PzSet.h"
 
-StatUtil::StatUtil(QList<PingZheng *> *pzs, Account *account):pzs(pzs),account(account)
+StatUtil::StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager *parent):QObject(parent),
+    pzs(pzs),sm(parent)
 {
+    account = parent->getAccount();
     dbUtil = account->getDbUtil();
-    if(pzs->isEmpty())
-        return;
-    PingZheng* pz = pzs->first();
-    y = pz->getDate2().year();
-    m = pz->getDate2().month();
-    smg = account->getSubjectManager(account->getSuite(y)->subSys);
+    smg = account->getSubjectManager(parent->getSubSysCode());
     masterMt = account->getMasterMt();
-    account->getRates(y,m,rates);
 }
 
 /**
@@ -29,6 +25,14 @@ StatUtil::StatUtil(QList<PingZheng *> *pzs, Account *account):pzs(pzs),account(a
 bool StatUtil::stat()
 {
     _clearDatas();
+    if(!sm->isOpened()){
+        clear();
+        QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在未打开凭证集时不能进行本期统计！"));
+        return false;
+    }
+    y = sm->year();
+    m = sm->month();
+    account->getRates(y,m,rates);
     if(!_readPreExtra()){
         QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在读取%1年%2的前期余额时发生错误！").arg(y).arg(m));
         return false;
@@ -37,14 +41,6 @@ bool StatUtil::stat()
         QMessageBox::warning(0,QObject::tr("错误提示"),QObject::tr("在统计%1年%2的本期发生额时，发现凭证有误，请使用凭证集检错工具查看或调阅日志信息！").arg(y).arg(m));
         return false;
     }
-    //qDebug()<<QString("cwfy-j:%1").arg(curJF.value(821).toString());
-    //qDebug()<<QString("cwfy-hdsy-j:%1").arg(curJS.value(601).toString());
-
-    //输出佳利的贷方数值
-    qDebug()<<QString("(new)YS-nbjl-D: rmb=%1, usd=%2, usdR=%3")
-              .arg(curDS.value(961).toString()).arg(curDS.value(962).toString())
-              .arg(curDSM.value(962).toString());
-
     _calEndExtra();
     _calEndExtra(false);
 
@@ -79,7 +75,143 @@ bool StatUtil::save()
     return true;
 }
 
+/**
+ * @brief StatUtil::clear
+ *  清除内部缓存（在关闭凭证集时调用）
+ */
+void StatUtil::clear()
+{
+    y == 0; m == 0;
+    rates.clear();
+    _clearDatas();
+}
 
+/**
+ * @brief StatUtil::addOrDelBa
+ *  凭证集内的某个凭证的分录被添加或移除了
+ * @param ba    添加或移除的分录对象
+ * @param add   true：添加，false：移除
+ */
+void StatUtil::addOrDelBa(BusiAction *ba, bool add)
+{
+    if(!_baIsValid(ba))
+        return;
+    _adjustExtra(ba->getFirstSubject(),ba->getSecondSubject(),ba->getMt(),ba->getValue(),ba->getDir(),add);
+    _inspectExtraException(ba);
+}
+
+/**
+ * @brief StatUtil::subChangedOnBa
+ *  分录的科目设置发生了改变
+ * @param ba
+ * @param newFSub
+ * @param oldFSub
+ * @param newSSub
+ * @param oldSSub
+ */
+void StatUtil::subChangedOnBa(BusiAction *ba, FirstSubject *oldFSub, SecondSubject *oldSSub, Money* oldMt, Double oldValue)
+{
+    if(!_baIsValid(ba))
+        return;
+    bool tag1 = oldFSub != ba->getFirstSubject() ||
+                oldSSub != ba->getSecondSubject()||
+                oldMt != ba->getMt();
+    bool tag2 = !tag1 && oldValue != ba->getValue();
+    if(tag1){
+        _adjustExtra(oldFSub,oldSSub,oldMt,oldValue,ba->getDir(),false);
+        _adjustExtra(ba->getFirstSubject(),ba->getSecondSubject(),ba->getMt(),ba->getValue(),ba->getDir());
+    }
+    else if(tag2){
+        Double diff = ba->getValue() - oldValue;
+        _adjustExtra(ba->getFirstSubject(),ba->getSecondSubject(),ba->getMt(),diff,ba->getDir());
+    }
+    _inspectExtraException(ba);
+}
+
+/**
+ * @brief StatUtil::valueChangedOnBa
+ *  分录的金额设置发生了改变
+ * @param ba
+ * @param ov    变化前的金额
+ */
+void StatUtil::valueChangedOnBa(BusiAction *ba, Money* oldMt,Double &oldValue,MoneyDirection oldDir)
+{
+    if(!_baIsValid(ba))
+        return;
+    bool tag1 = oldMt != ba->getMt();
+    bool tag2 = !tag1 && oldDir != ba->getDir();
+    bool tag3 = !tag1 && !tag2 && oldValue != ba->getValue();
+    //1、如果币种改变，或币种未变但方向改变
+    if(tag1 || tag2){
+        _adjustExtra(ba->getFirstSubject(),ba->getSecondSubject(),oldMt,oldValue,oldDir,false);
+        _adjustExtra(ba->getFirstSubject(),ba->getSecondSubject(),ba->getMt(),ba->getValue(),ba->getDir());
+    }
+    else if(tag3){ //如果只涉及到金额的改变，则简单地加上差额
+        Double diff = ba->getValue() - oldValue;
+        _adjustExtra(ba->getFirstSubject(),ba->getSecondSubject(),ba->getMt(),diff,ba->getDir());
+    }
+    _inspectExtraException(ba);
+}
+
+/**
+ * @brief StatUtil::dirChangedOnBa
+ *  分录的发生方向发生了改变
+ * @param ba
+ * @param nd
+ * @param od
+ */
+//void StatUtil::dirChangedOnBa(BusiAction *ba, MoneyDirection od)
+//{
+//    if(!_baIsValid(ba))
+//        return;
+//    if(ba->getDir() == od)
+//        return;
+//    int key_f = ba->getFirstSubject()->getId() * 10 + ba->getMt()->code();
+//    int key_s = ba->getSecondSubject()->getId() * 10 + ba->getMt()->code();
+//    QHash<int,Double> *add_f,*add_s,*add_fm,*add_sm; //add：增加值的表，sub：减少值的表
+//    QHash<int,Double> *sub_f,*sub_s,*sub_fm,*sub_sm;
+//    if(od == MDIR_J){
+//        add_f = &curDF;add_fm = &curDFM;add_s=&curDS;add_sm=&curDSM;
+//        sub_f = &curJF;sub_fm = &curJFM;sub_s=&curJS;sub_sm=&curJSM;
+//    }
+//    else{
+//        add_f = &curJF;add_fm = &curJFM;add_s=&curJS;add_sm=&curJSM;
+//        sub_f = &curDF;sub_fm = &curDFM;sub_s=&curDS;sub_sm=&curDSM;
+//    }
+
+//    (*add_f)[key_f] += ba->getValue();
+//    (*add_s)[key_s] += ba->getValue();
+//    if(ba->getMt() != masterMt){
+//        Double v = ba->getValue() * rates.value(ba->getMt()->code());
+//        (*add_fm)[key_f] += v;
+//        (*add_sm)[key_s] += v;
+//    }
+//    (*sub_f)[key_f] -= ba->getValue();
+//    (*sub_s)[key_s] -= ba->getValue();
+//    if(ba->getMt() != masterMt){
+//        Double v = ba->getValue() * rates.value(ba->getMt()->code());
+//        (*sub_fm)[key_f] -= v;
+//        (*sub_sm)[key_s] -= v;
+//    }
+//    _calEndExtraForSingleSub(ba->getFirstSubject(),ba->getMt());
+//    _calEndExtraForSingleSub(ba->getSecondSubject(),ba->getMt());
+//    _inspectExtraException(ba);
+//}
+
+/**
+ * @brief StatUtil::_baIsValid
+ *  检测分录对象是否有效，这个方法在重新计算指定科目的余额前必须调用它
+ * @param ba
+ * @return
+ */
+bool StatUtil::_baIsValid(BusiAction *ba)
+{
+    if(!ba)
+        return false;
+    if(!ba->getFirstSubject() || !ba->getSecondSubject() || !ba->getMt() || ba->getValue() == 0.0 || ba->getDir() == MDIR_P)
+        return false;
+    return true;
+}
 
 /**
  * @brief StatUtil::_clearDatas
@@ -307,8 +439,6 @@ void StatUtil::_calEndExtra(bool isFst)
     while(it.hasNext()){
         it.next();
         key = it.key();
-        if(key == 962)
-            int ii = 0;
         sid = key/10;
         mt = key%10;
         vp = cjvs->value(key) - cdvs->value(key);
@@ -437,6 +567,149 @@ void StatUtil::_calEndExtra(bool isFst)
         }
     }
 
+}
+
+/**
+ * @brief StatUtil::_calEndExtraForSingleSub
+ *  计算单一科目单一币种的余额，这个函数主要是为了提供因某个分录的影响余额值的值变动而需要重新计算余额时计算效率
+ *  因为其他的科目余额无须重新计算，缩小了计算的范围
+ * @param sub
+ * @param isFst
+ */
+void StatUtil::_calEndExtraForSingleSub(SubjectBase *sub, Money* mt, bool isFst)
+{
+    QHash<int,Double> *pvs,*pvMs,*evs,*evMs,*cjvs,*cjMvs,*cdvs,*cdMvs;
+    QHash<int, MoneyDirection> *pds,*eds;
+    //QHash<int,Double> js,jfm,df,dfm; //科目各币种的本期发生额
+    int key = sub->getId() * 10 + mt->code();
+
+    if(isFst){
+        pvs = &preFExa;pvMs = &preFExaM;pds = &preFDir;
+        evs = &endFExa;evMs = &endFExaM;eds = &endFDir;
+        cjvs = &curJF; cjMvs = &curJFM; cdvs = &curDF; cdMvs = &curDFM;
+    }
+    else{
+        pvs = &preSExa;pvMs = &preSExaM;pds = &preSDir;
+        evs = &endSExa;evMs = &endSExaM;eds = &endSDir;
+        cjvs = &curJS; cjMvs = &curJSM; cdvs = &curDS; cdMvs = &curDSM;
+    }
+    Double vp,vm;   //原币金额、本币金额
+    MoneyDirection dir;
+    //evs->remove(key); evMs->remove(key);eds->remove(key);
+    vp = cjvs->value(key) - cdvs->value(key);
+    if(mt != masterMt)
+        vm = cjMvs->value(key) - cdMvs->value(key);
+    if(vp > 0)
+        dir = MDIR_J;
+    else if(vp < 0){
+        dir = MDIR_D;
+        vp.changeSign();
+        vm.changeSign();
+    }
+    else
+        dir = MDIR_P;
+
+    if(dir == MDIR_P){ //本期借贷相抵（平），则余额值和方向同期初
+        (*evs)[key] = pvs->value(key);
+        (*eds)[key] = pds->value(key);
+        if(mt != masterMt)
+            (*evMs)[key] = pvMs->value(key)+vm;
+    }
+    else if(pds->value(key) == dir){ //本期发生额借贷方向与期初相同，则直接加到同一方向
+        (*evs)[key] = pvs->value(key) + vp;
+        (*eds)[key] = pds->value(key);
+        if(mt != masterMt)
+            (*evMs)[key] = pvMs->value(key) + vm;
+    }
+    else{
+        Double tvp,tvm;
+        bool isInSub;
+        //始终用借方去减贷方，如果值为正，则余额在借方，值为负，则余额在贷方
+        if(dir == MDIR_J){
+            tvp = vp - pvs->value(key); //借方（当前发生借贷相抵后） - 贷方（期初余额）
+            if(mt != masterMt)
+                tvm = vm - pvMs->value(key);
+        }
+        else{
+            tvp = pvs->value(key) - vp; //借方（期初余额） - 贷方（当前发生借贷相抵后）
+            if(mt != masterMt)
+                tvm = pvMs->value(key) - vm;
+        }
+        if(tvp > 0){ //余额在借方
+            //如果是收入类科目，要将它固定为贷方
+            if(smg->isSyClsSubject(sub->getId(),isInSub,isFst) && isInSub){
+                tvp.changeSign();
+                (*evs)[key] = tvp;
+                (*eds)[key] = MDIR_D;
+            }
+            else{
+                (*evs)[key] = tvp;
+                (*eds)[key] = MDIR_J;
+                if(mt != masterMt){
+                    (*evMs)[key] = tvm;
+                }
+            }
+        }
+        else if(tvp < 0){ //余额在贷方
+            //如果是费用类科目，要将它固定为借方
+            if(smg->isSyClsSubject(sub->getId(),isInSub,isFst) && !isInSub){
+                (*evs)[key] = tvp;
+                (*eds)[key] = MDIR_J;
+            }
+            else{
+                tvp.changeSign();
+                tvm.changeSign();
+                (*evs)[key] = tvp;
+                (*eds)[key] = MDIR_D;
+                if(mt != masterMt)
+                    (*evMs)[key] = tvm;
+            }
+        }
+        else{
+            (*evs)[key] = 0;
+            (*eds)[key] = MDIR_P;
+            if(mt != masterMt)
+                (*evMs)[key] = tvm;
+        }
+    }
+}
+
+/**
+ * @brief StatUtil::_inspectExtraException
+ *  重新计算指定科目的余额，并检测其余额是否异常
+ *  移除的余额：正向记账科目，余额方向为贷，反向记账科目，余额方向为借
+ * @param fsub
+ * @param ssub
+ * @param mt
+ */
+void StatUtil::_inspectExtraException(BusiAction* ba)
+{
+    FirstSubject* fsub = ba->getFirstSubject();
+    SecondSubject* ssub = ba->getSecondSubject();
+    Money* mt = ba->getMt();
+    int key_f = fsub->getId() * 10 + mt->code();
+    int key_s = ssub->getId() * 10 + mt->code();
+    bool r = false;
+    if(fsub->getJdDir()){   //正向记账科目
+        //余额方向必须在借方，且余额必须大于0
+        if((endFDir.value(key_f) == MDIR_D && endFExa.value(key_f) > 0.0) ||
+            (endFDir.value(key_f) == MDIR_J && endFExa.value(key_f) < 0.0))
+            r = true;
+        if((endSDir.value(key_s) == MDIR_D && endSExa.value(key_s) > 0.0) ||
+            (endSDir.value(key_s) == MDIR_J && endSExa.value(key_s) < 0.0))
+            r = true;
+    }
+    else{
+        //余额必须在贷方，且余额值必须大于0
+        if((endFDir.value(key_f) == MDIR_J && endFExa.value(key_f) > 0.0) ||
+            (endFDir.value(key_f) == MDIR_D && endFExa.value(key_f) < 0.0))
+            r = true;
+        if((endSDir.value(key_s) == MDIR_J && endSExa.value(key_s) > 0.0) ||
+            (endSDir.value(key_s) == MDIR_D && endSExa.value(key_s) < 0.0))
+            r = true;
+    }
+    if(r)
+        emit extraException(ba,endFExa.value(key_f), endFDir.value(key_f),endSExa.value(key_s),endSDir.value(key_s));
 }
 
 /**
@@ -601,3 +874,87 @@ void StatUtil::_calCurSumValue(bool isJ, bool isFst)
         (*sumvs)[sid] += v;
     }
 }
+
+/**
+ * @brief StatUtil::_removeExtraItem
+ *  移除指定键值的余额项（在涉及到币种更改后的余额重新计算时，要把先前保存在余额表中的项移除）
+ * @param key
+ */
+void StatUtil::_removeExtraItem(int key_f, int key_s)
+{
+    endFDir.remove(key_f);
+    endFExa.remove(key_f);
+    endFExaM.remove(key_f);
+    endSDir.remove(key_s);
+    endSExa.remove(key_s);
+    endSExaM.remove(key_s);
+}
+
+/**
+ * @brief StatUtil::_adjustExtra
+ *  增加或减少指定一二级科目统计金额，并重新计算余额
+ *  用用于分录的币种、方向等至少其中之一发生了变化的情况下
+ * @param fsub  一级科目id
+ * @param ssub  二级科目id
+ * @param mt    币种id
+ * @param v     调整金额
+ * @param dir   调整的方向
+ * @param add   true：增加（默认），false：减少
+ */
+void StatUtil::_adjustExtra(FirstSubject* fsub, SecondSubject* ssub, Money* mt, Double v, MoneyDirection dir,bool add)
+{
+    //增加或减少本期发生额部分
+    if(dir != MDIR_J && dir != MDIR_D)
+        return;
+    if(!fsub || !ssub || !mt || v==0.0)
+        return;
+    QHash<int,Double>* cfs,*cfms,*css,*csms; //本期发生值表（c：本期发生，f：一级科目，s：二级科目，m：本币值）
+    if(dir == MDIR_J){
+        cfs = &curJF;cfms = &curJFM;
+        css = &curJS;csms = &curJSM;
+    }
+    else{
+        cfs = &curDF;cfms = &curDFM;
+        css = &curDS;csms = &curDSM;
+    }
+    int key_f = fsub->getId() * 10 + mt->code();
+    int key_s = ssub->getId() * 10 + mt->code();
+    if(add){
+        (*cfs)[key_f] += v;
+        (*css)[key_s] += v;
+        if(mt != masterMt){
+            v *= rates.value(mt->code());
+            (*cfms)[key_f] += v;
+            (*csms)[key_s] += v;
+        }
+    }
+    else{
+        (*cfs)[key_f] -= v;
+        (*css)[key_s] -= v;
+        if(mt != masterMt){
+            v *= rates.value(mt->code());
+            (*cfms)[key_f] -= v;
+            (*csms)[key_s] -= v;
+        }
+        //考虑是否移除值为0的项
+    }
+    //重新计算余额
+    _calEndExtraForSingleSub(fsub,mt);
+    _calEndExtraForSingleSub(ssub,mt,false);
+}
+
+/**
+ * @brief StatUtil::_adjustDiffExtra
+ *  用于分录的币种和方向都未变，只是值发生变化的情况下，调整余额
+ * @param fsub
+ * @param ssub
+ * @param mt
+ * @param v
+ * @param dir
+ */
+//void StatUtil::_adjustDiffExtra(FirstSubject *fsub, SecondSubject *ssub, Money *mt, Double v, MoneyDirection dir)
+//{
+
+//}
+
+

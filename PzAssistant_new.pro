@@ -122,7 +122,8 @@ HEADERS  += \
     accountpropertyconfig.h \
     configvariablenames.h \
     suiteswitchpanel.h \
-    databaseaccessform.h
+    databaseaccessform.h \
+    keysequence.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

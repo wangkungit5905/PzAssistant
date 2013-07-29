@@ -1,6 +1,7 @@
 #include <QKeyEvent>
 #include <QBuffer>
 #include <QInputDialog>
+#include <QToolTip>
 
 #include "pzdialog.h"
 #include "cal.h"
@@ -11,6 +12,8 @@
 #include "PzSet.h"
 #include "statements.h"
 #include "completsubinfodialog.h"
+#include "statutil.h"
+#include "keysequence.h"
 
 #include "ui_pzdialog.h"
 #include "ui_historypzform.h"
@@ -34,7 +37,7 @@ BaTableWidget::BaTableWidget(QWidget *parent):QTableWidget(parent)
     lnItem = new QTableWidgetItem;
     lnItem->setFlags(falgs);
     sumTable->setItem(0,0,lnItem);
-    QTableWidgetItem* item = new QTableWidgetItem(tr("sum"));
+    QTableWidgetItem* item = new QTableWidgetItem(tr("合计"));
     item->setTextAlignment(Qt::AlignCenter);
     sumTable->setItem(0,1,item);
 
@@ -290,15 +293,18 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     msgTimer = new QTimer(this);
     msgTimer->setInterval(INFO_TIMEOUT);
     msgTimer->setSingleShot(true);
+    QDoubleValidator* validator = new QDoubleValidator(this);
+    validator->setDecimals(2);
+    ui->edtRate->setValidator(validator);
     connect(msgTimer, SIGNAL(timeout()),this,SLOT(msgTimeout()));
-
+    connect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
     if(!psm){
         LOG_ERROR("Ping Zheng Set object is NULL!");
         return;
     }
     connect(pzMgr,SIGNAL(pzCountChanged(int)),this,SLOT(updatePzCount(int)));
     //初始化快捷键
-    sc_copyprev = new QShortcut(QKeySequence("Alt+W"),this);
+    sc_copyprev = new QShortcut(QKeySequence(PZEDIT_COPYPREVROW),this);
     sc_save = new QShortcut(QKeySequence("Ctrl+s"),this);
     sc_copy = new QShortcut(QKeySequence("Ctrl+c"),this);
     sc_cut = new QShortcut(QKeySequence("Ctrl+x"),this);
@@ -332,6 +338,10 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     connect(ui->tview,SIGNAL(itemSelectionChanged()),this,SLOT(selectedRowChanged()));
     connect(pzMgr,SIGNAL(currentPzChanged(PingZheng*,PingZheng*)),this,SLOT(curPzChanged(PingZheng*,PingZheng*)));
     setMonth(month);
+    connect(pzMgr->getStatUtil(),SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
+            this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
+    connect(delegate,SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
+            this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
 }
 
 PzDialog::~PzDialog()
@@ -402,26 +412,21 @@ void PzDialog::setMonth(int month)
     ui->edtPzCount->setText(QString::number(pzMgr->getPzCount()));
     //显示本期汇率
     pzMgr->getRates(rates,month);
-    if(rates.isEmpty()){
+    if(rates.isEmpty())
         QMessageBox::warning(this,msgTitle_warning,tr("本期汇率未设值"));
-        return;
-    }
-    QHash<int, Money*> mts = account->getAllMoneys();
-    mts.remove(account->getMasterMt()->code());  //移除本币
-    QHashIterator<int,Double> it(rates);
     QVariant v;
-    while(it.hasNext()){
-        it.next();
-        Money* mt = mts.value(it.key());
+    foreach(Money* mt, account->getWaiMt()){
         v.setValue<Money*>(mt);
         ui->cmbMt->addItem(mt->name(),v);
     }
     ui->cmbMt->setCurrentIndex(0);
     connect(ui->cmbMt,SIGNAL(currentIndexChanged(int)),
             this,SLOT(moneyTypeChanged(int)));
-    moneyTypeChanged(0);
-    curPz = pzMgr->first();
+    if(ui->cmbMt->count() > 0)
+        moneyTypeChanged(0);
+    curPz = pzMgr->first();    
     refreshPzContent();
+    //delegate->watchExtraException();
 }
 
 /**
@@ -792,7 +797,7 @@ void PzDialog::addBa()
         return;
     curBa = new BusiAction;
     curBa->setParent(curPz);
-    curBa->setMt(account->getMasterMt());
+    curBa->setMt(account->getMasterMt(),0.0);
     AppendBaCmd* cmd = new AppendBaCmd(pzMgr,curPz,curBa);
     pzMgr->getUndoStack()->push(cmd);
     int rows = curPz->baCount();
@@ -822,14 +827,14 @@ void PzDialog::insertBa(BusiAction* ba)
     if(!ba){
         curBa = new BusiAction;
         curBa->setParent(curPz);
-        curBa->setMt(account->getMasterMt());
+        curBa->setMt(account->getMasterMt(),0.0);
     }
     else
         curBa = ba;
     InsertBaCmd* cmd = new InsertBaCmd(pzMgr,curPz,curBa,curRow);
     pzMgr->getUndoStack()->push(cmd);
     int rows = curPz->baCount();
-
+    ui->tview->insertRow(curRow);
     disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
     //ui->tview->setRowCount(rows+1);
     ui->tview->setValidRows(rows+1);
@@ -922,7 +927,9 @@ void PzDialog::msgTimeout()
  */
 void PzDialog::moneyTypeChanged(int index)
 {
+    //disconnect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
     ui->edtRate->setText(rates.value(ui->cmbMt->itemData(index).value<Money*>()->code()).toString());
+    //connect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
 }
 
 /**
@@ -1021,6 +1028,28 @@ void PzDialog::setPzState(PzState state)
 {
     ModifyPzVStateCmd* cmd = new ModifyPzVStateCmd(pzMgr,curPz,state);
     pzMgr->getUndoStack()->push(cmd);
+}
+
+/**
+ * @brief PzDialog::rateChanged
+ *  接收用户设定的汇率，并保存
+ */
+void PzDialog::rateChanged()
+{
+    if(ui->edtRate->text().isEmpty())
+        return;
+    Money* money = ui->cmbMt->itemData(ui->cmbMt->currentIndex()).value<Money*>();
+    if(!money)
+        return;
+    Double v = Double(ui->edtRate->text().toDouble());
+    if(v == rates.value(money->code()))
+        return;
+    if(QMessageBox::information(this,tr("提示信息"),tr("确定要修改汇率为“%1”吗？").arg(v.toString()),
+                                QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes){
+        rates[money->code()] = v;
+        if(!account->setRates(pzMgr->year(),pzMgr->month(), rates))
+            QMessageBox::critical(this,tr("出错信息"),tr("在保存%1年%2月的汇率时出错！"));
+    }
 }
 
 /**
@@ -1159,22 +1188,14 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
 
     if(!curBa)
         return;
-
-    QUndoCommand* mmd;
-    ModifyBaFSubMmd* mfCmd;
-    ModifyBaMtMmd* mmCmd;
+    ModifyMultiPropertyOnBa* multiCmd;
     ModifyBaSummaryCmd* scmd;
-    ModifyBaFSubCmd* fscmd;
-    ModifyBaSSubCmd* sscmd;
-    ModifyBaMtCmd*   mtcmd;
-    ModifyBaValueCmd* vcmd;
     FirstSubject* fsub;
     SecondSubject* ssub;
     Double v;
     Money* mt;
     MoneyDirection dir;
     BaUpdateColumns updateCols;
-    QVariant va;
 
     switch(col){
     case BT_SUMMARY:
@@ -1183,102 +1204,103 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         break;
     case BT_FSTSUB:
         fsub = item->data(Qt::EditRole).value<FirstSubject*>();
-        //ssub = ui->tview->item(row,BT_SNDSUB)->data(Qt::EditRole).value<SecondSubject*>();
-        mfCmd = new ModifyBaFSubMmd(tr("设置一级科目为“%1”（P%2B%3）").arg(fsub->getName())
-                .arg(curPz->number()).arg(curBa->getNumber()),
-                                    pzMgr,curPz,curBa,pzMgr->getUndoStack());
-        fscmd = new ModifyBaFSubCmd(pzMgr,curPz,curBa,fsub,mfCmd);
-        //如果一级科目是现金，则默认设置二级科目为账户的本币，如果是外币,要将币种也设为本币
-        //如果金额不为零还要调整金额
-        if(fsub == subMgr->getCashSub()){
-            ssub = fsub->getDefaultSubject();
-            sscmd = new ModifyBaSSubCmd(pzMgr,curPz,curBa,ssub,mfCmd);
-            updateCols |= BUC_SNDSUB;
-            mt = account->getMasterMt(); //本币
-            if(mt != curBa->getMt()){
-                mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,mt,mfCmd);
-                updateCols |= BUC_MTYPE;
-                dir = curBa->getDir();
-                if(dir == MDIR_J)
-                    v = ui->tview->item(row,BT_JV)->data(Qt::EditRole).toDouble();
+        ssub = fsub->getDefaultSubject();
+        updateCols |= BUC_FSTSUB;
+        updateCols |= BUC_SNDSUB;
+        //如果是银行科目（其二级科目决定了匹配的币种），则根据银行账户的货币属性设置当前的币种
+        if(fsub == subMgr->getBankSub()){
+            mt = subMgr->getSubMatchMt(ssub);
+            if(mt == curBa->getMt())
+                v = curBa->getValue();
+            else if(curBa->getMt()){
+                if(mt == account->getMasterMt())
+                    v = curBa->getValue() * rates.value(curBa->getMt()->code());
                 else
-                    v = ui->tview->item(row,BT_JV)->data(Qt::EditRole).toDouble();
-                if(v != 0){
-                    v = v * rates.value(curBa->getMt()->code());
-                    vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,dir,mfCmd);
-                    updateCols |= BUC_VALUE;
-                }
+                    v = curBa->getValue() / rates.value(mt->code());
+                updateCols |= BUC_MTYPE;
+                updateCols |= BUC_VALUE;
             }
+            else
+                updateCols |= BUC_MTYPE;
         }
-        //如果当前设置的二级科目不属于当前一级科目，则清空二级科目的设置
-        else if(!curBa->getSecondSubject() && !fsub->containChildSub(ssub)){
-            sscmd = new ModifyBaSSubCmd(pzMgr,curPz,curBa,NULL,mfCmd);
-            updateCols |= BUC_SNDSUB;
+        //如果新的一级科目使用外币，或者不使用外币且当前货币是本币，则无须调整币种和金额
+        else if(fsub->isUseForeignMoney() || (!fsub->isUseForeignMoney() && curBa->getMt() == account->getMasterMt())){
+            mt = curBa->getMt();
+            v = curBa->getValue();
         }
-
-        pzMgr->getUndoStack()->push(mfCmd);
+        else{
+            mt = account->getMasterMt();
+            v = rates.value(curBa->getMt()->code()) * curBa->getValue();
+            updateCols |= BUC_MTYPE;
+            updateCols |= BUC_VALUE;
+        }
+        multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir());
+        pzMgr->getUndoStack()->push(multiCmd);
         break;
     case BT_SNDSUB:
-        LOG_INFO("enter BaDataChanged() function case BT_SNDSUB !");
         if(isInteracting)
             return;
         fsub = curBa->getFirstSubject();
         ssub = item->data(Qt::EditRole).value<SecondSubject*>();
-        mmd = new QUndoCommand(tr("设置二级科目为“%1”（P%2B%3）")
-                               .arg(ssub->getName()).arg(curPz->number()).arg(curBa->getNumber()));
-        sscmd = new ModifyBaSSubCmd(pzMgr,curPz,curBa,ssub,mmd);
-
         //如果是银行科目，则根据银行账户所属的币种设置币种对象
         if(subMgr->getBankSub() == fsub){
             mt = subMgr->getSubMatchMt(ssub);
+            if(!mt)
+                break;
             if(mt != curBa->getMt()){
-                mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,mt,mmd);
+                if(mt != account->getMasterMt())
+                    v = curBa->getValue() / rates.value(mt->code());
+                else
+                    v = curBa->getValue() * rates.value(curBa->getMt()->code());
                 updateCols |= BUC_MTYPE;
-                //如果需要，当值不为0时，调整金额
-                //if(v != 0){
-                //    vcmd = new ModifyBaValueCmd(pzSet,curPz,curBa,v,mmd);
-                //}
             }
+            updateCols |= BUC_VALUE;
         }        
         else{//如果是普通科目，且未设币种，则默认将币种设为本币
             if(!curBa->getMt()){
-                mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,account->getMasterMt(),mmd);
+                mt = account->getMasterMt();
+                v = curBa->getValue();
                 updateCols |= BUC_MTYPE;
+                updateCols |= BUC_VALUE;
             }
+            else
+                mt = curBa->getMt();
         }
-        pzMgr->getUndoStack()->push(mmd);
+        multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir());
+        pzMgr->getUndoStack()->push(multiCmd);
         break;
     case BT_MTYPE:
         mt = item->data(Qt::EditRole).value<Money*>();
-        dir = curBa->getDir();
-        mmCmd = new ModifyBaMtMmd(tr("设置币种为“%1”（P%2B%3）").arg(mt->name()).arg(curPz->number())
-                                    .arg(curBa->getNumber()),pzMgr,curPz,curBa,pzMgr->getUndoStack());
-        mtcmd = new ModifyBaMtCmd(pzMgr,curPz,curBa,mt,mmCmd);
+        updateCols |= BUC_MTYPE;
         //如果金额为0，则不必调整金额，否则，必须调整金额
         if(curBa->getValue() != 0){
             //如果从外币转到本币
-            if(mt == account->getMasterMt())//
+            if(mt == account->getMasterMt())
                 v = curBa->getValue() * rates.value(curBa->getMt()->code());
             //从甲外币转到乙外币（先将甲外币转到本币，再转到乙外币）
             else if(mt != account->getMasterMt() && curBa->getMt() != account->getMasterMt())
                 v = curBa->getValue() * rates.value(curBa->getMt()->code()) / rates.value(mt->code());
             else   //从本币转到外币
                 v = curBa->getValue() / rates.value(mt->code());
-            vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,dir,mmCmd);
             updateCols |= BUC_VALUE;
         }
-        pzMgr->getUndoStack()->push(mmCmd);
+        else
+            v = 0.0;
+        multiCmd = new ModifyMultiPropertyOnBa(curBa,curBa->getFirstSubject(),curBa->getSecondSubject(),mt,v,curBa->getDir());
+        pzMgr->getUndoStack()->push(multiCmd);
         break;
     case BT_JV:
         v = item->data(Qt::EditRole).value<Double>();
-        vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,MDIR_J);
-        pzMgr->getUndoStack()->push(vcmd);
+        dir = MDIR_J;
+        multiCmd = new ModifyMultiPropertyOnBa(curBa,curBa->getFirstSubject(),curBa->getSecondSubject(),curBa->getMt(),v,dir);
+        pzMgr->getUndoStack()->push(multiCmd);
         updateCols |= BUC_VALUE;
         break;
     case BT_DV:
         v = item->data(Qt::EditRole).value<Double>();
-        vcmd = new ModifyBaValueCmd(pzMgr,curPz,curBa,v,MDIR_D);
-        pzMgr->getUndoStack()->push(vcmd);
+        dir = MDIR_D;
+        multiCmd = new ModifyMultiPropertyOnBa(curBa,curBa->getFirstSubject(),curBa->getSecondSubject(),curBa->getMt(),v,dir);
+        pzMgr->getUndoStack()->push(multiCmd);
         updateCols |= BUC_VALUE;
         break;
     }
@@ -1414,7 +1436,28 @@ void PzDialog::tabRowHeightResized(int index, int oldSize, int newSize)
     for(int i = 0; i < ui->tview->rowCount(); ++i)
         ui->tview->setRowHeight(i,newSize);
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
-                   this,SLOT(tabRowHeightResized(int,int,int)));
+            this,SLOT(tabRowHeightResized(int,int,int)));
+}
+
+/**
+ * @brief PzDialog::extraException
+ *  当前凭证集余额产生异常（一般指余额违反了科目的通用约定，比如银行的余额通常在借方）
+ * @param ba    引起余额变化的分录对象
+ * @param fv    一级科目余额
+ * @param fd    一级科目余额方向
+ * @param sv    二级科目余额
+ * @param sd    二级科目余额方向
+ */
+void PzDialog::extraException(BusiAction *ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd)
+{
+    //点击消息框关闭后，要引起崩溃，拟通过其他的方式来提示
+    QString info = tr("科目“%1-%2”的余额发生异常！--一级科目余额：%3（%4）--二级科目余额：%5（%6）")
+                                     .arg(ba->getFirstSubject()->getName())
+                                     .arg(ba->getSecondSubject()->getName())
+                                     .arg(fv.toString2()).arg(fd==MDIR_J?tr("借"):tr("贷"))
+                                     .arg(sv.toString2()).arg(sd==MDIR_J?tr("借"):tr("贷"));
+//    QMessageBox::warning(this,tr("警告信息"),info);
+    emit showMessage(info,AE_WARNING);
 }
 
 /**
@@ -1586,15 +1629,16 @@ void PzDialog::updateBas(int row, int rows, BaUpdateColumns col)
     //更新所有列
     if(col.testFlag(BUC_ALL)){
         for(int i = row; i < row+rows; ++i){
-            ui->tview->item(i,BT_SUMMARY)->setData(Qt::EditRole,curPz->getBusiAction(i)->getSummary());
-            v.setValue(curPz->getBusiAction(i)->getFirstSubject());
+            BusiAction* ba = curPz->getBusiAction(i);
+            ui->tview->item(i,BT_SUMMARY)->setData(Qt::EditRole,ba->getSummary());
+            v.setValue(ba->getFirstSubject());
             ui->tview->item(i,BT_FSTSUB)->setData(Qt::EditRole,v);
-            v.setValue(curPz->getBusiAction(i)->getSecondSubject());
+            v.setValue(ba->getSecondSubject());
             ui->tview->item(i,BT_SNDSUB)->setData(Qt::EditRole,v);
-            v.setValue(curPz->getBusiAction(i)->getMt());
+            v.setValue(ba->getMt());
             ui->tview->item(i,BT_MTYPE)->setData(Qt::EditRole,v);
-            v.setValue(curPz->getBusiAction(i)->getValue());
-            if(curPz->getBusiAction(i)->getDir() == DIR_J){
+            v.setValue(ba->getValue());
+            if(ba->getDir() == DIR_J){
                 ui->tview->item(i,BT_JV)->setData(Qt::EditRole,v);
                 ui->tview->item(i,BT_DV)->setData(Qt::EditRole,0);
             }

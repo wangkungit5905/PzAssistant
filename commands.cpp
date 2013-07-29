@@ -499,7 +499,7 @@ void ModifyBaSSubCmd::redo()
 //}
 
 ////////////////////////////////ModifyBaMtCmd////////////////////////////////////
-ModifyBaMtCmd::ModifyBaMtCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, Money *mt, QUndoCommand *parent)
+ModifyBaMtCmd::ModifyBaMtCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, Money *mt, Double v, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
 {
     setText(QObject::tr("设置币种为“%1”（P%2B%3）() of money type to '' in PingZheng(#)")
@@ -507,18 +507,19 @@ ModifyBaMtCmd::ModifyBaMtCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction 
     oldMt = ba->getMt();
     newMt = mt;
     oldValue = ba->getValue();
+    newValue = v;
 }
 
 void ModifyBaMtCmd::undo()
 {
-    ba->setMt(oldMt);
+    ba->setMt(oldMt,oldValue);
     pm->setCurPz(pz);
     pz->setCurBa(ba);
 }
 
 void ModifyBaMtCmd::redo()
 {
-    ba->setMt(newMt);
+    ba->setMt(newMt,newValue);
     pm->setCurPz(pz);
     pz->setCurBa(ba);
 }
@@ -892,6 +893,38 @@ void ModifyBaSndSubNSMmd::redo()
 
 /////////////////////////////////////////////////////////////////
 
+
+ModifyMultiPropertyOnBa::ModifyMultiPropertyOnBa(BusiAction *ba, FirstSubject *fsub, SecondSubject *ssub, Money *mt, Double v, MoneyDirection dir,QUndoCommand* parent)
+    :QUndoCommand(parent),ba(ba),newFSub(fsub),newSSub(ssub),newMt(mt),newValue(v),newDir(dir)
+{
+    oldFSub = ba->getFirstSubject();
+    oldSSub = ba->getSecondSubject();
+    oldMt = ba->getMt();
+    oldValue = ba->getValue();
+    oldDir = ba->getDir();
+    QString info;
+    if(oldFSub != newFSub)
+        info.append(QObject::tr("一级科目：%1，").arg(newFSub?newFSub->getName():""));
+    if(oldSSub != newSSub)
+        info.append(QObject::tr("二级科目：%1，").arg(newSSub?newSSub->getName():""));
+    if(oldMt != newMt)
+        info.append(QObject::tr("币种：%1，").arg(newMt?newMt->name():""));
+    if(oldValue != newValue)
+        info.append(QObject::tr("金额：%1，").arg(newValue.toString2()));
+    if(oldDir != newDir)
+        info.append(QObject::tr("方向：%1，").arg(newDir==MDIR_J?QObject::tr("借"):QObject::tr("贷")));
+    setText(QObject::tr("修改分录对象（%1）").arg(info));
+}
+
+void ModifyMultiPropertyOnBa::undo()
+{
+    ba->integratedSetValue(oldFSub,oldSSub,oldMt,oldValue,oldDir);
+}
+
+void ModifyMultiPropertyOnBa::redo()
+{
+    ba->integratedSetValue(newFSub,newSSub,newMt,newValue,newDir);
+}
 
 
 

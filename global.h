@@ -75,6 +75,7 @@ extern int  timeoutOfTemInfo; //在状态条上显示临时信息的超时时间
 extern bool viewHideColInDailyAcc1; //是否在日记账表格中显示隐藏列（包括对方科目、结算号等）
 extern bool viewHideColInDailyAcc2; //是否在日记账表格中显示隐藏列（包括凭证id、会计分录id等）
 extern double czRate;               //固定资产折旧残值率
+extern bool rt_update_extra;        //是否实时更新余额
 
 //应用程序剪贴板功能有关的全局标量
 extern ClipboardOperate copyOrCut;                       //剪贴板存放到业务活动是复制还是剪切到（true：复制）

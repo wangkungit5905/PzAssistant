@@ -103,30 +103,32 @@ void SuiteSwitchPanel::openBtnClicked(bool checked)
     QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
     AccountSuiteManager* curSuite = account->getPzSet(asr->id);
     if(curSuite->isOpened()){
-        int preOpedMonth = curSuite->month();
+        int preOpenedMonth = curSuite->month();
         if(curSuite->isDirty())
             curSuite->save();
-        emit prepareClosePzSet(curSuite,preOpedMonth);
+        emit prepareClosePzSet(curSuite,preOpenedMonth);
         curSuite->close();
-        emit pzsetClosed(curSuite,preOpedMonth);
-        int row = preOpedMonth - curSuite->getSuiteRecord()->startMonth;
-        QToolButton* btn = static_cast<QToolButton*>(tw->cellWidget(row,COL_OPEN));
-        if(btn){
-            btn->setChecked(false);
-            setBtnIcon(btn,false);
+        emit pzsetClosed(curSuite,preOpenedMonth);
+        if(preOpenedMonth != month){
+            int row = preOpenedMonth - curSuite->getSuiteRecord()->startMonth;
+            QToolButton* btn = static_cast<QToolButton*>(tw->cellWidget(row,COL_OPEN));
+            if(btn){
+                btn->setChecked(!btn->isChecked());
+                setBtnIcon(btn,btn->isChecked());
+            }
         }
-        if(preOpedMonth == month)
-            return;
     }
     QToolButton* btn = qobject_cast<QToolButton*>(sender());
     if(btn){
-        //bool opened = btn->arrowType()==Qt::LeftArrow;
         setBtnIcon(btn,checked);
-        if(!curSuite->open(month)){
-            QMessageBox::critical(this,tr("出错信息"),tr("打开%1年%2月凭证集时发生错误！").arg(asr->year).arg(month));
-            return;
-        }
-        emit pzSetOpened(curSuite,month);
+        if(checked){
+            if(!curSuite->open(month)){
+                QMessageBox::critical(this,tr("出错信息"),tr("打开%1年%2月凭证集时发生错误！").arg(asr->year).arg(month));
+                return;
+            }
+            else
+                emit pzSetOpened(curSuite,month);
+        }        
     }
 }
 
@@ -244,7 +246,7 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAnd
     btn->setCheckable(true);
     setBtnIcon(btn,false);
     tw->setCellWidget(row,COL_OPEN,btn);
-    connect(btn,SIGNAL(toggled(bool)),this,SLOT(openBtnClicked(bool)));
+    connect(btn,SIGNAL(clicked(bool)),this,SLOT(openBtnClicked(bool)));
 }
 
 /**

@@ -48,7 +48,7 @@ class BusiAction : public QObject{
     Q_PROPERTY(QString Summary READ getSummary WRITE setSummary)
     Q_PROPERTY(FirstSubject* FirstSubject READ getFirstSubject WRITE setFirstSubject)
     Q_PROPERTY(SecondSubject* SecondSubject READ getSecondSubject WRITE setSecondSubject)
-    Q_PROPERTY(Money* MoneyType READ getMt WRITE setMt)
+    Q_PROPERTY(Money* MoneyType READ getMt/* WRITE setMt*/)
     Q_PROPERTY(Double Value READ getValue WRITE setValue /*NOTIFY valueOrDirChanged*/)
     Q_PROPERTY(MoneyDirection Dir READ getDir WRITE setDir)
 
@@ -58,6 +58,8 @@ public:
     ~BusiAction(){}
     BusiAction(int id,PingZheng* p,QString summary,FirstSubject* fsub,SecondSubject* ssub,
                Money* mt,MoneyDirection dir,Double v,int num);
+
+    void integratedSetValue(FirstSubject* fsub,SecondSubject* ssub,Money* mt,Double v,MoneyDirection dir);
 
     long getMd(){return md;}
     int getId(){return id;}
@@ -70,7 +72,7 @@ public:
     SecondSubject* getSecondSubject(){return ssub;}
     void setSecondSubject(SecondSubject* ssub);
     Money* getMt() const{return mt;}
-    void setMt(Money* mt);
+    void setMt(Money* mt, Double v);
     Double getValue() const{return v;}
     void setValue(Double value);
     MoneyDirection getDir() const{return dir;}
@@ -89,8 +91,9 @@ public:
     bool operator !=(const BusiAction& other){return (md != other.md);}
 
 signals:
-    void dirChanged(MoneyDirection oldDir,MoneyDirection newDir,BusiAction* ba);
-    void valueChanged(Money* oldMt,Money* newMt,Double &oldValue,Double &newValue,BusiAction* ba);
+    //void dirChanged(MoneyDirection oldDir,BusiAction* ba);
+    void valueChanged(Money* oldMt,Double &oldValue,MoneyDirection oldDir,BusiAction* ba);
+    void subChanged(FirstSubject* oldFSub, SecondSubject* oldSSub, Money* oldMt, Double oldValue, BusiAction* ba);
 
 private:
     long md;          //表证该对象的魔术字
@@ -109,6 +112,7 @@ private:
     friend class PingZheng;
     friend class AccountSuiteManager;
     friend class DbUtil;
+    //friend class ModifyMultiPropertyOnBa;
 };
 
 //指示凭证对象的哪个属性值被修改的标记
@@ -196,10 +200,10 @@ public:
     void setCurBa(BusiAction* ba){curBa = ba;}   //设置凭证的当前会计分录
     BusiAction* getBusiAction(int n);
     BusiAction* appendBlank();
-    BusiAction* append(QString summary,FirstSubject* fsub, SecondSubject* ssub, Money* mt, MoneyDirection dir, Double v);
+    //BusiAction* append(QString summary,FirstSubject* fsub, SecondSubject* ssub, Money* mt, MoneyDirection dir, Double v);
     bool append(BusiAction* ba, bool isUpdate = true);
     bool insert(int index, BusiAction *ba);
-    bool remove(int index);
+    //bool remove(int index);
     bool remove(BusiAction* ba);
     bool restore(BusiAction* ba);
     BusiAction* take(int index);
@@ -223,17 +227,28 @@ public:
     bool operator !=(PingZheng& other){return md != other.md;}
 
 private slots:
-    void adjustSumForDirChanged(MoneyDirection oldDir,MoneyDirection newDir,BusiAction* ba);
-    void adjustSumForValueChanged(Money* oldMt,Money* newMt,Double &oldValue,Double &newValue,BusiAction* ba);
+    //void adjustSumForDirChanged(MoneyDirection oldDir,BusiAction* ba);
+    void adjustSumForValueChanged(Money* oldMt,Double &oldValue,MoneyDirection oldDir, BusiAction* ba);
+    void subChanged(FirstSubject* oldFSub, SecondSubject* oldSSub, Money* oldMt, Double oldValue, BusiAction *ba);
 signals:
     void updateBalanceState(bool balance); //更新凭证的借贷平衡状态
     void mustRestat();          //告诉父对象，由于其包含的分录发生了影响统计结果的改变
     void pzContentChanged(PingZheng* pz); //凭证内容的任何改变都将触发
     void indexBoundaryChanged(bool first, bool last);
     void pzStateChanged(PzState oldState, PzState newState);
+
+    //由statUtil类监视的信号
+    void addOrDelBa(BusiAction* ba, bool add); //增加或移除分录（当需要针对单一科目、币种组合需要进行重新统计时触发，比如分录的金额不为0，就要对分录涉及的科目和币种组合进行统计）
+
+    //把这4个信号整合为2个，值改变和科目改变
+    void subChangedOnBa(BusiAction* ba, FirstSubject* oldFSub, SecondSubject* oldSSub, Money* oldMt, Double oldValue); //分录的科目设置改变
+    void valueChangedOnBa(BusiAction* ba, Money* oldMt,Double &oldValue,MoneyDirection oldDir);  //分录的值改变
+    //void mtChangedOnBa(BusiAction* ba, Money* oldMt); //分录的币种改变
+    //void dirChangedOnBa(BusiAction* ba, MoneyDirection od); //分录的方向改变
 private:
     bool hasBusiAction(BusiAction* ba);
     void calSum();
+    void _recalSumForValueChanged(Money* oldMt,Double &oldValue,MoneyDirection oldDir, BusiAction* ba);
     void adjustSumForBaChanged(BusiAction* ba, bool add = true);
     void watchBusiaction(BusiAction* ba, bool isWatch=true);
 private:

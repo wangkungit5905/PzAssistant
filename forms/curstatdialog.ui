@@ -249,19 +249,19 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="btnClose">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
+        <widget class="QPushButton" name="btnRefresh">
          <property name="text">
-          <string>确定</string>
+          <string>刷新</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="btnCancel">
+        <widget class="QPushButton" name="btnClose">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
          <property name="text">
-          <string>取消</string>
+          <string>关闭</string>
          </property>
         </widget>
        </item>

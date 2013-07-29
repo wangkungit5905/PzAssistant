@@ -396,17 +396,15 @@ private:
 class ModifyBaMtCmd : public QUndoCommand
 {
 public:
-    ModifyBaMtCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, Money* mt, QUndoCommand* parent = 0);
+    ModifyBaMtCmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, Money* mt, Double v, QUndoCommand* parent = 0);
     void undo();
     void redo();
 private:
     AccountSuiteManager* pm;     //凭证集
     PingZheng* pz;    //凭证对象
     BusiAction* ba;
-    Money* newMt;
-    Money* oldMt;
-    Double oldValue;
-
+    Money *newMt,*oldMt;
+    Double newValue,oldValue;
     friend class ModifyBaMtMmd;
 };
 
@@ -610,6 +608,25 @@ private:
     BusiAction* ba;
     QString sname,lname,remCode;
     int nameCls;
+};
+
+/**
+ * @brief The ModifyMultiPropertyOnBa class
+ *  一次修改多个会计分录对象的属性
+ */
+class ModifyMultiPropertyOnBa : public QUndoCommand
+{
+public:
+    ModifyMultiPropertyOnBa(BusiAction* ba, FirstSubject* fsub, SecondSubject* ssub, Money* mt, Double v, MoneyDirection dir,QUndoCommand* parent=0);
+    void undo();
+    void redo();
+private:
+    BusiAction* ba;
+    FirstSubject* oldFSub, *newFSub;
+    SecondSubject* oldSSub,*newSSub;
+    Money* oldMt,*newMt;
+    Double oldValue,newValue;
+    MoneyDirection oldDir,newDir;
 };
 
 

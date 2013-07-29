@@ -47,7 +47,7 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     ui->cmbSndSub->setCompleter(scom);
 
     setState(sinfo);
-    stat(statUtil);
+    stat();
 }
 
 CurStatDialog::~CurStatDialog()
@@ -246,7 +246,7 @@ QByteArray *CurStatDialog::getState()
     return info;
 }
 
-void CurStatDialog::stat(StatUtil* statUtil)
+void CurStatDialog::stat()
 {
     if(!statUtil->stat()){
         QMessageBox::critical(this,tr("错误提示"),tr("在进行本期统计时发生错误！"));
@@ -271,7 +271,6 @@ void CurStatDialog::save()
     }
     //emit pzsExtraSaved();
     ui->btnSave->setEnabled(false);
-    ui->btnCancel->setEnabled(false);
     ui->btnClose->setEnabled(true);
 }
 
@@ -1029,4 +1028,21 @@ void CurStatDialog::on_actToExcel_triggered()
 void CurStatDialog::on_btnSave_clicked()
 {
     save();
+}
+
+/**
+ * @brief CurStatDialog::on_btnRefresh_clicked
+ *  重新统计，并刷新显示
+ */
+void CurStatDialog::on_btnRefresh_clicked()
+{
+    stat();
+}
+
+void CurStatDialog::on_btnClose_clicked()
+{
+    //应根据余额是否改变，而提示用户是否保存余额（这个可通过询问凭证集管理对象或统计实用对象）
+    MyMdiSubWindow* w = static_cast<MyMdiSubWindow*>(parent());
+    if(w)
+        w->close();
 }

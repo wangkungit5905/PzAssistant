@@ -13,9 +13,12 @@
 #include "logs/Logger.h"
 #include "subject.h"
 #include "statements.h"
+#include "keysequence.h"
+#include "PzSet.h"
+#include "statutil.h"
 
 
-////////////////////////////SummaryEdit2/////////////////////////
+////////////////////////////SummaryEdit/////////////////////////
 SummaryEdit::SummaryEdit(int row,int col,QWidget* parent) : QLineEdit(parent)
 {
     this->row = row;
@@ -23,7 +26,8 @@ SummaryEdit::SummaryEdit(int row,int col,QWidget* parent) : QLineEdit(parent)
     oppoSubject = 0;
     connect(this, SIGNAL(returnPressed()),
             this, SLOT(summaryEditingFinished())); //输入焦点自动转移到右边一列
-    shortCut = new QShortcut(QKeySequence(tr("Alt+W")),this);
+    shortCut = new QShortcut(QKeySequence(PZEDIT_COPYPREVROW_2),this);
+    //shortCut->setContext(Qt::WidgetShortcut);
     //shortCut = new QShortcut(QKeySequence(tr("Ctrl+=")),this,0,0,Qt::WidgetShortcut);
     //shortCut = new QShortcut(QKeySequence(tr("Ctrl+P")),this);
     connect(shortCut,SIGNAL(activated()),this,SLOT(shortCutActivated()));
@@ -1282,6 +1286,7 @@ ActionEditItemDelegate::ActionEditItemDelegate(SubjectManager *subMgr, QObject *
     QItemDelegate(parent),subMgr(subMgr)
 {
     isReadOnly = false;
+    statUtil = NULL;
 }
 
 //设置其代理的表格项的只读模式（这个函数用于支持表格的只读模式）
@@ -1331,7 +1336,21 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
             return editor;
         }
         else if(col == BT_MTYPE){ //币种列
-            QHash<int, Money*> mts = subMgr->getAccount()->getAllMoneys();
+            QHash<int, Money*> mts;
+            FirstSubject* fsub = index.model()->data(index.model()->index(row,BT_FSTSUB),Qt::EditRole).value<FirstSubject*>();
+            if(!fsub || !fsub->isUseForeignMoney()){
+                Money* mmt = subMgr->getAccount()->getMasterMt();
+                mts[mmt->code()] = mmt;
+            }
+            else if(fsub && fsub == subMgr->getBankSub()){
+                SecondSubject* ssub = index.model()->data(index.model()->index(row,BT_SNDSUB),Qt::EditRole).value<SecondSubject*>();
+                if(ssub){
+                    Money* mt = subMgr->getSubMatchMt(ssub);
+                    mts[mt->code()] = mt;
+                }
+            }
+            else
+                mts = subMgr->getAccount()->getAllMoneys();
             MoneyTypeComboBox* editor = new MoneyTypeComboBox(mts, parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
@@ -1545,6 +1564,11 @@ void ActionEditItemDelegate::catchCopyPrevShortcut(int row, int col)
     emit reqCopyPrevAction(row);
 }
 
+//void ActionEditItemDelegate::cachedExtraException(BusiAction *ba, Double fv, MoneyDirection fd, Double sv, MoneyDirection sd)
+//{
+//    emit extraException(ba,fv,fd,sv,sd);
+//}
+
 void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
          const QStyleOptionViewItem &option, const QModelIndex& index) const
 {
@@ -1556,6 +1580,16 @@ void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
 
     editor->setGeometry(rect);
 }
+
+//void ActionEditItemDelegate::watchExtraException()
+//{
+//    if(!statUtil){
+//        AccountSuiteManager* pzMgr = subMgr->getAccount()->getPzSet();
+//        statUtil = pzMgr->getStatUtil();
+//        connect(statUtil,SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
+//                this,SLOT(cachedExtraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
+//    }
+//}
 
 ///////////////////////////////FSubSelectCmb/////////////////////////////////////////////////////////
 FSubSelectCmb::FSubSelectCmb(SubjectManager *smg, QWidget *parent):QComboBox(parent)

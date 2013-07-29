@@ -60,6 +60,7 @@ ClipboardOperate copyOrCut;
 QList<BusiActionData2*> clbBaList;
 QList<BusiAction*> clb_Bas;
 double czRate;
+bool rt_update_extra;
 
 /**
  * @brief appInit

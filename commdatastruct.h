@@ -82,7 +82,8 @@ enum FirstSubjectEditState{
     ES_FS_NAME      = 0x80,     //科目名称
     ES_FS_DESC      = 0x100,    //简要描述
     ES_FS_USAGE     = 0x200,    //用例说明
-    ES_FS_CHILD     = 0x400     //从属的二级科目
+    ES_FS_CHILD     = 0x400,    //从属的二级科目
+    ES_FS_DEFSUB    = 0x800     //默认二级科目
 };
 Q_DECLARE_FLAGS(FirstSubjectEditStates, FirstSubjectEditState)
 Q_DECLARE_OPERATORS_FOR_FLAGS(FirstSubjectEditStates)

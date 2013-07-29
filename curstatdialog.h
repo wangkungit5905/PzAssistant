@@ -61,7 +61,7 @@ public:
     ~CurStatDialog();
     void setState(QByteArray* info);
     QByteArray* getState();
-    void stat(StatUtil *statUtil);
+    void stat();
 
 public slots:
     void save();
@@ -82,6 +82,10 @@ private slots:
     void on_actToExcel_triggered();
 
     void on_btnSave_clicked();
+
+    void on_btnRefresh_clicked();
+
+    void on_btnClose_clicked();
 
 signals:
     void infomation(QString info);       //向主窗口发送要在状态条上显示的信息

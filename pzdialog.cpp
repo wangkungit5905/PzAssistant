@@ -297,7 +297,7 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     validator->setDecimals(2);
     ui->edtRate->setValidator(validator);
     connect(msgTimer, SIGNAL(timeout()),this,SLOT(msgTimeout()));
-    connect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
+    //connect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
     if(!psm){
         LOG_ERROR("Ping Zheng Set object is NULL!");
         return;
@@ -342,6 +342,11 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
             this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
     connect(delegate,SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
             this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
+
+    actModifyRate = new QAction(tr("修改汇率"),this);
+    ui->edtRate->setContextMenuPolicy(Qt::ActionsContextMenu);
+    ui->edtRate->addAction(actModifyRate);
+    connect(actModifyRate,SIGNAL(triggered()),this,SLOT(modifyRate()));
 }
 
 PzDialog::~PzDialog()
@@ -1032,25 +1037,12 @@ void PzDialog::setPzState(PzState state)
 
 /**
  * @brief PzDialog::rateChanged
- *  接收用户设定的汇率，并保存
+ *
  */
-void PzDialog::rateChanged()
-{
-    if(ui->edtRate->text().isEmpty())
-        return;
-    Money* money = ui->cmbMt->itemData(ui->cmbMt->currentIndex()).value<Money*>();
-    if(!money)
-        return;
-    Double v = Double(ui->edtRate->text().toDouble());
-    if(v == rates.value(money->code()))
-        return;
-    if(QMessageBox::information(this,tr("提示信息"),tr("确定要修改汇率为“%1”吗？").arg(v.toString()),
-                                QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes){
-        rates[money->code()] = v;
-        if(!account->setRates(pzMgr->year(),pzMgr->month(), rates))
-            QMessageBox::critical(this,tr("出错信息"),tr("在保存%1年%2月的汇率时出错！"));
-    }
-}
+//void PzDialog::rateChanged()
+//{
+
+//}
 
 /**
  * @brief PzDialog::updatePzCount
@@ -1461,6 +1453,33 @@ void PzDialog::extraException(BusiAction *ba,Double fv, MoneyDirection fd, Doubl
 }
 
 /**
+ * @brief PzDialog::modifyRate
+ *  接收用户设定的汇率，并保存
+ */
+void PzDialog::modifyRate()
+{
+    if(pzMgr->getState() == Ps_Jzed)
+        return;
+    Money* money = ui->cmbMt->itemData(ui->cmbMt->currentIndex()).value<Money*>();
+    if(!money)
+        return;
+    double oldRate = ui->edtRate->text().toDouble();
+    bool ok;
+    double newRate = QInputDialog::getDouble(this,tr("信息录入"),tr("请输入新的%1年%2月的汇率").arg(pzMgr->year()).arg(pzMgr->month()),
+                                             oldRate,0,100,2,&ok);
+    if(!ok)
+        return;
+    Double rate = Double(newRate);
+    if(rates.value(money->code()) == rate)
+        return;
+    rates[money->code()] = rate;
+    ui->edtRate->setText(rate.toString());
+    if(!account->setRates(pzMgr->year(),pzMgr->month(), rates))
+        QMessageBox::critical(this,tr("出错信息"),tr("在保存%1年%2月的汇率时出错！"));
+}
+
+
+/**
  * @brief PzDialog::adjustTableSize
  * 调整表格的行高和列宽
  */
@@ -1550,7 +1569,12 @@ void PzDialog::refreshActions()
 
     disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
     ui->tview->clearContents();
-    ui->tview->setRowCount(MAXROWS);
+    int maxRows;
+    if(curPz->baCount() >= BA_TABLE_MAXROWS)
+        maxRows = curPz->baCount()+10;
+    else
+        maxRows = BA_TABLE_MAXROWS;
+    ui->tview->setRowCount(maxRows);
     ui->tview->setValidRows(curPz->baCount()+1);
     //ui->tview->setRowCount(curPz->baCount()+1);
     int i = 0;

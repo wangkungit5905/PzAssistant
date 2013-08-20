@@ -62,8 +62,9 @@ public:
     bool getSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem*>& cfgs);
     bool setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs);
 
+
     //账户信息相关
-    bool readAccBriefInfo(AccountBriefInfo& info);
+    //bool readAccBriefInfo(AccountBriefInfo& info);
     bool initAccount(Account::AccountInfo &infos);
     bool initSuites(QList<AccountSuiteRecord*> &suites);
     bool saveAccountInfo(Account::AccountInfo &infos);

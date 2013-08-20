@@ -42,7 +42,11 @@
         <widget class="QComboBox" name="cmbMt"/>
        </item>
        <item>
-        <widget class="QLineEdit" name="edtRate"/>
+        <widget class="QLineEdit" name="edtRate">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>

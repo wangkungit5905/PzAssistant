@@ -21,6 +21,25 @@ SuiteSwitchPanel::~SuiteSwitchPanel()
     delete ui;
 }
 
+/**
+ * @brief SuiteSwitchPanel::setJzState
+ *  设置指定账套的指定月份是否结账（这通常是由于用户选择结账或反结账菜单项后引起，适时调整账套面板的按钮图标）
+ *  当结账后只可历史凭证方式浏览，反结账后，可以编辑方式浏览
+ * @param sm
+ * @param month
+ * @param jzed
+ */
+void SuiteSwitchPanel::setJzState(AccountSuiteManager *sm, int month, bool jzed)
+{
+    QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
+    int row = month - sm->getSuiteRecord()->startMonth;
+    QToolButton* btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_VIEW));
+    if(btn){
+        btn->setIcon(jzed?icon_lookup:icon_edit);
+        btn->setToolTip(jzed?tr("查看"):tr("编辑"));
+    }
+}
+
 void SuiteSwitchPanel::curSuiteChanged(QListWidgetItem *current, QListWidgetItem *previous)
 {
     if(previous)

@@ -52,8 +52,8 @@
     <addaction name="actAccProperty"/>
     <addaction name="actDelAcc"/>
     <addaction name="actRefreshActInfo"/>
-    <addaction name="actImpActFromFile"/>
-    <addaction name="actEmpActToFile"/>
+    <addaction name="actInAccount"/>
+    <addaction name="actEmpAccount"/>
     <addaction name="separator"/>
     <addaction name="actPrint"/>
     <addaction name="actExit"/>
@@ -235,8 +235,8 @@
    <addaction name="actCrtAccount"/>
    <addaction name="actOpenAccount"/>
    <addaction name="actCloseAccount"/>
-   <addaction name="actImpActFromFile"/>
-   <addaction name="actEmpActToFile"/>
+   <addaction name="actInAccount"/>
+   <addaction name="actEmpAccount"/>
    <addaction name="actAccProperty"/>
    <addaction name="actSuite"/>
    <addaction name="separator"/>
@@ -375,34 +375,34 @@
     <string>重新载入保存在本地的账户</string>
    </property>
   </action>
-  <action name="actImpActFromFile">
+  <action name="actInAccount">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="icon">
     <iconset resource="../imgers.qrc">
      <normaloff>:/images/acc_export.png</normaloff>:/images/acc_export.png</iconset>
    </property>
    <property name="text">
-    <string>附加账户</string>
+    <string>转入账户</string>
    </property>
    <property name="toolTip">
-    <string>将账户信息读入基本库，并从选定位置拷贝账户数据库文件到标准目录下</string>
+    <string>将指定账户文件转入当前主机以便编辑或查看</string>
    </property>
   </action>
-  <action name="actEmpActToFile">
+  <action name="actEmpAccount">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="icon">
     <iconset resource="../imgers.qrc">
      <normaloff>:/images/acc_import.png</normaloff>:/images/acc_import.png</iconset>
    </property>
    <property name="text">
-    <string>分离账户</string>
+    <string>转出账户</string>
    </property>
    <property name="toolTip">
-    <string>从基本库中清除此账户信息，并把账户数据库文件拷贝到选定位置</string>
+    <string>将指定账户转出本机，以便在其他主机上编辑或查看</string>
    </property>
   </action>
   <action name="actExit">

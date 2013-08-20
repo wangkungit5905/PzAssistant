@@ -38,6 +38,11 @@ extern QString hVersion;        //应用程序当前支持的最高账户文件�
 //应用程序的路径变量
 extern QString DatabasePath;    //工作数据库路径
 extern QString BaseDataPath;    //基础数据库路径
+extern QString BackupPath;      //账户文件备份目录
+                                //文件命名规则：P1_P2_P3.bak
+                                //P1：账户文件原名（去除后缀）
+                                //P2：备份缘由（账户转入（TR）、账户升级（UP））
+                                //P3：备份时间
 
 
 extern QHash<int,QString> MTS;         //所有币种代码到名称的映射表（包括账户内未使用的外币）

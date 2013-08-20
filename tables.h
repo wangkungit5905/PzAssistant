@@ -505,7 +505,7 @@ const int LAC_FNAME     = 4;
 const int LAC_ISLAST    = 5;
 const int LAC_TSTATE    = 6;
 const int LAC_INTIME    = 7;
-const int LAC_OUTMID    = 8;
+const int LAC_MAC    = 8;
 const int LAC_OUTTIME   = 9;
 const int LAC_HASH      = 10;
 
@@ -531,8 +531,8 @@ const QString fld_mac_islocal   = "isLocal";
 const QString fld_mac_sname     = "sname";
 const QString fld_mac_desc      = "lname";
 //字段索引
-const int MACS_TYPE       = 1;
-const int MACS_MID        = 2;
+const int MACS_MID        = 1;
+const int MACS_TYPE       = 2;
 const int MACS_ISLOCAL    = 3;
 const int MACS_NAME       = 4;
 const int MACS_DESC       = 5;

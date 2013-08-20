@@ -12,6 +12,7 @@
 #include <QUndoCommand>
 #include <QUndoView>
 #include <QProgressBar>
+//#include <QToolTip>
 
 #include <QBuffer>
 
@@ -60,6 +61,24 @@
 #include "account.h"
 #include "cal.h"
 
+////////////////////////////////////////////////////////////
+//bool MouseHoverEventFilter::eventFilter(QObject *obj, QEvent *event)
+//{
+//    QEvent::Type et = event->type();
+//    if(event->type() == QEvent::ToolTipChange){
+//    //if(event->type() == QEvent::MouseButtonPress){
+//        QString clsName = QString(obj->metaObject()->className());
+//        QString objName = obj->objectName();
+//        if(clsName == "QLabel"){
+//            QPoint p = QCursor::pos();
+//            QToolTip::showText(p,"Hello tooltip!");
+//        }
+//        return true;
+//    }
+//    return QObject::eventFilter(obj, event);
+//}
+
+
 
 /////////////////////////////////PaStatusBar////////////////////////////////
 PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
@@ -86,34 +105,35 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     hl2->addWidget(l);    hl2->addWidget(&extraState);
 
     l = new QLabel(tr("凭证总数:"),this);
+    pzCount.setAttribute(Qt::WA_AlwaysShowToolTips,true);
     pzCount.setFrameShadow(QFrame::Sunken);
     pzCount.setFrameShape(QFrame::StyledPanel);
     pzCount.setText("   ");
     QHBoxLayout* hl3 = new QHBoxLayout(this);
     hl3->addWidget(l);
     hl3->addWidget(&pzCount);
-    l = new QLabel(tr("作废："));
-    pzRepeal.setFrameShadow(QFrame::Sunken);
-    pzRepeal.setFrameShape(QFrame::StyledPanel);
-    pzRepeal.setText(" ");
-    hl3->addWidget(l);hl3->addWidget(&pzRepeal);
-    l = new QLabel(tr("录入："));
-    pzRecording.setFrameShadow(QFrame::Sunken);
-    pzRecording.setFrameShape(QFrame::StyledPanel);
-    pzRecording.setText("   ");
-    hl3->addWidget(l);hl3->addWidget(&pzRecording);
-    l = new QLabel(tr("审核："));
-    pzVerify.setFrameShadow(QFrame::Sunken);
-    pzVerify.setFrameShape(QFrame::StyledPanel);
-    pzVerify.setText(" ");
-    hl3->addWidget(l);hl3->addWidget(&pzVerify);
-    l = new QLabel(tr("入账："));
-    pzInstat.setFrameShadow(QFrame::Sunken);
-    pzInstat.setFrameShape(QFrame::StyledPanel);
-    pzInstat.setText(" ");
-    hl3->addWidget(l);hl3->addWidget(&pzInstat);
+//    l = new QLabel(tr("作废："));
+//    pzRepeal.setFrameShadow(QFrame::Sunken);
+//    pzRepeal.setFrameShape(QFrame::StyledPanel);
+//    pzRepeal.setText(" ");
+//    hl3->addWidget(l);hl3->addWidget(&pzRepeal);
+//    l = new QLabel(tr("录入："));
+//    pzRecording.setFrameShadow(QFrame::Sunken);
+//    pzRecording.setFrameShape(QFrame::StyledPanel);
+//    pzRecording.setText("   ");
+//    hl3->addWidget(l);hl3->addWidget(&pzRecording);
+//    l = new QLabel(tr("审核："));
+//    pzVerify.setFrameShadow(QFrame::Sunken);
+//    pzVerify.setFrameShape(QFrame::StyledPanel);
+//    pzVerify.setText(" ");
+//    hl3->addWidget(l);hl3->addWidget(&pzVerify);
+//    l = new QLabel(tr("入账："));
+//    pzInstat.setFrameShadow(QFrame::Sunken);
+//    pzInstat.setFrameShape(QFrame::StyledPanel);
+//    pzInstat.setText(" ");
+//    hl3->addWidget(l);hl3->addWidget(&pzInstat);
 
-    l = new QLabel(tr("用户:"),this);
+    l = new QLabel(tr("登录用户:"),this);
     lblUser.setFrameShadow(QFrame::Sunken);
     lblUser.setFrameShape(QFrame::StyledPanel);
     lblUser.setText("           ");
@@ -141,7 +161,6 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     colors[AE_WARNING] = "color: rgb(255, 0, 127)";
     colors[AE_CRITICAL] = "color: rgb(85, 0, 0)";
     colors[AE_ERROR] = "color: rgb(255, 0, 0)";
-
 }
 
 PaStatusBar::~PaStatusBar()
@@ -182,20 +201,19 @@ void PaStatusBar::setPzSetState(PzsState state)
 
 void PaStatusBar::setPzCounts(int repeal, int recording, int verify, int instat, int amount)
 {
-    setRepealCount(repeal);
-    setRecordingCount(recording);
-    setVerifyCount(verify);
-    setInstantCount(instat);
+    num_rec = recording;
+    num_ver = verify;
+    num_ins = instat;
+    num_rep = repeal;
     setPzAmount(amount);
+    adjustPzCountTip();
+
 }
 
 void PaStatusBar::resetPzCounts()
 {
-    setRepealCount(0);
-    setRecordingCount(0);
-    setVerifyCount(0);
-    setInstantCount(0);
     setPzAmount(0);
+    adjustPzCountTip();
 }
 
 
@@ -272,6 +290,32 @@ void PaStatusBar::notificationProgress(int amount, int curp)
 void PaStatusBar::timeout()
 {
     lblRuntime->clear();
+}
+
+/**
+ * @brief PaStatusBar::adjustPzCountTip
+ *  调整凭证集内各类凭证数的提示信息
+ * @param rec
+ * @param ver
+ * @param ins
+ * @param rep
+ */
+void PaStatusBar::adjustPzCountTip()
+{
+    QString tip;
+    if(num_rec==0 && num_ver==0 && num_ins==0 && num_rep==0)
+        tip = tr("没有任何凭证");
+    else{
+        if(num_rec > 0)
+            tip.append(tr("录入：%1\n").arg(num_rec));
+        if(num_ver > 0)
+            tip.append(tr("审核：%1\n").arg(num_ver));
+        if(num_ins > 0)
+            tip.append(tr("入账：%1\n").arg(num_ins));
+        if(num_rep>0)
+            tip.append(tr("作废：%1").arg(num_rep));
+    }
+    pzCount.setToolTip(tip);
 }
 
 /**
@@ -454,17 +498,16 @@ MainWindow::MainWindow(QWidget *parent) :
         return;
 
     AppConfig* appCfg = AppConfig::getInstance();
-    AccountCacheItem recentAcc;
-    recentAcc.lastOpened = false;
-    if(appCfg->getRecendOpenAccount(recentAcc) && recentAcc.lastOpened){
-        if(!AccountVersionMaintain(recentAcc.fileName)){
+    AccountCacheItem* ci = appCfg->getRecendOpenAccount();
+    if(ci/* && recentAcc->lastOpened*/){
+        if(!AccountVersionMaintain(ci->fileName)){
             setWindowTitle(QString("%1---%2").arg(appTitle)
                            .arg(tr("无账户被打开")));
             rfMainAct(false);
             return;
         }
 
-        curAccount = new Account(recentAcc.fileName);
+        curAccount = new Account(ci->fileName);
         if(!curAccount->isValid()){
             showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
             delete curAccount;
@@ -474,7 +517,7 @@ MainWindow::MainWindow(QWidget *parent) :
             rfMainAct(false);
             return;
         }
-        accountInit();
+        accountInit(ci);
         rfMainAct();
         setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
     }
@@ -557,9 +600,7 @@ void MainWindow::initActions()
     connect(ui->actOpenAccount, SIGNAL(triggered()), this, SLOT(openAccount()));
     connect(ui->actCloseAccount, SIGNAL(triggered()), this, SLOT(closeAccount()));
 
-    connect(ui->actImpActFromFile, SIGNAL(triggered()), this, SLOT(attachAccount()));
-    connect(ui->actEmpActToFile, SIGNAL(triggered()), this, SLOT(detachAccount()));
-    connect(ui->actExit,SIGNAL(triggered()),this,SLOT(exit()));    
+    connect(ui->actExit,SIGNAL(triggered()),this,SLOT(exit()));
 
     //数据菜单
     connect(ui->actSubExtra, SIGNAL(triggered()), this, SLOT(viewSubjectExtra()));
@@ -670,10 +711,12 @@ void MainWindow::initTvActions()
 
 
 //打开账户时的初始化设置工作
-void MainWindow::accountInit()
+void MainWindow::accountInit(AccountCacheItem* ci)
 {
     dbUtil = curAccount->getDbUtil();
     curSuiteMgr = curAccount->getPzSet();
+    if(ci->tState != ATS_TRANSINDES)
+        curAccount->setReadOnly(true);
     if(!curSuiteMgr)
         QMessageBox::warning(this,tr("友情提示"),tr("本账户还没有设置任何帐套，请在账户属性设置窗口的帐套页添加一个帐套以供帐务处理！"));
     else{
@@ -815,6 +858,8 @@ void MainWindow::rfMainAct(bool open)
     ui->actAccProperty->setEnabled(open);
     ui->actRefreshActInfo->setEnabled(!open);
     ui->actDelAcc->setEnabled(!open);
+    ui->actInAccount->setEnabled(!open);
+    ui->actEmpAccount->setEnabled(!open);
     rfPzSetAct(false);
     rfNaveBtn();
 }
@@ -825,6 +870,7 @@ void MainWindow::rfMainAct(bool open)
  */
 void MainWindow::rfPzSetAct(bool open)
 {
+    bool ro = curAccount && curAccount->getReadOnly();  //账户是否只读
     ui->actSearch->setEnabled(open);        //凭证搜索
     ui->actNaviToPz->setEnabled(open);      //凭证定位
 
@@ -834,20 +880,22 @@ void MainWindow::rfPzSetAct(bool open)
     ui->actShowTotal->setEnabled(open);     //总账
 
     bool r = (open && (curSuiteMgr->getState() == Ps_Rec));
-    ui->actAllVerify->setEnabled(r);        //全部审核
-    ui->actAllInstat->setEnabled(open && !curSuiteMgr->isAllInstat()); //全部入账
     ui->actPzErrorInspect->setEnabled(open);//凭证集错误检测
+    r = r && !ro;
+    ui->actAllVerify->setEnabled(r);        //全部审核
+    ui->actAllInstat->setEnabled(!ro && open && !curSuiteMgr->isAllInstat()); //全部入账
+
 
     ui->actImpOtherPz->setEnabled(open);    //引入其他凭证
-    r = (open && (curSuiteMgr->getState() != Ps_Jzed));
-    ui->actFordEx->setEnabled(open && r);   //结转汇兑损益
-    ui->actFordPl->setEnabled(open && r);   //结转损益
-    ui->actJzbnlr->setEnabled(open && r);   //结转本年利润
-    ui->actEndAcc->setEnabled(open && r);   //结账
+    r = (!ro && open && (curSuiteMgr->getState() != Ps_Jzed));
+    ui->actFordEx->setEnabled(r);   //结转汇兑损益
+    ui->actFordPl->setEnabled(r);   //结转损益
+    ui->actJzbnlr->setEnabled(r);   //结转本年利润
+    ui->actEndAcc->setEnabled(r);   //结账
 
-    ui->actAntiImp->setEnabled(open && r);  //反引用
-    ui->actAntiJz->setEnabled(open && r);   //反结转
-    ui->actAntiEndAcc->setEnabled(open && r);//反结账
+    ui->actAntiImp->setEnabled(false);  //反引用
+    ui->actAntiJz->setEnabled(r);   //反结转
+    ui->actAntiEndAcc->setEnabled(!ro && open && curSuiteMgr->getState() == Ps_Jzed);//反结账
 
 
 }
@@ -927,8 +975,8 @@ void MainWindow::openAccount()
         return;
 
     //ui->tbrPzs->setVisible(true);
-    AccountCacheItem* aci =dlg->getAccountCacheItem();
-    if(!aci || !AccountVersionMaintain(aci->fileName)){
+    AccountCacheItem* ci =dlg->getAccountCacheItem();
+    if(!ci || !AccountVersionMaintain(ci->fileName)){
         setWindowTitle(QString("%1---%2").arg(appTitle)
                        .arg(tr("无账户被打开")));
         rfMainAct(false);
@@ -938,7 +986,7 @@ void MainWindow::openAccount()
         delete curAccount;
         curAccount = NULL;
     }
-    curAccount = new Account(aci->fileName);
+    curAccount = new Account(ci->fileName);
     if(!curAccount->isValid()){
         showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
         delete curAccount;
@@ -949,11 +997,11 @@ void MainWindow::openAccount()
         return;
     }
     setWindowTitle(tr("会计凭证处理系统---") + curAccount->getLName());
-    AppConfig::getInstance()->setRecentOpenAccount(aci->code);
+    AppConfig::getInstance()->setRecentOpenAccount(ci->code);
     rfMainAct();
     //rfTbrVisble();
     //refreshActEnanble();
-    accountInit();
+    accountInit(ci);
     //initUndo();
 }
 
@@ -1439,7 +1487,8 @@ void MainWindow::rfNaveBtn()
         if(wtype == SUBWIN_PZEDIT_new){
             //启用这些按钮的先决条件是凭证集打开且未结账
             ui->actPrint->setEnabled(true);
-            bool r = (curSuiteMgr->getState()!=Ps_NoOpen) || (curSuiteMgr->getState()!= Ps_Jzed);
+            bool ro = curAccount && curAccount->getReadOnly();
+            bool r = !ro && (curSuiteMgr->getState()!=Ps_NoOpen) || (curSuiteMgr->getState()!= Ps_Jzed);
             ui->actAddPz->setEnabled(r);
             ui->actInsertPz->setEnabled(r);
             r = r && curSuiteMgr->getCurPz();
@@ -1641,7 +1690,7 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT_new)){
             dbUtil->getSubWinInfo(SUBWIN_PZEDIT_new,winfo,sinfo);
             PzDialog* w = new PzDialog(month,curSuiteMgr,sinfo);
-            w->setWindowTitle(tr("凭证窗口（新）"));
+            w->setWindowTitle(tr("凭证编辑窗口）"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
             subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT_new,w,winfo);
@@ -2021,30 +2070,12 @@ void MainWindow::showPzNumsAffected(int num)
 void MainWindow::refreshShowPzsState()
 {
     //显示各类凭证的数目
-    if(!curSuiteMgr)
+    if(!curSuiteMgr || !curSuiteMgr->isOpened()){
+        ui->statusbar->setPzSetState(Ps_NoOpen);
         return;
+    }
     ui->statusbar->setPzCounts(curSuiteMgr->getRepealCount(),curSuiteMgr->getRecordingCount(),
                                curSuiteMgr->getVerifyCount(),curSuiteMgr->getInstatCount(),curSuiteMgr->getPzCount());
-//    PzsState state;
-//    if(!dbUtil)
-//        state = Ps_NoOpen;
-//    else
-//        dbUtil->getPzsState(cursy,cursm,state);
-//    //如果凭证集原先未结账，则根据实际的凭证审核状态来决定凭证集的状态
-//    if(!pzSetMgr->isOpened())
-//        state = Ps_NoOpen;
-//    else if(state == Ps_Jzed)
-//        curPzSetState = Ps_Jzed;
-//    else{
-//        if(pzSetMgr->getRecordingCount() > 0)
-//            curPzSetState = Ps_Rec;
-//        else
-//            curPzSetState = Ps_AllVerified;
-//    }
-//    if(cursy != 0 && cursy !=0){
-//        dbUtil->setPzsState(cursy,cursm,curPzSetState);   //保存凭证集状态
-//        dbUtil->setExtraState(cursy,cursm,isExtraVolid);  //保存余额状态
-//    }
     ui->statusbar->setPzSetState(curSuiteMgr->getState());
     ui->statusbar->setExtraState(curSuiteMgr->getExtraState());
 }
@@ -2457,7 +2488,10 @@ void MainWindow::on_actJzbnlr_triggered()
 //        showTemInfo(tr("在创建结转本年利润凭证时出错！"));
 }
 
-//结账
+/**
+ * @brief MainWindow::on_actEndAcc_triggered
+ *  结账
+ */
 void MainWindow::on_actEndAcc_triggered()
 {
     if(!curSuiteMgr->isOpened()){
@@ -2480,9 +2514,12 @@ void MainWindow::on_actEndAcc_triggered()
                                                     tr("结账后，将不能再次对凭证集进行修改，确认要结账吗？"),
                                                     QMessageBox::Yes | QMessageBox::No)){
         curSuiteMgr->setState(Ps_Jzed);
-        //dbUtil->setPzsState(curSuiteMgr->year(),curSuiteMgr->month(),Ps_Jzed);
+        if(dockWindows.contains(TV_SUITESWITCH)){
+            SuiteSwitchPanel* w = static_cast<SuiteSwitchPanel*>(dockWindows.value(TV_SUITESWITCH)->widget());
+            w->setJzState(curSuiteMgr,curSuiteMgr->month());
+        }
+        rfPzSetAct();
         refreshShowPzsState();
-        //refreshActEnanble();
         return;
     }
 }
@@ -2531,24 +2568,27 @@ void MainWindow::on_actAntiJz_triggered()
 //    }
 }
 
-//反结账
+/**
+ * @brief MainWindow::on_actAntiEndAcc_triggered
+ *  反结账
+ */
 void MainWindow::on_actAntiEndAcc_triggered()
 {
     //打破结账限制，
-//    if(!isOpenPzSet){
-//        pzsWarning();
-//        return;
-//    }
-//    if(curPzSetState != Ps_Jzed){
-//        QMessageBox::information(this, tr("提示信息"), tr("还未结账"));
-//        return;
-//    }
-//    dbUtil->setPzsState(cursy,cursm,/*Ps_Stat5*/Ps_Rec);
-//    allPzToRecording(cursy,cursm);
-//    isExtraVolid = false;
-//    dbUtil->scanPzSetCount(cursy,cursm,pzRepeal,pzRecording,pzVerify,pzInstat,pzAmount);
-//    refreshShowPzsState();
-//    //refreshActEnanble();
+    if(!curSuiteMgr->isOpened()){
+        pzsWarning();
+        return;
+    }
+    if(curSuiteMgr->getState() != Ps_Jzed)
+        return;
+    curSuiteMgr->setState(Ps_AllVerified);
+    rfPzSetAct(true);
+
+    if(dockWindows.contains(TV_SUITESWITCH)){
+        SuiteSwitchPanel* w = static_cast<SuiteSwitchPanel*>(dockWindows.value(TV_SUITESWITCH)->widget());
+        w->setJzState(curSuiteMgr,curSuiteMgr->month(),false);
+    }
+    refreshShowPzsState();
 }
 
 //反引用
@@ -2730,47 +2770,13 @@ void MainWindow::on_actRefreshActInfo_triggered()
     //刷新前要关闭当前打开的账户
     if(curAccount)
         closeAccount();
-    QList<AccountCacheItem*> accLst;
-    if(!AppConfig::getInstance()->initAccountCache(accLst)){
+    int count=0;
+    if(!AppConfig::getInstance()->refreshLocalAccount(count)){
         QMessageBox::critical(this,tr("错误信息"),tr("在扫描工作目录下的账户时发生错误！"));
         return;
     }
     //报告发现的账户
-    QMessageBox::information(this,tr("提示信息"),tr("本次扫描共发现%1个账户！").arg(accLst.count()));
-    qDeleteAll(accLst);
-
-
-    //清除已有的账户信息
-//    AppConfig* appCfg = AppConfig::getInstance();
-//    QDir dir(DatabasePath /*"./datas/databases"*/);
-//    QStringList filters, filelist;
-//    filters << "*.dat";
-//    dir.setNameFilters(filters);
-//    filelist = dir.entryList(filters, QDir::Files);
-//    int fondCount = 0;
-//    if(filelist.count() == 0)
-//        QMessageBox::information(this, tr("一般信息"),
-//                                 tr("当前没有可用的帐户数据库文件"));
-//    else{
-//        appCfg->clear();
-//        foreach(QString fname, filelist){
-//            DbUtil du;
-//            if(!du.setFilename(fname))
-//                continue;
-//            AccountBriefInfo accInfo;
-//            if(!du.readAccBriefInfo(accInfo))
-//                continue;
-//            appCfg->saveAccInfo(accInfo);
-//            fondCount++;
-//        }
-//        //报告查找结果
-//        if(fondCount == 0)
-//            QMessageBox::information(this, tr("搜寻账户"), tr("没有发现账户文件"));
-//        else
-//            QMessageBox::information(this, tr("搜寻账户"),
-//                                     QString(tr("共发现%1个账户文件")).arg(fondCount));
-
-//    }
+    QMessageBox::information(this,tr("提示信息"),tr("本次扫描共发现%1个账户！").arg(count));
 }
 
 /**
@@ -2792,6 +2798,26 @@ void MainWindow::on_actSuite_triggered()
         connect(pn,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
     }
     dockWindows.value(TV_SUITESWITCH)->show();
+}
+
+/**
+ * @brief MainWindow::on_actEmpAccount_triggered
+ *  转出账户
+ */
+void MainWindow::on_actEmpAccount_triggered()
+{
+    TransferOutDialog dlg;
+    dlg.exec();
+}
+
+/**
+ * @brief MainWindow::on_actInAccount_triggered
+ *  转入账户
+ */
+void MainWindow::on_actInAccount_triggered()
+{
+    TransferInDialog dlg;
+    dlg.exec();
 }
 
 /**
@@ -2963,14 +2989,14 @@ void MainWindow::adjustEditMenus(UndoType ut, bool restore)
  * @brief 切换到与指定帐套对应的帐套视图
  * @param suiteId
  */
-void MainWindow::switchSubWindowGroup(int suiteId)
-{
-    if(suiteId != 0){
-        //隐藏当前帐套对应的所有子窗口
+//void MainWindow::switchSubWindowGroup(int suiteId)
+//{
+//    if(suiteId != 0){
+//        //隐藏当前帐套对应的所有子窗口
 
-        //显示新帐套的所有已打开的子窗口
-    }
-}
+//        //显示新帐套的所有已打开的子窗口
+//    }
+//}
 
 //显示账户属性对话框
 void MainWindow::on_actAccProperty_triggered()
@@ -3243,8 +3269,16 @@ bool MainWindow::impTestDatas()
 
 //    QString info = tr("科目“%1-%2”的余额发生异常！\n一级科目余额：%3（%4）\n二级科目余额：%5（%6）");
 //    QToolTip::showText(QPoint(10,10),info,0);
+    BackupUtil bu;
+    //QString fn = bu._fondLastFile(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
+    //bu.backup(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
+    //bu.restore(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
+    //bu.clear();
     int i = 0;
 }
+
+
+
 
 
 

@@ -11,10 +11,23 @@
 #include "securitys.h"
 #include "appmodel.h"
 #include "common.h"
+#include "transfers.h"
 
 class AccountSuiteManager;
 class DbUtil;
 class SubjectManager;
+
+/**
+ * @brief The AccontTranferInfo struct
+ *  账户转移记录
+ */
+struct AccontTranferInfo{
+    int id;
+    AccountTransferState tState;    //转移状态
+    Machine *m_out, *m_in;          //转出（源）/转入（目的）主机
+    QDateTime t_out, t_in;          //转出/转入时间
+    QString desc_out,desc_in;       //转出/转入描述
+};
 
 
 class Account : public QObject
@@ -45,27 +58,14 @@ public:
     };
 
 	//账户转移状态
-    enum AccountTransferState{
-        ATS_TranOut     = 1,
-        ATS_TranInDes   = 2,
-        ATS_TranInOther = 3
-    };
-
-    /**
-     * @brief The AccountSuite struct
-     *  描述帐套的数据结构
-     */
-//    struct AccountSuiteRecord{
-//        int id;
-//        int year,recentMonth;       //帐套所属年份、最后打开月份
-//        int startMonth,endMonth;    //开始月份和结束月份
-//        int subSys;                 //帐套采用的科目系统代码
-//        QString name;               //帐套名
-//        bool isCur;                 //是否当前打开帐套
-//        bool isUsed;                //帐套是否已启用
-
-//        bool operator !=(const AccountSuiteRecord& other);
+//    enum AccountTransferState{
+//        ATS_TranOuted   = 1,    //已转出
+//        ATS_TranInDes   = 2,    //转入到目的机
+//        ATS_TranInOther = 3     //转入到非目的机
 //    };
+
+
+
 
     /**
      * @brief The AccountInfo struct
@@ -73,21 +73,23 @@ public:
      */
     struct AccountInfo{
         QString code,sname,lname;           //账户代码、简称和全称
-        Money* masterMt;                       //本币代码
-        QList<Money*> waiMts;                  //外币代码表
-        //QString startDate,endDate;          //记账起止时间
-        //QList<AccountSuiteRecord*> suites;        //帐套列表
+        Money* masterMt;                    //本币代码
+        QList<Money*> waiMts;               //外币代码表
         QString lastAccessTime;             //账户最后访问时间
         QString dbVersion;                  //账户文件版本号
         QString logFileName;                //账户日志文件
         QString fileName;                   //账户文件名
+        AccontTranferInfo* transInfo;       //账户转移信息
     };
+
+
 
 
     Account(QString fname, QObject* parent=0);
     ~Account();
     bool isValid();
     void close();
+    AccontTranferInfo* getRecentTransferInfo(){return accInfos.transInfo;}
     bool saveAccountInfo();
     bool isOpen(){return isOpened;}
     DbUtil* getDbUtil(){return dbUtil;}

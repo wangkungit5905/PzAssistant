@@ -379,32 +379,32 @@ bool DbUtil::setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QLis
  * @param info
  * @return
  */
-bool DbUtil::readAccBriefInfo(AccountBriefInfo &info)
-{
-    QSqlQuery q(db);
-    QString s = QString("select %1,%2 from %3")
-            .arg(fld_acci_code).arg(fld_acci_value).arg(tbl_accInfo);
-    if(!q.exec(s))
-        return false;
-    InfoField code;
-    while(q.next()){
-        code = (InfoField)q.value(0).toInt();
-        switch(code){
-        case ACODE:
-            info.code = q.value(1).toString();
-            break;
-        case SNAME:
-            info.sname = q.value(1).toString();
-            break;
-        case LNAME:
-            info.lname = q.value(1).toString();
-            break;
-        }
-    }
-    info.isRecent = false;
-    info.fname = fileName;
-    return true;
-}
+//bool DbUtil::readAccBriefInfo(AccountBriefInfo &info)
+//{
+//    QSqlQuery q(db);
+//    QString s = QString("select %1,%2 from %3")
+//            .arg(fld_acci_code).arg(fld_acci_value).arg(tbl_accInfo);
+//    if(!q.exec(s))
+//        return false;
+//    InfoField code;
+//    while(q.next()){
+//        code = (InfoField)q.value(0).toInt();
+//        switch(code){
+//        case ACODE:
+//            info.code = q.value(1).toString();
+//            break;
+//        case SNAME:
+//            info.sname = q.value(1).toString();
+//            break;
+//        case LNAME:
+//            info.lname = q.value(1).toString();
+//            break;
+//        }
+//    }
+//    info.isRecent = false;
+//    info.fname = fileName;
+//    return true;
+//}
 
 /**
  * @brief DbUtil::initAccount
@@ -417,8 +417,10 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
     QSqlQuery q(db);
     QString s = QString("select %1,%2 from %3")
             .arg(fld_acci_code).arg(fld_acci_value).arg(tbl_accInfo);
-    if(!q.exec(s))
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
         return false;
+    }
 
     InfoField code;
     QStringList sl;
@@ -434,21 +436,6 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
         case LNAME:
             infos.lname = q.value(1).toString();
             break;
-        //case MASTERMT:
-            //infos->accInfos.masterMt = infos->moneys.value(q.value(1).toInt());
-        //    break;
-        //case WAIMT:
-            //sl.clear();
-            //sl = q.value(1).toString().split(",");
-            //foreach(QString v, sl)
-            //    infos->accInfos.waiMts<<infos->moneys.value(v.toInt());
-            //break;
-        //case STIME:
-            //infos.startDate = q.value(1).toString();
-            //break;
-        //case ETIME:
-            //infos.endDate = q.value(1).toString();
-            //break;
         case LOGFILE:
             infos.logFileName = q.value(1).toString();
             break;
@@ -467,39 +454,19 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
         infos.logFileName = fileName;
         infos.logFileName = infos.logFileName.replace(".dat",".log");
     }
-//    if(infos.endDate.isEmpty()){
-//        QDate d = QDate::currentDate();
-//        int y = d.year();
-//        int m = d.month();
-//        int sd = 1;
-//        int ed = d.daysInMonth();
-//        //infos.startDate = QDate(y,m,sd).toString(Qt::ISODate);
-//        //infos.endDate = QDate(y,m,ed).toString(Qt::ISODate);
-//    }
-//    if(infos.endDate.isEmpty()){
-//        QDate d = QDate::fromString(infos.startDate,Qt::ISODate);
-//        int days = d.daysInMonth();
-//        d.setDate(d.year(),d.month(),days);
-//        infos.endDate = d.toString(Qt::ISODate);
-//    }
 
-    //读取账户的帐套信息
-    //if(!_readAccountSuites(infos.suiteHash))
-    //    return false;
-    //完善帐套的起止月份
-//    Account::AccountSuiteRecord* asr;
-//    asr = infos.suites.first();
-//    asr->startMonth = QDate::fromString(infos.startDate,Qt::ISODate).month();
-//    asr->endMonth = 12;
-//    asr = infos.suites.last();
-//    asr->startMonth = 1;
-//    asr->endMonth = QDate::fromString(infos.endDate,Qt::ISODate).month();
-//    if(infos.suites.count() > 2){   //中间年份的起止月份都是1-12月
-//        for(int i = 1; i < infos.suites.count()-1; ++i){
-//            infos.suites.at(i)->startMonth = 1;
-//            infos.suites.at(i)->endMonth = 12;
-//        }
-//    }
+    //读取账户的最近的转移记录
+    s = QString("select * from %1").arg(tbl_transfer);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.last()){
+        LOG_ERROR("Don't fonded recent account transfer record!");
+        return false;
+    }
+    //infos.transInfo = new Account::AccontTranferInfo;
+
     return true;
 }
 

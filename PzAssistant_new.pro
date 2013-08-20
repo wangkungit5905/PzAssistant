@@ -63,7 +63,8 @@ SOURCES += main.cpp\
     statements.cpp \
     accountpropertyconfig.cpp \
     suiteswitchpanel.cpp \
-    databaseaccessform.cpp
+    databaseaccessform.cpp \
+    transfers.cpp
 
 HEADERS  += \
     connection.h \
@@ -123,7 +124,8 @@ HEADERS  += \
     configvariablenames.h \
     suiteswitchpanel.h \
     databaseaccessform.h \
-    keysequence.h
+    keysequence.h \
+    transfers.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -173,7 +175,9 @@ FORMS    += \
     forms/subsysjoincfgform.ui \
     forms/suiteswitchpanel.ui \
     forms/databaseaccessform.ui \
-    forms/apcdata.ui
+    forms/apcdata.ui \
+    forms/transferoutdialog.ui \
+    forms/transferindialog.ui
 
 RESOURCES += \
     imgers.qrc \

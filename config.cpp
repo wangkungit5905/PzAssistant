@@ -9,6 +9,7 @@
 #include "config.h"
 #include "tables.h"
 #include "version.h"
+#include "transfers.h"
 
 QSettings* AppConfig::appIni;
 AppConfig* AppConfig::instance = 0;
@@ -18,6 +19,8 @@ QSqlDatabase AppConfig::db;
 AppConfig::AppConfig()
 {
     //appIni->setIniCodec(QTextCodec::codecForTr());
+    _initMachines();
+    _initAccountCaches();
 }
 
 AppConfig::~AppConfig()
@@ -338,11 +341,281 @@ bool AppConfig::setConVar(QString name, QString value)
     return setConfigVar(name,STRING);
 }
 
+
+
+/**
+ * @brief 清除账户缓存
+ * @return
+ */
+bool AppConfig::clearAccountCache()
+{
+
+    QSqlQuery q(db);
+    QString s = QString("delete from %1").arg(tbl_localAccountCache);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    qDeleteAll(accountCaches);
+    accountCaches.clear();
+    init_accCache = false;
+    return true;
+}
+
+/**
+ * @brief 在本地缓存中是否存在指定代码的账户
+ * @param code
+ * @return
+ */
+bool AppConfig::isExist(QString code)
+{
+    if(!init_accCache)
+        return false;
+    if(accountCaches.isEmpty())
+        return false;
+    foreach(AccountCacheItem* item, accountCaches){
+        if(code == item->code)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief AppConfig::refreshLocalAccount
+ *  搜索当前工作目录下的所有有效账户文件，并将缓存账户保存在基本库中
+ * @param count
+ * @return
+ */
+bool AppConfig::refreshLocalAccount(int &count)
+{
+    if(!_searchAccount()){
+        count = 0;
+        return false;
+    }
+    count = accountCaches.count();
+    return true;
+}
+
+bool AppConfig::saveAccountCacheItem(AccountCacheItem *accInfo)
+{
+    if(!_isValidAccountCode(accInfo->code)){
+        LOG_WARNING(QString("Invalid account code(%1)").arg(accInfo->code));
+        return false;
+    }
+    return _saveAccountCacheItem(accInfo);
+}
+
+/**
+ * @brief AppConfig::saveAllAccountCaches
+ *  将缓存账户保存到本机基本库中
+ * @return
+ */
+bool AppConfig::saveAllAccountCaches()
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save all cached account item!");
+        return false;
+    }
+    foreach(AccountCacheItem* item, accountCaches){
+        if(!_saveAccountCacheItem(item))
+            return false;
+    }
+    if(!db.commit()){
+        if(!db.rollback())
+            LOG_SQLERROR("Rollback transaction failed on save all cached account item!");
+        LOG_SQLERROR("Commit transaction failed on save all cached account item!");
+    }
+    return true;
+}
+
+/**
+ * @brief 读取指定账户代码的账户缓存信息
+ * @param code   账户代码
+ * @return
+ */
+AccountCacheItem *AppConfig::getAccountCacheItem(QString code)
+{
+    if(!init_accCache)
+        return NULL;
+    foreach(AccountCacheItem* item, accountCaches){
+        if(item->code == code)
+            return item;
+    }
+    return NULL;
+}
+
+/**
+ * @brief 读取所有账户缓存条目
+ * @param accs
+ * @return
+ */
+QList<AccountCacheItem *> AppConfig::getAllCachedAccounts()
+{
+    return accountCaches;
+}
+
+/**
+ * @brief 获取最后一次关闭的账户缓存条目
+ * @param accItem
+ * @return
+ */
+AccountCacheItem* AppConfig::getRecendOpenAccount()
+{
+    if(!init_accCache)
+        return NULL;
+    foreach(AccountCacheItem* item, accountCaches){
+        if(item->lastOpened)
+            return item;
+    }
+    return NULL;
+}
+
+/**
+ * @brief 设置最近打开账户
+ * @param code
+ * @return
+ */
+void AppConfig::setRecentOpenAccount(QString code)
+{
+    if(!init_accCache)
+        return;
+    if(!isExist(code))
+        return;
+    foreach(AccountCacheItem* item,accountCaches){
+        if(code == item->code)
+            item->lastOpened = true;
+        else
+            item->lastOpened = false;
+    }
+    saveAllAccountCaches();
+}
+
+/**
+ * @brief AppConfig::getAccTranStates
+ *  返回账户转移状态名称表
+ * @return
+ */
+QHash<AccountTransferState, QString> AppConfig::getAccTranStates()
+{
+    QHash<AccountTransferState, QString> states;
+    states[ATS_INVALID] = QObject::tr("无效状态");
+    states[ATS_TRANSINDES] = QObject::tr("已转入到目的主机");
+    states[ATS_TRANSINOTHER] = QObject::tr("已转入到非目标主机");
+    states[ATS_TRANSOUTED] = QObject::tr("已转出本机");
+    return states;
+}
+
+/**
+ * @brief 读取所有应用支持的科目系统
+ * @param items
+ * @return
+ */
+bool AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        SubSysNameItem* si = new SubSysNameItem;
+        si->code = q.value(SS_CODE).toInt();
+        si->name = q.value(SS_NAME).toString();
+        si->explain = q.value(SS_EXPLAIN).toString();
+        si->isImport = false;
+        items<<si;
+    }
+    return true;
+}
+
+/**
+ * @brief AppConfig::getSupportMoneyType
+ *  获取系统支持的货币类型
+ * @param moneys
+ * @return
+ */
+bool AppConfig::getSupportMoneyType(QHash<int, Money*> &moneys)
+{
+    if(moneyTypes.isEmpty()){
+        QSqlQuery q(db);
+        QString s = QString("select * from %1").arg(tbl_base_mt);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        int code;
+        QString sign,name;
+        while(q.next()){
+            code = q.value(BASE_MT_CODE).toInt();
+            sign = q.value(BASE_MT_SIGN).toString();
+            name = q.value(BASE_MT_NAME).toString();
+            moneyTypes[code] = new Money(code,name,sign);
+        }
+    }
+    moneys = moneyTypes;
+    return true;
+}
+
+/**
+ * @brief AppConfig::_isValidAccountCode
+ *  判断账户代码是否有效
+ *  代码不符合规定，代码为空，代码重复冲突等都视为无效
+ * @param code
+ * @return
+ */
+bool AppConfig::_isValidAccountCode(QString code)
+{
+    return true;
+}
+
+/**
+ * @brief AppConfig::_saveAccountCacheItem
+ *  实际地保存缓存账户到本机基本库中的方法
+ * @param accInfo
+ * @return
+ */
+bool AppConfig::_saveAccountCacheItem(AccountCacheItem *accInfo)
+{
+    QSqlQuery q(db);
+    QString s;
+    bool isNew = (accInfo->id == UNID);
+    if(!isNew){
+        s = QString("update %1 set %2='%3',%4='%5',%6='%7',%8=%9,%10=%11,%12='%13',%14=%15,%16='%17' where id=%18")
+                .arg(tbl_localAccountCache).arg(fld_lac_name).arg(accInfo->accName)
+                .arg(fld_lac_lname).arg(accInfo->accLName).arg(fld_lac_filename)
+                .arg(accInfo->fileName).arg(fld_lac_isLastOpen).arg(accInfo->lastOpened?1:0)
+                .arg(fld_lac_tranState).arg(accInfo->tState).arg(fld_lac_tranInTime)
+                .arg(accInfo->inTime.toString(Qt::ISODate)).arg(fld_lac_tranOutMid)
+                .arg(accInfo->mac->getMID()).arg(fld_lac_tranOutTime)
+                .arg(accInfo->outTime.toString(Qt::ISODate)).arg(accInfo->id);
+
+    }
+    else{
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) values('%11','%12','%13','%14',0,%15,'%16',%17,'%18')")
+                .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
+                .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
+                .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
+                .arg(fld_lac_tranOutTime).arg(accInfo->code).arg(accInfo->accName)
+                .arg(accInfo->accLName).arg(accInfo->fileName)/*.arg(accInfo->lastOpened)*/
+                .arg(accInfo->tState).arg(accInfo->inTime.toString(Qt::ISODate))
+                .arg(accInfo->mac->getMID()).arg(accInfo->outTime.toString(Qt::ISODate));
+
+    }
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(isNew)
+        accountCaches<<accInfo;
+    return true;
+}
+
 /**
  * @brief 扫描工作目录下的账户文件，将有效的账户读入账户缓存表
  * @return
  */
-bool AppConfig::initAccountCache(QList<AccountCacheItem *> &accCaches)
+bool AppConfig::_searchAccount()
 {
     clearAccountCache();
     QDir dir(DatabasePath);
@@ -399,257 +672,142 @@ bool AppConfig::initAccountCache(QList<AccountCacheItem *> &accCaches)
             invalidFiles<<finfo.fileName();
             continue;
         }
-        //读取账户的转移信息（以后实现）
-
+        //读取账户的转移信息
+        s = QString("select * from %1").arg(tbl_transfer);
         AccountCacheItem *accItem = new AccountCacheItem;
+        accItem->id = UNID;
         accItem->code = code;
         accItem->accName = name;
         accItem->accLName = lname;
         accItem->fileName = finfo.fileName();
-        //一些转移信息...
         accItem->lastOpened = false;
-        if(!saveAccountCacheItem(*accItem)){
-            result = false;
-            break;
+        //如果账户不存在转移记录（未升级账户文件，没有相应的转移表），则先将它视作有一条初始的本机转入本机的转移记录
+        //在下次打开该账户时，升级账户时将创建相应的转移表和转移记录
+        if(!q.exec(s) || !q.last()){
+            accItem->mac = getLocalMachine();
+            accItem->outTime = QDateTime::currentDateTime();
+            accItem->inTime = QDateTime::currentDateTime();
+            accItem->tState = ATS_TRANSINDES;
         }
-        accCaches<<accItem;
+        else{
+            accItem->mac = machines.value(q.value(TRANS_SMID).toInt());
+            //accItem->outTime = q.value(TRANS_OUTTIME).toDateTime();
+            //accItem->inTime = q.value(TRANS_INTIME).toDateTime();
+            accItem->outTime = QDateTime::fromString(q.value(TRANS_OUTTIME).toString(),Qt::ISODate);
+            accItem->inTime = QDateTime::fromString(q.value(TRANS_INTIME).toString(),Qt::ISODate);
+            accItem->tState = (AccountTransferState)q.value(TRANS_STATE).toInt();
+        }
+        accountCaches<<accItem;
+    }
+    if(!saveAllAccountCaches()){
+        LOG_ERROR("Save searched account failed on refresh loacal cached account!");
+        result = false;
     }
     QSqlDatabase::removeDatabase("accountRefresh");
-    return result;
-}
-
-/**
- * @brief 清除账户缓存
- * @return
- */
-bool AppConfig::clearAccountCache()
-{
-    QSqlQuery q(db);
-    QString s = QString("delete from %1").arg(tbl_localAccountCache);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    return true;
-}
-
-/**
- * @brief 在本地缓存中是否存在指定代码的账户
- * @param code
- * @return
- */
-bool AppConfig::isExist(QString code)
-{
-    QSqlQuery q(db);
-    QString s = QString("select id from %1 where %2='%3'")
-            .arg(tbl_localAccountCache).arg(fld_lac_code).arg(code);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    if(q.first())
+    if(result){
+        init_accCache = true;
         return true;
-    else
-        return false;
-}
-
-bool AppConfig::saveAccountCacheItem(AccountCacheItem &accInfo)
-{
-    QSqlQuery q(db);
-    QString s;
-    if(accInfo.code.isEmpty() || accInfo.code == "0000")
-        return true;
-    if(isExist(accInfo.code)){
-        s = QString("update %1(%2,%3,%4,%5,%6,%7,%8,%9) values('%10','%10','%11',%12,%13,'%14',%15,'%16')")
-                .arg(tbl_localAccountCache).arg(fld_lac_name).arg(fld_lac_lname)
-                .arg(fld_lac_filename).arg(fld_lac_isLastOpen).arg(fld_lac_tranState)
-                .arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid).arg(fld_lac_tranOutTime)
-                .arg(accInfo.accName).arg(accInfo.accLName).arg(accInfo.fileName)
-                .arg(accInfo.lastOpened).arg(accInfo.tState).arg(accInfo.inTime.toString(Qt::ISODate))
-                .arg(accInfo.outMid).arg(accInfo.outTime.toString(Qt::ISODate));
-
     }
     else{
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) values('%11','%12','%13','%14',0,%15,'%16',%17,'%18')")
-                .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
-                .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
-                .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
-                .arg(fld_lac_tranOutTime).arg(accInfo.code).arg(accInfo.accName)
-                .arg(accInfo.accLName).arg(accInfo.fileName)/*.arg(accInfo.lastOpened)*/
-                .arg(accInfo.tState).arg(accInfo.inTime.toString(Qt::ISODate))
-                .arg(accInfo.outMid).arg(accInfo.outTime.toString(Qt::ISODate));
-
-    }
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
+        init_accCache = false;
         return false;
     }
-    return true;
 }
 
 /**
- * @brief 读取指定账户代码的账户缓存信息
- * @param accInfo   此参数必须先设置好账户的代码
+ * @brief AppConfig::_initAccountCaches
+ *  读取本地账户缓存表，并初始化accountCaches列表
  * @return
  */
-bool AppConfig::getAccountCacheItem(AccountCacheItem &accInfo)
-{
-    QSqlQuery q(db);
-    QString s = QString("select * from %1 where %2=%3")
-            .arg(tbl_localAccountCache).arg(fld_lac_code).arg(accInfo.code);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    if(!q.first()){
-        accInfo.code.clear();
-        return true;
-    }
-    accInfo.accName = q.value(LAC_CODE).toString();
-    accInfo.accLName = q.value(LAC_LNAME).toString();
-    accInfo.fileName = q.value(LAC_FNAME).toString();
-    accInfo.lastOpened = q.value(LAC_ISLAST).toBool();
-    accInfo.tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();
-    accInfo.inTime = QDateTime::fromString(q.value(LAC_INTIME).toString(),Qt::ISODate);
-    accInfo.outMid = q.value(LAC_OUTMID).toInt();
-    accInfo.outTime = QDateTime::fromString(q.value(LAC_OUTTIME).toString(),Qt::ISODate);
-    return true;
-}
-
-/**
- * @brief 读取所有账户缓存条目
- * @param accs
- * @return
- */
-bool AppConfig::readAccountCaches(QList<AccountCacheItem *> &accs)
+bool AppConfig::_initAccountCaches()
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_localAccountCache);
+    init_accCache = false;
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    AccountCacheItem* accInfo;
+    AccountCacheItem* item;
     while(q.next()){
-        accInfo = new AccountCacheItem;
-        accInfo->code = q.value(LAC_CODE).toString();
-        accInfo->accName = q.value(LAC_NAEM).toString();
-        accInfo->accLName = q.value(LAC_LNAME).toString();
-        accInfo->fileName = q.value(LAC_FNAME).toString();
-        accInfo->lastOpened = q.value(LAC_ISLAST).toBool();
-        accInfo->tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();
-        accInfo->inTime = QDateTime::fromString(q.value(LAC_INTIME).toString(),Qt::ISODate);
-        accInfo->outMid = q.value(LAC_OUTMID).toInt();
-        accInfo->outTime = QDateTime::fromString(q.value(LAC_OUTTIME).toString(),Qt::ISODate);
-        accs.append(accInfo);
+        item = new AccountCacheItem;
+        item->id = q.value(0).toInt();
+        item->code = q.value(LAC_CODE).toString();
+        item->accName = q.value(LAC_NAEM).toString();
+        item->accLName = q.value(LAC_LNAME).toString();
+        item->fileName = q.value(LAC_FNAME).toString();
+        item->lastOpened = q.value(LAC_ISLAST).toBool();
+        item->mac = machines.value(q.value(LAC_MAC).toInt());
+        item->outTime = q.value(LAC_OUTTIME).toDateTime();
+        item->inTime = q.value(LAC_INTIME).toDateTime();
+        item->tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();
+        accountCaches<<item;
     }
-    return true;
+    init_accCache = true;
 }
 
 /**
- * @brief 获取最后一次关闭的账户缓存条目
- * @param accItem
- * @return
+ * @brief AppConfig::_initMachines
+ *  读取主机条目，并初始化machines表
  */
-bool AppConfig::getRecendOpenAccount(AccountCacheItem &accItem)
+void AppConfig::_initMachines()
 {
     QSqlQuery q(db);
-    QString s = QString("select * from %1 where %2=1")
-            .arg(tbl_localAccountCache).arg(fld_lac_isLastOpen);
+    QString s = QString("select * from %1").arg(tbl_machines);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
-        return false;
+        QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("无法读取机器信息，请检查账户数据库相应表格是否有误！"));
+        return;
     }
-    if(!q.first()){
-        //accItem.code = "0000";
-        return false;
-    }
-    accItem.code = q.value(LAC_CODE).toString();
-    accItem.accName = q.value(LAC_NAEM).toString();
-    accItem.accLName = q.value(LAC_LNAME).toString();
-    accItem.fileName = q.value(LAC_FNAME).toString();
-    accItem.lastOpened = q.value(LAC_ISLAST).toBool();
-    accItem.tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();
-    accItem.inTime = QDateTime::fromString(q.value(LAC_INTIME).toString(),Qt::ISODate);
-    accItem.outMid = q.value(LAC_OUTMID).toInt();
-    accItem.outTime = QDateTime::fromString(q.value(LAC_OUTTIME).toString(),Qt::ISODate);
-    return true;
-}
-
-/**
- * @brief 设置最近打开账户
- * @param code
- * @return
- */
-bool AppConfig::setRecentOpenAccount(QString code)
-{
-    QSqlQuery q(db);
-    QString s = QString("update %1 set %2=0 where %2=1")
-            .arg(tbl_localAccountCache).arg(fld_lac_isLastOpen);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    s = QString("update %1 set %2=1 where %3='%4'").arg(tbl_localAccountCache)
-                .arg(fld_lac_isLastOpen).arg(fld_lac_code).arg(code);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    return true;
-}
-
-/**
- * @brief 读取所有应用支持的科目系统
- * @param items
- * @return
- */
-bool AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
-{
-    QSqlQuery q(db);
-    QString s = QString("select * from %1").arg(tbl_subSys);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
+    int id,mid;
+    QString name,desc;
+    MachineType mtype;
+    bool isLocal;
     while(q.next()){
-        SubSysNameItem* si = new SubSysNameItem;
-        si->code = q.value(SS_CODE).toInt();
-        si->name = q.value(SS_NAME).toString();
-        si->explain = q.value(SS_EXPLAIN).toString();
-        si->isImport = false;
-        items<<si;
+        id = q.value(0).toInt();
+        mid = q.value(MACS_MID).toInt();
+        mtype = (MachineType)q.value(MACS_TYPE).toInt();
+        isLocal = q.value(MACS_ISLOCAL).toBool();
+        name = q.value(MACS_NAME).toString();
+        desc = q.value(MACS_DESC).toString();
+        Machine* m = new Machine(id,mtype,mid,isLocal,name,desc);
+        machines[m->getMID()] = m;
     }
-    return true;
 }
 
-/**
- * @brief AppConfig::getSupportMoneyType
- *  获取系统支持的货币类型
- * @param moneys
- * @return
- */
-bool AppConfig::getSupportMoneyType(QHash<int, Money*> &moneys)
+bool AppConfig::_saveMachine(Machine *mac)
 {
-    if(moneyTypes.isEmpty()){
-        QSqlQuery q(db);
-        QString s = QString("select * from %1").arg(tbl_base_mt);
+    if(!mac)
+        return false;
+    QSqlQuery q(db);
+    QString s;
+    if(mac->getId() == UNID)
+        s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,%9,'%10','%11')")
+                .arg(tbl_machines).arg(fld_mac_mid).arg(fld_mac_type).arg(fld_mac_islocal)
+                .arg(fld_mac_sname).arg(fld_mac_desc).arg(mac->getMID()).arg(mac->getType())
+                .arg(mac->isLocalMachine()?1:0).arg(mac->name()).arg(mac->description());
+    else
+        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8='%9',%10='%11' where id=%12")
+                .arg(tbl_machines).arg(fld_mac_mid).arg(mac->getMID()).arg(fld_mac_type)
+                .arg(mac->getType()).arg(fld_mac_islocal).arg(mac->isLocalMachine()?1:0)
+                .arg(fld_mac_sname).arg(mac->name()).arg(fld_mac_desc).arg(mac->description()).arg(mac->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(mac->getId() == UNID){
+        s = "select last_insert_rowid()";
         if(!q.exec(s)){
             LOG_SQLERROR(s);
             return false;
         }
-        int code;
-        QString sign,name;
-        while(q.next()){
-            code = q.value(BASE_MT_CODE).toInt();
-            sign = q.value(BASE_MT_SIGN).toString();
-            name = q.value(BASE_MT_NAME).toString();
-            moneyTypes[code] = new Money(code,name,sign);
-        }
+        q.first();
+        mac->id = q.value(0).toInt();
+        machines[mac->getMID()] = mac;
     }
-    moneys = moneyTypes;
     return true;
 }
+
 
 /**
  * @brief AppConfig::addAccountInfo
@@ -765,21 +923,67 @@ QHash<int, SubjectClass> AppConfig::getSubjectClassMaps(int subSys)
     return maps;
 }
 
+/**
+ * @brief AppConfig::getMachineTypes
+ *  返回系统支持的主机类型（即保存账户文件处所）
+ * @return
+ */
+QHash<MachineType, QString> AppConfig::getMachineTypes()
+{
+    QHash<MachineType, QString> mt;
+    mt[MT_COMPUTER] = QObject::tr("物理电脑");
+    mt[MT_CLOUDY] = QObject::tr("云账户");
+    return mt;
+}
+
 
 
 /**
- * @brief AppConfig::getLocalMid
- *  获取本机ID标识
- * @return 0：出错，比如没有找到isLocal字段为1的记录
+ * @brief AppConfig::getLocalMachine
+ *  获取本机对象
+ * @return
  */
-int AppConfig::getLocalMid()
+Machine *AppConfig::getLocalMachine()
 {
-    QSqlQuery q(db);
-    QString s = "select mid from machines where isLocal=1";
-    if(!q.exec(s) || !q.first())
-        return 0;
-    return q.value(0).toInt();
+    QHashIterator<int,Machine*> it(machines);
+    while(it.hasNext()){
+        it.next();
+        if(it.value()->isLocalMachine())
+            return it.value();
+    }
+    return NULL;
 }
+
+/**
+ * @brief AppConfig::saveMachine
+ *  将指定的主机信息保存到本机基本库的主机表中
+ * @param mac
+ * @return
+ */
+bool AppConfig::saveMachine(Machine *mac)
+{
+    return _saveMachine(mac);
+}
+
+bool AppConfig::saveMachines(QList<Machine *> macs)
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save machines list!");
+        return false;
+    }
+    foreach(Machine* mac, macs){
+        if(!_saveMachine(mac))
+            return false;
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save machines list!");
+        if(!db.rollback())
+            LOG_SQLERROR("Rollback transaction failed on save machines list!");
+        return false;
+    }
+    return true;
+}
+
 
 /**
  * @brief AppConfig::readPzEwTableState

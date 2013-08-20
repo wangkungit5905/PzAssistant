@@ -662,4 +662,40 @@ public:
 void transferDirection(const QHash<int, int> &sd, QHash<int, MoneyDirection> &dd);
 void transferAntiDirection(const QHash<int, MoneyDirection> &sd, QHash<int, int> &dd);
 
+
+
+/////////////////////////////////////////////////////////////
+/**
+ * @brief BackupUtil 账户文件备份实用类
+ */
+class BackupUtil
+{
+public:
+    enum BackupReason{
+        BR_UPGRADE = 1,     //账户升级
+        BR_TRANSFERIN = 2   //账户转入
+    };
+
+    BackupUtil(QString srcDir="", QString bacDir="");
+    bool backup(QString fileName, BackupReason reason);
+    bool restore(QString& error);
+    bool restore(QString fileName, BackupReason reason, QString& error);
+    //QString _fondLastFile(QString fileName,BackupReason reason);
+    QString _cutSuffix(QString fileName);
+    void clear();
+    void setBackupDirectory(QString path);
+    void setSourceDirectory(QString path);
+private:
+    int _fondLastFile(QString fileName,BackupReason reason);
+    void _loadBackupFiles();
+    QString _getReasonTag(BackupReason reason);
+    //QString _cutSuffix(QString fileName);
+    //QString _getPrimaryFileName(QString fileName, QString suffix);
+    bool _copyFile(QString sn,QString dn);
+
+    QStringList files;
+    QDir backDir,sorDir;
+    QStack<QString> stk_sor,stk_back; //带路径的源文件目录、备份文件目录的堆栈
+};
+
 #endif // UTILS_H

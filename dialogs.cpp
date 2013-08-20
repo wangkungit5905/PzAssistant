@@ -41,7 +41,9 @@ OpenAccountDialog::OpenAccountDialog(QWidget* parent) : QDialog(parent)
     ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(false);
     //从应用程序的配置信息中读取已导入的账户
     QStringList accountLst;
-    AppConfig::getInstance()->readAccountCaches(accList);
+    AppConfig* conf = AppConfig::getInstance();
+    accList = conf->getAllCachedAccounts();
+    states = conf->getAccTranStates();
     for(int i = 0; i < accList.count(); ++i)
         accountLst << accList.at(i)->accName;
     model = new QStringListModel(accountLst);
@@ -56,12 +58,17 @@ void OpenAccountDialog::itemClicked(const QModelIndex &index)
 {
     ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);
     selAcc = index.row();
-    ui.lblFName->setText(accList.at(selAcc)->fileName);
-    ui.lblCode->setText(accList.at(selAcc)->code);
-    ui.lname->setText(accList.at(selAcc)->accLName);
+    AccountCacheItem* ci = accList.at(selAcc);
+    ui.lblFName->setText(ci->fileName);
+    ui.lblCode->setText(ci->code);
+    ui.lname->setText(ci->accLName);
     //ui.lblLastTime->setText(accInfoLst[selAcc]->lastTime);
-    //ui.lblDesc->setText(accInfoLst[selAcc]->desc);
-    //ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);
+    //ui.lblDesc->setText(accInfoLst[selAcc]->desc);    
+    ui.edtMac->setText(ci->mac->name());
+    ui.edtOutTime->setText(ci->outTime.toString(Qt::ISODate));
+    ui.edtTranState->setText(states.value(ci->tState));
+    ui.edtInTime->setText(ci->inTime.toString(Qt::ISODate));
+    ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);
 }
 
 void OpenAccountDialog::doubleClicked(const QModelIndex &index)

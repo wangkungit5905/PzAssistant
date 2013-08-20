@@ -1112,7 +1112,7 @@ bool AccountSuiteManager::isZbNumConflict(int num)
  */
 void AccountSuiteManager::scanPzCount()
 {
-    if(isOpened())
+    if(!isOpened())
         return;
     c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
     foreach(PingZheng* pz, *pzs){
@@ -1141,7 +1141,7 @@ void AccountSuiteManager::scanPzCount()
 void AccountSuiteManager::_determinePzSetState(PzsState &state)
 {
     PzsState oldState = state;
-    if(isOpened())
+    if(!isOpened())
         state = Ps_NoOpen;
     else if(getState() == Ps_Jzed)
         state = Ps_Jzed;
@@ -1976,34 +1976,6 @@ void AccountSuiteManager::pzChangedInSet(PingZheng *pz)
 
 void AccountSuiteManager::pzStateChanged(PzState oldState, PzState newState)
 {
-//    switch(oldState){
-//    case Pzs_Recording:
-//        c_recording--;
-//        break;
-//    case Pzs_Verify:
-//        c_verify--;
-//        break;
-//    case Pzs_Instat:
-//        c_instat--;
-//        break;
-//    case Pzs_Repeal:
-//        c_repeal--;
-//        break;
-//    }
-//    switch(newState){
-//    case Pzs_Recording:
-//        c_recording++;
-//        break;
-//    case Pzs_Verify:
-//        c_verify++;
-//        break;
-//    case Pzs_Instat:
-//        c_instat++;
-//        break;
-//    case Pzs_Repeal:
-//        c_repeal++;
-//        break;
-//    }
     _determinePzSetState(states[curM]);
     emit pzCountChanged(pzs->count());
 }

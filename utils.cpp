@@ -5484,3 +5484,201 @@ void transferAntiDirection(const QHash<int, MoneyDirection> &sd, QHash<int, int>
         dd[it.key()] = it.value();
     }
 }
+
+
+//////////////////////////////BackupUtil/////////////////////////////////
+BackupUtil::BackupUtil(QString srcDir, QString bacDir)
+{
+    if(srcDir.isEmpty())
+        sorDir.setPath(DatabasePath);
+    else
+        sorDir.setPath(srcDir);
+    if(bacDir.isEmpty())
+        backDir.setPath(BackupPath);
+    else
+        backDir.setPath(bacDir);
+    _loadBackupFiles();
+}
+
+/**
+ * @brief BackupUtil::backup
+ * @param fileName      账户文件名（不包含路径）
+ * @param reason        备份缘由
+ * @param backFileName  对应的备份文件名
+ * @return
+ */
+bool BackupUtil::backup(QString fileName, BackupUtil::BackupReason reason)
+{
+    QString sn = sorDir.absolutePath()+QDir::separator() + fileName;
+    QString timeTag = QDateTime::currentDateTime().toString(Qt::ISODate);
+    timeTag.replace(":","-");
+    fileName = _cutSuffix(fileName);
+    QString dn = QString("%1%2_%3_%4.bak").arg(backDir.absolutePath()+QDir::separator())
+            .arg(fileName).arg(_getReasonTag(reason)).arg(timeTag);
+    if(!QFile::copy(sn,dn))
+        return false;
+    files<<dn;
+    stk_sor.push(sn);
+    stk_back.push(dn);
+    return true;
+}
+
+/**
+ * @brief BackupUtil::restore
+ *  恢复最近备份的文件
+ * @param error
+ * @return
+ */
+bool BackupUtil::restore(QString &error)
+{
+    if(stk_back.isEmpty() || stk_sor.isEmpty()){
+        error = "Don't exist restorable file!";
+        return false;
+    }
+    QString srcFile = stk_sor.pop();
+    QString backFile = stk_back.pop();
+    if(!_copyFile(backFile,srcFile)){
+        error = "File restore failed on copy!";
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief BackupUtil::restore
+ *  恢复指定文件的最近备份版本
+ * @param fileName  原始文件名（不带路径）
+ * @param reason    备份缘由
+ * @param error     出错信息
+ * @return
+ */
+bool BackupUtil::restore(QString fileName, BackupReason reason, QString &error)
+{
+    int index = _fondLastFile(fileName,reason);
+    if(index == -1){
+        error = "Backup file not fonded!";
+        return false;
+    }
+    QString sn = stk_sor.at(index);
+    QString bn = stk_back.at(index);
+    stk_sor.remove(index);
+    stk_back.remove(index);
+    if(!_copyFile(bn,sn)){
+        error = "File retore failed on copy!";
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief BackupUtil::fondLastFile
+ *  查找与指定文件和备份缘由匹配的最新备份文件在堆栈中的序号
+ * @param fileName  原始文件名（不带路径）
+ * @param reason
+ * @return
+ */
+int BackupUtil::_fondLastFile(QString fileName, BackupUtil::BackupReason reason)
+{
+    if(stk_back.isEmpty() || stk_sor.isEmpty())
+        return -1;
+    QString fn = _cutSuffix(fileName);
+    fn = QString("%1_%2").arg(fn).arg(_getReasonTag(reason));
+    for(int i = stk_back.count()-1; i >=0; i--){
+        QString bname = stk_back.at(i);
+        if(bname.contains(fn))
+            return i;
+    }
+    return -1;
+}
+
+/**
+ * @brief BackupUtil::clear
+ *  删除备份目录下的所有文件
+ */
+void BackupUtil::clear()
+{
+    QFileInfoList filelist = backDir.entryInfoList(QDir::Files,QDir::Name);
+    foreach(QFileInfo finfo, filelist){
+        QString fileName = finfo.fileName();
+        backDir.remove(fileName);
+    }
+    files.clear();
+}
+
+void BackupUtil::setBackupDirectory(QString path)
+{
+    backDir.setPath(path);
+    _loadBackupFiles();
+}
+
+void BackupUtil::setSourceDirectory(QString path)
+{
+    sorDir.setPath(path);
+}
+
+/**
+ * @brief BackupUtil::_loadBackupFiles
+ *  装载备份目录下的所有备份文件名到列表files
+ */
+void BackupUtil::_loadBackupFiles()
+{
+    if(!files.isEmpty())
+        files.clear();
+    QStringList filters;
+    filters << "*.bak";
+    backDir.setNameFilters(filters);
+    QFileInfoList filelist = backDir.entryInfoList(filters, QDir::Files);
+    foreach(QFileInfo finfo, filelist){
+        QString fileName = finfo.absoluteFilePath();
+        files<<fileName;
+    }
+    if(!files.isEmpty())
+        files.sort();
+}
+
+/**
+ * @brief BackupUtil::_getReasonTag
+ *  返回表示备份缘由的字符串
+ * @param reason
+ * @return
+ */
+QString BackupUtil::_getReasonTag(BackupUtil::BackupReason reason)
+{
+    if(reason == BR_UPGRADE)
+        return "UP";
+    else
+        return "TR";
+}
+
+/**
+ * @brief BackupUtil::_copyFile
+ *  为恢复文件而执行拷贝操作
+ * @param sn
+ * @param dn
+ * @return
+ */
+bool BackupUtil::_copyFile(QString sn, QString dn)
+{
+    QString filename = QFileInfo(dn).fileName();
+    if(sorDir.exists(filename))
+        sorDir.remove(dn);
+    return QFile::copy(sn,dn);
+}
+
+/**
+ * @brief BackupUtil::_cutSuffix
+ *  截去文件名中的后缀名
+ * @param fileName
+ * @return
+ */
+QString BackupUtil::_cutSuffix(QString fileName)
+{
+
+    int idx = fileName.lastIndexOf('.');
+    if(idx == -1)
+        return fileName;
+    else{
+        QString fname = fileName.left(idx);
+        return fname;
+    }
+}

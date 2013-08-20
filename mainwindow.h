@@ -23,6 +23,14 @@ namespace Ui {
     class MainWindow;
 }
 
+//class MouseHoverEventFilter : public QObject
+// {
+//     Q_OBJECT
+//public:
+//    MouseHoverEventFilter(QObject* parent=0):QObject(parent){}
+// protected:
+//     bool eventFilter(QObject *obj, QEvent *event);
+// };
 
 
 class PaStatusBar : public QStatusBar
@@ -35,10 +43,10 @@ public:
     void setPzSetState(PzsState state);
     void setExtraState(bool isValid){extraState.setText(isValid?tr("有效"):tr("无效"));}
     void setPzAmount(int c){pzCount.setText(c!=0?QString::number(c):"");}
-    void setRepealCount(int c){pzRepeal.setText(c!=0?QString::number(c):"");}
-    void setRecordingCount(int c){pzRecording.setText(c!=0?QString::number(c):"");}
-    void setVerifyCount(int c){pzVerify.setText(c!=0?QString::number(c):"");}
-    void setInstantCount(int c){pzInstat.setText(c!=0?QString::number(c):"");}
+    void setRepealCount(int c){num_rep=c;adjustPzCountTip();}
+    void setRecordingCount(int c){num_rec=c;adjustPzCountTip();}
+    void setVerifyCount(int c){num_ver=c;adjustPzCountTip();}
+    void setInstantCount(int c){num_ins=c;adjustPzCountTip();}
     void setPzCounts(int repeal,int recording,int verify,int instat,int amount);
     void resetPzCounts();
     void setUser(User* user);
@@ -49,14 +57,16 @@ public slots:
 private slots:
     void timeout();
 private:
+    void adjustPzCountTip();
     void startProgress(int amount);
     void endProgress();
     void adjustProgress(int value);
 
-    QLabel pzSetDate,pzSetState,extraState,lblUser,pzCount,pzRepeal,pzRecording,pzVerify,pzInstat;
+    QLabel pzSetDate,pzSetState,extraState,lblUser,pzCount/*,pzRepeal,pzRecording,pzVerify,pzInstat*/;
     QProgressBar* pBar;
     QLabel* lblRuntime;
     int pAmount;  //进度指示器的最大值
+    int num_rec,num_ver,num_ins,num_rep;    //录入、审核、入账、作废凭证数
     QHash<AppErrorLevel,QString> colors;     //运行时信息各级别所使用的颜色在样式表中的表示串
     QTimer* timer;
 };
@@ -289,6 +299,10 @@ private slots:
 
     void on_actSuite_triggered();
 
+    void on_actEmpAccount_triggered();
+
+    void on_actInAccount_triggered();
+
 private:
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
@@ -297,7 +311,7 @@ private:
     void initToolBar();
     void initSearchClientToolView();
     void initTvActions();
-    void accountInit();    
+    void accountInit(AccountCacheItem *ci);
     subWindowType activedMdiChild();
     void rfOther();
     void rfLogin(bool login = true);
@@ -330,7 +344,7 @@ private:
     void adjustEditMenus(UndoType ut=UT_PZ, bool restore = false);
 
     /////////////////////////////////////////////////////////////////
-    void switchSubWindowGroup(int suiteId);
+    //void switchSubWindowGroup(int suiteId);
 
     /////////////////////////////////////////////////////////////////
 

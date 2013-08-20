@@ -25,6 +25,7 @@ QString hVersion = "1.2";
 
 QString DatabasePath;
 QString BaseDataPath;
+QString BackupPath;
 
 QString lastModifyTime;
 
@@ -81,6 +82,7 @@ int appInit()
     //初始化路径信息
     DatabasePath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
     BaseDataPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
+    BackupPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/backups/"));
     VersionManager vm(VersionManager::MT_CONF);
     VersionUpgradeInspectResult result = vm.isMustUpgrade();
     bool exec = false;

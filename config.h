@@ -11,6 +11,7 @@
 
 
 class VersionManager;
+class Machine;
 //通过访问应用程序的基本库来存取配置信息
 class AppConfig
 {
@@ -69,7 +70,12 @@ public:
     void setSpecSubCode(int subSys, SpecSubCode witch, QString code);
     QHash<int,SubjectClass> getSubjectClassMaps(int subSys);
 
-    int getLocalMid();
+    QHash<MachineType,QString> getMachineTypes();
+    Machine* getLocalMachine();
+    Machine* getMachine(int id){return machines.value(id);}
+    QHash<int,Machine*> getAllMachines(){return machines;}
+    bool saveMachine(Machine* mac);
+    bool saveMachines(QList<Machine*> macs);
 
     //子窗口状态信息存取方法
     bool readPzEwTableState(QList<int> &infos);
@@ -87,25 +93,36 @@ public:
     bool setConVar(QString name, QString value);
 
     //保存或读取本地账户缓存信息
-    bool initAccountCache(QList<AccountCacheItem *>& accCaches);
     bool clearAccountCache();
     bool isExist(QString code);
-    bool saveAccountCacheItem(AccountCacheItem& accInfo);
-    bool getAccountCacheItem(AccountCacheItem &accInfo);
-    bool readAccountCaches(QList<AccountCacheItem*>& accs);
-    bool getRecendOpenAccount(AccountCacheItem &accItem);
-    bool setRecentOpenAccount(QString code);
+    bool refreshLocalAccount(int& count);
+    bool saveAccountCacheItem(AccountCacheItem* accInfo);
+    bool saveAllAccountCaches();
+    AccountCacheItem* getAccountCacheItem(QString code);
+    QList<AccountCacheItem *> getAllCachedAccounts();
+    AccountCacheItem *getRecendOpenAccount();
+    void setRecentOpenAccount(QString code);
+    QHash<AccountTransferState,QString> getAccTranStates();
 
     bool getSubSysItems(QList<SubSysNameItem *> &items);
 
     bool getSupportMoneyType(QHash<int, Money *> &moneys);
 
 private:
+    bool _isValidAccountCode(QString code);
+    bool _saveAccountCacheItem(AccountCacheItem* accInfo);
+    bool _searchAccount();
+    bool _initAccountCaches();
+    void _initMachines();
+    bool _saveMachine(Machine* mac);
     AppConfig();
     bool getConfigVar(QString name, int type);
     bool setConfigVar(QString name,int type);
 
     QHash<int, Money*> moneyTypes;
+    QHash<int, Machine*> machines;
+    QList<AccountCacheItem*> accountCaches;
+    bool init_accCache; //本地账户缓存条目是否已从缓存表中读取的标志
     bool bv;       //分别用来保存4种类型的变量值
     int iv;
     double dv;

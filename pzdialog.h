@@ -11,7 +11,7 @@
 #include "delegates.h"
 
 #define INFO_TIMEOUT  5000   //状态信息显示的超时时间
-#define MAXROWS       50    //会计分录表格预留的最大行数
+const int BA_TABLE_MAXROWS = 50;    //会计分录表格预留的最大行数
 
 //#define PZEW_SD_COUNT 9      //状态信息个数
 #define PZEW_DEF_WIDTH  1000 //默认宽度
@@ -151,7 +151,7 @@ public slots:
     void save();
     void setPzState(PzState state);
 private slots:
-    void rateChanged();
+    //void rateChanged();
     void updatePzCount(int count);
     void curPzChanged(PingZheng* newPz, PingZheng* oldPz);
     void msgTimeout();
@@ -223,7 +223,7 @@ private slots:
     void tabRowHeightResized(int index, int oldSize, int newSize);
 
     void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);
-
+    void modifyRate();
 signals:
     void showMessage(QString info, AppErrorLevel levelS=AE_OK);
     void selectedBaChanged(QList<int> rows, bool conti);
@@ -292,6 +292,9 @@ private:
     QShortcut* sc_copy;      //拷贝会计分录
     QShortcut* sc_cut;       //剪切会计分录
     QShortcut* sc_paster;    //粘贴会计分录
+
+    //上下文菜单
+    QAction* actModifyRate;
 };
 
 class HistoryPzForm : public QDialog

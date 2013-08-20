@@ -36,6 +36,7 @@ private:
     QStringListModel* model;
     QList<AccountCacheItem*> accList;
     int selAcc;   //选择的账户的序号
+    QHash<AccountTransferState,QString> states;
 };
 
 

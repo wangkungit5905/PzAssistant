@@ -111,6 +111,7 @@ VMAccount::VMAccount(QString filename):fileName(filename)
     appendVersion(1,4,&VMAccount::updateTo1_4);
     appendVersion(1,5,&VMAccount::updateTo1_5);
     appendVersion(1,6,&VMAccount::updateTo1_6);
+    appendVersion(1,7,&VMAccount::updateTo1_7);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1006,10 +1007,62 @@ bool VMAccount::updateTo1_4()
 /**
  * @brief VMAccount::updateTo1_7
  *  任务描述：
- *  1、将选项表示结转银行存款、应收账款和应付账款的结转凭证归为一个结转汇兑损益类别
+ *  1、创建转移记录表，转移记录描述表
+ *  2、为了使账户可以编辑，初始化一条转移记录（在系统当前时间，由本机转出并转入到本机的转移记录）
  * @return
  */
 bool VMAccount::updateTo1_7()
+{
+    int verNum = 107;
+    QSqlQuery q(db);
+    emit upgradeStep(verNum,tr("第一步：创建转移记录表，转移记录描述表！"),VUR_OK);
+    QString s = QString("create table %1(id integer primary key, %2 integer, %3 integer, %4 integer, %5 text, %6 text)")
+            .arg(tbl_transfer).arg(fld_trans_smid).arg(fld_trans_dmid).arg(fld_trans_state).arg(fld_trans_outTime).arg(fld_trans_inTime);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时出错！").arg(tbl_transfer),VUR_ERROR);
+        return false;
+    }
+    s = QString("create table %1(id integer primary key, %2 integer, %3 text, %4 text)")
+            .arg(tbl_transferDesc).arg(fld_transDesc_tid).arg(fld_transDesc_out).arg(fld_transDesc_in);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时出错！").arg(tbl_transferDesc),VUR_ERROR);
+        return false;
+    }
+    emit upgradeStep(verNum,tr("第二步：初始化首条转移记录！"),VUR_OK);
+    int mid = AppConfig::getInstance()->getLocalMachine()->getMID();
+    QString curTime = QDateTime::currentDateTime().toString(Qt::ISODate);
+    s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,%9,'%10','%11')")
+            .arg(tbl_transfer).arg(fld_trans_smid).arg(fld_trans_dmid).arg(fld_trans_state)
+            .arg(fld_trans_outTime).arg(fld_trans_inTime)
+            .arg(mid).arg(mid).arg(ATS_TRANSINDES).arg(curTime).arg(curTime);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在初始化首条转移记录时出错！"),VUR_ERROR);
+        return false;
+    }
+    s = "select last_insert_rowid()";
+    if(!q.exec(s) || !q.first())
+        return false;
+    int tid = q.value(0).toInt();
+    QString outDesc = QObject::tr("默认初始由本机转出");
+    QString inDesc = QObject::tr("默认初始由本机转入");
+    s = QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')")
+            .arg(tbl_transferDesc).arg(fld_transDesc_tid).arg(fld_transDesc_out)
+            .arg(fld_transDesc_in).arg(tid).arg(outDesc).arg(inDesc);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在记录首条转移记录描述信息时出错！"),VUR_ERROR);
+        return false;
+    }
+    emit endUpgrade(verNum,tr("账户文件格式成功更新到1.7版本！"),VUR_OK);
+    return setCurVersion(1,7);
+}
+
+/**
+ * @brief VMAccount::updateTo1_8
+ *  任务描述：
+ *  1、将选项表示结转银行存款、应收账款和应付账款的结转凭证归为一个结转汇兑损益类别
+ * @return
+ */
+bool VMAccount::updateTo1_8()
 {
 //    QSqlQuery q(db);
 //    QString s = QString("update %1 set %2=%3 where %2=%4 or %2=%5 or %2=%6")
@@ -1366,41 +1419,7 @@ bool VMAccount::updateTo2_0()
 //    return setCurVersion(1,5);
 }
 
-/**
- * @brief VMAccount::updateTo2_1
- * @return
- */
-bool VMAccount::updateTo2_1()
-{
-    //1、创建转移记录表，转移记录描述表
-    //2、为了使账户可以编辑，初始化一条转移记录（在系统当前时间，由本机转出并转入的转移记录）
-    QSqlQuery q(db);
-    QString s = "create table transfers(id integer primary key, smid integer, dmid integer, state integer, outTime text, inTime text)";
-    if(!q.exec(s))
-        return false;
-    s = "create table transferDescs(id integer primary key, tid integer, outDesc text, inDesc text)";
-    if(!q.exec(s))
-        return false;
-    int mid = AppConfig::getInstance()->getLocalMid();
-    QString curTime = QDateTime::currentDateTime().toString(Qt::ISODate);
-    s = QString("insert into transfers(smid,dmid,state,outTime,inTime) values(%1,%2,%3,'%4','%5')")
-            .arg(mid).arg(mid).arg(Account::ATS_TranInDes).arg(curTime).arg(curTime);
-    if(!q.exec(s))
-        return false;
-    s = "select last_insert_rowid()";
-    if(!q.exec(s) || !q.first())
-        return false;
-    int tid = q.value(0).toInt();
-    QString outDesc = QObject::tr("默认初始由本机转出");
-    QString inDesc = QObject::tr("默认初始由本机转入");
-    s = QString("insert into transferDescs(tid,outDesc,inDesc) values(%1,'%2','%3')")
-            .arg(tid).arg(outDesc).arg(inDesc);
-    if(!q.exec(s))
-        return false;
-    QMessageBox::information(0,QObject::tr("更新成功"),
-                                 QObject::tr("账户文件格式成功更新到1.6版本！"));
-    return setCurVersion(1,6);
-}
+
 
 
 /////////////////////////////////VMAppConfig//////////////////////////////////////////
@@ -1417,6 +1436,7 @@ VMAppConfig::VMAppConfig(QString fileName)
     appendVersion(1,1,&VMAppConfig::updateTo1_1);
     appendVersion(1,2,&VMAppConfig::updateTo1_2);
     appendVersion(1,3,&VMAppConfig::updateTo1_3);
+    appendVersion(1,4,&VMAppConfig::updateTo1_4);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1609,6 +1629,7 @@ bool VMAppConfig::updateTo1_2()
  */
 bool VMAppConfig::updateTo1_4()
 {
+    int verNum = 140;
     QSqlQuery q(db);
     QHash<int,QString> snames;
     QHash<int,QString> lnames;
@@ -1620,7 +1641,7 @@ bool VMAppConfig::updateTo1_4()
     lnames[103] = QObject::tr("单位的桌面电脑");
     snames[104] = QObject::tr("我的笔记本（linux）");
     lnames[104] = QObject::tr("我的笔记本上的linux系统");
-    snames[104] = QObject::tr("我的笔记本（Windows XP）");
+    snames[105] = QObject::tr("我的笔记本（Windows XP）");
     lnames[105] = QObject::tr("我的笔记本上的Windows XP系统");
 
     QList<int> mids = snames.keys();
@@ -1637,20 +1658,32 @@ bool VMAppConfig::updateTo1_4()
     int index = names.indexOf(name);
     int mid = mids.at(index);        //选择的主机标识
     QHashIterator<int,QString> it(snames);
-    QString s = "create table machines(id integer primary key, type integer, mid integer, isLocal integer, sname text, lname text)";
-    if(!q.exec(s))
+    QString s = QString("create table %1(id integer primary key, %2 integer, %3 integer, %4 integer, %5 text, %6 text)")
+            .arg(tbl_machines).arg(fld_mac_mid).arg(fld_mac_type).arg(fld_mac_islocal)
+            .arg(fld_mac_sname).arg(fld_mac_desc);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时出错！").arg(tbl_machines),VUR_ERROR);
         return false;
+    }
     it.toFront();
     while(it.hasNext()){
         it.next();
-        s = QString("insert into machines(type,mid,isLocal,sname,lname) values(1,%1,%2,'%3','%4')")
-                .arg(it.key()).arg(0).arg(it.value()).arg(lnames.value(it.key()));
-        if(!q.exec(s))
+        s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,1,0,'%8','%9')")
+                .arg(tbl_machines).arg(fld_mac_mid).arg(fld_mac_type).arg(fld_mac_islocal)
+                .arg(fld_mac_sname).arg(fld_mac_desc).arg(it.key())
+                .arg(it.value()).arg(lnames.value(it.key()));
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("在将初始的机器列表插入到“%1”时出错！").arg(tbl_machines),VUR_ERROR);
             return false;
+        }
     }
-    s = QString("update machines set isLocal=1 where mid=%1").arg(mid);
-    if(!q.exec(s))
+    s = QString("update %1 set %2=1 where %3=%4").arg(tbl_machines)
+            .arg(fld_mac_islocal).arg(fld_mac_mid).arg(mid);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在设置本机标识时出错！"),VUR_ERROR);
         return false;
+    }
+    endUpgrade(verNum,"",VUR_OK);
     return setCurVersion(1,4);
 }
 

@@ -11,6 +11,7 @@ class PingZheng;
 class BusiAction;
 class User;
 class FirstSubject;
+class Machine;
 
 const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
 const int UNCLASS   = 0;    //未知的分类
@@ -442,41 +443,36 @@ struct SubWindowDim{
     int w,h;  //子窗口大小
 };
 
-//本地账户缓存表（LocalAccountCaches)
-//字段名
-//#define tbl_localAccountCache "LocalAccountCaches"
-//#define fld_lac_code "code"                 //账户编码
-//#define fld_lac_name "name"                 //账户简称
-//#define fld_lac_lname "lname"               //账户全称
-//#define fld_lac_filename "fname"            //账户文件名
-//#define fld_lac_isLastOpen "isLastOpen"     //
-//#define fld_lac_tranState "tstate"          //
-//#define fld_lac_tranInTime "tranInTime"     //
-//#define fld_lac_tranOutMid "tranOutMid"     //
-//#define fld_lac_tranOutTime "tranOutTime"   //
-////#define fld_lac_hash "hashValue"            //
-//账户简要信息，此信息来自于基本数据库的AccountInfos表
-struct AccountBriefInfo{
-    int id;                     //账户id
-    QString code;               //账户代码
-    QString fname;              //账户数据库文件名
-    QString sname;              //账户简称
-    QString lname;              //账户全称
-    bool isRecent;              //是否是最近打开的账户
-    //AccountTransferState tstate        //转移状态（待转移功能加入后使用）
-    //QDateTime tinTime;          //转入时间
-    //int tOutMid;                //转出主机的MID
-    //QDateTime tOutTime;         //转出时间
-    //QString hashValue;          //账户文件的Hash值
-};
-
 //账户转移状态枚举类型（待引入账户的转入转出功能后，移到transform.h文件中）
 enum AccountTransferState{
     ATS_INVALID     =   0,      //无效状态
-    ATS_TRANSOUT    =   1,      //已转出，还未转入
+    ATS_TRANSOUTED  =   1,      //已转出
     ATS_TRANSINDES  =   2,      //已转入目标主机
     ATS_TRANSINOTHER =  3       //已转入其他主机
 };
+
+//主机类型
+enum MachineType{
+   MT_COMPUTER  = 1,    //物理电脑
+   MT_CLOUDY    = 2     //云账户
+};
+
+//账户简要信息，此信息来自于基本数据库的AccountInfos表
+//struct AccountBriefInfo{
+//    int id;                     //账户id
+//    QString code;               //账户代码
+//    QString fname;              //账户数据库文件名
+//    QString sname;              //账户简称
+//    QString lname;              //账户全称
+//    bool isRecent;              //是否是最近打开的账户
+//    AccountTransferState tstate;//转移状态（待转移功能加入后使用）
+//    QDateTime tinTime;          //转入时间
+//    Machine* outMachine;        //转出主机
+//    QDateTime tOutTime;         //转出时间
+//    QString hashValue;          //账户文件的Hash值
+//};
+
+
 
 /**
  * @brief 账户缓存条目结构（与本地账户缓存表对应）
@@ -490,18 +486,19 @@ struct AccountCacheItem{
         accLName = other.accLName;
         inTime = other.inTime;
         outTime = other.outTime;
-        outMid = other.outMid;
+        mac = other.mac;
         tState = other.tState;
         lastOpened = other.lastOpened;
     }
 
+    int id;
     QString code;       //账户代码
     QString fileName;   //账户数据库文件名
     QString accName;    //账户简称
     QString accLName;   //账户全称
-    QDateTime inTime;   //转入时间
-    QDateTime outTime;  //转出时间
-    int outMid;         //转出主机
+    QDateTime inTime;   //转入时间（最近一次转入账户到本主机的时间，三种转移状态下都有意义）
+    QDateTime outTime;  //转出时间（已转出时有意义，其他状态无意义）
+    Machine* mac;    //要转入的目的主机（已转出），转出此账户的源主机（转入到目的机或其他机）
     AccountTransferState tState; //转移状态
     bool lastOpened;    //是否是最后打开的账户
 };
@@ -582,8 +579,24 @@ enum subWindowType{
     SUBWIN_SQL = 18           //SQL工具窗口
     //设置期初余额的窗口
     //科目配置窗口
-
-
 };
+
+//enum MachineType{
+//    MT_COMPUTER = 1,    //电脑
+//    MT_CLOUDY   = 2     //云
+//};
+
+///**
+// * @brief The Machine struct
+// *  可以放置账户文件以只读或编辑模式打开的机器
+// */
+
+//struct Machine{
+//    int id;             //主机id
+//    MachineType type;   //主机类型
+//    bool isLocal;       //是否本机
+//    QString name;       //主机名
+//    QString desc;       //主机描述
+//};
 
 #endif // COMMDATASTRUCT_H

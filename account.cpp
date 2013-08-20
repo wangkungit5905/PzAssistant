@@ -622,6 +622,7 @@ bool Account::init()
                       QObject::tr("Bank init happen error!"));
         ok = false;
     }
+
     if(ok){
         isOpened = true;
         return true;

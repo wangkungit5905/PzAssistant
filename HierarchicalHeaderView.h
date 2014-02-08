@@ -29,7 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define HIERARCHICAL_HEADER_VIEW_H
 
 #include <QHeaderView>
-#include <QProxyModel>
+#include <QAbstractProxyModel>
 #include <QPointer>
 
 /**
@@ -43,7 +43,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //这个代理模型，将表格的行列表头所用到的数据模型与表格本身的数据模型结合在一起统一管理
 //由于QTableView.setModel()内部会调用horizontalHeader->setModel(model)和
 //verticalHeader->setModel(model)，因此有必要使用此代理模型
-class ProxyModelWithHeaderModels: public QProxyModel
+class ProxyModelWithHeaderModels: public QAbstractProxyModel
 {
     Q_OBJECT
 public:
@@ -58,6 +58,14 @@ public:
     void setVerticalHeaderModel(QAbstractItemModel* model);
 
     QAbstractItemModel* getVerticalHeaderModel();
+
+    //I added
+    int columnCount(const QModelIndex &parent) const;
+    int rowCount(const QModelIndex &parent = QModelIndex()) const;
+    QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const;
+    QModelIndex parent(const QModelIndex &index = QModelIndex()) const;
+    QModelIndex	mapFromSource(const QModelIndex & sourceIndex) const;
+    QModelIndex	mapToSource(const QModelIndex & proxyIndex) const;
 
 private:
     QPointer<QAbstractItemModel> _horizontalHeaderModel;//行列表头所用的数据模型

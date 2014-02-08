@@ -29,7 +29,8 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     //初始化自定义的层次式表头
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
     hv->setHighlightSections(true);
-    hv->setClickable(true);
+    //hv->setClickable(true);
+    hv->setSectionsClickable(true);
     //hv->setStyleSheet("QHeaderView::section {background-color:darkcyan;}");
     ui->tview->setHorizontalHeader(hv);    
 
@@ -546,7 +547,8 @@ void CurStatDialog::viewTable()
     if(imodel)
         delete imodel;
     imodel = new ProxyModelWithHeaderModels;
-    imodel->setModel(dataModel);
+    //imodel->setModel(dataModel);
+    imodel->setSourceModel(dataModel);
     imodel->setHorizontalHeaderModel(headerModel);
     ui->tview->setModel(imodel);
     //ui->tview->horizontalHeader()->setStyleSheet("QHeaderView::section {background-color:darkcyan;}");
@@ -917,7 +919,8 @@ void CurStatDialog::printCommon(PrintTask task, QPrinter *printer)
 {
     HierarchicalHeaderView* thv = new HierarchicalHeaderView(Qt::Horizontal);
     ProxyModelWithHeaderModels* m = new ProxyModelWithHeaderModels;
-    m->setModel(dataModel);
+    //m->setModel(dataModel);
+    m->setSourceModel(dataModel);
     m->setHorizontalHeaderModel(headerModel);
 
     //创建打印模板实例

@@ -20,13 +20,13 @@
 
 #ifndef TDPREVIEWDIALOG_H
 #define TDPREVIEWDIALOG_H
-    #include <QtGui/QDialog>
+    #include <QDialog>
     #include <ui_tdpreviewdialog.h>
-    #include <QtGui/QTableView> //checked
-    #include <QtGui/QPrinter> //checked
-    #include <QtGui/QTextLength> //checked
-    #include <QtGui/QFileDialog> //checked
-    #include <QtGui/QGraphicsView> //checked
+    #include <QTableView> //checked
+    #include <QPrinter> //checked
+    #include <QTextLength> //checked
+    #include <QFileDialog> //checked
+    #include <QGraphicsView> //checked
 
 /*! \class TDPreviewDialog
  *  \brief TDPreviewDialog dialog

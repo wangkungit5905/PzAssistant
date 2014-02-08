@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core gui sql xml
+QT       += core widgets sql xml printsupport
 
 TARGET = PzAssistant
 DESTDIR = $${PWD}/../workDir/

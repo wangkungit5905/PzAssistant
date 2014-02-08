@@ -49,7 +49,8 @@ ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent
 
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
     hv->setHighlightSections(true);
-    hv->setClickable(true);
+    //hv->setClickable(true);
+    hv->setSectionsClickable(true);
     ui->tview->setHorizontalHeader(hv);
 
     fcom = new SubjectComplete;
@@ -629,7 +630,8 @@ void ShowDZDialog2::refreshTalbe()
     }
     imodel = new ProxyModelWithHeaderModels;
 
-    imodel->setModel(dataModel);
+    //imodel->setModel(dataModel);
+    imodel->setSourceModel(dataModel);
     imodel->setHorizontalHeaderModel(headerModel);
 
     ui->tview->setModel(imodel); //它会调用verticalHeader->setModel(model)
@@ -2314,7 +2316,8 @@ void ShowDZDialog2::printCommon(QPrinter* printer)
         m->setHorizontalHeaderModel(headerModel);
     }
     else{
-        m->setModel(dataModel);
+        //m->setModel(dataModel);
+        m->setSourceModel(dataModel);
         m->setHorizontalHeaderModel(headerModel);
     }
     //创建打印模板实例

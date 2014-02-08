@@ -89,7 +89,7 @@ int ExpressParse::InOp(char ch){
 bool ExpressParse::InOp(QString str)
 {
     if(str.length() == 1){
-        char ch = str[0].toAscii();
+        char ch = str[0].toLatin1();
         if(ch=='(' || ch==')' || ch=='+' || ch=='-' || ch=='*' || ch=='/'||ch=='=')
             return true;
     else
@@ -221,9 +221,9 @@ double ExpressParse::trans(QStack<QString> exp)
         }
         else     //为运算符的情况
             //栈顶操作符和表达式中扫描到的操作符进行优先级比较
-            switch(Precede(op.top(), exp.top()[0].toAscii())){
+            switch(Precede(op.top(), exp.top()[0].toLatin1())){
             case -1:   //栈顶运算符的优先级低
-                op.push(exp.top()[0].toAscii());
+                op.push(exp.top()[0].toLatin1());
                 exp.pop();   //继续扫描其他字符
                 break;
             case 0:    //只有括号满足这种情况(在刚刚执行完括弧里的表达式后，去掉左括弧)

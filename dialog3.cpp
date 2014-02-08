@@ -2021,7 +2021,8 @@ ShowTZDialog::ShowTZDialog(int y, int m, QByteArray* sinfo, QWidget *parent) : Q
 
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
     hv->setHighlightSections(true);
-    hv->setClickable(true);
+    //hv->setClickable(true);
+    hv->setSectionsClickable(true);
     ui->tview->setHorizontalHeader(hv);
 
     connect(ui->cmbSub, SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSub(int)));
@@ -2211,7 +2212,8 @@ void ShowTZDialog::refreshTable()
     }
     imodel = new ProxyModelWithHeaderModels;
 
-    imodel->setModel(dataModel);
+    //imodel->setModel(dataModel);
+    imodel->setSourceModel(dataModel);
     imodel->setHorizontalHeaderModel(headerModel);
 
     ui->tview->setModel(imodel);
@@ -2518,7 +2520,8 @@ void ShowTZDialog::printCommon(PrintTask task, QPrinter* printer)
 {
     HierarchicalHeaderView* thv = new HierarchicalHeaderView(Qt::Horizontal);
     ProxyModelWithHeaderModels* m = new ProxyModelWithHeaderModels;
-    m->setModel(dataModel);
+    //m->setModel(dataModel);
+    m->setSourceModel(dataModel);
     m->setHorizontalHeaderModel(headerModel);
 
     //创建打印模板实例

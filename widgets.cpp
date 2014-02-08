@@ -947,7 +947,7 @@ MultiRowHeaderTableView::MultiRowHeaderTableView(QAbstractItemModel *model,
     headView->horizontalHeader()->hide();
     headView->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     headView->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    headView->horizontalHeader()->setResizeMode(QHeaderView::Fixed);
+    headView->horizontalHeader()->setSectionResizeMode(QHeaderView::Fixed);
     viewport()->stackUnder(headView); //使作为标题的表格显示在数据表格之上
     //headView->setSelectionModel(selectionModel());
     for(int col=1; col<model->columnCount(); col++)

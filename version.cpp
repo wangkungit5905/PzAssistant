@@ -1446,7 +1446,8 @@ VMAppConfig::VMAppConfig(QString fileName)
         }
     }
     appIni = new QSettings("./config/app/appSetting.ini", QSettings::IniFormat);
-    appIni->setIniCodec(QTextCodec::codecForTr());
+    //appIni->setIniCodec(QTextCodec::codecForTr());
+    appIni->setIniCodec(QTextCodec::codecForLocale());
     if(!appIni->isWritable()){
         LOG_ERROR(tr("在升级配置模块时，系统配置文件“config/app/appSetting.ini”不可写！"));
         canUpgrade = false;

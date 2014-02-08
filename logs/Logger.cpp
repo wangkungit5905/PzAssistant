@@ -72,7 +72,8 @@ class LogDevice : public QIODevice
 
 // Forward declarations
 static void cleanupLoggerPrivate();
-static void qtLoggerMessageHandler(QtMsgType type, const char* msg);
+//static void qtLoggerMessageHandler(QtMsgType type, const char* msg);
+static void qtLoggerMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg);
 
 
 /**
@@ -101,7 +102,8 @@ class LoggerPrivate
       {
         QWriteLocker locker(&m_selfLock);
         m_self = new LoggerPrivate;
-        qInstallMsgHandler(qtLoggerMessageHandler);
+        //qInstallMsgHandler(qtLoggerMessageHandler);
+        qInstallMessageHandler(qtLoggerMessageHandler);
         qAddPostRoutine(cleanupLoggerPrivate);
         result = m_self;
       }
@@ -188,10 +190,10 @@ class LoggerPrivate
     }
 
 
-    void write(Logger::LogLevel logLevel, const char* file, int line, const char* function, const char* message)
-    {
-      write(logLevel, file, line, function, QString::fromAscii(message));
-    }
+//    void write(Logger::LogLevel logLevel, const char* file, int line, const char* function, const char* message)
+//    {
+//      write(logLevel, file, line, function, QString::fromAscii(message));
+//    }
 
 
     QDebug write(Logger::LogLevel logLevel, const char* file, int line, const char* function)
@@ -273,23 +275,41 @@ static void cleanupLoggerPrivate()
 }
 
 //捕获Qt的各种调试信息输出（主要是通过QDebug类）到自己的日志输出中
-static void qtLoggerMessageHandler(QtMsgType type, const char* msg)
-{
-  switch (type)
+//static void qtLoggerMessageHandler(QtMsgType type, const char* msg)
+//{
+//  switch (type)
+//  {
+//    case QtDebugMsg:
+//      LOG_DEBUG(msg);
+//      break;
+//    case QtWarningMsg:
+//      LOG_WARNING(msg);
+//      break;
+//    case QtCriticalMsg:
+//      LOG_ERROR(msg);
+//      break;
+//    case QtFatalMsg:
+//      LOG_FATAL(msg);
+//      break;
+//  }
+
+  static void qtLoggerMessageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
   {
-    case QtDebugMsg:
-      LOG_DEBUG(msg);
-      break;
-    case QtWarningMsg:
-      LOG_WARNING(msg);
-      break;
-    case QtCriticalMsg:
-      LOG_ERROR(msg);
-      break;
-    case QtFatalMsg:
-      LOG_FATAL(msg);
-      break;
-  }
+    switch (type)
+    {
+      case QtDebugMsg:
+        LOG_DEBUG(msg);
+        break;
+      case QtWarningMsg:
+        LOG_WARNING(msg);
+        break;
+      case QtCriticalMsg:
+        LOG_ERROR(msg);
+        break;
+      case QtFatalMsg:
+        LOG_FATAL(msg);
+        break;
+    }
 }
 
 void Logger::getLogLevelList(QList<Logger::LogLevel> &elst, QList<QString> &names)

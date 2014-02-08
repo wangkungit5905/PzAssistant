@@ -2,11 +2,11 @@
 #define PREVIEWDIALOG_H
 
 #include <QDialog>
-#include <QtGui/QTableView>
-#include <QtGui/QPrinter>
-#include <QtGui/QTextLength>
-#include <QtGui/QFileDialog>
-#include <QtGui/QGraphicsView>
+#include <QTableView>
+#include <QPrinter>
+#include <QTextLength>
+#include <QFileDialog>
+#include <QGraphicsView>
 #include <QLabel>
 #include <QStandardItemModel>
 #include <QGraphicsAnchorLayout>

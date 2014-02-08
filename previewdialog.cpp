@@ -37,7 +37,7 @@ PreviewDialog::PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pa
             dataModel = new QStandardItemModel;
             if(!outPaging)
                 headerModel = pmodel->getHorizontalHeaderModel();
-            QAbstractItemModel* dmodel = qobject_cast<QAbstractItemModel*>(pmodel->model());
+            QAbstractItemModel* dmodel = qobject_cast<QAbstractItemModel*>(pmodel->sourceModel()/*->model()*/);
 
             //重新制备一份表格数据模型的副本
             QString text;
@@ -269,12 +269,12 @@ void PreviewDialog::paintPage(int pagenum)
         pageProxyModel = new ProxyModelWithHeaderModels;
 
         if(outPaging){
-            pageProxyModel->setModel(&oPageModel);
+            pageProxyModel->setSourceModel(&oPageModel); /*setModel*/
             pageProxyModel->setHorizontalHeaderModel(&oHeaderModel);
             tWidget->setColWidth(colWidths);
         }
         else{
-            pageProxyModel->setModel(pageModel);
+            pageProxyModel->/*setModel*/setSourceModel(pageModel);
             pageProxyModel->setHorizontalHeaderModel(headerModel);
         }
         tv->setModel(pageProxyModel);

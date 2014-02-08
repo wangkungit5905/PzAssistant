@@ -691,7 +691,8 @@ void TransferOutDialog::on_btnBrowser_clicked()
 {
     QFileDialog dlg;
     dlg.setFileMode(QFileDialog::Directory);
-    dlg.setFilter("Sqlite files(*.dat)");
+    //dlg.setFilter("Sqlite files(*.dat)");
+    dlg.setNameFilter("Sqlite files(*.dat)");
     dlg.setDirectory(".");
     if(dlg.exec() == QDialog::Rejected)
         return;
@@ -1002,7 +1003,8 @@ void TransferInDialog::on_btnSelectFile_clicked()
     ui->btnOk->setEnabled(false);
     QFileDialog dlg;
     dlg.setFileMode(QFileDialog::ExistingFile);
-    dlg.setFilter("Sqlite files(*.dat)");
+    //dlg.setFilter("Sqlite files(*.dat)");
+    dlg.setNameFilter("Sqlite files(*.dat)");
     dlg.setDirectory(".");
     if(dlg.exec() == QDialog::Rejected)
         return;

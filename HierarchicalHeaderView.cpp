@@ -30,7 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QAbstractItemModel>
 
 ProxyModelWithHeaderModels::ProxyModelWithHeaderModels(QObject* parent)
-	: QProxyModel(parent)
+    : QAbstractProxyModel(parent)
 {}
 
 QVariant ProxyModelWithHeaderModels::data(const QModelIndex& index, int role) const
@@ -50,14 +50,15 @@ QVariant ProxyModelWithHeaderModels::data(const QModelIndex& index, int role) co
         return v;
     }
     //如果不是请求行列标题数据，则返回数据模型的对应数据
-    return QProxyModel::data(index, role);
+    return QAbstractProxyModel::data(index, role);
 }
 
 //设置水平表头数据模型
 void ProxyModelWithHeaderModels::setHorizontalHeaderModel(QAbstractItemModel* headerModel)
 {
     _horizontalHeaderModel=headerModel;
-    int cnt=model()->columnCount();
+    //int cnt=model()->columnCount();
+    int cnt=columnCount(QModelIndex());
     if(cnt)
         emit headerDataChanged(Qt::Horizontal, 0, cnt-1);
 }
@@ -71,7 +72,8 @@ QAbstractItemModel* ProxyModelWithHeaderModels::getHorizontalHeaderModel()
 void ProxyModelWithHeaderModels::setVerticalHeaderModel(QAbstractItemModel* headerModel)
 {
     _verticalHeaderModel=headerModel;
-    int cnt=model()->rowCount();
+    //int cnt=model()->rowCount();
+    int cnt=rowCount();
     if(cnt)
         emit headerDataChanged(Qt::Vertical, 0, cnt-1);
 }
@@ -79,6 +81,44 @@ void ProxyModelWithHeaderModels::setVerticalHeaderModel(QAbstractItemModel* head
 QAbstractItemModel* ProxyModelWithHeaderModels::getVerticalHeaderModel()
 {
     return _verticalHeaderModel;
+}
+
+//I added
+int ProxyModelWithHeaderModels::columnCount(const QModelIndex &parent) const
+{
+    if(_horizontalHeaderModel)
+        return _horizontalHeaderModel->columnCount(parent);
+    if(_verticalHeaderModel)
+        return _verticalHeaderModel->columnCount(parent);
+}
+
+//I added
+int ProxyModelWithHeaderModels::rowCount(const QModelIndex &parent) const
+{
+    if(_horizontalHeaderModel)
+        return _horizontalHeaderModel->rowCount(parent);
+    if(_verticalHeaderModel)
+        return _verticalHeaderModel->rowCount(parent);
+}
+
+QModelIndex ProxyModelWithHeaderModels::index(int row, int column, const QModelIndex &parent) const
+{
+    return createIndex(row, column, quintptr(-1));
+}
+
+QModelIndex ProxyModelWithHeaderModels::parent(const QModelIndex &index) const
+{
+    return QModelIndex();
+}
+
+QModelIndex ProxyModelWithHeaderModels::mapFromSource(const QModelIndex &sourceIndex) const
+{
+    return sourceIndex;
+}
+
+QModelIndex ProxyModelWithHeaderModels::mapToSource(const QModelIndex &proxyIndex) const
+{
+    return proxyIndex;
 }
 
 class HierarchicalHeaderView::private_data
@@ -193,14 +233,16 @@ public:
     void setForegroundBrush(QStyleOptionHeader& opt, const QModelIndex& index) const
     {
         QVariant foregroundBrush = index.data(Qt::ForegroundRole);
-        if (qVariantCanConvert<QBrush>(foregroundBrush))
+        //if (qVariantCanConvert<QBrush>(foregroundBrush))
+        if(foregroundBrush.canConvert(QMetaType::QBrush))
             opt.palette.setBrush(QPalette::ButtonText, qvariant_cast<QBrush>(foregroundBrush));
     }
 
     void setBackgroundBrush(QStyleOptionHeader& opt, const QModelIndex& index) const
     {
         QVariant backgroundBrush = index.data(Qt::BackgroundRole);
-        if (qVariantCanConvert<QBrush>(backgroundBrush))
+        //if (qVariantCanConvert<QBrush>(backgroundBrush))
+        if(backgroundBrush.canConvert(QMetaType::QBrush))
         {
             opt.palette.setBrush(QPalette::Button, qvariant_cast<QBrush>(backgroundBrush));
             opt.palette.setBrush(QPalette::Window, qvariant_cast<QBrush>(backgroundBrush));
@@ -216,7 +258,7 @@ public:
             res=qvariant_cast<QSize>(variant);
         QFont fnt(hv->font());
         QVariant var(leafIndex.data(Qt::FontRole));
-        if (var.isValid() && qVariantCanConvert<QFont>(var))
+        if (var.isValid() && var.canConvert(QMetaType::QFont) /*qVariantCanConvert<QFont>(var)*/)
             fnt = qvariant_cast<QFont>(var);
         fnt.setBold(true);
         QFontMetrics fm(fnt);
@@ -426,7 +468,7 @@ QStyleOptionHeader HierarchicalHeaderView::styleOptionForCell(int logicalInd) co
             opt.position=(visual==count()-1 ? QStyleOptionHeader::End : QStyleOptionHeader::Middle);
     }
 
-    if(isClickable())
+    if(sectionsClickable())
     {
 /*
         if (logicalIndex == d->hover)

@@ -20,13 +20,13 @@
 
 #include "tdpreviewdialog.h"
 #include <QtCore/QDebug>
-#include <QtGui/QTextDocument>
-#include <QtGui/QPageSetupDialog>
-#include <QtGui/QGraphicsTextItem>
-#include <QtGui/QHeaderView>
-#include <QtGui/QPainter>
+#include <QTextDocument>
+#include <QPageSetupDialog>
+#include <QGraphicsTextItem>
+#include <QHeaderView>
+#include <QPainter>
 #include <QtCore/QTime>
-#include <QtGui/QPrintDialog>
+#include <QPrintDialog>
 #include <QtCore/QRectF>
 
 

@@ -1,4 +1,4 @@
-#include <QtGui/QApplication>
+#include <QApplication>
 #include <QtCore/QTextCodec>
 #include <QSqlQueryModel>
 #include <QSqlTableModel>
@@ -69,7 +69,8 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    QTextCodec::setCodecForTr(QTextCodec::codecForName("utf-8"));
+    //QTextCodec::setCodecForTr(QTextCodec::codecForName("utf-8"));
+    QTextCodec::setCodecForLocale(QTextCodec::codecForName("utf-8"));
     appTitle = QObject::tr("凭证辅助处理系统");
     QTranslator translator; //汉化标准对话框、标准上下文菜单等
     translator.load("qt_zh_CN.qm","./translations");

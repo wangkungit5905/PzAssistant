@@ -40,7 +40,7 @@ AppConfig *AppConfig::getInstance()
     if(instance)
         return instance;
     appIni = new QSettings("./config/app/appSetting.ini", QSettings::IniFormat);
-    appIni->setIniCodec(QTextCodec::codecForTr());
+    appIni->setIniCodec(QTextCodec::codecForLocale());
 
     db = QSqlDatabase::addDatabase("QSQLITE", "basic");
     QString fname = "./datas/basicdatas/basicdata.dat";

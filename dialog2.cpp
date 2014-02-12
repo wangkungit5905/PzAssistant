@@ -333,19 +333,18 @@ LoginDialog::LoginDialog(QWidget *parent) :
 }
 
 void LoginDialog::init()
-{
-    //if(witch == 1){
-        QHashIterator<int,User*> it(allUsers);
-        while(it.hasNext()){
-            it.next();
-            ui->cmbUsers->addItem(it.value()->getName(),it.value()->getUserId());
-        }
-    //}
-//    else if(witch == 2){
-//        ui->btnLogin->setText(tr("登出"));
-//        ui->cmbUsers->setEnabled(false);
-//    }
-
+{    
+    QHashIterator<int,User*> it(allUsers);
+    int ruIndex = 0, index = 0;
+    while(it.hasNext()){
+        it.next();
+        if(it.value()->getUserId() == recentUserId)
+            ruIndex = index;
+        ui->cmbUsers->addItem(it.value()->getName(),it.value()->getUserId());
+        index++;
+    }
+    ui->cmbUsers->setCurrentIndex(ruIndex);
+    ui->edtPw->setFocus();
 }
 
 LoginDialog::~LoginDialog()

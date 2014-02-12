@@ -188,6 +188,8 @@ bool AppConfig::getConfigVar(QString name, int type)
 //初始化全局配置变量
 bool AppConfig::initGlobalVar()
 {
+    if(!getConVar("recentLoginUser", recentUserId))
+        recentUserId = 1;
     if(!getConVar("isCollapseJz",isCollapseJz))
         isCollapseJz = true;
     if(!getConVar("isByMtForOppoBa", isByMt))
@@ -211,6 +213,7 @@ bool AppConfig::saveGlobalVar()
 {
     bool r;
     //r = setConVar("RecentOpenAccId", curAccountId);
+    setConVar("recentLoginUser", recentUserId);
     r = setConVar("isCollapseJz", isCollapseJz);
     r = setConVar("isByMtForOppoBa", isByMt);
     r = setConVar("autoSaveInterval", autoSaveInterval);
@@ -513,7 +516,7 @@ QHash<AccountTransferState, QString> AppConfig::getAccTranStates()
 bool AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
 {
     QSqlQuery q(db);
-    QString s = QString("select * from %1").arg(tbl_subSys);
+    QString s = QString("select * from %1 order by %2").arg(tbl_subSys).arg(fld_ss_code);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -524,6 +527,7 @@ bool AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
         si->name = q.value(SS_NAME).toString();
         si->explain = q.value(SS_EXPLAIN).toString();
         si->isImport = false;
+        si->isConfiged = false;
         items<<si;
     }
     return true;

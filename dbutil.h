@@ -87,7 +87,8 @@ public:
     int getBankSubMatchMoney(SecondSubject* sub);
     bool nameItemIsUsed(SubjectNameItem* ni);
     bool ssubIsUsed(SecondSubject* ssub);
-    bool isSubSysImported(int subSys);
+    //bool isSubSysImported(int subSys);
+    //bool isSubSysJoinConfiged(int source, int destinate);
 
     //货币相关
     bool initMoneys(Account* account);

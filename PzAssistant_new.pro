@@ -194,7 +194,8 @@ OTHER_FILES += \
     PrjExplain/revisionHistorys \
     账户文本版本说明.txt \
     ini/revisionHistorys.ini \
-    PrjExplain/任务需求分析.txt
+    PrjExplain/任务需求分析.txt \
+    bugs.txt
 
 win32{
     RC_FILE = exeico.rc

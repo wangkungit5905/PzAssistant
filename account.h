@@ -155,6 +155,7 @@ public:
     SubjectManager* getSubjectManager(int subSys = 0);
     //SubjectManager* getSubjectManager();
     QList<SubSysNameItem*> getSupportSubSys();
+    bool importNewSubSys(int code, QString fname);
 
     bool getRates(int y, int m, QHash<int, Double> &rates);
     bool getRates(int y, int m, QHash<Money*, Double> &rates);
@@ -171,10 +172,12 @@ public:
     static void setDatabase(QSqlDatabase* db);
 
     bool getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
-    bool setSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
-    bool isCompleteSubSysCfg(int src, int des, bool &completed, bool& subCloned);
-    bool setCompleteSubSysCfg(int src, int des, bool completed, bool subCloned);
+    bool saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
+    bool isCompleteSubSysCfg(int src, int des, bool &completed);
+    bool setCompleteSubSysCfg(int src, int des, bool completed);
     bool isCompletedExtraJoin(int src, int des, bool &completed);
+    bool isImportSubSys(int code);
+    bool setImportSubSys(int code, bool ok);
 
 private:
     bool init();

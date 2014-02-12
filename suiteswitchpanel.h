@@ -22,6 +22,7 @@ class SuiteSwitchPanel : public QWidget
     Q_OBJECT
     
 public:
+    static const int ROLE_CUR_SUITE = Qt::UserRole + 1;       //用此角色来保存是否是当前打开的帐套
     enum ColType{
         COL_MONTH   = 0,
         COL_OPEN    = 1,

@@ -14,6 +14,7 @@
 #include "dialog3.h"
 #include "widgets.h"
 #include "subjectsearchform.h"
+#include "suiteswitchpanel.h"
 
 class QUndoStack;
 class QUndoView;
@@ -89,6 +90,7 @@ public:
     bool isSpecSubOpened(subWindowType winType){return subWinHashs.contains(winType);}
     QWidget* getSubWinWidget(subWindowType winType);
     void closeSubWindow(subWindowType winType);
+    void closeAll();
 
 private slots:
     void subWindowClosed(MyMdiSubWindow *subWin);
@@ -365,7 +367,7 @@ private:
     QSet<int> PrintPznSet; //欲打印的凭证号集合
     bool sortBy; //凭证集的排序方式（true：按凭证号，false：按自编号）
 
-    QHash<ToolViewType,QDockWidget*> dockWindows;      //工具视图窗口集
+    QHash<ToolViewType,QDockWidget*> dockWindows;     //工具视图窗口集
     QHash<ToolViewType,QAction*> tvActions;           //与工具视图类型对应的QAction对象表
 
     //工具条上的部件
@@ -378,9 +380,12 @@ private:
     QUndoView* undoView;       //Undo视图
     QAction *undoAction, *redoAction; //执行undo，redo操作
 
+    //QHash<QString,SuiteSwitchPanel*> ssPanels;              //
+    //bool isAccountChanged;                              //账户是否已变更的标记
+    SuiteSwitchPanel* curSSPanel;                       //当前帐套切换面板对象
     QHash<subWindowType,MyMdiSubWindow*> commonGroups; //公共类（唯一性子窗口）
     QMultiHash<subWindowType,MyMdiSubWindow*> commonGroups_multi; //公共类（多子窗口共存）
-    QHash<int,SubWinGroupMgr*> subWinGroups;       //帐套视图子窗口组表（键为帐套id）                      //公共组
+    QHash<int,SubWinGroupMgr*> subWinGroups;       //帐套视图子窗口组表（键为帐套id）
     QHash<int,QList<PingZheng*> > historyPzSet;    //每个帐套视图当前正浏览的历史凭证列表
     QHash<int,int> historyPzSetIndex;              //每个帐套视图当前正浏览的历史凭证集的当前索引
     QHash<int,int> historyPzMonth;                 //每个账套视图当前装载的历史凭证的月份数

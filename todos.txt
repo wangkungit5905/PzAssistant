@@ -8,6 +8,12 @@
     （1：增加在借方，减少在贷方；0：增加在贷方，减少在借方）
 6、在FSAgent表中增加一个字段，记录是否在本账户中启用此明细科目（ok）。
 
+
+7、新增子窗口信息文件（winEnum是字窗口类别枚举值，x,y,w,h是字窗口最后一次关闭时的位置和大小尺寸，tblInfo是子窗体内表格各列的宽度信息）
+CREATE TABLE subWinInfos(id INTEGER PRIMARY KEY,winEnum INTEGER,x INTEGER,y INTEGER,w INTEGER,h INTEGER,tblInfo BLOB)
+
+8、
+
 7、调整业务活动编辑功能，在按下 CTL + = 时，自动复制上一个业务活动到下面一行（末尾添加或当前位置插入）
 
 8、实现业务活动的复制、剪切和粘贴功能(ok)
@@ -21,9 +27,7 @@ create table basic.configs(id INTEGER PRIMARY KEY,type INTEGER,name TEXT,value T
 
 
 
-二、在账户数据库中新增的表格
-1、字窗口信息文件（winEnum是字窗口类别枚举值，x,y,w,h是字窗口最后一次关闭时的位置和大小尺寸，tblInfo是子窗体内表格各列的宽度信息）
-CREATE TABLE subWinInfos(id INTEGER PRIMARY KEY,winEnum INTEGER,x INTEGER,y INTEGER,w INTEGER,h INTEGER,tblInfo BLOB)
+
 #########################################################################
 1、使用FSAgent表的FrequencyStat字段保存的使用频度，以其最大者作为每个主科目下的默认子科目，一般在录入凭证的业务活动时，提高录入速度；
     新增一个全局标量，保存此设置，在打开账户的初始化阶段初始化，并且还有按照一定的策略进行更新（比如定时更新）；
@@ -32,9 +36,9 @@ CREATE TABLE subWinInfos(id INTEGER PRIMARY KEY,winEnum INTEGER,x INTEGER,y INTE
 
 2、实现凭证的的插入、复制、剪切和粘贴功能
 
-3、在银行存款二级子目上悬停时，显示帐号信息
+3、
 
-4、记忆对话框关闭前的大小、一级对话框内表格各列宽度，在下一次打开时，使用此记忆的尺寸信息
+4、
 
 5、在每次打开凭证集时，根据当前凭证集内的凭证状态，并（可能）结合数据库内记录的凭证集状态，
    来更新凭证集的状态（要在主窗口类中增加一个成员记录此，并据此来启用/禁用某些Action）
@@ -48,8 +52,7 @@ CREATE TABLE subWinInfos(id INTEGER PRIMARY KEY,winEnum INTEGER,x INTEGER,y INTE
 
 1、调整高级凭证操作工具条出现时机及其按钮的启用时机（按钮的提示信息根据凭证的状态来决定）
 
-2、记住最后一次关闭对话框时的大小及其内部表格的各列宽度的尺寸信息，在下次打开时使用
-   （已解决记忆对话框大小的问题）
+2、
 
 3、在凭证集内的某个记账凭证的数据（一二级科目、币种、金额等）发生改变时，必须调整凭证集状态使其回到未
    保存余额的状态。

@@ -108,7 +108,6 @@ private slots:
 private:
     void init();
 
-    //int witch;  //1：登录，2：登出
     Ui::LoginDialog *ui;
 };
 

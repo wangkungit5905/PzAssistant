@@ -24,12 +24,15 @@ extern QString versionStr;     //版本号字符串
 extern QString aboutStr;       //版权声明字符串
 extern Logger::LogLevel logLevel; //应用程序的日志级别
 
+extern int DEFAULT_SUBSYS_CODE;   //默认科目系统代码
+
 extern int screenWidth;        //屏幕宽度
 extern int screenHeight;       //屏幕高度
 
 extern Account* curAccount;
 
 extern User* curUser;           //当前用户
+extern int recentUserId;        //最近登录用户ID
 
 extern QSqlDatabase adb;        //账户数据库连接
 extern QSqlDatabase bdb;        //基本数据库连接

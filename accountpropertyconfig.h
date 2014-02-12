@@ -255,7 +255,7 @@ private slots:
     void on_btnSSubDel_clicked();
 
 private:
-    void subJoinConfig(int sCode, int dCode);
+    //void subJoinConfig(int sCode, int dCode);
     bool notCommitWarning();
     //bool testCommited();
     void init_subsys();
@@ -308,6 +308,12 @@ class SubSysJoinCfgForm : public QDialog
 {
     Q_OBJECT
 
+    static const int COL_INDEX_SUBCODE = 1;     //源科目代码列
+    static const int COL_INDEX_SUBNAME = 2;     //源科目名称列
+    static const int COL_INDEX_SUBJOIN = 3;     //映射按钮列
+    static const int COL_INDEX_NEWSUBCODE = 4;	//新科目代码列
+    static const int COL_INDEX_NEWSUBNAME = 5;	//新科目名称列
+
 public:
     explicit SubSysJoinCfgForm(int src, int des, Account* account, QWidget *parent = 0);
     ~SubSysJoinCfgForm();
@@ -325,10 +331,11 @@ private:
     Ui::SubSysJoinCfgForm *ui;
     Account* account;
     bool isCompleted;     //科目衔接配置是否已经完成
-    bool isCloned;  //二级科目是否已经克隆
     SubjectManager *sSmg,*dSmg;
     QList<SubSysJoinItem*> ssjs;    //科目映射配置列表
     QList<bool> editTags;   //每个科目的映射条目被修改的标记列表
+
+
 };
 
 //显示期初余额的借贷方向

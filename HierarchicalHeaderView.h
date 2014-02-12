@@ -60,6 +60,10 @@ public:
     QAbstractItemModel* getVerticalHeaderModel();
 
     //I added
+    //QAbstractItemModel*	sourceModel() const;
+    //void setSourceModel(QAbstractItemModel * sourceModel);
+
+    //I added(must implement)
     int columnCount(const QModelIndex &parent) const;
     int rowCount(const QModelIndex &parent = QModelIndex()) const;
     QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const;
@@ -68,6 +72,7 @@ public:
     QModelIndex	mapToSource(const QModelIndex & proxyIndex) const;
 
 private:
+    QAbstractItemModel* smodel;
     QPointer<QAbstractItemModel> _horizontalHeaderModel;//行列表头所用的数据模型
     QPointer<QAbstractItemModel> _verticalHeaderModel;
 };

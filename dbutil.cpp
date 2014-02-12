@@ -1015,16 +1015,40 @@ bool DbUtil::ssubIsUsed(SecondSubject *ssub)
  * @param subSys
  * @return
  */
-bool DbUtil::isSubSysImported(int subSys)
-{
-    QSqlQuery q(db);
-    QString s = QString("select id from %1 where %2=%3").arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    return q.first();
-}
+//bool DbUtil::isSubSysImported(int subSys)
+//{
+//    QSqlQuery q(db);
+//    QString s = QString("select id from %1 where %2=%3").arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    return q.first();
+//}
+
+///**
+// * @brief DbUtil::isSubSysJoinConfiged
+// *  获取从源科目系统到目的科目系统的配置是否完成
+// * @param source    源科目系统代码
+// * @param destinate 目的科目系统代码
+// * @return
+// */
+//bool DbUtil::isSubSysJoinConfiged(int source, int destinate)
+//{
+//    QSqlQuery q(db);
+//    QString table = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(source).arg(destinate);
+//    QString s = QString("select %4 from %1 where %2=0 and %3=0").arg(table)
+//            .arg(fld_ssjc_sSub).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap);
+//    if(q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    if(!q.next()){
+//        return false;
+//    }
+//    int v = q.value(0).toBool();
+//    return v;
+//}
 
 /**
  * @brief DbUtil::initMoneys

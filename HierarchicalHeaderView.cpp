@@ -50,7 +50,8 @@ QVariant ProxyModelWithHeaderModels::data(const QModelIndex& index, int role) co
         return v;
     }
     //如果不是请求行列标题数据，则返回数据模型的对应数据
-    return QAbstractProxyModel::data(index, role);
+    //return QAbstractProxyModel::data(index, role);
+    return sourceModel()->data(index, role);
 }
 
 //设置水平表头数据模型
@@ -95,15 +96,17 @@ int ProxyModelWithHeaderModels::columnCount(const QModelIndex &parent) const
 //I added
 int ProxyModelWithHeaderModels::rowCount(const QModelIndex &parent) const
 {
-    if(_horizontalHeaderModel)
-        return _horizontalHeaderModel->rowCount(parent);
-    if(_verticalHeaderModel)
-        return _verticalHeaderModel->rowCount(parent);
+//    if(_horizontalHeaderModel)
+//        return _horizontalHeaderModel->rowCount(parent);
+//    if(_verticalHeaderModel)
+//        return _verticalHeaderModel->rowCount(parent);
+    return sourceModel()->rowCount(parent);
 }
 
 QModelIndex ProxyModelWithHeaderModels::index(int row, int column, const QModelIndex &parent) const
 {
-    return createIndex(row, column, quintptr(-1));
+    return sourceModel()->index(row,column,parent);
+    //return createIndex(row, column, quintptr(-1));
 }
 
 QModelIndex ProxyModelWithHeaderModels::parent(const QModelIndex &index) const

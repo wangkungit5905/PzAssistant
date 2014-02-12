@@ -510,6 +510,7 @@ struct SubSysNameItem{
     int code;               //科目系统代码
     QString name,explain;   //科目系统名称及其解释
     bool isImport;          //是否已导入给科目系统的科目
+    bool isConfiged;        //是否已终结科目系统的衔接配置
 };
 
 /**

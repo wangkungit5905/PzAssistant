@@ -261,6 +261,9 @@ void ApcSuite::suiteDbClicked(QListWidgetItem *item)
     on_btnEdit_clicked();
 }
 
+/**
+ * @brief 创建新帐套 *
+ */
 void ApcSuite::on_btnNew_clicked()
 {
     AccountSuiteRecord* as = new AccountSuiteRecord;
@@ -330,13 +333,13 @@ void ApcSuite::on_btnUsed_clicked()
     //以下代码必须在确认如何正确进行衔接配置后再做测试
     if(dc != sc){
         bool isCompletedSubSys = false;
-        bool isCompletedSubCloned = false;
+        //bool isCompletedSubCloned = false;
         bool isCompletedExtraJoined = false;
-        if(!account->isCompleteSubSysCfg(sc,dc,isCompletedSubSys,isCompletedSubCloned)){
+        if(!account->isCompleteSubSysCfg(sc,dc,isCompletedSubSys/*,isCompletedSubCloned*/)){
             QMessageBox::critical(this,tr("出错信息"),tr("在读取配置变量时发生错误"));
             return;
         }
-        if(!isCompletedSubSys || !isCompletedSubCloned){
+        if(!isCompletedSubSys /*|| !isCompletedSubCloned*/){
             QMessageBox::warning(this,tr("警告提示"),tr("科目衔接或科目克隆没有完成，无法启用该帐套！"));
             return;
         }
@@ -401,6 +404,7 @@ void ApcSuite::enWidget(bool en)
 
 /**
  * @brief 余额衔接
+ *
  * @param year  新帐套的年份
  * @param sc    新帐套使用的科目系统代码
  * @param dc    前一个帐套使用的科目系统代码
@@ -1023,10 +1027,8 @@ void ApcSubject::importBtnClicked()
             QString fname = QFileDialog::getOpenFileName(this,tr("打开文件"),"./datas/basicdatas/","Sqlite (*.dat)");
             if(fname.isEmpty())
                 return;
-            if(!account->getDbUtil()->importFstSubjects(subSys,fname))
-                QMessageBox::critical(this,tr("出错信息"),tr("在从文件“%1”导入科目系统代码为“%2”的一级科目时发生错误").arg(fname).arg(subSys));
-            if(!account->getSubjectManager(subSys)->loadAfterImport()){
-                QMessageBox::critical(this,tr("出错信息"),tr("将刚导入的科目装载到科目管理器对象期间发生错误"));
+            if(!account->importNewSubSys(subSys,fname)){
+                QMessageBox::critical(this,tr("出错信息"),tr("在导入新科目系统到当前账户时发生错误"));
                 return;
             }
             ui->tv_subsys->setCellWidget(i,3,NULL);
@@ -1048,8 +1050,11 @@ void ApcSubject::subSysCfgBtnClicked()
             continue;
         if(btn == w){
             SubSysJoinCfgForm* form = new SubSysJoinCfgForm(subSysNames.at(i-1)->code,subSysNames.at(i)->code,account);
-            if(form->exec() == QDialog::Accepted)
+            if(form->exec() == QDialog::Accepted){
                 form->save();
+                ui->tv_subsys->setCellWidget(i,4,NULL);
+                ui->tv_subsys->setItem(i,4,new QTableWidgetItem(tr("配置完成")));
+            }
             return;
         }
     }
@@ -1271,9 +1276,16 @@ void ApcSubject::init_subsys()
         }
 
         if(i > 0){
-            QPushButton* btn = new QPushButton(tr("配置"),this);
-            ui->tv_subsys->setCellWidget(i,4,btn);
-            connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
+            if(si->isConfiged){
+                item = new QTableWidgetItem(tr("配置完成"));
+                ui->tv_subsys->setItem(i,4,item);
+            }
+            else{
+                QPushButton* btn = new QPushButton(tr("配置"),this);
+                ui->tv_subsys->setCellWidget(i,4,btn);
+                connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
+            }
+
         }
     }
     iniTag_subsys = true;
@@ -1928,10 +1940,10 @@ void ApcSubject::on_btnSSubDel_clicked()
  * @param sCode 源科目系统
  * @param dCode 目的科目系统
  */
-void ApcSubject::subJoinConfig(int sCode, int dCode)
-{
-    int i = 0;
-}
+//void ApcSubject::subJoinConfig(int sCode, int dCode)
+//{
+//    int i = 0;
+//}
 
 bool ApcSubject::notCommitWarning()
 {
@@ -1993,13 +2005,9 @@ bool SubSysJoinCfgForm::save()
         QCheckBox* chk1 = new QCheckBox(tr("克隆二级科目"),dlg);
         chk1->setEnabled(false);
         chk1->setChecked(true);
-        //QCheckBox* chk2 = new QCheckBox(tr("克隆余额"),dlg);
-        //chk2->setEnabled(false);
-        //chk2->setChecked(true);
         QVBoxLayout* lm = new QVBoxLayout;
         lm->addWidget(title);
         lm->addWidget(chk1);
-        //lm->addWidget(chk2);
         QPushButton* btnOk = new QPushButton(tr("终结配置"),dlg);
         QPushButton* btnCancel = new QPushButton(tr("稍后配置"),dlg);
         connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
@@ -2012,7 +2020,7 @@ bool SubSysJoinCfgForm::save()
         dlg->setLayout(lm);
         if(dlg->exec() == QDialog::Accepted){
             cloneSndSubject();
-            account->setCompleteSubSysCfg(sSmg->getCode(),dSmg->getCode(),true,true);
+            account->setCompleteSubSysCfg(sSmg->getCode(),dSmg->getCode(),true);
         }
         delete dlg;
     }
@@ -2023,7 +2031,7 @@ bool SubSysJoinCfgForm::save()
             continue;
         editedItems<<ssjs.at(i);
     }
-    if(!account->setSubSysJoinCfgInfo(sSmg->getCode(),dSmg->getCode(),editedItems))
+    if(!account->saveSubSysJoinCfgInfo(sSmg->getCode(),dSmg->getCode(),editedItems))
         QMessageBox::critical(this,tr("出错信息"),tr("在保存科目系统衔接配置信息时出错！"));
 }
 
@@ -2034,7 +2042,7 @@ void SubSysJoinCfgForm::mapBtnClicked()
 {
     //首先定位是哪一行的按钮被单击了
     for(int i = 0; i < ui->tview->rowCount(); ++i){
-        QPushButton* btn = qobject_cast<QPushButton*>(ui->tview->cellWidget(i,3));
+        QPushButton* btn = qobject_cast<QPushButton*>(ui->tview->cellWidget(i,COL_INDEX_SUBJOIN));
         if(btn == qobject_cast<QPushButton*>(sender())){
             editTags[i] = true;
             ssjs.at(i)->isMap = btn->isChecked();
@@ -2054,13 +2062,13 @@ void SubSysJoinCfgForm::mapBtnClicked()
  */
 void SubSysJoinCfgForm::destinationSubChanged(QTableWidgetItem *item)
 {
-    if(item->column() != 5)
+    if(item->column() != COL_INDEX_NEWSUBNAME)
         return;
     SubSysJoinItem* si = ssjs.at(item->row());
     if(!si->isMap)
-        ui->tview->cellWidget(item->row(),3)->setEnabled(true);
+        ui->tview->cellWidget(item->row(),COL_INDEX_SUBJOIN)->setEnabled(true);
     FirstSubject* fsub = item->data(Qt::EditRole).value<FirstSubject*>();
-    ui->tview->item(item->row(),4)->setText(fsub->getCode());
+    ui->tview->item(item->row(),COL_INDEX_NEWSUBCODE)->setText(fsub->getCode());
     si->dFSub = fsub;
     editTags[item->row()] = true;
 }
@@ -2069,14 +2077,14 @@ void SubSysJoinCfgForm::destinationSubChanged(QTableWidgetItem *item)
 void SubSysJoinCfgForm::init()
 {
     isCompleted = false;
-    isCloned = false;
+    //isCloned = false;
     QHash<int,QString> names;
     foreach(SubSysNameItem* item, account->getSupportSubSys())
         names[item->code] = item->name;
     ui->sSubSys->setText(names.value(sSmg->getCode()));
     ui->dSubSys->setText(names.value(dSmg->getCode()));
 
-    if(!account->isCompleteSubSysCfg(sSmg->getCode(),dSmg->getCode(),isCompleted,isCloned)){
+    if(!account->isCompleteSubSysCfg(sSmg->getCode(),dSmg->getCode(),isCompleted)){
         QMessageBox::critical(this,tr("出错信息"),tr("在读取配置变量时发生错误"));
         ui->btnOk->setEnabled(false);
         return;
@@ -2104,19 +2112,19 @@ void SubSysJoinCfgForm::init()
     SubSysJoinItem* item;
     QTableWidgetItem* ti;
     QPushButton* btn;
-    bool allCfgComplete = true;  //是否所有必要的科目都配置完成
+    //bool allCfgComplete = true;  //是否所有必要的科目都配置完成
     for(int i = 0; i < ssjs.count(); ++i){
         item = ssjs.at(i);
         ti = new QTableWidgetItem(item->sFSub->getCode());
-        ui->tview->setItem(i,1,ti);
+        ui->tview->setItem(i,COL_INDEX_SUBCODE,ti);
         ti = new QTableWidgetItem(item->sFSub->getName());
-        ui->tview->setItem(i,2,ti);
+        ui->tview->setItem(i,COL_INDEX_SUBNAME,ti);
         btn = new QPushButton;
         btn->setCheckable(true);
         connect(btn,SIGNAL(clicked()),this,SLOT(mapBtnClicked()));
-        ui->tview->setCellWidget(i,3,btn);
-        if(isCompleted || !item->dFSub){
-            allCfgComplete = false;
+        ui->tview->setCellWidget(i,COL_INDEX_SUBJOIN,btn);
+        if(isCompleted/* || !item->dFSub*/){
+            //allCfgComplete = false;
             btn->setEnabled(false);
         }
         if(item->isMap){
@@ -2128,9 +2136,9 @@ void SubSysJoinCfgForm::init()
             btn->setText(tr("映射到"));
         }
         ti = new QTableWidgetItem(item->dFSub?item->dFSub->getCode():"");
-        ui->tview->setItem(i,4,ti);
+        ui->tview->setItem(i,COL_INDEX_NEWSUBCODE,ti);
         ti = new BAFstSubItem2(item->dFSub);
-        ui->tview->setItem(i,5,ti);
+        ui->tview->setItem(i,COL_INDEX_NEWSUBNAME,ti);
     }
     //if(!isCompleted)
     //    ui->chkComplete->setEnabled(!allCfgComplete);

@@ -13,11 +13,14 @@ QString versionStr;
 QString aboutStr;
 Logger::LogLevel logLevel;
 
+int DEFAULT_SUBSYS_CODE = 1;
+
 Account* curAccount = NULL;
 int screenWidth;
 int screenHeight;
 
 User* curUser = NULL;
+int recentUserId = 1;
 
 QSqlDatabase adb;
 QSqlDatabase bdb;

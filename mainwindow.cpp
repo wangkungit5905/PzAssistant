@@ -415,6 +415,19 @@ void SubWinGroupMgr::closeSubWindow(subWindowType winType)
     subWinHashs.remove(winType);
 }
 
+void SubWinGroupMgr::closeAll()
+{
+    if(subWinHashs.isEmpty())
+        return;
+    QHashIterator<subWindowType,MyMdiSubWindow*> it(subWinHashs);
+    while(it.hasNext()){
+        it.next();
+        parent->removeSubWindow(it.value());
+        delete it.value();
+    }
+    subWinHashs.clear();
+}
+
 void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
 {
     subWindowType t = subWin->getWindowType();
@@ -478,6 +491,7 @@ MainWindow::MainWindow(QWidget *parent) :
     dbUtil = NULL;
     undoStack = NULL;
     undoView = NULL;
+    curSSPanel = NULL;
 
     initActions();
     initToolBar();
@@ -706,6 +720,11 @@ void MainWindow::initTvActions()
         actions.at(i)->setCheckable(true);
         connect(actions.at(i),SIGNAL(triggered()),tvMapper,SLOT(map()));
     }
+
+    QDockWidget* dw = new QDockWidget(tr("帐套切换视图"), this);
+    addDockWidget(Qt::LeftDockWidgetArea, dw);
+    dockWindows[TV_SUITESWITCH] = dw;
+    dw->hide();
 }
 
 
@@ -731,6 +750,15 @@ void MainWindow::accountInit(AccountCacheItem* ci)
     AccountSuiteRecord* curSuite = curAccount->getCurSuite();
     if(curSuite && !subWinGroups.contains(curSuite->id))
         subWinGroups[curSuite->id] = new SubWinGroupMgr(curSuite->id,ui->mdiArea);
+
+    curSSPanel = new SuiteSwitchPanel(curAccount);
+    connect(curSSPanel,SIGNAL(selectedSuiteChanged(AccountSuiteManager*,AccountSuiteManager*)),
+            this,SLOT(suiteViewSwitched(AccountSuiteManager*,AccountSuiteManager*)));
+    connect(curSSPanel,SIGNAL(viewPzSet(AccountSuiteManager*,int)),this,SLOT(viewOrEditPzSet(AccountSuiteManager*,int)));
+    connect(curSSPanel,SIGNAL(pzSetOpened(AccountSuiteManager*,int)),this,SLOT(pzSetOpen(AccountSuiteManager*,int)));
+    connect(curSSPanel,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
+    connect(curSSPanel,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
+    dockWindows.value(TV_SUITESWITCH)->setWidget(curSSPanel);
 }
 
 //动态更新窗口菜单
@@ -860,6 +888,7 @@ void MainWindow::rfMainAct(bool open)
     ui->actDelAcc->setEnabled(!open);
     ui->actInAccount->setEnabled(!open);
     ui->actEmpAccount->setEnabled(!open);
+    ui->actSuite->setEnabled(open);
     rfPzSetAct(false);
     rfNaveBtn();
 }
@@ -1009,10 +1038,59 @@ void MainWindow::closeAccount()
 {
     QString state;
     bool ok;
-//    state = QInputDialog::getText(this,tr("账户关闭提示"),
-//        tr("请输入表示账户最后关闭前的状态说明语"),QLineEdit::Normal,state,&ok);
-//    if(!ok)
-//        return;
+
+    //关闭所有属于该账户的子窗口
+    if(!commonGroups.isEmpty()){
+        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups);
+        while(it.hasNext()){
+            it.next();
+            it.value()->close();
+        }
+        commonGroups.clear();
+    }
+    if(!commonGroups_multi.isEmpty()){
+        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups_multi);
+        while(it.hasNext()){
+            it.next();
+            it.value()->close();
+        }
+        commonGroups_multi.clear();
+    }
+    if(!subWinGroups.isEmpty()){
+        QHashIterator<int,SubWinGroupMgr*> it(subWinGroups);
+        while(it.hasNext()){
+            it.next();
+            it.value()->closeAll();
+        }
+    }
+
+    //释放所有与该账户相关的资源
+    if(!historyPzSet.isEmpty()){
+        QHashIterator<int,QList<PingZheng*> > it(historyPzSet);
+        while(it.hasNext()){
+            it.next();
+            qDeleteAll(it.value());
+        }
+        historyPzSet.clear();
+    }
+    if(!historyPzSetIndex.isEmpty())
+        historyPzSetIndex.clear();
+    if(!historyPzMonth.isEmpty())
+        historyPzMonth.clear();
+
+    //如果帐套切换面板正显示，则关闭
+    if(dockWindows.value(TV_SUITESWITCH)->isVisible())
+        dockWindows.value(TV_SUITESWITCH)->hide();
+    if(curSSPanel){
+        disconnect(curSSPanel,SIGNAL(selectedSuiteChanged(AccountSuiteManager*,AccountSuiteManager*)),
+                this,SLOT(suiteViewSwitched(AccountSuiteManager*,AccountSuiteManager*)));
+        disconnect(curSSPanel,SIGNAL(viewPzSet(AccountSuiteManager*,int)),this,SLOT(viewOrEditPzSet(AccountSuiteManager*,int)));
+        disconnect(curSSPanel,SIGNAL(pzSetOpened(AccountSuiteManager*,int)),this,SLOT(pzSetOpen(AccountSuiteManager*,int)));
+        disconnect(curSSPanel,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
+        disconnect(curSSPanel,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
+        delete curSSPanel;
+        curSSPanel = NULL;
+    }
 
     if(curSuiteMgr->isOpened())
         curSuiteMgr->close();
@@ -2259,6 +2337,7 @@ void MainWindow::on_actLogin_triggered()
     LoginDialog* dlg = new LoginDialog;
     if(dlg->exec() == QDialog::Accepted){
         curUser = dlg->getLoginUser();
+        recentUserId = curUser->getUserId();
         rfLogin();
         ui->statusbar->setUser(curUser);
     }
@@ -2784,19 +2863,42 @@ void MainWindow::on_actRefreshActInfo_triggered()
  */
 void MainWindow::on_actSuite_triggered()
 {
-    if(!dockWindows.contains(TV_SUITESWITCH)){
-        SuiteSwitchPanel* pn = new SuiteSwitchPanel(curAccount);
-        QDockWidget* dw = new QDockWidget(tr("帐套切换视图"), this);
-        dw->setWidget(pn);
-        addDockWidget(Qt::LeftDockWidgetArea, dw);
-        dockWindows[TV_SUITESWITCH] = dw;
-        connect(pn,SIGNAL(selectedSuiteChanged(AccountSuiteManager*,AccountSuiteManager*)),
-                this,SLOT(suiteViewSwitched(AccountSuiteManager*,AccountSuiteManager*)));
-        connect(pn,SIGNAL(viewPzSet(AccountSuiteManager*,int)),this,SLOT(viewOrEditPzSet(AccountSuiteManager*,int)));
-        connect(pn,SIGNAL(pzSetOpened(AccountSuiteManager*,int)),this,SLOT(pzSetOpen(AccountSuiteManager*,int)));
-        connect(pn,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
-        connect(pn,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
-    }
+//    QDockWidget* dw;
+//    if(!dockWindows.contains(TV_SUITESWITCH)){
+//        dw = new QDockWidget(tr("帐套切换视图"), this);
+//        addDockWidget(Qt::LeftDockWidgetArea, dw);
+//        dockWindows[TV_SUITESWITCH] = dw;
+//    }
+//    else
+//        dw = dockWindows.value(TV_SUITESWITCH);
+//    if(curSSPanel){
+//        disconnect(curSSPanel,SIGNAL(selectedSuiteChanged(AccountSuiteManager*,AccountSuiteManager*)),
+//                this,SLOT(suiteViewSwitched(AccountSuiteManager*,AccountSuiteManager*)));
+//        disconnect(curSSPanel,SIGNAL(viewPzSet(AccountSuiteManager*,int)),this,SLOT(viewOrEditPzSet(AccountSuiteManager*,int)));
+//        disconnect(curSSPanel,SIGNAL(pzSetOpened(AccountSuiteManager*,int)),this,SLOT(pzSetOpen(AccountSuiteManager*,int)));
+//        disconnect(curSSPanel,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
+//        disconnect(curSSPanel,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
+//        delete curSSPanel;
+//    }
+//    curSSPanel = new SuiteSwitchPanel(curAccount);
+//    connect(curSSPanel,SIGNAL(selectedSuiteChanged(AccountSuiteManager*,AccountSuiteManager*)),
+//            this,SLOT(suiteViewSwitched(AccountSuiteManager*,AccountSuiteManager*)));
+//    connect(curSSPanel,SIGNAL(viewPzSet(AccountSuiteManager*,int)),this,SLOT(viewOrEditPzSet(AccountSuiteManager*,int)));
+//    connect(curSSPanel,SIGNAL(pzSetOpened(AccountSuiteManager*,int)),this,SLOT(pzSetOpen(AccountSuiteManager*,int)));
+//    connect(curSSPanel,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
+//    connect(curSSPanel,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
+//    if(!ssPanels.contains(curAccount->getCode())){
+//        pn =
+//        ssPanels[curAccount->getCode()] = pn;
+//        dw->setWidget(pn);
+
+//    }
+//    else{
+//        pn = ssPanels.value(curAccount->getCode());
+//        if(dw->widget() != pn)
+//            dw->setWidget(pn);
+//    }
+
     dockWindows.value(TV_SUITESWITCH)->show();
 }
 

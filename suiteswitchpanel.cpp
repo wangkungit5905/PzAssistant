@@ -42,19 +42,45 @@ void SuiteSwitchPanel::setJzState(AccountSuiteManager *sm, int month, bool jzed)
 
 void SuiteSwitchPanel::curSuiteChanged(QListWidgetItem *current, QListWidgetItem *previous)
 {
-    if(previous)
-        previous->setIcon(icon_unSelected);
-    if(current)
-        current->setIcon(icon_selected);
+//    if(previous)
+//        previous->setIcon(icon_unSelected);
+//    if(current)
+//        current->setIcon(icon_selected);
     ui->stackedWidget->setCurrentIndex(ui->lstSuite->currentRow());
+    if(!current)
+        return;
+    QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
+    if(!tw)
+        return;
+    QPushButton* btn = qobject_cast<QPushButton*>(tw->cellWidget(tw->rowCount()-1,0));
+    if(!btn)
+        return;
+    bool b = current->data(ROLE_CUR_SUITE).toBool();
+    btn->setEnabled(!b);
 
+    if(!previous)
+        return;
+    int row = previous->listWidget()->row(previous);
+    tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(row));
+    if(!tw)
+        return;
+    btn = qobject_cast<QPushButton*>(tw->cellWidget(tw->rowCount()-1,0));
+    if(!btn)
+        return;
+    b = previous->data(ROLE_CUR_SUITE).toBool();
+    btn->setEnabled(!b);
 }
 
 /**
  * @brief 用户单击了切换按钮
  */
 void SuiteSwitchPanel::swichBtnClicked()
-{    
+{
+    ui->lstSuite->currentItem()->setIcon(icon_selected);
+    ui->lstSuite->currentItem()->setData(ROLE_CUR_SUITE,true);
+    QPushButton* btn = qobject_cast<QPushButton*>(sender());
+    if(btn)
+        btn->setEnabled(false);
     int suiteId = ui->lstSuite->currentItem()->data(Qt::UserRole).toInt();
     AccountSuiteRecord* asr = suiteRecords.value(suiteId);
     AccountSuiteManager* previous = account->getPzSet(curAsrId);
@@ -62,6 +88,15 @@ void SuiteSwitchPanel::swichBtnClicked()
         curAsrId = asr->id;
         AccountSuiteManager* current  = account->getPzSet(curAsrId);
         account->setCurSuite(asr->year);
+        int prevAsrID = previous->getSuiteRecord()->id;
+        for(int i = 0; i < ui->lstSuite->count(); ++i){
+            int id = ui->lstSuite->item(i)->data(Qt::UserRole).toInt();
+            if(id == prevAsrID){
+                ui->lstSuite->item(i)->setIcon(icon_unSelected);
+                ui->lstSuite->item(i)->setData(ROLE_CUR_SUITE,false);
+                break;
+            }
+        }
         emit selectedSuiteChanged(previous,current);
     }
 }
@@ -181,6 +216,7 @@ void SuiteSwitchPanel::init()
         suiteRecords[as->id] = as;
         li = new QListWidgetItem(ui->lstSuite);
         li->setData(Qt::UserRole,as->id);
+        li->setData(ROLE_CUR_SUITE, false);
         li->setIcon(icon_unSelected);
         li->setText(as->name);
         initSuiteContent(as);
@@ -193,7 +229,9 @@ void SuiteSwitchPanel::init()
         curAsrId = curSuite->id;
         for(int i = 0; i < ui->lstSuite->count(); ++i){
             if(ui->lstSuite->item(i)->data(Qt::UserRole).toInt() == curAsrId){
-                ui->lstSuite->setCurrentRow(i);
+                ui->lstSuite->item(i)->setIcon(icon_selected);
+                ui->lstSuite->item(i)->setData(ROLE_CUR_SUITE,true);
+                ui->lstSuite->setCurrentRow(i);                
                 break;
             }
         }
@@ -213,7 +251,7 @@ void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
     tw->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     tw->setRowCount(as->endMonth - as->startMonth + 1);
     tw->setColumnCount(3);
-    tw->setColumnWidth(COL_MONTH,25);
+    tw->setColumnWidth(COL_MONTH,40);
     tw->setColumnWidth(COL_OPEN,40);
     tw->setColumnWidth(COL_VIEW,40);
     QTableWidgetItem* ti;

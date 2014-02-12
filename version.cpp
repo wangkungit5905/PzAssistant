@@ -10,6 +10,7 @@
 #include "tables.h"
 #include "utils.h"
 #include "dbutil.h"
+#include "configvariablenames.h"
 
 #include "ui_versionmanager.h"
 
@@ -290,6 +291,7 @@ void VMAccount::appendVersion(int mv, int sv, UpgradeFun_Acc upFun)
  *  3、修改FirSubjects表，添加科目系统（subSys）
  *  4、修改一级科目类别表结构，增加科目系统类型字段“subSys”
  *  5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+ *  6
  * @return
  */
 bool VMAccount::updateTo1_3()
@@ -607,8 +609,8 @@ bool VMAccount::updateTo1_3()
             .arg(fld_accs_isCur).arg(fld_accs_recentMonth).arg(fld_accs_name).arg(fld_accs_isClosed);
     r = q.prepare(s);
     for(int i = 0; i < sYears.count(); ++i){
-        q.bindValue("year",sYears.at(i));
-        q.bindValue("name",sNames.at(i));
+        q.bindValue(":year",sYears.at(i));
+        q.bindValue(":name",sNames.at(i));
         if(!q.exec()){
             emit upgradeStep(verNum,tr("转移帐套数据时发生错误！"),VUR_ERROR);
             return false;
@@ -739,6 +741,12 @@ bool VMAccount::updateTo1_3()
             .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::STIME).arg(Account::ETIME);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("从账户信息表中移除账户起止信息时发生错误"),VUR_ERROR);
+        return false;
+    }
+
+    s = QString("delete from %1").arg(tbl_subWinInfo);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在删除子窗口信息表内容时发送错误"),VUR_ERROR);
         return false;
     }
 
@@ -1264,7 +1272,7 @@ bool VMAccount::updateTo1_5()
 
     //2、添加明细账视图过滤条件表（DVFilters）
     s = QString("create table %1(id integer primary key,%2 integer,%3 integer,%4 integer,%5 integer,"
-                "%6 integer,%7 integer,%8 integer %9 text,%10 text,%11 text,%12 text)").arg(tbl_dvfilters)
+                "%6 integer,%7 integer,%8 integer, %9 text,%10 text,%11 text,%12 text)").arg(tbl_dvfilters)
             .arg(fld_dvfs_suite).arg(fld_dvfs_isDef).arg(fld_dvfs_isCur).arg(fld_dvfs_isFstSub)
             .arg(fld_dvfs_curFSub).arg(fld_dvfs_curSSub).arg(fld_dvfs_mt).arg(fld_dvfs_name)
             .arg(fld_dvfs_startDate).arg(fld_dvfs_endDate).arg(fld_dvfs_subIds);
@@ -1350,6 +1358,16 @@ bool VMAccount::updateTo1_6()
         emit upgradeStep(verNum,tr("创建配置变量表（%1）时出错！").arg(tbl_cfgVariable),VUR_ERROR);
         return false;
     }
+
+    //初始化账户配置变量
+//    QString vname = QString("%1_%2").arg(CFG_SUBSYS_IMPORT_PRE).arg(DEFAULT_SUBSYS_CODE);
+//    s = QString("insert into %1(%2,%3) values('%4',1)").arg(tbl_cfgVariable)
+//            .arg(fld_cfgv_name).arg(fld_cfgv_value).arg(vname);
+//    if(!q.exec(s)){
+//        emit upgradeStep(verNum,tr("在初始化默认科目系统的导入状态时出错"),VUR_ERROR);
+//        return false;
+//    }
+
     endUpgrade(verNum,"",VUR_OK);
     return setCurVersion(1,6);
 }
@@ -1741,7 +1759,7 @@ bool VMAppConfig::updateTo1_3()
     }
     QStringList statments;
     statments<<QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')").arg(tbl_subSys)
-               .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain).arg(1)
+               .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain).arg(DEFAULT_SUBSYS_CODE)
                .arg(tr("科目系统1")).arg(tr("2013年前使用的老科目系统"))
                <<QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')").arg(tbl_subSys)
                  .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain).arg(2)
@@ -1796,6 +1814,7 @@ VersionManager::VersionManager(VersionManager::ModuleType moduleType, QString fn
     :QDialog(parent),ui(new Ui::VersionManager),mt(moduleType),fileName(fname)
 {
     ui->setupUi(this);
+    ui->lblDBFile->setText(fname);
     closeBtnState = false;
     switch(moduleType){
     case MT_CONF:

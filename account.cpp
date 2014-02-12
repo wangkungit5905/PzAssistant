@@ -436,12 +436,53 @@ QList<SubSysNameItem *> Account::getSupportSubSys()
 {
     if(subSysLst.isEmpty()){
         AppConfig::getInstance()->getSubSysItems(subSysLst);
+        SubSysNameItem* item;
         for(int i = 0; i < subSysLst.count(); ++i){
-            if(dbUtil->isSubSysImported(subSysLst.at(i)->code))
-                subSysLst.at(i)->isImport = true;
+            item = subSysLst.at(i);
+            if(item->code == DEFAULT_SUBSYS_CODE){
+                item->isImport = true;
+                item->isConfiged = true;
+            }
+            else{
+                item->isImport = isImportSubSys(item->code);
+                if(i > 0){
+                    bool configed;
+                    if(isCompleteSubSysCfg(subSysLst.at(i-1)->code,
+                                           item->code,configed)){
+                        item->isConfiged = configed;
+                    }
+                }
+            }
+
         }
     }
     return subSysLst;
+}
+
+/**
+ * @brief Account::importNewSubSys
+ *  导入新科目系统
+ * @param code      科目系统代码
+ * @param fname     放置新科目系统的数据库文件名
+ * @return
+ */
+bool Account::importNewSubSys(int code, QString fname)
+{
+    if(!dbUtil->importFstSubjects(code,fname))
+        return false;
+        //QMessageBox::critical(this,tr("出错信息"),tr("在从文件“%1”导入科目系统代码为“%2”的一级科目时发生错误").arg(fname).arg(subSys));
+    if(!getSubjectManager(code)->loadAfterImport()){
+        //QMessageBox::critical(this,tr("出错信息"),tr("将刚导入的科目装载到科目管理器对象期间发生错误"));
+        return false;
+    }
+    for(int i = 0; i < subSysLst.count(); ++i){
+        if(code == subSysLst.at(i)->code){
+            subSysLst.at(i)->isImport = true;
+            setImportSubSys(code,true);
+            break;
+        }
+    }
+    return true;
 }
 
 //SubjectManager *Account::getSubjectManager()
@@ -505,7 +546,7 @@ bool Account::getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cf
     return dbUtil->getSubSysJoinCfgInfo(getSubjectManager(src),getSubjectManager(des),cfgs);
 }
 
-bool Account::setSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cfgs)
+bool Account::saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cfgs)
 {
     return dbUtil->setSubSysJoinCfgInfo(getSubjectManager(src),getSubjectManager(des),cfgs);
 }
@@ -517,7 +558,7 @@ bool Account::setSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cf
  * @param subCloned 二级科目是否已克隆
  * @return
  */
-bool Account::isCompleteSubSysCfg(int src, int des, bool &completed, bool &subCloned)
+bool Account::isCompleteSubSysCfg(int src, int des, bool &completed)
 {
     QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_COMPLETE_PRE).arg(src).arg(des);
     QVariant v;
@@ -528,14 +569,14 @@ bool Account::isCompleteSubSysCfg(int src, int des, bool &completed, bool &subCl
         completed = v.toBool();
     else
         completed = false;
-    vname = QString("%1_%2_%3").arg(CFG_SUBSYS_SUBCLONE_PRE).arg(src).arg(des);
-    v.setValue(subCloned);
-    if(!dbUtil->getCfgVariable(vname,v))
-        return false;
-    if(v.isValid())
-        subCloned = v.toBool();
-    else
-        subCloned = false;
+//    vname = QString("%1_%2_%3").arg(CFG_SUBSYS_SUBCLONE_PRE).arg(src).arg(des);
+//    v.setValue(subCloned);
+//    if(!dbUtil->getCfgVariable(vname,v))
+//        return false;
+//    if(v.isValid())
+//        subCloned = v.toBool();
+//    else
+//        subCloned = false;
     return true;
 }
 
@@ -543,19 +584,27 @@ bool Account::isCompleteSubSysCfg(int src, int des, bool &completed, bool &subCl
  * @brief 设置是否已完成从源科目系统（src）到目的科目系统（des）的配置
  * @param src
  * @param des
- * @param subCloned 二级科目是否已克隆
+ * @param completed
  */
-bool Account::setCompleteSubSysCfg(int src, int des, bool completed, bool subCloned)
+bool Account::setCompleteSubSysCfg(int src, int des, bool completed)
 {
+    if(!subSysLst.isEmpty()){
+        for(int i = 0; i < subSysLst.count(); ++i){
+            if(subSysLst.at(i)->code == des){
+                subSysLst.at(i)->isConfiged = true;
+                break;
+            }
+        }
+    }
     QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_COMPLETE_PRE).arg(src).arg(des);
     QVariant v;
     v.setValue(completed);
     if(!dbUtil->setCfgVariable(vname,v))
         return false;
-    vname = QString("%1_%2_%3").arg(CFG_SUBSYS_SUBCLONE_PRE).arg(src).arg(des);
-    v.setValue(subCloned);
-    if(!dbUtil->setCfgVariable(vname,v))
-        return false;
+//    vname = QString("%1_%2_%3").arg(CFG_SUBSYS_SUBCLONE_PRE).arg(src).arg(des);
+//    v.setValue(subCloned);
+//    if(!dbUtil->setCfgVariable(vname,v))
+//        return false;
     return true;
 }
 
@@ -577,6 +626,51 @@ bool Account::isCompletedExtraJoin(int src, int des, bool &completed)
         completed = v.toBool();
     else
         completed = false;
+    return true;
+}
+
+/**
+ * @brief Account::isImportSubSys
+ *  是否已经导入指定的科目系统
+ * @param code  科目系统代码
+ * @return
+ */
+bool Account::isImportSubSys(int code)
+{
+    if(code == DEFAULT_SUBSYS_CODE)
+        return true;
+    QString vname = QString("%1_%2").arg(CFG_SUBSYS_IMPORT_PRE).arg(code);
+    QVariant v;
+    if(!dbUtil->getCfgVariable(vname,v))
+        return false;
+    if(v.isValid())
+        return v.toBool();
+    else
+        return false;
+}
+
+/**
+ * @brief Account::setImportSubSys
+ *  设置是否已经导入指定的科目系统
+ * @param code
+ * @param ok
+ * @return
+ */
+bool Account::setImportSubSys(int code, bool ok)
+{
+    if(!subSysLst.isEmpty()){
+        for(int i = 0; i < subSysLst.count(); ++i){
+            if(subSysLst.at(i)->code == code){
+                subSysLst.at(i)->isImport = true;
+                break;
+            }
+        }
+    }
+    QString vname = QString("%1_%2").arg(CFG_SUBSYS_IMPORT_PRE).arg(code);
+    QVariant v;
+    v.setValue(ok);
+    if(!dbUtil->setCfgVariable(vname,v))
+        return false;
     return true;
 }
 

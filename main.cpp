@@ -83,7 +83,7 @@ int main(int argc, char *argv[])
         return errNum;
     }
 
-    FileAppender* logFile = new FileAppender("./logs/app.log");
+    FileAppender* logFile = new FileAppender(LOGS_PATH + "app.log");
     Logger::registerAppender(logFile);
 
     Logger::write(Logger::Must,"",0,"","");

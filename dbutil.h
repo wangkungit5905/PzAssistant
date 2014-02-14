@@ -128,6 +128,9 @@ public:
                           QHash<int, MoneyDirection> fdirs, const QHash<int, Double> &v,
                           const QHash<int, Double> &wv, const QHash<int, MoneyDirection> &dir);
 
+    bool convertExtraInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps, QStringList& errors);
+    bool convertPzInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps, QStringList& errors);
+
     //日记账
     bool getDetViewFilters(int suiteId, QList<DVFilterRecord*>& rs);
     bool saveDetViewFilter(const QList<DVFilterRecord *> &dvf);
@@ -210,6 +213,7 @@ private:
     bool _delPingZheng(PingZheng* pz);
 
     //余额相关辅助函数
+    bool _readExtraPointInYear(int y, QList<int> &points);
     bool _readExtraPoint(int y, int m, QHash<int, int> &mtHashs);
     bool _readExtraPoint(int y, int m, int mt, int& pid);
     bool _readExtraForPm(int y, int m, QHash<int,Double> &sums, QHash<int,MoneyDirection> &dirs, bool isFst = true);

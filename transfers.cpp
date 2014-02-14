@@ -728,7 +728,7 @@ void TransferOutDialog::on_btnOk_clicked()
     if(!canTransferOut(reason))
         return;
     //1、在转出账户中添加一条转出记录
-    QString sn = DatabasePath + getAccountFileName();
+    QString sn = DATABASE_PATH + getAccountFileName();
     TransferRecordManager trMgr(sn);
     AppConfig* conf = AppConfig::getInstance();
     AccontTranferInfo rec;
@@ -921,7 +921,7 @@ void TransferInDialog::refreshMachines()
 void TransferInDialog::on_btnOk_clicked()
 {    
     //1、拷贝账户文件到工作目录（最好在拷贝前备份账户文件）
-    QDir dir(DatabasePath);
+    QDir dir(DATABASE_PATH);
     QString fname = QFileInfo(fileName).fileName();
     BackupUtil bu;
     bool isBackup = false;
@@ -933,7 +933,7 @@ void TransferInDialog::on_btnOk_clicked()
         isBackup = true;
         dir.remove(fname);
     }
-    QString desFName = DatabasePath + fname;
+    QString desFName = DATABASE_PATH + fname;
     QString error;
     if(!QFile::copy(fileName,desFName)){
         QMessageBox::critical(this,tr("出错信息"),tr("文件拷贝操作出错，请手工将账户文件拷贝到工作目录"));

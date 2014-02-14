@@ -622,7 +622,7 @@ bool AppConfig::_saveAccountCacheItem(AccountCacheItem *accInfo)
 bool AppConfig::_searchAccount()
 {
     clearAccountCache();
-    QDir dir(DatabasePath);
+    QDir dir(DATABASE_PATH);
     QStringList filters;
     filters << "*.dat";
     dir.setNameFilters(filters);

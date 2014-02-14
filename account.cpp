@@ -552,6 +552,30 @@ bool Account::saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &c
 }
 
 /**
+ * @brief Account::getSubSysJoinMaps
+ *  获取源科目系统到目的科目系统的科目映射
+ * @param src   源科目系统代码
+ * @param des   目的科目系统代码
+ * @param fmaps 主科目映射表
+ * @param smaps 子科目映射表
+ * @return
+ */
+bool Account::getSubSysJoinMaps(int src, int des, QHash<int, int> &fmaps, QHash<int, int> &smaps)
+{
+    if(src == des)
+        return true;
+    QList<SubSysJoinItem *> mapItems;
+    if(!getSubSysJoinCfgInfo(src,des,mapItems))
+        return false;
+    foreach(SubSysJoinItem* item,mapItems){
+        fmaps[item->sFSub->getId()] = item->dFSub->getId();
+        for(int i = 0; i < item->ssubMaps.count(); i+=2)
+            smaps[item->ssubMaps.at(i)] = item->ssubMaps.at(i+1);
+    }
+    return true;
+}
+
+/**
  * @brief 返回是否已完成从源科目系统（src）到目的科目系统（des）的配置
  * @param src
  * @param des
@@ -673,6 +697,135 @@ bool Account::setImportSubSys(int code, bool ok)
         return false;
     return true;
 }
+
+/**
+ * @brief Account::isConvertExtra
+ *  在指定年份内读取前一年份的余额时，是否需要进行转换（科目id的替换）
+ *  仅在跨年份读取余额时进行判断
+ * @param year
+ * @return
+ */
+bool Account::isConvertExtra(int year)
+{
+    AccountSuiteRecord* sc, *dc;
+    sc = getSuite(year-1);
+    dc = getSuite(year);
+    if(!sc || !dc)
+        return false;
+    if(sc->subSys == dc->subSys)
+        return false;
+    return true;
+}
+
+/**
+ * @brief Account::convertExtra
+ *  用指定的科目映射表转换余额
+ * @param sums  余额
+ * @param maps  科目映射表
+ * @return
+ */
+bool Account::convertExtra(QHash<int, Double> &sums, QHash<int,MoneyDirection>& dirs,const QHash<int, int> maps)
+{
+    QHashIterator<int, Double> it(sums);
+    int key, id, mt;
+    Double v;
+    MoneyDirection d;
+    while(it.hasNext()){
+        it.next();
+        v = it.value();
+        d = dirs.value(it.key());
+        id = it.key()/10;
+        mt = it.key()%10;
+        key = id * 10 + mt;
+        if(!maps.contains(key))
+            return false;
+        sums.remove(it.key());
+        dirs.remove(it.key());
+        sums[key] = v;
+        dirs[key] = d;
+    }
+    return true;
+}
+
+/**
+ * @brief Account::convertExtra
+ *  对余额表进行科目id的替换
+ * @param year
+ * @param fsums
+ * @param fdirs
+ * @param ssums
+ * @param sdirs
+ * @return
+ */
+//bool Account::convertExtra(int year, QHash<int, Double> &fsums, QHash<int, MoneyDirection> &fdirs,
+//                           QHash<int, Double> &ssums, QHash<int, MoneyDirection> &sdirs)
+//{
+//    AccountSuiteRecord* sc, dc;
+//    sc = getSuite(year-1);
+//    dc = getSuite(year);
+//    if(!sc || !dc)
+//        return false;
+//    if(sc->subSys == dc.subSys)
+//        return false;
+//    QList<SubSysJoinItem*> jItems;
+//    if(!account->getSubSysJoinCfgInfo(sc,dc,jItems))
+//        return false;
+
+//    //建立主目和子目的id映射表
+//    QHash<int,int> fsubMaps,ssubMaps;
+//    getSubSysJoinMaps(sc->subSys,dc.subSys,fsubMaps,ssubMaps);
+//    foreach(SubSysJoinItem* item,jItems){
+
+//    //处理主目余额及其方向
+
+//    int id,mt,key;
+//    Double v;
+//    MoneyDirection d;
+//    if(!fsums.isEmpty()){
+//        QHashIterator<int,Double> it(fsums);
+//        while(it.hasNext()){
+//            it.next();
+//            v = it.value();
+//            d = fdirs.value(it.key());
+//            id = it.key()/10;
+//            mt = it.key()%10;
+//            if(!fsubMaps.contains(id)){
+//                FirstSubject* fsub = getSubjectManager(sc)->getFstSubject(id);
+//                QMessageBox::warning(this,tr("警告信息"),tr("在衔接原币余额时，发现一个未建立衔接映射的一级科目（%1），操作无法继续！").arg(fsub->getName()));
+//                return false;
+//            }
+//            key = fsubMaps.value(id) * 10 + mt;
+//            //注意：如果有多个源科目被映射到同一个目的科目，则要考虑汇总余额，并最终确定方向，但不知是否会出现此种情形
+//            fsums.remove(it.key());
+//            fdirs.remove(it.key());
+//            fsums[key] = v;
+//            fdirs[key] = d;
+//        }
+//    }
+
+//    if(!ssums.isEmpty()){
+//        QHashIterator<int,Double> it(ssums);
+//        while(it.hasNext()){
+//            it.next();
+//            v = it.value();
+//            d = fdirs.value(it.key());
+//            id = it.key()/10;
+//            mt = it.key()%10;
+//            if(!ssubMaps.contains(id)){
+//                SecondSubject* ssub = getSubjectManager(sc)->getSndSubject(id);
+//                QMessageBox::warning(this,tr("警告信息"),tr("在衔接原币余额时，发现一个未建立衔接映射的一级科目（%1），操作无法继续！").arg(ssub->getName()));
+//                return false;
+//            }
+//            key = ssubMaps.value(id) * 10 + mt;
+//            //注意：如果有多个源科目被映射到同一个目的科目，则要考虑汇总余额，并最终确定方向，但不知是否会出现此种情形
+//            ssums.remove(it.key());
+//            sdirs.remove(it.key());
+//            ssums[key] = v;
+//            sdirs[key] = d;
+//        }
+//    }
+//    return true;
+//}
 
 
 

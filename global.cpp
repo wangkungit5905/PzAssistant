@@ -26,9 +26,10 @@ QSqlDatabase adb;
 QSqlDatabase bdb;
 QString hVersion = "1.2";
 
-QString DatabasePath;
-QString BaseDataPath;
-QString BackupPath;
+QString LOGS_PATH;
+QString DATABASE_PATH;
+QString BASEDATA_PATH;
+QString BACKUP_PATH;
 
 QString lastModifyTime;
 
@@ -83,9 +84,10 @@ bool rt_update_extra;
 int appInit()
 {
     //初始化路径信息
-    DatabasePath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
-    BaseDataPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
-    BackupPath = QDir::toNativeSeparators(QDir::currentPath().append("/datas/backups/"));
+    LOGS_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/logs/"));
+    DATABASE_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
+    BASEDATA_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
+    BACKUP_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/datas/backups/"));
     VersionManager vm(VersionManager::MT_CONF);
     VersionUpgradeInspectResult result = vm.isMustUpgrade();
     bool exec = false;

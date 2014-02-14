@@ -3371,11 +3371,32 @@ bool MainWindow::impTestDatas()
 
 //    QString info = tr("科目“%1-%2”的余额发生异常！\n一级科目余额：%3（%4）\n二级科目余额：%5（%6）");
 //    QToolTip::showText(QPoint(10,10),info,0);
-    BackupUtil bu;
+//    BackupUtil bu;
     //QString fn = bu._fondLastFile(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
     //bu.backup(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
     //bu.restore(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
     //bu.clear();
+
+    //QHash<int,int> fMaps, sMaps;
+    QStringList errors;
+    //if(!curAccount->getSubSysJoinMaps(1,2,fMaps,sMaps))
+    //    return false;
+    //if(!curAccount->getDbUtil()->convertExtraInYear(2013,fMaps,sMaps,errors))
+    //    return false;
+    //
+    //curAccount->getDbUtil()->convertPzInYear(2013,fMaps,sMaps,errors);
+
+//    errors<<"11111"<<"22222"<<"33333";
+//    QFile logFile(LOGS_PATH + "subSysUpgrade.log");
+//    if(!logFile.open(QIODevice::WriteOnly | QIODevice::Text)){
+//        QMessageBox::critical(this,tr("错误提示"),tr("无法将升级日志写入到日志文件"));
+//        return false;
+//    }
+//    QTextStream ds(&logFile);
+//    foreach (QString s, errors){
+//        ds<<s<<"\n";
+//    }
+//    ds.flush();
     int i = 0;
 }
 

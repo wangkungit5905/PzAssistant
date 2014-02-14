@@ -67,6 +67,21 @@ public:
 
     bool inspectPzError(QList<PingZhengError *> &errors);
 
+    //这些保存或读取指定年月余额的方法，内部会自动处理由于科目系统的变更而自动替换正确的科目id
+//    bool readExtraPmForYM(int y,int m, QHash<int,Double>& fsums,
+//                                         QHash<int,MoneyDirection>& fdirs,
+//                                         QHash<int,Double>& ssums,
+//                                         QHash<int,MoneyDirection>& sdirs);
+//    bool readExtraMmForYM(int y,int m, QHash<int,Double>& fsums,
+//                                     QHash<int,Double>& ssums);
+//    bool saveExtraPmForYM(int y, int m, const QHash<int, Double>& fsums,
+//                                      const QHash<int, MoneyDirection>& fdirs,
+//                                      const QHash<int, Double>& ssums,
+//                                      const QHash<int, MoneyDirection>& sdirs);
+//    bool saveExtraMmForYM(int y, int m, const QHash<int, Double>& fsums,
+//                                      const QHash<int, Double>& ssums);
+    bool _replaceSubId();
+
     bool saveExtra();
     bool readExtra();
     bool readPreExtra();

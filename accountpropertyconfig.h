@@ -79,13 +79,16 @@ private slots:
 
     void on_btnCommit_clicked();
 
+    void on_btnUpgrade_clicked();
+
 private:
     void enWidget(bool en);
-    bool joinExtra(int year, int sc, int dc);
+    bool convertExtraAndPz(int year, int sc, int dc);
 
 
     Ui::ApcSuite *ui;
     Account* account;
+    QHash<int,SubSysNameItem*> subSystems;
     QList<AccountSuiteRecord*> suites;
     EditActionEnum editAction;
     QStack<QString> stack_s;

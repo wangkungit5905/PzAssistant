@@ -173,11 +173,17 @@ public:
 
     bool getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
     bool saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
+    bool getSubSysJoinMaps(int src, int des, QHash<int,int>& fmaps, QHash<int,int>& smaps);
     bool isCompleteSubSysCfg(int src, int des, bool &completed);
     bool setCompleteSubSysCfg(int src, int des, bool completed);
     bool isCompletedExtraJoin(int src, int des, bool &completed);
     bool isImportSubSys(int code);
     bool setImportSubSys(int code, bool ok);
+
+    bool isConvertExtra(int year);
+    bool convertExtra(QHash<int,Double>& sums, QHash<int,MoneyDirection>& dirs, const QHash<int, int> maps);
+    //bool convertExtra(int year, QHash<int,Double>& fsums, QHash<int,MoneyDirection>& fdirs,
+    //                  QHash<int,Double>& ssums,QHash<int,MoneyDirection>& sdirs,);
 
 private:
     bool init();

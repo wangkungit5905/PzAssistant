@@ -49,7 +49,7 @@ bool DbUtil::setFilename(QString fname)
     if(db.isOpen())
         close();
     fileName = fname;
-    QString name = DatabasePath+fname;
+    QString name = DATABASE_PATH+fname;
     db = QSqlDatabase::addDatabase("QSQLITE",AccConnName);
     db.setDatabaseName(name);
     if(!db.open()){
@@ -1726,6 +1726,226 @@ bool DbUtil::saveExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub,
         LOG_SQLERROR("Commit transaction failed on save first subject extra!");
         if(!db.rollback())
             LOG_SQLERROR("Rollback transaction failed on save first subject extra!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::convertExtraInYear
+ *  转换指定年份内的余额（用正确的科目id替换）
+ * @param year
+ * @param fMaps 主科目映射表
+ * @param sMaps 子科目映射表
+ * @return
+ */
+bool DbUtil::convertExtraInYear(int year, const QHash<int, int> fMaps,
+                                const QHash<int, int> sMaps, QStringList& errors)
+{
+    QSqlQuery q1(db),q2(db);
+    QString s1, s2;
+    QList<int> ePoints;
+    if(!db.transaction()){
+        LOG_SQLERROR(QString("Start transaction failed on convert extra in %1 year!").arg(year));
+        return false;
+    }
+
+    if(!_readExtraPointInYear(year,ePoints))
+        return false;
+    int id,sid;
+
+    foreach (int p, ePoints) {
+        //主目原币
+        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_p_f)
+                .arg(fld_nse_pid).arg(p);
+
+        s2 = QString("update %1 set %2=:nid where id=:id")
+                .arg(tbl_nse_p_f).arg(fld_nse_sid);
+        if(!q2.prepare(s2)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        if(!q1.exec(s1)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        while(q1.next()){
+            id = q1.value(0).toInt();
+            sid = q1.value(1).toInt();
+            if(!fMaps.contains(sid)){
+                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
+                        .arg(tbl_nse_p_f).arg(sid);
+                errors.append(e);
+                continue;
+            }
+            q2.bindValue(":id", id);
+            q2.bindValue(":nid", fMaps.value(sid));
+            if(!q2.exec())
+                return false;
+        }
+
+        //主目本币
+        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_m_f)
+                .arg(fld_nse_pid).arg(p);
+        if(!q1.exec(s1)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        s2 = QString("update %1 set %2=:nid where id=:id")
+                .arg(tbl_nse_m_f).arg(fld_nse_sid);
+        if(!q2.prepare(s2)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        while(q1.next()){
+            id = q1.value(0).toInt();
+            sid = q1.value(1).toInt();
+            if(!fMaps.contains(sid)){
+                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
+                        .arg(tbl_nse_p_f).arg(sid);
+                errors.append(e);
+                continue;
+            }
+            q2.bindValue(":id", id);
+            q2.bindValue(":nid", fMaps.value(sid));
+            if(!q2.exec())
+                return false;
+        }
+
+        //子目原币
+        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_p_s)
+                .arg(fld_nse_pid).arg(p);
+
+        s2 = QString("update %1 set %2=:nid where id=:id")
+                .arg(tbl_nse_p_s).arg(fld_nse_sid);
+        if(!q2.prepare(s2)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        if(!q1.exec(s1)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        while(q1.next()){
+            id = q1.value(0).toInt();
+            sid = q1.value(1).toInt();
+            if(!sMaps.contains(sid)){
+                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
+                        .arg(tbl_nse_p_f).arg(sid);
+                errors.append(e);
+                continue;
+            }
+            q2.bindValue(":id", id);
+            q2.bindValue(":nid", sMaps.value(sid));
+            if(!q2.exec())
+                return false;
+        }
+
+        //子目本币
+        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_m_s)
+                .arg(fld_nse_pid).arg(p);
+
+        s2 = QString("update %1 set %2=:nid where id=:id")
+                .arg(tbl_nse_m_s).arg(fld_nse_sid);
+        if(!q2.prepare(s2)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        if(!q1.exec(s1)){
+            LOG_SQLERROR(s1);
+            return false;
+        }
+        while(q1.next()){
+            id = q1.value(0).toInt();
+            sid = q1.value(1).toInt();
+            if(!sMaps.contains(sid)){
+                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
+                        .arg(tbl_nse_p_f).arg(sid);
+                errors.append(e);
+                continue;
+            }
+            q2.bindValue(":id", id);
+            q2.bindValue(":nid", sMaps.value(sid));
+            if(!q2.exec())
+                return false;
+        }
+    }
+
+    if(!db.commit()){
+        LOG_SQLERROR(QString("Commit transaction failed on convert extra in %1 year!").arg(year));
+        if(!db.rollback())
+            LOG_SQLERROR(QString("Roolback transaction failed on convert extra in %1 year!").arg(year));
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::convertPzInYear
+ *  转换指定年份内的所有凭证（将凭证内的会计分录中的科目id替换为对应帐套所使用的科目id）
+ * @param year
+ * @param fMaps
+ * @param sMaps
+ * @return
+ */
+bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
+                             const QHash<int, int> sMaps, QStringList& errors)
+{
+    QSqlQuery q1(db),q2(db);
+    QString s1, s2;
+    QList<int> ps;
+    if(!db.transaction()){
+        LOG_SQLERROR(QString("Start transaction failed on convert PingZheng in %1 year!").arg(year));
+        return false;
+    }
+
+    //select BusiActions.id,BusiActions.fid,BusiActions.sid,PingZhengs.date,PingZhengs.number,BusiActions.numInPz from PingZhengs join BusiActions on PingZhengs.id=BusiActions.pid where PingZhengs.date like '2013%'
+
+    s1 = QString("select %1.id,%1.%6,%1.%7,%2.%8,%2.%9,%1.%10 from %2 join %1 on %2.id=%1.%3 where %2.%4 like '%5%'")
+            .arg(tbl_ba).arg(tbl_pz).arg(fld_ba_pid).arg(fld_pz_date).arg(year)
+            .arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_pz_date).arg(fld_pz_number)
+            .arg(fld_ba_number);
+    if(!q1.exec(s1)){
+        LOG_SQLERROR(s1);
+        return false;
+    }
+    s2 = QString("update %1 set %2=:fid,%3=:sid where id=:id").arg(tbl_ba)
+            .arg(fld_ba_fid).arg(fld_ba_sid);
+    if(!q2.prepare(s2)){
+        LOG_SQLERROR(s2);
+        return false;
+    }
+    QString date;
+    int pzNum,baNum;
+    int id,fid,sid;
+    int nums;
+    while(q1.next()){
+        id = q1.value(0).toInt();
+        fid = q1.value(1).toInt();
+        sid = q1.value(2).toInt();
+        date = q1.value(3).toString();
+        pzNum = q1.value(4).toInt();
+        baNum = q1.value(5).toInt();
+        if(!fMaps.contains(fid) || !sMaps.contains(sid)){
+            //要生成一个错误列表，供用户进行转换出错后的分析与解决
+            QString error = QString("在%1，%2#凭证的第%3条分录（id=%4，）包含无效的科目（fid=%5，sid=%6）")
+                    .arg(date).arg(pzNum).arg(baNum).arg(id).arg(fid).arg(sid);
+            errors.append(error);
+            continue;
+        }
+        q2.bindValue(":fid", fMaps.value(fid));
+        q2.bindValue(":sid", sMaps.value(sid));
+        q2.bindValue(":id", id);
+        if(!q2.exec())
+            return false;
+        nums = q2.numRowsAffected();
+        int i = 0;
+    }
+
+    if(!db.commit()){
+        LOG_SQLERROR(QString("Commit transaction failed on convert PingZheng in %1 year!").arg(year));
+        if(!db.rollback())
+            LOG_SQLERROR(QString("Roolback transaction failed on convert PingZheng in %1 year!").arg(year));
         return false;
     }
     return true;
@@ -4012,6 +4232,28 @@ bool DbUtil::_delPingZheng(PingZheng *pz)
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::_readExtraPointInYear
+ *  读取指定年份内的所有余额指针
+ * @param y
+ * @param points
+ * @return
+ */
+bool DbUtil::_readExtraPointInYear(int y, QList<int>& points)
+{
+    QSqlQuery q(db);
+    QString s = QString("select id from %1 where %2=%3").arg(tbl_nse_point)
+            .arg(fld_nse_year).arg(y);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        points<<q.value(0).toInt();
     }
     return true;
 }

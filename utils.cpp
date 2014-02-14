@@ -5490,11 +5490,11 @@ void transferAntiDirection(const QHash<int, MoneyDirection> &sd, QHash<int, int>
 BackupUtil::BackupUtil(QString srcDir, QString bacDir)
 {
     if(srcDir.isEmpty())
-        sorDir.setPath(DatabasePath);
+        sorDir.setPath(DATABASE_PATH);
     else
         sorDir.setPath(srcDir);
     if(bacDir.isEmpty())
-        backDir.setPath(BackupPath);
+        backDir.setPath(BACKUP_PATH);
     else
         backDir.setPath(bacDir);
     _loadBackupFiles();

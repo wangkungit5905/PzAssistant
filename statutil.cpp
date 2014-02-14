@@ -373,9 +373,12 @@ bool StatUtil::_statCurHappen()
 bool StatUtil::_readPreExtra()
 {
     int yy,mm;
+    bool isConvert = false;
     if(m == 1){
         yy = y-1;
         mm = 12;
+        isConvert = account->isConvertExtra(y);
+
     }
     else{
         yy = y;
@@ -386,6 +389,22 @@ bool StatUtil::_readPreExtra()
         return false;
     if(!dbUtil->readExtraForMm(yy,mm,preFExaM,preSExaM))
         return false;
+    if(isConvert){
+        QHash<int,int> fMaps,sMaps;
+        int sc = account->getSuite(yy)->subSys;
+        int dc = account->getSuite(y)->subSys;
+        if(!account->getSubSysJoinMaps(sc,dc,fMaps,sMaps))
+            return false;
+        if(!account->convertExtra(preFExa,preFDir,fMaps))
+            return false;
+        QHash<int,MoneyDirection> dirs;
+        if(!account->convertExtra(preFExaM,dirs,fMaps))
+            return false;
+        if(!account->convertExtra(preSExaM,dirs,fMaps))
+            return false;
+        if(!account->convertExtra(preSExa,preSDir,sMaps))
+            return false;
+    }
     return true;
 }
 

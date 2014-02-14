@@ -137,7 +137,7 @@ VMAccount::~VMAccount()
 bool VMAccount::restoreConnect()
 {
     db = QSqlDatabase::addDatabase("QSQLITE", VM_ACCOUNT);
-    db.setDatabaseName(DatabasePath+fileName);
+    db.setDatabaseName(DATABASE_PATH+fileName);
     if(!db.open()){
         LOG_ERROR(tr("在升级账户“%1”时，不能打开数据库连接！").arg(fileName));
         canUpgrade = false;
@@ -165,17 +165,17 @@ void VMAccount::closeConnect()
 bool VMAccount::backup(QString fname)
 {
     //备份文件放置在源文件的“backupAccount目录下”
-    QDir backDir(DatabasePath + VM_ACC_BACKDIR + "/");
+    QDir backDir(DATABASE_PATH + VM_ACC_BACKDIR + "/");
     if(!backDir.exists())
-        QDir(DatabasePath).mkdir(VM_ACC_BACKDIR);
+        QDir(DATABASE_PATH).mkdir(VM_ACC_BACKDIR);
 
     QString ds = fname + VM_ACC_BACKSUFFIX;
     if(backDir.exists(ds))
         backDir.remove(ds);
 
     QString sfile,dfile;
-    sfile = DatabasePath + fname;
-    dfile = DatabasePath + VM_ACC_BACKDIR +"/" + ds;
+    sfile = DATABASE_PATH + fname;
+    dfile = DATABASE_PATH + VM_ACC_BACKDIR +"/" + ds;
     return QFile::copy(sfile,dfile);
 }
 
@@ -186,15 +186,15 @@ bool VMAccount::backup(QString fname)
  */
 bool VMAccount::restore(QString fname)
 {
-    QDir backDir(DatabasePath + VM_ACC_BACKDIR + "/");
+    QDir backDir(DATABASE_PATH + VM_ACC_BACKDIR + "/");
     if(!backDir.exists())
         return false;
     QString sf = fname + VM_ACC_BACKSUFFIX;
     if(!backDir.exists(sf))
         return false;
-    QDir(DatabasePath).remove(fname);
+    QDir(DATABASE_PATH).remove(fname);
     sf = backDir.absoluteFilePath(sf);
-    QString df = DatabasePath + fname;
+    QString df = DATABASE_PATH + fname;
     if(!QFile::copy(sf,df))
         return false;
     return backDir.remove(sf);
@@ -1444,7 +1444,7 @@ bool VMAccount::updateTo2_0()
 VMAppConfig::VMAppConfig(QString fileName)
 {
     db = QSqlDatabase::addDatabase("QSQLITE", VM_BASIC);
-    db.setDatabaseName(BaseDataPath + fileName);
+    db.setDatabaseName(BASEDATA_PATH + fileName);
     if(!db.open()){
         LOG_ERROR(tr("在升级配置模块时，不能打开与基本库的数据库连接！"));
         canUpgrade = false;

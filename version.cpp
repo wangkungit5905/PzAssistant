@@ -1455,6 +1455,7 @@ VMAppConfig::VMAppConfig(QString fileName)
     appendVersion(1,2,&VMAppConfig::updateTo1_2);
     appendVersion(1,3,&VMAppConfig::updateTo1_3);
     appendVersion(1,4,&VMAppConfig::updateTo1_4);
+    appendVersion(1,5,&VMAppConfig::updateTo1_5);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1641,7 +1642,7 @@ bool VMAppConfig::updateTo1_2()
 }
 
 /**
- * @brief VMAppConfig::updateTo1_3
+ * @brief VMAppConfig::updateTo1_4
  *  1、在基本库中添加machines表，并初始化5个默认主机
  *  2、根据用户的选择设置isLacal字段（配置本机是哪个主机标识）
  * @return
@@ -1704,6 +1705,49 @@ bool VMAppConfig::updateTo1_4()
     }
     endUpgrade(verNum,"",VUR_OK);
     return setCurVersion(1,4);
+}
+
+/**
+ * @brief VMAppConfig::updateTo1_5
+ *
+ * @return
+ */
+bool VMAppConfig::updateTo1_5()
+{
+    int verNum = 150;
+    QSqlQuery q(db);
+    QString s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER,%3 INTEGER,%4 TEXT)")
+            .arg(tbl_sscc).arg(fld_sscc_subSys).arg(fld_sscc_enum).arg(fld_sscc_code);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_sscc),VUR_ERROR);
+        return false;
+    }
+    if(!db.transaction()){
+        emit upgradeStep(verNum,tr("启动事务失败"),VUR_ERROR);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4) values(:subsys,:enum,:code)")
+            .arg(tbl_sscc).arg(fld_sscc_subSys).arg(fld_sscc_enum).arg(fld_sscc_code);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("错误执行SQL语句：“%1”！").arg(s),VUR_ERROR);
+        return false;
+    }
+    QStringList codes;
+    codes<<"1001"<<"1002"<<"1501"<<"5503"<<"3131"<<"3141"<<"1131"<<"2121";
+    for(int i = 1; i < 9; ++i){
+        q.bindValue(":subsys", DEFAULT_SUBSYS_CODE);
+        q.bindValue(":enum",i);
+        q.bindValue(":code", codes.at(i-1));
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("在初始化默认科目系统的特定科目配置信息时发生错误！"),VUR_ERROR);
+            return false;
+        }
+    }
+    if(!db.commit()){
+        emit upgradeStep(verNum,tr("提交事务失败"),VUR_ERROR);
+        db.rollback();
+    }
+    return setCurVersion(1,5);
 }
 
 /**

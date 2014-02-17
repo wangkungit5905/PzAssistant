@@ -11,6 +11,7 @@
 #include "PzSet.h"
 #include "utils.h"
 #include "subject.h"
+//#include "config.h"
 //#include "account.h"
 
 DbUtil::DbUtil()
@@ -251,6 +252,47 @@ bool DbUtil::importFstSubjects(int subSys, QString fname)
         LOG_ERROR("commit transaction failed on import first subject!");
         return false;
     }
+
+    if(!AppConfig::getInstance()->isSpecSubCodeConfiged(subSys)){
+        QSqlDatabase bdb = AppConfig::getBaseDbConnect();
+        QSqlQuery qb(bdb);
+        if(!bdb.transaction()){
+            LOG_SQLERROR("Base Database start transaction failed on import special subject config item!");
+            return false;
+        }
+        s = QString("insert into %1(%2,%3,%4) values(%5,:subEnum,:code)")
+                .arg(tbl_sscc).arg(fld_sscc_subSys).arg(fld_sscc_enum)
+                .arg(fld_sscc_code).arg(subSys);
+        if(!qb.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+
+        s = QString("select * from %1 where %2=%3").arg(tbl_sscc).arg(fld_sscc_subSys)
+                .arg(subSys);
+        if(!qm.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        AppConfig::SpecSubCode subEnum;
+        QString code;
+        while(qm.next()){
+            subEnum = (AppConfig::SpecSubCode)qm.value(SSCC_ENUM).toInt();
+            code = qm.value(SSCC_CODE).toString();
+            qb.bindValue(":subEnum", subEnum);
+            qb.bindValue(":code", code);
+            if(!qb.exec()){
+                LOG_SQLERROR(qb.lastQuery());
+                return false;
+            }
+        }
+
+        if(!bdb.commit()){
+            LOG_SQLERROR("Base Database commit transaction failed on import special subject config item!");
+            return false;
+        }
+    }
+
     return true;
 }
 
@@ -3859,6 +3901,15 @@ bool DbUtil::_saveAccountSuite(AccountSuiteRecord *suite)
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
+    }
+    if(suite->id == 0){
+        s = "select last_insert_rowid()";
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.next();
+        suite->id = q.value(0).toInt();
     }
     return true;
 }

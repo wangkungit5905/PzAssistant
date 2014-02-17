@@ -36,7 +36,7 @@ void SuiteSwitchPanel::setJzState(AccountSuiteManager *sm, int month, bool jzed)
     QToolButton* btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_VIEW));
     if(btn){
         btn->setIcon(jzed?icon_lookup:icon_edit);
-        btn->setToolTip(jzed?tr("查看"):tr("编辑"));
+        btn->setToolTip(jzed?btn_tip_view:btn_tip_edit);
     }
 }
 
@@ -82,13 +82,68 @@ void SuiteSwitchPanel::swichBtnClicked()
     if(btn)
         btn->setEnabled(false);
     int suiteId = ui->lstSuite->currentItem()->data(Qt::UserRole).toInt();
-    AccountSuiteRecord* asr = suiteRecords.value(suiteId);
-    AccountSuiteManager* previous = account->getPzSet(curAsrId);
-    if(curAsrId != asr->id){
-        curAsrId = asr->id;
-        AccountSuiteManager* current  = account->getPzSet(curAsrId);
-        account->setCurSuite(asr->year);
-        int prevAsrID = previous->getSuiteRecord()->id;
+    AccountSuiteRecord* current = suiteRecords.value(suiteId);
+    AccountSuiteRecord* previous = suiteRecords.value(curAsrId);
+    if(curAsrId != suiteId){
+        //处理前一个帐套，如果有处于可编辑的凭证按钮状态，则使它变为查看按钮状态
+        //如果帐套已经关闭，则无须处理，否则，要看具体的凭证集的状态，只有未结账的凭证集才可以编辑模式打开
+        if(!suiteRecords.value(curAsrId)->isClosed){
+            int idx = -1;
+            for(int i = 0; i < ui->lstSuite->count(); ++i){
+                if(ui->lstSuite->item(i)->data(Qt::UserRole).toInt() == curAsrId){
+                    idx = i;
+                    break;
+                }
+            }
+            if(idx > -1){
+                QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(idx));
+                if(tw){
+                    int m = 0;
+                    for(int row = 0,m = previous->startMonth; m <= previous->endMonth; ++row,++m){
+                        QToolButton* btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_VIEW));
+                        if(!btn)
+                            continue;
+                        PzsState state;
+                        account->getDbUtil()->getPzsState(previous->year,m,state);
+                        if(state != Ps_Jzed){
+                            btn->setToolTip(btn_tip_view);
+                            btn->setIcon(icon_lookup);
+                        }
+                    }
+                }
+            }
+        }
+
+        curAsrId = suiteId;
+        if(!suiteRecords.value(curAsrId)->isClosed){
+            int idx = -1;
+            for(int i = 0; i < ui->lstSuite->count(); ++i){
+                if(ui->lstSuite->item(i)->data(Qt::UserRole).toInt() == curAsrId){
+                    idx = i;
+                    break;
+                }
+            }
+            if(idx > -1){
+                QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(idx));
+                if(tw){
+                    int m = 0;
+                    for(int row = 0,m = current->startMonth; m <= current->endMonth; ++row,++m){
+                        QToolButton* btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_VIEW));
+                        if(!btn)
+                            continue;
+                        PzsState state;
+                        account->getDbUtil()->getPzsState(current->year,m,state);
+                        if(state != Ps_Jzed){
+                            btn->setToolTip(btn_tip_edit);
+                            btn->setIcon(icon_edit);
+                        }
+                    }
+                }
+            }
+        }
+
+        account->setCurSuite(current->year);
+        int prevAsrID = previous->id;
         for(int i = 0; i < ui->lstSuite->count(); ++i){
             int id = ui->lstSuite->item(i)->data(Qt::UserRole).toInt();
             if(id == prevAsrID){
@@ -97,7 +152,8 @@ void SuiteSwitchPanel::swichBtnClicked()
                 break;
             }
         }
-        emit selectedSuiteChanged(previous,current);
+        emit selectedSuiteChanged(account->getPzSet(previous->id),account->getPzSet(current->id));
+
     }
 }
 
@@ -117,7 +173,7 @@ void SuiteSwitchPanel::viewBtnClicked()
         emit selectedSuiteChanged(previous,current);
     }
     //如果要以编辑模式打开，则调整打开凭证集按钮的图标和文本
-    if(!asr->isClosed && current->getState(month) != Ps_Jzed){
+    if(asr->id == curAsrId && !asr->isClosed && current->getState(month) != Ps_Jzed){
         //在同一帐套内，同时只能打开一个凭证集进行编辑操作，因此打开另一个月份的凭证集前要关闭先前打开的凭证集
         if(current == previous && current->isOpened() && current->month() != month){
             if(current->isDirty())
@@ -204,6 +260,8 @@ void SuiteSwitchPanel::newPzSet()
 
 void SuiteSwitchPanel::init()
 {
+    btn_tip_edit = tr("编辑");
+    btn_tip_view = tr("查看");
     curAsrId = 0;
     icon_selected = QIcon(":/images/accSuiteSelected.png");
     icon_unSelected = QIcon(":/images/accSuiteUnselected.png");
@@ -219,6 +277,8 @@ void SuiteSwitchPanel::init()
         li->setData(ROLE_CUR_SUITE, false);
         li->setIcon(icon_unSelected);
         li->setText(as->name);
+        if(as->isCur)
+            curAsrId = as->id;
         initSuiteContent(as);
     }
     connect(ui->lstSuite,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
@@ -260,7 +320,7 @@ void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
         if(!as->isClosed){
             PzsState state;
             account->getDbUtil()->getPzsState(as->year,m,state);
-            if(state != Ps_Jzed)
+            if(state != Ps_Jzed && curAsrId == as->id)
                 viewAndEdit = false;
         }
         crtTableRow(row,m,tw,viewAndEdit);
@@ -295,7 +355,7 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAnd
     QToolButton* btn = new QToolButton(this);
     //btn->setIcon(QIcon(":/images/open.png"));
     btn->setIcon(viewAndEdit?icon_lookup:icon_edit);
-    btn->setToolTip(viewAndEdit?tr("查看"):tr("编辑"));
+    btn->setToolTip(viewAndEdit?btn_tip_view:btn_tip_edit);
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     tw->setCellWidget(row,COL_VIEW,btn);
     connect(btn,SIGNAL(clicked()),this,SLOT(viewBtnClicked()));

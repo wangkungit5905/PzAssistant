@@ -21,6 +21,7 @@ AppConfig::AppConfig()
     //appIni->setIniCodec(QTextCodec::codecForTr());
     _initMachines();
     _initAccountCaches();
+    _initSpecSubCodes();
 }
 
 AppConfig::~AppConfig()
@@ -779,6 +780,30 @@ void AppConfig::_initMachines()
     }
 }
 
+/**
+ * @brief 初始化特定科目代码表
+ */
+void AppConfig::_initSpecSubCodes()
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_sscc);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("无法读取特定科目配置代码表，请检查基本库相应表格是否有误！"));
+        return;
+    }
+    int subSys;
+    SpecSubCode subEnum;
+    QString code;
+    while(q.next()){
+        subSys = q.value(SSCC_SUBSYS).toInt();
+        subEnum = (SpecSubCode)q.value(SSCC_ENUM).toInt();
+        code = q.value(SSCC_CODE).toString();
+        specCodes[subSys][subEnum] = code;
+    }
+
+}
+
 bool AppConfig::_saveMachine(Machine *mac)
 {
     if(!mac)
@@ -860,6 +885,33 @@ int AppConfig::getSpecNameItemCls(AppConfig::SpecNameItemClass witch)
 }
 
 /**
+ * @brief 指定科目系统的特定科目是否已经配置完成
+ * @param subSys
+ * @return
+ */
+bool AppConfig::isSpecSubCodeConfiged(int subSys)
+{
+    QSqlQuery q(db);
+    QString s = QString("select count() from %1 where subSys = %2")
+            .arg(tbl_sscc).arg(subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    q.first();
+    int num = q.value(0).toInt();
+    if(num == SPEC_SUBJECT_NUMS)
+        return true;
+    if(num == 0)
+        return false;
+    s = QString("delete from %1 where %2=%3")
+            .arg(tbl_sscc).arg(fld_sscc_subSys).arg(subSys);
+    if(!q.exec(s))
+        LOG_SQLERROR(s);
+    return false;
+}
+
+/**
  * @brief AppConfig::getSpecSubCode
  *  获取程序中要特别辨识的科目代码（因为在程序中对这些科目有专门的处理功能）
  * @param subSys    科目系统代码
@@ -869,24 +921,25 @@ int AppConfig::getSpecNameItemCls(AppConfig::SpecNameItemClass witch)
 QString AppConfig::getSpecSubCode(int subSys, AppConfig::SpecSubCode witch)
 {
     //目前为了简化，将硬编码实现
-    switch(witch){
-    case SSC_CASH:
-        return "1001";
-    case SSC_BANK:
-        return "1002";
-    case SSC_GDZC:
-        return "1501";
-    case SSC_CWFY:
-        return "5503";
-    case SSC_BNLR:
-        return "3131";
-    case SSC_LRFP:
-        return "3141";
-    case SSC_YS:
-        return "1131";
-    case SSC_YF:
-        return "2121";
-    }
+//    switch(witch){
+//    case SSC_CASH:
+//        return "1001";
+//    case SSC_BANK:
+//        return "1002";
+//    case SSC_GDZC:
+//        return "1501";
+//    case SSC_CWFY:
+//        return "5503";
+//    case SSC_BNLR:
+//        return "3131";
+//    case SSC_LRFP:
+//        return "3141";
+//    case SSC_YS:
+//        return "1131";
+//    case SSC_YF:
+//        return "2121";
+//    }
+    return specCodes.value(subSys).value(witch);
 }
 
 /**

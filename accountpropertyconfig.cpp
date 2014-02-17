@@ -239,7 +239,6 @@ void ApcSuite::curSuiteChanged(int index)
         ui->rmonth->setValue(as->recentMonth);
         ui->isCur->setChecked(as->isClosed);
         ui->isUsed->setChecked(as->isUsed);
-        //ui->subSys->setCurrentIndex(ui->subSys->findData(as->subSys));
         ui->lblSubSys->setText(subSystems.value(as->subSys)->name);
         ui->btnEdit->setEnabled(true);
         ui->btnUsed->setEnabled(!as->isUsed);
@@ -273,7 +272,6 @@ void ApcSuite::curSuiteChanged(int index)
         ui->smonth->clear();
         ui->emonth->clear();
         ui->rmonth->clear();
-        //ui->subSys->setCurrentIndex(-1);
         ui->lblSubSys->clear();
         ui->isCur->setChecked(false);
         ui->isUsed->setChecked(false);
@@ -350,45 +348,9 @@ void ApcSuite::on_btnUsed_clicked()
 {
     int row = ui->lw->currentRow();
     AccountSuiteRecord* as = suites.at(row);
-//    int dc = as->subSys;
-//    int sc = dc;
-//    if(row > 1)
-//        sc = suites.at(row-1)->subSys;
-//    //要启用帐套，且该帐套使用了与前一个帐套不同的科目系统，则必须满足两个条件
-//    //1、科目系统的衔接配置（包括科目的克隆）必须完成；
-//    //2、现存科目余额的转换（即将余额表中属于当前帐套的余额记录中的科目id替换为新科目系统的科目id）
-//    //以下代码必须在确认如何正确进行衔接配置后再做测试
-//    if(dc != sc){
-//        bool isCompletedSubSys = false;
-//        //bool isCompletedSubCloned = false;
-//        bool isCompletedExtraJoined = false;
-//        if(!account->isCompleteSubSysCfg(sc,dc,isCompletedSubSys/*,isCompletedSubCloned*/)){
-//            QMessageBox::critical(this,tr("出错信息"),tr("在读取配置变量时发生错误"));
-//            return;
-//        }
-//        if(!isCompletedSubSys /*|| !isCompletedSubCloned*/){
-//            QMessageBox::warning(this,tr("警告提示"),tr("科目衔接或科目克隆没有完成，无法启用该帐套！"));
-//            return;
-//        }
-//        if(!account->isCompletedExtraJoin(sc,dc,isCompletedExtraJoined)){
-//            QMessageBox::critical(this,tr("出错信息"),tr("在读取配置变量时发生错误"));
-//            return;
-//        }
-//        if(!isCompletedExtraJoined &&
-//                QMessageBox::information(this,tr("提示信息"),
-//                                         tr("要启用使用了新科目系统的帐套，必须要衔接好余额。按确定，则系统自动为你衔接余额。"),
-//                                         QMessageBox::Ok|QMessageBox::Cancel) == QMessageBox::Cancel)
-//            return;
-
-//        if(!convertExtraAndPz(as->year,sc,dc)){
-//            QMessageBox::critical(this,tr("出错信息"),tr("在对现存余额进行转换时发生错误！"));
-//            return;
-//        }
-//    }
-
     as->isUsed = true;
-    if(!account->saveSuite(as))
-        QMessageBox::critical(this,tr("出错信息"),tr("在保存帐套时发生错误！"));
+    //if(!account->saveSuite(as))
+    //    QMessageBox::critical(this,tr("出错信息"),tr("在保存帐套时发生错误！"));
     ui->btnUsed->setEnabled(false);
     ui->isUsed->setChecked(true);
 }
@@ -404,8 +366,6 @@ void ApcSuite::on_btnCommit_clicked()
     if(as->name != ui->name->text())
         ui->lw->currentItem()->setText(ui->name->text());
     as->name = ui->name->text();
-    //as->subSys = ui->subSys->itemData(ui->subSys->currentIndex()).toInt();
-
     as->isUsed = ui->isUsed->isChecked();
     if(editAction == EA_NEW)
         account->addSuite(as);
@@ -507,129 +467,6 @@ void ApcSuite::enWidget(bool en)
     ui->btnEdit->setText(en?tr("取消"):tr("编辑"));
 }
 
-/**
- * @brief 余额及凭证转换
- * 将余额表中保存的属于当前帐套的余额记录中的科目id替换为新科目系统的科目id
- * 将属于当前帐套的凭证的所有分录的科目id替换为新科目系统的科目id
- * @param year  新帐套的年份
- * @param sc    新帐套使用的科目系统代码
- * @param dc    前一个帐套使用的科目系统代码
- * @return
- */
-bool ApcSuite::convertExtraAndPz(int year, int sc, int dc)
-{
-    //获取科目映射表
-    QHash<int,int> fMaps, sMaps;
-    QStringList errors;
-    if(!account->getSubSysJoinMaps(sc,dc,fMaps,sMaps))
-        return false;
-    if(!account->getDbUtil()->convertExtraInYear(year,fMaps,sMaps,errors))
-        return false;
-
-    if(!account->getDbUtil()->convertPzInYear(year,fMaps,sMaps,errors))
-        return false;
-    return true;
-
-
-//    //读取科目映射条目配置项
-//    //读取前一个帐套的最后月份的余额
-//    //将余额表的键的科目id部分替换为新的科目
-//    QList<SubSysJoinItem*> jItems;
-//    if(!account->getSubSysJoinCfgInfo(sc,dc,jItems)){
-//        QMessageBox::critical(this,tr("出错信息"),tr("在读取科目衔接配置项时发生错误！"));
-//        return false;
-//    }
-//    QHash<int,Double> pvf,mvf,pvs,mvs;  //源科目系统的余额表
-//    QHash<int,MoneyDirection> pdf,pds;
-//    QHash<int,Double> pvf_n,mvf_n,pvs_n,mvs_n; //余额副本
-//    QHash<int,MoneyDirection> pdf_n,pds_n;
-//    if(!account->getDbUtil()->readExtraForPm(year-1,12,pvf,pdf,pvs,pds)){
-//        QMessageBox::critical(this,tr("出错信息"),tr("在读取%1年12月的科目原币余额时发生错误！").arg(year-1));
-//        return false;
-//    }
-//    if(!account->getDbUtil()->readExtraForMm(year-1,12,mvf,mvs)){
-//        QMessageBox::critical(this,tr("出错信息"),tr("在读取%1年12月的科目本币余额时发生错误！").arg(year-1));
-//        return false;
-//    }
-//    //建立主目和子目的id映射表
-//    QHash<int,int> fsubMaps,ssubMaps;
-//    foreach(SubSysJoinItem* item,jItems){
-//        fsubMaps[item->sFSub->getId()] = item->dFSub->getId();
-//        for(int i = 0; i < item->ssubMaps.count(); i+=2)
-//            ssubMaps[item->ssubMaps.at(i)] = item->ssubMaps.at(i+1);
-//    }
-//    //处理主目原币余额及其方向
-//    QHashIterator<int,Double>* it = new QHashIterator<int,Double>(pvf);
-//    int id,mt,key;
-//    while(it->hasNext()){
-//        it->next();
-//        id = it->key()/10;
-//        mt = it->key()%10;
-//        if(!fsubMaps.contains(id)){
-//            FirstSubject* fsub = account->getSubjectManager(sc)->getFstSubject(id);
-//            QMessageBox::warning(this,tr("警告信息"),tr("在衔接原币余额时，发现一个未建立衔接映射的一级科目（%1），操作无法继续！").arg(fsub->getName()));
-//            return false;
-//        }
-//        key = fsubMaps.value(id) * 10 + mt;
-//        //注意：如果有多个源科目被映射到同一个目的科目，则要考虑汇总余额，并最终确定方向，但不知是否会出现此种情形
-//        pvf_n[key] = it->value();
-//        pdf_n[key] = pdf.value(it->key());
-//    }
-//    //处理主目本币余额
-//    it = new QHashIterator<int,Double>(mvf);
-//    while(it->hasNext()){
-//        it->next();
-//        id = it->key()/10;
-//        mt = it->key()%10;
-//        if(!fsubMaps.contains(id)){
-//            FirstSubject* fsub = account->getSubjectManager(sc)->getFstSubject(id);
-//            QMessageBox::warning(this,tr("警告信息"),tr("在衔接本币余额时，发现一个未建立衔接映射的一级科目（%1），操作无法继续！").arg(fsub->getName()));
-//            return false;
-//        }
-//        key = fsubMaps.value(id) * 10 + mt;
-//        mvf_n[key ] = it->value();
-//    }
-//    //处理子目原币余额及其方向
-//    it = new QHashIterator<int,Double>(pvs);
-//    while(it->hasNext()){
-//        it->next();
-//        id = it->key()/10;
-//        mt = it->key()%10;
-//        if(!ssubMaps.contains(id)){
-//            SecondSubject* ssub = account->getSubjectManager(sc)->getSndSubject(id);
-//            QMessageBox::warning(this,tr("警告信息"),tr("在衔接本币余额时，发现一个未建立衔接映射的一级科目（%1），操作无法继续！").arg(ssub->getName()));
-//            return false;
-//        }
-//        key = ssubMaps.value(id) * 10 + mt;
-//        pvs_n[key] = it->value();
-//        pds_n[key] = pds.value(it->key());
-//    }
-//    //处理子目本币余额
-//    it = new QHashIterator<int,Double>(mvs);
-//    while(it->hasNext()){
-//        it->next();
-//        id = it->key()/10;
-//        mt = it->key()%10;
-//        if(!ssubMaps.contains(id)){
-//            SecondSubject* ssub = account->getSubjectManager(sc)->getSndSubject(id);
-//            QMessageBox::warning(this,tr("警告信息"),tr("在衔接本币余额时，发现一个未建立衔接映射的一级科目（%1），操作无法继续！").arg(ssub->getName()));
-//            return false;
-//        }
-//        key = ssubMaps.value(id) * 10 + mt;
-//        mvs_n[key] = it->value();
-//    }
-
-//    //保存余额的衔接副本
-//    if(!account->getDbUtil()->saveExtraForPm(year-1,12,pvf,pdf,pvs,pds)){
-//        QMessageBox::critical(this,tr("出错信息"),tr("在保存%1年12月的科目原币余额衔接副本时发生错误！").arg(year-1));
-//        return false;
-//    }
-//    if(!account->getDbUtil()->saveExtraForMm(year-1,12,mvf,mvs)){
-//        QMessageBox::critical(this,tr("出错信息"),tr("在保存%1年12月的科目本币余额衔接副本时发生错误！").arg(year-1));
-//        return false;
-//    }
-//    return true;
-}
 
 //////////////////////////BankCfgNiCellWidget/////////////////////////////////////////////
 BankCfgNiCellWidget::BankCfgNiCellWidget(SubjectNameItem *ni):QTableWidgetItem(),ni(ni)

@@ -66,6 +66,7 @@ public:
 
     int getSpecNameItemCls(SpecNameItemClass witch);
     void setSpecNameItemcls(SpecNameItemClass witch, int code);
+    bool isSpecSubCodeConfiged(int subSys);
     QString getSpecSubCode(int subSys, SpecSubCode witch);
     void setSpecSubCode(int subSys, SpecSubCode witch, QString code);
     QHash<int,SubjectClass> getSubjectClassMaps(int subSys);
@@ -114,6 +115,7 @@ private:
     bool _searchAccount();
     bool _initAccountCaches();
     void _initMachines();
+    void _initSpecSubCodes();
     bool _saveMachine(Machine* mac);
     AppConfig();
     bool getConfigVar(QString name, int type);
@@ -122,14 +124,17 @@ private:
     QHash<int, Money*> moneyTypes;
     QHash<int, Machine*> machines;
     QList<AccountCacheItem*> accountCaches;
+    QHash<int, QHash<SpecSubCode,QString> > specCodes; //特定科目代码表
     bool init_accCache; //本地账户缓存条目是否已从缓存表中读取的标志
     bool bv;       //分别用来保存4种类型的变量值
     int iv;
     double dv;
     QString sv;
+
     static AppConfig* instance;
     static QSqlDatabase db;
     static QSettings *appIni;
+    static const int SPEC_SUBJECT_NUMS = 8; //特定科目数目
 };
 
 

@@ -83,7 +83,6 @@ private slots:
 
 private:
     void enWidget(bool en);
-    bool convertExtraAndPz(int year, int sc, int dc);
 
 
     Ui::ApcSuite *ui;

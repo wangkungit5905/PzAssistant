@@ -337,6 +337,17 @@ const int NSE_E_VALUE = 3;
 const int NSE_E_DIR   = 4;
 
 
+//特定科目代码配置表
+const QString tbl_sscc  = "specSubCodeConfig";
+//字段名
+const QString fld_sscc_subSys = "subSys";   //科目系统
+const QString fld_sscc_enum = "subEnum";    //特定科目枚举值
+const QString fld_sscc_code = "code";       //科目代码
+//字段索引
+const int SSCC_SUBSYS = 1;
+const int SSCC_ENUM   = 2;
+const int SSCC_CODE   = 3;
+
 //子窗口信息表（subWinInfos）
 //字段名
 const QString tbl_subWinInfo = "subWinInfos";

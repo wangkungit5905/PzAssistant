@@ -54,7 +54,6 @@ SOURCES += main.cpp\
     PzSet.cpp \
     statutil.cpp \
     curstatdialog.cpp \
-    showdzdialog2.cpp \
     commands.cpp \
     pzdialog.cpp \
     widgets/bawidgets.cpp \
@@ -64,7 +63,8 @@ SOURCES += main.cpp\
     accountpropertyconfig.cpp \
     suiteswitchpanel.cpp \
     databaseaccessform.cpp \
-    transfers.cpp
+    transfers.cpp \
+    showdzdialog.cpp
 
 HEADERS  += \
     connection.h \
@@ -113,7 +113,6 @@ HEADERS  += \
     PzSet.h \
     statutil.h \
     curstatdialog.h \
-    showdzdialog2.h \
     commands.h \
     statements.h \
     pzdialog.h \
@@ -125,7 +124,8 @@ HEADERS  += \
     suiteswitchpanel.h \
     databaseaccessform.h \
     keysequence.h \
-    transfers.h
+    transfers.h \
+    showdzdialog.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -195,7 +195,8 @@ OTHER_FILES += \
     账户文本版本说明.txt \
     ini/revisionHistorys.ini \
     PrjExplain/任务需求分析.txt \
-    bugs.txt
+    bugs.txt \
+    修改日志.txt
 
 win32{
     RC_FILE = exeico.rc

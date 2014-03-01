@@ -64,7 +64,7 @@ public:
 
 class FirstSubject : public SubjectBase{
 public:
-    FirstSubject():md(FSTSUBMD++),id(0),_parent(NULL){}
+    FirstSubject():md(FSTSUBMD++),id(0),_parent(NULL){defSub=NULL;}
     FirstSubject(const FirstSubject &other);
     FirstSubject(SubjectManager* parent, int id,SubjectClass subcls,QString subName,QString subCode,QString remCode,int subWeight,bool isEnable,
                  bool jdDir = true,bool isUseWb = true,QString explain = "",QString usage = "",int subSys=1);
@@ -126,7 +126,7 @@ public:
     bool containChildSub(SubjectNameItem* ni);
     SecondSubject* getChildSub(SubjectNameItem* ni);
     void setDefaultSubject(SecondSubject* ssub);
-    SecondSubject* getDefaultSubject(){return defSub;}
+    SecondSubject* getDefaultSubject();
 
 private:
     SubjectManager* _parent;
@@ -330,10 +330,10 @@ class SubjectManager
 public:
 
 
-    SubjectManager(Account* account, int subSys = 1);
+    SubjectManager(Account* account, int subSys = DEFAULT_SUBSYS_CODE);
     Account* getAccount(){return account;}
     bool loadAfterImport();
-    int getCode(){return subSys;}
+    int getSubSysCode(){return subSys;}
 
     //保存方法
     bool save();

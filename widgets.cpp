@@ -487,7 +487,7 @@ ActionEditTableWidget::ActionEditTableWidget(QWidget* parent):QTableWidget(paren
     //connect(this,SIGNAL(cellClicked(int,int)),this,SLOT(cellClicked(int,int)));
     //setVerticalHeader();
 
-    int subSys = curAccount->getCurSuite()->subSys;
+    int subSys = curAccount->getCurSuiteRecord()->subSys;
     smg = curAccount->getSubjectManager(subSys);
 
     volidRows = 0;
@@ -632,7 +632,7 @@ void ActionEditTableWidget::newSndSubMapping(int pid, int nid,
  */
 void ActionEditTableWidget::newSndSubAndMapping(int fid, QString name, int row, int col)
 {
-    int subSys = curAccount->getCurSuite()->subSys;
+    int subSys = curAccount->getCurSuiteRecord()->subSys;
     SubjectManager* sm = curAccount->getSubjectManager(subSys);
     FirstSubject* fsub = sm->getFstSubject(fid);
     QString s = tr("确定要创建新的名称条目“%1”，并利用新建名称在一级科目“%2”下创建二级科目吗？")
@@ -829,13 +829,18 @@ void SubjectComplete::setPid(int pid)
 
 QString SubjectComplete::pathFromIndex(const QModelIndex &index) const
 {
+    //LOG_INFO("enter into SubjectComplete::pathFromIndex");
     const QAbstractItemModel* model = index.model();
     int id = model->data(model->index(index.row(),2)).toInt();
     QComboBox* w = static_cast<QComboBox*>(widget());
     QString subName;
     //如果从完成列表中选择的项目在组合框内没有，则返回空字符串
-    if(w && w->findData(id) != -1)
+    if(w && findSubject(id) != -1){
         subName = model->data(model->index(index.row(),0)).toString();
+        //LOG_INFO(QString("SubjectComplete::pathFromIndex: subName = %1").arg(subName));
+    }
+    else
+        subName = tr("未包含");
     return subName;
 }
 
@@ -911,6 +916,12 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
                 keyBuf.append(key);
             return QCompleter::eventFilter(obj,e);
         }
+//        else if(key == Qt::Key_Up || key == Qt::Key_Down){
+//            LOG_INFO(QString("SubjectComplete.eventFilter(): arrow key"));
+//        }
+//        else if((key == Qt::Key_Enter) && (key == Qt::Key_Return)){
+//            LOG_INFO(QString("SubjectComplete.eventFilter(): enter key"));
+//        }
         else
             return QCompleter::eventFilter(obj, e);
     }
@@ -925,12 +936,47 @@ void SubjectComplete::clickedInList(const QModelIndex &index)
 {
     const QAbstractItemModel* m = index.model();
     int id = m->data(m->index(index.row(),2)).toInt();
+    //LOG_INFO(QString("SubjectComplete.clickedInList: subject id=%1").arg(id));
     QComboBox* w = static_cast<QComboBox*>(widget());
     if(w){
         //如果完成列表中有，但组合框内没有，如何处理？
-        int idx = w->findData(id);
+        int idx = findSubject(id);
+        //LOG_INFO(QString("SubjectComplete.clickedInList: Fonded subject index=%1").arg(idx));
         w->setCurrentIndex(idx);
     }
+}
+
+/**
+ * @brief 查找指定id的科目在组合框中的索引位置
+ * @param id
+ * @return
+ */
+int SubjectComplete::findSubject(int id) const
+{
+    QComboBox* w = static_cast<QComboBox*>(widget());
+    if(!w)
+        return -1;
+    if(w->count() == 0)
+        return -1;
+    //LOG_INFO(QString("Total have %1 items in ComboBox").arg(w->count()));
+    for(int i = 0; i < w->count(); ++i){
+        SubjectBase* sub;
+        if(witch == 1)
+            sub = w->itemData(i).value<FirstSubject*>();
+        else
+            sub = w->itemData(i).value<SecondSubject*>();
+        if(!sub){
+            //LOG_INFO(QString("subject don't fonded at index=%1!").arg(i));
+            continue;
+        }
+        if(sub->getId() == id){
+            //LOG_INFO(QString("Fonded subject(%1) at index = %2").arg(sub->getName()).arg(i));
+            return i;
+        }
+        else
+            continue;
+    }
+    return -1;
 }
 
 

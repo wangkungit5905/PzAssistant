@@ -22,7 +22,7 @@ class SuiteSwitchPanel : public QWidget
     Q_OBJECT
     
 public:
-    static const int ROLE_CUR_SUITE = Qt::UserRole + 1;       //用此角色来保存是否是当前打开的帐套
+    static const int ROLE_CUR_SUITE = Qt::UserRole + 1;       //用此角色来保存当前打开帐套到id
     enum ColType{
         COL_MONTH   = 0,
         COL_OPEN    = 1,
@@ -35,7 +35,7 @@ public:
     
 private slots:
     void curSuiteChanged(QListWidgetItem * current, QListWidgetItem * previous);
-    void swichBtnClicked();
+    //void swichBtnClicked();
     void viewBtnClicked();
     void openBtnClicked(bool checked);
     void newPzSet();

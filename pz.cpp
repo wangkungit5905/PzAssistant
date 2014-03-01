@@ -59,35 +59,44 @@ void BusiAction::integratedSetValue(FirstSubject* fsub,SecondSubject* ssub,Money
     Double oldV = this->v;
     MoneyDirection oldDir = this->dir;
     bool tag_sub=false,tag_mt=false,tag_v=false,tag_dir=false;
+    bool baChanged = false;
     if(this->fsub != fsub){
         this->fsub = fsub;
         setEditState(ES_BA_FSUB);
         tag_sub = true;
+        baChanged = true;
     }
     if(this->ssub != ssub){
         this->ssub = ssub;
         setEditState(ES_BA_SSUB);
         tag_sub = true;
+        baChanged = true;
     }
     if(this->mt != mt){
         this->mt = mt;
         setEditState(ES_BA_MT);
         tag_mt = true;
+        baChanged = true;
     }
     if(this->v != v){
         this->v = v;
         setEditState(ES_BA_VALUE);
         tag_v = true;
+        baChanged = true;
     }
     if(this->dir != dir){
         this->dir = dir;
         setEditState(ES_BA_DIR);
         tag_dir = true;
+        baChanged = true;
     }
     if(tag_sub)
         emit subChanged(oldFSub,oldSSub,oldMt,oldV,this);
     else if(tag_mt || tag_v || tag_dir)
         emit valueChanged(oldMt,oldV,oldDir,this);
+    if(baChanged && parent){
+        parent->setEditState(ES_PZ_BACTION );
+    }
 }
 
 void BusiAction::setParent(PingZheng *p)

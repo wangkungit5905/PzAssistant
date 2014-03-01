@@ -202,7 +202,7 @@ void ApcSuite::init()
 {
     if(iniTag)
         return;
-    suites = account->getAllSuites();
+    suites = account->getAllSuiteRecords();
     foreach(SubSysNameItem* sni, account->getSupportSubSys()){
         subSystems[sni->code] = sni;
     }
@@ -1976,7 +1976,7 @@ bool SubSysJoinCfgForm::save()
         dlg->setLayout(lm);
         if(dlg->exec() == QDialog::Accepted){
             cloneSndSubject();
-            account->setCompleteSubSysCfg(sSmg->getCode(),dSmg->getCode(),true);
+            account->setCompleteSubSysCfg(sSmg->getSubSysCode(),dSmg->getSubSysCode(),true);
         }
         delete dlg;
     }
@@ -1987,7 +1987,7 @@ bool SubSysJoinCfgForm::save()
             continue;
         editedItems<<ssjs.at(i);
     }
-    if(!account->saveSubSysJoinCfgInfo(sSmg->getCode(),dSmg->getCode(),editedItems))
+    if(!account->saveSubSysJoinCfgInfo(sSmg->getSubSysCode(),dSmg->getSubSysCode(),editedItems))
         QMessageBox::critical(this,tr("出错信息"),tr("在保存科目系统衔接配置信息时出错！"));
 }
 
@@ -2037,10 +2037,10 @@ void SubSysJoinCfgForm::init()
     QHash<int,QString> names;
     foreach(SubSysNameItem* item, account->getSupportSubSys())
         names[item->code] = item->name;
-    ui->sSubSys->setText(names.value(sSmg->getCode()));
-    ui->dSubSys->setText(names.value(dSmg->getCode()));
+    ui->sSubSys->setText(names.value(sSmg->getSubSysCode()));
+    ui->dSubSys->setText(names.value(dSmg->getSubSysCode()));
 
-    if(!account->isCompleteSubSysCfg(sSmg->getCode(),dSmg->getCode(),isCompleted)){
+    if(!account->isCompleteSubSysCfg(sSmg->getSubSysCode(),dSmg->getSubSysCode(),isCompleted)){
         QMessageBox::critical(this,tr("出错信息"),tr("在读取配置变量时发生错误"));
         ui->btnOk->setEnabled(false);
         return;
@@ -2048,7 +2048,7 @@ void SubSysJoinCfgForm::init()
     //ui->chkComplete->setEnabled(!isCompleted);
     //ui->chkComplete->setChecked(isCompleted);
     ui->tview->setColumnHidden(0,true);
-    if(!account->getSubSysJoinCfgInfo(sSmg->getCode(),dSmg->getCode(),ssjs)){
+    if(!account->getSubSysJoinCfgInfo(sSmg->getSubSysCode(),dSmg->getSubSysCode(),ssjs)){
         QMessageBox::critical(this,tr("出错信息"),tr("在读取科目系统衔接配置信息时出错！"));
         return;
     }
@@ -2152,7 +2152,7 @@ void SubSysJoinCfgForm::cloneSndSubject()
  */
 void SubSysJoinCfgForm::preConfig()
 {
-    if((sSmg->getCode()==1) && (dSmg->getCode()==2)){
+    if((sSmg->getSubSysCode()==1) && (dSmg->getSubSysCode()==2)){
         QStringList sCodes,dCodes;
         sCodes<<"1001"<<"1002"<<"1131"<<"1133"<<"1151"<<"1301"<<"1501"<<"1502"<<"1801"<<"2121"<<"2131"<<"2151"<<"2171"<<"2176"<<"2181"<<"3101"<<"3131"<<"3141"<<"5101"<<"5301"<<"5401"<<"5402"<<"5501"<<"5502"<<"5503"<<"5601"<<"5701";
         dCodes<<"1001"<<"1002"<<"1122"<<"1221"<<"1123"<<"1123"<<"1601"<<"1602"<<"1701"<<"2202"<<"2203"<<"2211"<<"2221"<<"2241"<<"2241"<<"4001"<<"4103"<<"4104"<<"6001"<<"6301"<<"6401"<<"6403"<<"6601"<<"6602"<<"6603"<<"6711"<<"6801";
@@ -2382,7 +2382,7 @@ void ApcData::init()
         return;
     AccountSuiteRecord* asr;
     if(extraCfg){  //期初余额配置模式
-        asr = account->getStartSuite();
+        asr = account->getStartSuiteRecord();
         if(!asr){
             QMessageBox::warning(this,tr("警告信息"),tr("该账户还没有设置任何帐套，无法设置期初值"));
             return;
@@ -2408,7 +2408,7 @@ void ApcData::init()
         ui->month->setReadOnly(true);
     }
     else{   //余额显示模式
-        asr = account->getCurSuite();
+        asr = account->getCurSuiteRecord();
         if(!asr){
             QMessageBox::warning(this,tr("警告信息"), tr("没有“”年的对应账套！"));
             return;
@@ -2475,7 +2475,7 @@ void ApcData::setYM(int year, int month)
 {
     if(extraCfg)
         return;
-    AccountSuiteRecord* asr = account->getSuite(y);
+    AccountSuiteRecord* asr = account->getSuiteRecord(y);
     if(!asr)
         return;
     if(m < asr->startMonth || m > asr->endMonth)

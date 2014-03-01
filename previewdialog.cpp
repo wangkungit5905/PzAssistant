@@ -19,7 +19,6 @@ PreviewDialog::PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pa
     QDialog(parent),
     ui(new Ui::PreviewDialog)
 {
-    //paging = NULL;
     dataModel = NULL;
     headerModel = NULL;
     this->outPaging = outPaging;
@@ -28,37 +27,14 @@ PreviewDialog::PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pa
     tv = tWidget->findChild<QTableView*>("tview");
 
     if(pageType != COMMONPAGE){
-        //获取表格的复合代理数据模型
-        ProxyModelWithHeaderModels* pmodel =
-                qobject_cast<ProxyModelWithHeaderModels*>(tv->model());
-        //从复合模型内取得表头数据模型和表格内容数据模型
-
+        //获取表格的复合代理数据模型，并从中取出表头数据模型和表格内容数据模型
+        MyWithHeaderModels* pmodel =
+                qobject_cast<MyWithHeaderModels*>(tv->model());
         if(pmodel){
-            dataModel = new QStandardItemModel;
-            if(!outPaging)
+            dataModel = qobject_cast<QStandardItemModel*>(pmodel);
+            //if(!outPaging)
                 headerModel = pmodel->getHorizontalHeaderModel();
-            QAbstractItemModel* dmodel = qobject_cast<QAbstractItemModel*>(pmodel->sourceModel()/*->model()*/);
-
-            //重新制备一份表格数据模型的副本
-            QString text;
-            QList<QStandardItem*> l;
-            QStandardItem* item;
-            Qt::AlignmentFlag align;
-            int rows = dmodel->rowCount();
-            int cols = dmodel->columnCount();
-            for(int i = 0; i < rows; ++i){
-                for(int j = 0; j < cols; ++j){
-                    text = dmodel->data(dmodel->index(i,j)).toString();
-                    item = new QStandardItem(text);
-                    align = (Qt::AlignmentFlag)dmodel->data(dmodel->index(i,j), Qt::TextAlignmentRole).toInt();
-                    item->setTextAlignment(align);
-                    l<<item;
-                }
-                dataModel->appendRow(l);
-                l.clear();
-            }
         }
-
     }
     else{
         //如果要打印通用表格，则保存表头数据
@@ -108,8 +84,6 @@ PreviewDialog::PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pa
 
     w = NULL;
     proWidget = NULL;
-    pageModel = NULL;
-    pageProxyModel = NULL;
     oldw=0;oldh=0;
     pageBack = NULL;
 }
@@ -119,17 +93,6 @@ PreviewDialog::~PreviewDialog()
     delete ui;
 }
 
-//void PreviewDialog::setPaging(PagingFun pagingFun)
-//{
-//    paging = pagingFun;
-//}
-
-//将外部已作分页处理的数据传递给预览框
-//void PreviewDialog::setPagedData(QStandardItemModel* model)
-//{
-//    dataModel = model;
-//}
-
 void PreviewDialog::setupPage()
 {
     QRectF rect = printer->paperRect();
@@ -137,7 +100,6 @@ void PreviewDialog::setupPage()
     pageScene.setSceneRect(rectNew);//设置页面渲染场景的矩形区域大小
 
     //将模板放入场景中，拉伸和定位打印模板，以适合场景的大小
-
     if(!proWidget){
         proWidget = new QGraphicsProxyWidget;
         proWidget->setWidget(tWidget);
@@ -146,19 +108,13 @@ void PreviewDialog::setupPage()
     if(!w){
         l = new QGraphicsAnchorLayout;
         l->setSpacing(0);
-        //l->setContentsMargins(leftMargin,topMargin,rightMargin,bottomMargin);
-
         w = new QGraphicsWidget(0, Qt::Widget);
         w->setZValue(1);
         QPalette winPal = w->palette(); //改变背景色为白色
         winPal.setColor(QPalette::Window, Qt::white);
         w->setPalette(winPal);
-
         w->setPos(0, 0);
-        //w->setContentsMargins(leftMargin,topMargin,rightMargin,bottomMargin);
         w->setLayout(l);
-
-
         l->addAnchor(proWidget, Qt::AnchorTop, l, Qt::AnchorTop);
         l->addAnchor(proWidget, Qt::AnchorBottom, l, Qt::AnchorBottom);
         l->addAnchor(proWidget, Qt::AnchorLeft, l, Qt::AnchorLeft);
@@ -167,7 +123,6 @@ void PreviewDialog::setupPage()
         pageScene.addItem(w);
         w->moveBy(leftMargin,topMargin);
         pageScene.setBackgroundBrush(sceneBgColor);
-
     }
     if((w->x() != leftMargin) || (w->y() != topMargin))
         w->moveBy(leftMargin - w->x(),topMargin - w->y());
@@ -193,7 +148,6 @@ void PreviewDialog::setupPage()
     pageBack->setZValue(0);
     pageBack->setRect(rectNew);
 
-
     rect = proWidget->subWidgetRect(tv);
     rowPerPage = rect.height() / rowHeight-1;
     if(outPaging){
@@ -209,23 +163,14 @@ void PreviewDialog::setupPage()
 
 void PreviewDialog::paintPage(int pagenum)
 {
-    QList<int>* colWidths; //列宽，仅在由外部处理分页时使用
+    QList<int>* colWidths = NULL; //列宽，仅在由外部处理分页时使用
     QString pageNumber = QString("%1/%2").arg(pagenum).arg(pages);
 
     //为当前打印页表格创建一个新的数据源
-    if(outPaging){  //如果由外部进行分页，则从调用方请求页面表格数据
-        oHeaderModel.clear();
-        oPageModel.clear();
-        emit reqPageData(pagenum,colWidths,oPageModel,oHeaderModel);
-        int row = oPageModel.rowCount();
-        int i = 0;
-    }
+    oPageModel.clear();
+    if(outPaging) //如果由外部进行分页，则从调用方请求页面表格数据
+        emit reqPageData(pagenum,colWidths,oPageModel);
     else{ //由预览框自己进行分页处理
-        if(pageModel){
-            delete pageModel;
-            pageModel = NULL;
-        }
-        pageModel = new QStandardItemModel;
         //确定起始边界
         int start,end;
         if(pagenum == 1)
@@ -240,7 +185,7 @@ void PreviewDialog::paintPage(int pagenum)
         QList<QStandardItem*> l;
         QStandardItem* item;
         Qt::Alignment align;
-        int cols = dataModel->columnCount();
+        int cols = oPageModel.columnCount();
         for(int i = start; i < end; ++i){
             for(int j = 0; j < cols; ++j){
                 item = dataModel->item(i,j);
@@ -254,7 +199,7 @@ void PreviewDialog::paintPage(int pagenum)
                     item = NULL;
                 l<<item;
             }
-            pageModel->appendRow(l);
+            oPageModel.appendRow(l);
             l.clear();
         }
     }
@@ -262,47 +207,28 @@ void PreviewDialog::paintPage(int pagenum)
     //将数据模型附加到表格视图
     if(pageType != COMMONPAGE){
         //构造复合模型
-        if(pageProxyModel){
-            delete pageProxyModel;
-            pageProxyModel = NULL;
-        }
-        pageProxyModel = new ProxyModelWithHeaderModels;
-
-        if(outPaging){
-            pageProxyModel->setSourceModel(&oPageModel); /*setModel*/
-            pageProxyModel->setHorizontalHeaderModel(&oHeaderModel);
+        //oPageModel.setHorizontalHeaderModel(headerModel);
+        if(outPaging)
             tWidget->setColWidth(colWidths);
-        }
-        else{
-            pageProxyModel->/*setModel*/setSourceModel(pageModel);
-            pageProxyModel->setHorizontalHeaderModel(headerModel);
-        }
-        tv->setModel(pageProxyModel);
     }
     else{
         if(!outPaging){ //如果由预览框自己处理分页，则必须重新设置表头内容
-            pageModel->setHorizontalHeaderLabels(headDatas);
-            tv->setModel(pageModel);
+            oPageModel.setHorizontalHeaderLabels(headDatas);
         }
-        else
-            tv->setModel(&oPageModel);
-
     }
+    tv->setModel(&oPageModel);
     if(outPaging){
         for(int i = 0; i < oPageModel.columnCount(); ++i)
             tv->setColumnWidth(i,colWidths->value(i));
         for(int i = 0; i < oPageModel.rowCount(); ++i)
             tv->setRowHeight(i,rowHeight);
-        //pageScene.update(pageScene.sceneRect());
     }
     else{
-        for(int i = 0; i < pageModel->rowCount(); ++i)
+        for(int i = 0; i < oPageModel.rowCount(); ++i)
             tv->setRowHeight(i,rowHeight);
     }
     if(!outPaging)
         tWidget->setPageNum(pageNumber);
-    //tWidget->update();
-
 }
 
 void PreviewDialog::setupSpinBox()
@@ -439,18 +365,6 @@ void PreviewDialog::colWidthResized(int logicalIndex, int oldSize, int newSize)
 void PreviewDialog::on_spnPage_valueChanged(int arg1)
 {
     paintPage(arg1);
-//    //去除先前画的矩形边框
-//    if((oldw != 0) && (oldh != 0)){
-//        //pageScene.addRect(0,0,oldw-1,oldh-1,QPen(Qt::white, 2.0));
-//        pageScene.removeItem(pageBack);
-//        delete pageBack;
-//    }
-//    oldw = pageScene.width();
-//    oldh = pageScene.height();
-//    QRectF rect(0,0,oldw-1,oldh-1);
-//    pageBack = pageScene.addRect(rect,QPen(Qt::black,2),QBrush(Qt::white));
-//    pageBack->setZValue(0);
-
 }
 
 //放大
@@ -477,9 +391,6 @@ void PreviewDialog::on_btnSet_clicked()
             return;
     }
     printer->getPageMargins(&leftMargin,&topMargin,&rightMargin,&bottomMargin,QPrinter::Didot);
-    //qreal lm,rm,tm,bm;
-
-    //printer->getPageMargins(&lm,&tm,&rm,&bm,QPrinter::Didot);
     setupPage();
     setupSpinBox();
     on_spnPage_valueChanged(1);    

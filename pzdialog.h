@@ -321,4 +321,12 @@ private:
     QList<int> colWidths;  //表格列宽
 };
 
+class ReadOnlyItemDelegate : public QItemDelegate{
+    Q_OBJECT
+public:
+    ReadOnlyItemDelegate(QObject* parent = 0):QItemDelegate(parent){}
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const{return 0;}
+};
+
 #endif // PZDIALOG_H

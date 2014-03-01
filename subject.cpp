@@ -414,6 +414,13 @@ void FirstSubject::setDefaultSubject(SecondSubject *ssub)
     witchEdited |= ES_FS_DEFSUB;
 }
 
+SecondSubject *FirstSubject::getDefaultSubject()
+{
+    if(!defSub && !childSubs.isEmpty())
+        defSub = childSubs.first();
+    return defSub;
+}
+
 
 //针对一级科目的排序比较函数
 bool byNameThan_fs(FirstSubject *fs1, FirstSubject *fs2)

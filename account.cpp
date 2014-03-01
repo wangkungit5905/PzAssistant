@@ -127,7 +127,7 @@ void Account::setEndTime(QDate date)
  * @param curMonth  帐套最近打开凭证集所属月份
  * @param subSys    帐套采用的科目系统代码
  */
-AccountSuiteRecord* Account::appendSuite(int y, QString name, int subSys)
+AccountSuiteRecord* Account::appendSuiteRecord(int y, QString name, int subSys)
 {
     foreach(AccountSuiteRecord* as, suiteRecords){
         if(as->year == y)
@@ -154,7 +154,7 @@ void Account::setSuiteName(int y, QString name)
 }
 
 //考虑移除（制作打开凭证集对话框类和老的账户属性配置中被使用）
-QList<int> Account::getSuites()
+QList<int> Account::getSuiteYears()
 {
     QList<int> ys;
     for(int i = 0; i < suiteRecords.count(); ++i)
@@ -167,7 +167,7 @@ QList<int> Account::getSuites()
  *  获取当前帐套
  * @return
  */
-AccountSuiteRecord* Account::getCurSuite()
+AccountSuiteRecord* Account::getCurSuiteRecord()
  {
      foreach(AccountSuiteRecord* as, suiteRecords)
          if(as->isCur)
@@ -181,11 +181,11 @@ AccountSuiteRecord* Account::getCurSuite()
 
  /**
   * @brief Account::getSuite
-  * 获取指定年份的帐套对象
+  * 获取指定年份的帐套记录对象
   * @param y
   * @return
   */
- AccountSuiteRecord *Account::getSuite(int y)
+ AccountSuiteRecord *Account::getSuiteRecord(int y)
  {
      foreach(AccountSuiteRecord* as, suiteRecords){
          if(as->year == y){
@@ -359,7 +359,7 @@ void Account::getVersion(int &mv, int &sv)
  * @param suiteId   帐套id，如果为0，则返回当前帐套
  * @return
  */
-AccountSuiteManager *Account::getPzSet(int suiteId)
+AccountSuiteManager *Account::getSuiteMgr(int suiteId)
 {
     if(suiteRecords.isEmpty())
         return NULL;
@@ -420,7 +420,7 @@ SubjectManager *Account::getSubjectManager(int subSys)
 {
     int ssCode;
     if(subSys == 0)
-        ssCode = getCurSuite()->subSys;
+        ssCode = getCurSuiteRecord()->subSys;
     else
         ssCode = subSys;
     if(!smgs.contains(ssCode))
@@ -708,8 +708,8 @@ bool Account::setImportSubSys(int code, bool ok)
 bool Account::isConvertExtra(int year)
 {
     AccountSuiteRecord* sc, *dc;
-    sc = getSuite(year-1);
-    dc = getSuite(year);
+    sc = getSuiteRecord(year-1);
+    dc = getSuiteRecord(year);
     if(!sc || !dc)
         return false;
     if(sc->subSys == dc->subSys)
@@ -735,10 +735,10 @@ bool Account::convertExtra(QHash<int, Double> &sums, QHash<int,MoneyDirection>& 
         v = it.value();
         d = dirs.value(it.key());
         id = it.key()/10;
-        mt = it.key()%10;
-        key = id * 10 + mt;
-        if(!maps.contains(key))
+        mt = it.key()%10;        
+        if(!maps.contains(id))
             return false;
+        key = maps.value(id) * 10 + mt;
         sums.remove(it.key());
         dirs.remove(it.key());
         sums[key] = v;

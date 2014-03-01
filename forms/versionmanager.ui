@@ -124,6 +124,9 @@
      </item>
      <item>
       <widget class="QPushButton" name="btnSave">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="text">
         <string>保存升级日志</string>
        </property>

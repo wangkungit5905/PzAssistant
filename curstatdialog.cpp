@@ -19,9 +19,11 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
 
     headerModel = NULL;
     dataModel = NULL;
-    imodel = NULL;
 
     //初始化表格行的背景色
+//    row_tc_fsub = QColor(Qt::blue);
+//    row_tc_ssub =QColor(Qt::black);
+//    row_tc_sum = QColor(Qt::red);
     row_bk_ssub = QBrush(QColor(200,200,255));
     row_bk_fsub = QBrush(QColor(150,150,255));
     row_bk_sum = QBrush(QColor(100,100,255));
@@ -32,8 +34,7 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     //hv->setClickable(true);
     hv->setSectionsClickable(true);
     //hv->setStyleSheet("QHeaderView::section {background-color:darkcyan;}");
-    ui->tview->setHorizontalHeader(hv);    
-
+    ui->tview->setHorizontalHeader(hv);
     //添加按钮菜单
     mnuPrint = new QMenu;
     mnuPrint->addAction(ui->actPrint);
@@ -443,7 +444,7 @@ void CurStatDialog::initHashs()
 //        }
 //    }
 
-    PzsState pzsState = account->getPzSet(account->getSuite(statUtil->year())->id)->getState(m);
+    PzsState pzsState = account->getSuiteMgr(account->getSuiteRecord(statUtil->year())->id)->getState(m);
     ui->lblPzsState->setText(pzsStates.value(pzsState));
     ui->lblPzsState->setToolTip(pzsStateDescs.value(pzsState));
 
@@ -543,15 +544,8 @@ void CurStatDialog::viewTable()
 {
     genHeaderDatas();
     genDatas();
-
-    if(imodel)
-        delete imodel;
-    imodel = new ProxyModelWithHeaderModels;
-    //imodel->setModel(dataModel);
-    imodel->setSourceModel(dataModel);
-    imodel->setHorizontalHeaderModel(headerModel);
-    ui->tview->setModel(imodel);
-    //ui->tview->horizontalHeader()->setStyleSheet("QHeaderView::section {background-color:darkcyan;}");
+    dataModel->setHorizontalHeaderModel(headerModel);
+    ui->tview->setModel(dataModel);
 
     disconnect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int))
             ,this, SLOT(colWidthChanged(int,int,int)));
@@ -568,7 +562,7 @@ void CurStatDialog::viewTable()
         return;
     }
     //应根据凭证集的状态和当前选择的科目的范围来决定保存按钮是否启用
-    PzsState state = account->getPzSet(account->getSuite(statUtil->year())->id)->getState(statUtil->month());
+    PzsState state = account->getSuiteMgr(account->getSuiteRecord(statUtil->year())->id)->getState(statUtil->month());
     isCanSave = (state == Ps_AllVerified);
     ui->btnSave->setEnabled(!fsub && !ssub && isCanSave);
 }
@@ -680,7 +674,7 @@ void CurStatDialog::genDatas()
 {
     if(dataModel)
         delete dataModel;
-    dataModel = new QStandardItemModel;
+    dataModel = new MyWithHeaderModels;
 
     QList<QStandardItem*> items;
     ApStandardItem *item;
@@ -918,14 +912,10 @@ void CurStatDialog::genDatas()
 void CurStatDialog::printCommon(PrintTask task, QPrinter *printer)
 {
     HierarchicalHeaderView* thv = new HierarchicalHeaderView(Qt::Horizontal);
-    ProxyModelWithHeaderModels* m = new ProxyModelWithHeaderModels;
-    //m->setModel(dataModel);
-    m->setSourceModel(dataModel);
-    m->setHorizontalHeaderModel(headerModel);
 
     //创建打印模板实例
     QList<int> colw(stateInfo.colPriWidths.value(stateInfo.tFormat));
-    PrintTemplateStat* pt = new PrintTemplateStat(m,thv,&colw);
+    PrintTemplateStat* pt = new PrintTemplateStat(dataModel,thv,&colw);
     pt->setAccountName(account->getLName());
     pt->setCreator(curUser->getName());
     pt->setPrintDate(QDate::currentDate());
@@ -958,7 +948,6 @@ void CurStatDialog::printCommon(PrintTask task, QPrinter *printer)
     }
 
     delete thv;
-    delete m;
 }
 
 /**
@@ -982,8 +971,33 @@ void CurStatDialog::setTableRowBackground(CurStatDialog::TableRowType rt, const 
         break;
     }
     for(int i = 0; i < l.count(); ++i){
-        l.at(i)->setData(br,Qt::BackgroundRole);
+        l.at(i)->setBackground(br);
     }
+}
+
+/**
+ * @brief 根据表格行的种类设置表格行的文本颜色
+ * @param rt
+ * @param l
+ */
+void CurStatDialog::setTableRowTextColor(CurStatDialog::TableRowType rt, const QList<QStandardItem *> l)
+{
+//    QColor color;
+//    switch(rt){
+//    case TRT_FSUB:
+//        color = row_tc_fsub;
+//        break;
+//    case TRT_SSUB:
+//        color = row_tc_ssub;
+//        break;
+//    case TRT_SUM:
+//        color = row_tc_sum;
+//        break;
+//    }
+//    for(int i = 0; i < l.count(); ++i){
+//        l.at(i)->setData(color,Qt::ForegroundRole);
+
+//    }
 }
 
 /**

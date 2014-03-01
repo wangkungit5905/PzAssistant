@@ -617,7 +617,7 @@ void PzDialog::removePz()
     DelPzCmd* cmd = new DelPzCmd(pzMgr,curPz);
     pzMgr->getUndoStack()->push(cmd);
     curPz = pzMgr->getCurPz();
-    refreshPzContent();
+    //refreshPzContent();
 }
 
 /**
@@ -854,6 +854,7 @@ void PzDialog::insertBa(BusiAction* ba)
     updateCols |= BUC_ALL;
     updateBas(curRow,rows-curRow,updateCols);
     ui->tview->setCurrentCell(curRow,BT_SUMMARY);
+    ui->tview->edit(ui->tview->model()->index(curRow,BT_SUMMARY));
 }
 
 /**
@@ -1113,8 +1114,10 @@ void PzDialog::currentCellChanged(int currentRow, int currentColumn, int previou
 //        delegate->setVolidRows(currentRow+1);
     //moveToNextBa(currentRow);
     curRow = currentRow;
-    curBa = curPz->getBusiAction(currentRow);
-
+    if(curPz)
+        curBa = curPz->getBusiAction(currentRow);
+    else
+        curBa = NULL;
 }
 
 /**
@@ -1184,7 +1187,7 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
     ModifyBaSummaryCmd* scmd;
     FirstSubject* fsub;
     SecondSubject* ssub;
-    Double v;
+    Double v=0.0;
     Money* mt;
     MoneyDirection dir;
     BaUpdateColumns updateCols;
@@ -1222,7 +1225,8 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         }
         else{
             mt = account->getMasterMt();
-            v = rates.value(curBa->getMt()->code()) * curBa->getValue();
+            if(curBa->getMt())
+                v = rates.value(curBa->getMt()->code()) * curBa->getValue();
             updateCols |= BUC_MTYPE;
             updateCols |= BUC_VALUE;
         }
@@ -1544,10 +1548,10 @@ void PzDialog::refreshPzContent()
         ui->edtBUser->setText(curPz->bookKeeperUser()?curPz->bookKeeperUser()->getName():"");
         ui->edtComment->setReadOnly(false);
         ui->lblClass->setPixmap(icons_pzcls.value(curPz->getPzClass()));
-        ui->lblState->setPixmap(icons_pzstate.value(curPz->getPzState()));
-        refreshActions();
+        ui->lblState->setPixmap(icons_pzstate.value(curPz->getPzState()));        
         setReadonly();
     }
+    refreshActions();
     installInfoWatch();
 }
 
@@ -1559,6 +1563,8 @@ void PzDialog::refreshActions()
     if(curPz == NULL){
         //validBas = -1;
         delegate->setReadOnly(true);
+        ui->tview->clearContents();
+        ui->tview->setValidRows(1);
         return;
     }
 
@@ -1883,6 +1889,8 @@ HistoryPzForm::HistoryPzForm(PingZheng *pz, QByteArray *sinfo, QWidget *parent) 
     ui(new Ui::HistoryPzForm),pz(pz)
 {
     ui->setupUi(this);
+    ReadOnlyItemDelegate* delegate = new ReadOnlyItemDelegate(this);
+    ui->tview->setItemDelegate(delegate);
     //ui->tview->setColumnCount(6);
     setState(sinfo);
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),

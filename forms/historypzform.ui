@@ -30,6 +30,9 @@
          <property name="text">
           <string/>
          </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
         </widget>
        </item>
        <item>
@@ -40,7 +43,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="edtNumber"/>
+        <widget class="QLineEdit" name="edtNumber">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
        </item>
        <item>
         <widget class="QLabel" name="label_3">
@@ -50,7 +57,11 @@
         </widget>
        </item>
        <item>
-        <widget class="QLineEdit" name="edtEncNum"/>
+        <widget class="QLineEdit" name="edtEncNum">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -67,7 +78,11 @@
         <widget class="QComboBox" name="comboBox"/>
        </item>
        <item>
-        <widget class="QLineEdit" name="edtRate"/>
+        <widget class="QLineEdit" name="edtRate">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>
@@ -208,7 +223,11 @@
     </widget>
    </item>
    <item>
-    <widget class="QPlainTextEdit" name="edtMem"/>
+    <widget class="QPlainTextEdit" name="edtMem">
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>

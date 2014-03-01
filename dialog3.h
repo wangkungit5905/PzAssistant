@@ -324,9 +324,8 @@ private:
     PageMargin margins;  //页面边距
 
     HierarchicalHeaderView* hv;         //表头
-    ProxyModelWithHeaderModels* imodel; //与表格视图相连的包含了表头数据模型的代理模型
     QStandardItemModel* headerModel;    //表头数据模型
-    QStandardItemModel* dataModel;      //表格内容数据模型
+    MyWithHeaderModels* dataModel;      //表格内容数据模型
     TableFormat curFormat;              //当前表格格式
 };
 

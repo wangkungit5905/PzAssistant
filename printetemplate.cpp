@@ -197,7 +197,7 @@ void PzPrintTemplate::setBookKeeper(QString name)
 PrintTemplateBase::PrintTemplateBase(QWidget* parent) : QWidget(parent){}
 
 ///////////////////////////PrintTemplateDz/////////////////////////////////////////////
-PrintTemplateDz::PrintTemplateDz(ProxyModelWithHeaderModels* model,
+PrintTemplateDz::PrintTemplateDz(MyWithHeaderModels* model,
                                  HierarchicalHeaderView* headView,
                                  QList<int>* colWidths,
                                  QWidget *parent) :
@@ -305,7 +305,7 @@ void PrintTemplateDz::colWidthResized(int logicalIndex, int oldSize, int newSize
 
 
 ////////////////////////PrintTemplateTz::////////////////////////////////////////
-PrintTemplateTz::PrintTemplateTz(ProxyModelWithHeaderModels* model,
+PrintTemplateTz::PrintTemplateTz(MyWithHeaderModels *model,
                                  HierarchicalHeaderView* headView,
                                  QList<int>* colWidths,
                                  QWidget *parent) :
@@ -381,7 +381,7 @@ void PrintTemplateTz::colWidthResized(int logicalIndex, int oldSize, int newSize
 }
 
 ///////////////////////PrintTemplateStat///////////////////////////////
-PrintTemplateStat::PrintTemplateStat(ProxyModelWithHeaderModels* model,
+PrintTemplateStat::PrintTemplateStat(MyWithHeaderModels *model,
                                      HierarchicalHeaderView* headView,
                                      QList<int>* colWidths,
                                      QWidget *parent) :

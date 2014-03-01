@@ -54,10 +54,10 @@ signals:
 
 private slots:
     void summaryEditingFinished();
-    void shortCutActivated();
+    //void shortCutActivated();
 
-//protected:
-//    void keyPressEvent(QKeyEvent *event);
+protected:
+    void keyPressEvent(QKeyEvent *event);
 //    void mouseDoubleClickEvent(QMouseEvent *e);
 //    void focusOutEvent(QFocusEvent* e);
 
@@ -71,7 +71,7 @@ private:
     int oppoSubject;     //对方科目id
     int row,col;         //编辑器打开时所处的行列位置
 
-    QShortcut* shortCut;
+    //QShortcut* shortCut;
 };
 
 //显示和编辑总账科目
@@ -228,7 +228,7 @@ class MoneyValueEdit : public QLineEdit
     Q_OBJECT
 public:
     MoneyValueEdit(int row, int witch = 0,Double v = Double(), QWidget* parent = 0);
-    void setValue(Double v){this->v = v;setText(v.toString());}
+    void setValue(Double v);
     Double getValue(){return v;}
     void setCell(int row, int col){this->row = row;this->col = col;}
 protected:
@@ -244,6 +244,7 @@ private:
     int witch; //用于编辑贷方还是借方（1：借，0：贷）
     Double v;
     int row,col;   //编辑器所处的行号和列
+    QDoubleValidator* validator;
 };
 
 

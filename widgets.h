@@ -259,11 +259,12 @@ signals:
 
 
 
-//专用于输入科目的完成器类（输入科目代码或科目名的助记符，弹出完成列表帮助用户完成科目名称的输入）
-//自动根据第一个输入字符是数字还是英文字母，来建立对应的完成串列表。它专与QComboBox类一起使用。
-//完成器内部是直接从表FirSubjects和SecSubjects表中提取数据，还可以为它们设置过滤条件
-//为保证完成器选择列表与组合框的可选项的一致性，在装载组合框的选项时必须考虑。
-
+/**
+ * @brief 专用于输入科目的完成器类（输入科目代码或科目名的助记符，弹出完成列表帮助用户完成科目名称的输入）
+ * 自动根据第一个输入字符是数字还是英文字母，来建立对应的完成串列表。它专与QComboBox类一起使用。
+ * 完成器内部是直接从表FirSubjects和SecSubjects表中提取数据，还可以为它们设置过滤条件
+ * 为保证完成器选择列表与组合框的可选项的一致性，在装载组合框的选项时必须考虑。
+ */
 class SubjectComplete  : public QCompleter
 {
     Q_OBJECT
@@ -280,6 +281,8 @@ private slots:
     void clickedInList(const QModelIndex &index);
 
 private:    
+    int findSubject(int id) const;
+
     QTreeView tv;       //用于显示候选词列表
     QSqlQueryModel m;   //完成器使用的模型
     QSqlQuery* q;

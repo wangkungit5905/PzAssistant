@@ -488,9 +488,10 @@ SndSubComboBox2::SndSubComboBox2(int pid, SubjectManager *smg, QWidget *parent) 
     model = new QSqlQueryModel;
     //这里是否要过滤禁用的二级科目
     QString s = QString("select %1.id,%1.%2,%1.%3,%1.%4,%1.%5,%6.%7 "
-                        "from %1 join %6 on %1.%3 = %6.id order by %1.%4")
+                        "from %1 join %6 on %1.%3 = %6.id where %1.%8=%9 order by %1.%4")
             .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
-            .arg(fld_ssub_weight).arg(tbl_nameItem).arg(fld_ni_name);
+            .arg(fld_ssub_weight).arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ssub_subsys)
+            .arg(fsub->parent()->getSubSysCode());
     model->setQuery(s,db);
     keys = new QString;
     listview = new QListView(parent);

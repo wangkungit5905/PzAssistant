@@ -37,7 +37,7 @@
 #include "PzSet.h"
 #include "curstatdialog.h"
 #include "statutil.h"
-#include "showdzdialog2.h"
+#include "showdzdialog.h"
 #include "pzdialog.h"
 #include "statements.h"
 #include "accountpropertyconfig.h"
@@ -437,7 +437,7 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
     dim->y = subWin->y();
     dim->w = subWin->width();
     dim->h = subWin->height();
-    if(t == SUBWIN_PZEDIT_new){
+    if(t == SUBWIN_PZEDIT){
         PzDialog* w = static_cast<PzDialog*>(subWin->widget());
         state = w->getState();
         disconnect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
@@ -449,10 +449,15 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         state = w->getState();
         delete w;
     }
-    else if(t == SUBWIN_DETAILSVIEW2){
-        ShowDZDialog2* w = static_cast<ShowDZDialog2*>(subWin->widget());
+    else if(t == SUBWIN_DETAILSVIEW){
+        ShowDZDialog* w = static_cast<ShowDZDialog*>(subWin->widget());
         state = w->getState();
         disconnect(w,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
+        delete w;
+    }
+    else if(t == SUBWIN_PZSTAT){
+        CurStatDialog* w = static_cast<CurStatDialog*>(subWin->widget());
+        state = w->getState();
         delete w;
     }
     else if(t == SUBWIN_VIEWPZSETERROR){
@@ -733,13 +738,13 @@ void MainWindow::initTvActions()
 void MainWindow::accountInit(AccountCacheItem* ci)
 {
     dbUtil = curAccount->getDbUtil();
-    curSuiteMgr = curAccount->getPzSet();
+    curSuiteMgr = curAccount->getSuiteMgr();
     if(ci->tState != ATS_TRANSINDES)
         curAccount->setReadOnly(true);
     if(!curSuiteMgr)
         QMessageBox::warning(this,tr("友情提示"),tr("本账户还没有设置任何帐套，请在账户属性设置窗口的帐套页添加一个帐套以供帐务处理！"));
     else{
-        connect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
+        //connect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
         suiteViewSwitched(NULL,curSuiteMgr);
     }
     undoStack = curSuiteMgr?curSuiteMgr->getUndoStack():NULL;
@@ -747,7 +752,7 @@ void MainWindow::accountInit(AccountCacheItem* ci)
     if(!BusiUtil::init(curAccount->getDbUtil()->getDb()))
         QMessageBox::critical(this,tr("错误信息"),tr("BusiUtil对象初始化阶段发生错误！"));
     //initSearchClientToolView();
-    AccountSuiteRecord* curSuite = curAccount->getCurSuite();
+    AccountSuiteRecord* curSuite = curAccount->getCurSuiteRecord();
     if(curSuite && !subWinGroups.contains(curSuite->id))
         subWinGroups[curSuite->id] = new SubWinGroupMgr(curSuite->id,ui->mdiArea);
 
@@ -890,7 +895,7 @@ void MainWindow::rfMainAct(bool open)
     ui->actEmpAccount->setEnabled(!open);
     ui->actSuite->setEnabled(open);
     rfPzSetAct(false);
-    rfNaveBtn();
+    rfNaviBtn();
 }
 
 /**
@@ -926,7 +931,18 @@ void MainWindow::rfPzSetAct(bool open)
     ui->actAntiJz->setEnabled(r);   //反结转
     ui->actAntiEndAcc->setEnabled(!ro && open && curSuiteMgr->getState() == Ps_Jzed);//反结账
 
-
+    //    ui->actAddPz->setEnabled(enable);
+    //    ui->actInsertPz->setEnabled(enable);
+    //    ui->actDelPz->setEnabled(enable);
+    //    ui->actGoFirst->setEnabled(enable);
+    //    ui->actGoLast->setEnabled(enable);
+    //    ui->actGoPrev->setEnabled(enable);
+    //    ui->actGoNext->setEnabled(enable);
+    //    ui->actMvUpAction->setEnabled(enable);
+    //    ui->actMvDownAction->setEnabled(enable);
+    //    ui->actAddAction->setEnabled(enable);
+    //    ui->actInsertBa->setEnabled(enable);
+    //    ui->actDelAction->setEnabled(enable);
 }
 
 /**
@@ -935,18 +951,7 @@ void MainWindow::rfPzSetAct(bool open)
  */
 void MainWindow::rfPzAct(bool enable)
 {
-//    ui->actAddPz->setEnabled(enable);
-//    ui->actInsertPz->setEnabled(enable);
-//    ui->actDelPz->setEnabled(enable);
-//    ui->actGoFirst->setEnabled(enable);
-//    ui->actGoLast->setEnabled(enable);
-//    ui->actGoPrev->setEnabled(enable);
-//    ui->actGoNext->setEnabled(enable);
-//    ui->actMvUpAction->setEnabled(enable);
-//    ui->actMvDownAction->setEnabled(enable);
-//    ui->actAddAction->setEnabled(enable);
-//    ui->actInsertBa->setEnabled(enable);
-//    ui->actDelAction->setEnabled(enable);
+
 }
 
 /**
@@ -961,10 +966,23 @@ void MainWindow::rfAdvancedAct()
 
 /**
  * @brief MainWindow::rfEditAct
- *  控制编辑命令的启用性
+ *  控制凭证内部的编辑命令的启用性
  */
-void MainWindow::rfEditAct()
+void MainWindow::rfEditInPzAct(PingZheng* pz)
 {
+    bool r;
+    if(!pz || pz->parent()->getState() == Ps_Jzed ||
+            pz->getPzState() != Pzs_Recording)
+        r = false;
+    else
+        r = true;
+    ui->actAddAction->setEnabled(r);
+    ui->actDelAction->setEnabled(r);
+    ui->actInsertBa->setEnabled(r);
+    //对于分录移动操作，由baIndexBoundaryChanged(bool first, bool last)方法处理
+    ui->actMvDownAction->setEnabled(r);
+    ui->actMvUpAction->setEnabled(r);
+
 }
 
 /**
@@ -1094,7 +1112,7 @@ void MainWindow::closeAccount()
 
     if(curSuiteMgr->isOpened())
         curSuiteMgr->close();
-    disconnect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
+    //disconnect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
     //disconnect(pzSetMgr,SIGNAL(pzSetChanged()),this, SLOT(PzChangedInSet()));
     //关闭账户前，还应关闭与此账户有关的其他子窗口
     //if(subWindows.contains(SETUPBANK)){  //设置银行账户窗口
@@ -1203,18 +1221,18 @@ void MainWindow::openSpecPz(int pid,int bid)
     SubWindowDim* winfo = NULL;
     if(isIn){
         PzDialog* w = NULL;
-        if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT_new)){
-            dbUtil->getSubWinInfo(SUBWIN_PZEDIT_new,winfo,sinfo);
+        if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
+            dbUtil->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
             w = new PzDialog(month,curSuiteMgr,sinfo);
             w->setWindowTitle(tr("凭证窗口（新）"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
-            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT_new,w,winfo);
+            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,w,winfo);
         }
         else{
-            w = static_cast<PzDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZEDIT_new));
+            w = static_cast<PzDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZEDIT));
             w->setMonth(month);
-            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT_new,NULL,winfo);
+            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,NULL,winfo);
         }
         BusiAction* ba = NULL;
         foreach(BusiAction* b, pz->baList()){
@@ -1439,7 +1457,7 @@ void MainWindow::undoCleanChanged(bool clean)
     //如果当前激活的子窗口是凭证编辑窗口，则
     //if(ui->mdiArea->activeSubWindow() == subWindows.value(SUBWIN_PZEDIT_new))
     //    ui->actSave->setEnabled(!clean);
-    if(activedMdiChild() == SUBWIN_PZEDIT_new)
+    if(activedMdiChild() == SUBWIN_PZEDIT)
         ui->actSave->setEnabled(!clean);
 }
 
@@ -1464,7 +1482,7 @@ void MainWindow::UndoIndexChanged(int idx)
         //LOG_INFO(QString("oriSize change to %1").arg(oriSize));
         return;
     }
-    PzDialog* pd = qobject_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* pd = qobject_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(pd)
         pd->updateContent();
 
@@ -1544,10 +1562,10 @@ void MainWindow::pzCountChanged(int count)
  * @brief MainWindow::refreshPzNaveBtnEnable
  *  刷新凭证任务相关Action的可用性（导航按钮，凭证编辑按钮（添加、插入、删除等）
  */
-void MainWindow::rfNaveBtn()
+void MainWindow::rfNaviBtn()
 {
     subWindowType wtype = activedMdiChild();
-    if(!curSuiteMgr || (wtype != SUBWIN_PZEDIT_new && wtype != SUBWIN_HISTORYVIEW)){
+    if(!curSuiteMgr || (wtype != SUBWIN_PZEDIT && wtype != SUBWIN_HISTORYVIEW)){
         ui->actAddPz->setEnabled(false);
         ui->actInsertPz->setEnabled(false);
         ui->actDelPz->setEnabled(false);
@@ -1562,7 +1580,14 @@ void MainWindow::rfNaveBtn()
         ui->actDelAction->setEnabled(false);
     }
     else{
-        if(wtype == SUBWIN_PZEDIT_new){
+        if(wtype == SUBWIN_PZEDIT){
+            if(curSuiteMgr->getCurPz()){
+                spnNaviTo->setMaximum(curSuiteMgr->getPzCount());
+                spnNaviTo->setMinimum(1);
+                spnNaviTo->setValue(curSuiteMgr->getCurPz()->number());
+            }
+
+
             //启用这些按钮的先决条件是凭证集打开且未结账
             ui->actPrint->setEnabled(true);
             bool ro = curAccount && curAccount->getReadOnly();
@@ -1581,7 +1606,7 @@ void MainWindow::rfNaveBtn()
             //根据当前的分录选择情况，控制移动分录按钮的可用性
             QList<int> rows; bool conti;
             //PzDialog* pd = static_cast<PzDialog*>(subWindows.value(SUBWIN_PZEDIT_new)->widget());
-            PzDialog* pd = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+            PzDialog* pd = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
             if(pd){
                 pd->getBaSelectedCase(rows,conti);
                 baSelectChanged(rows,conti);
@@ -1596,8 +1621,21 @@ void MainWindow::rfNaveBtn()
             ui->actGoLast->setEnabled(!isEmpty && !isLast);
             ui->actGoNext->setEnabled(!(isEmpty || isLast));
             ui->actGoPrev->setEnabled(!(isEmpty || isFirst));
+            if(historyPzSet.value(suiteId).isEmpty()){
+                spnNaviTo->setMaximum(0);
+                spnNaviTo->setMinimum(0);
+                spnNaviTo->clear();
+            }
+            else{
+                if(!spnNaviTo->isEnabled()){
+                    spnNaviTo->setEnabled(true);
+                    ui->actNaviToPz->setEnabled(true);
+                }
+                spnNaviTo->setMinimum(historyPzSet.value(suiteId).first()->number());
+                spnNaviTo->setMaximum(historyPzSet.value(suiteId).last()->number());
+                spnNaviTo->setValue(historyPzSetIndex.value(suiteId)+1);
+            }
         }
-
     }    
 }
 
@@ -1611,8 +1649,14 @@ void MainWindow::curPzChanged(PingZheng *newPz, PingZheng *oldPz)
 {
     if(oldPz)
         disconnect(oldPz,SIGNAL(indexBoundaryChanged(bool,bool)),this,SLOT(baIndexBoundaryChanged(bool,bool)));
-    if(newPz)
+    if(newPz){
         connect(newPz,SIGNAL(indexBoundaryChanged(bool,bool)),this,SLOT(baIndexBoundaryChanged(bool,bool)));
+        rfEditInPzAct(newPz);
+    }
+    else{
+        ui->actInsertPz->setEnabled(false);
+        ui->actDelPz->setEnabled(false);
+    }
 }
 
 /**
@@ -1698,11 +1742,13 @@ void MainWindow::suiteViewSwitched(AccountSuiteManager *previous, AccountSuiteMa
         //    commonGroups->hide();
     }
     if(curSuiteMgr){
+        disconnect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
         disconnect(curSuiteMgr,SIGNAL(currentPzChanged(PingZheng*,PingZheng*)),this,SLOT(curPzChanged(PingZheng*,PingZheng*)));
         disconnect(curSuiteMgr,SIGNAL(pzSetStateChanged(PzsState)),this,SLOT(pzSetStateChanged(PzsState)));
         disconnect(curSuiteMgr,SIGNAL(pzExtraStateChanged(bool)),this,SLOT(pzSetExtraStateChanged(bool)));
     }
     curSuiteMgr = current;
+    connect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
     connect(curSuiteMgr,SIGNAL(currentPzChanged(PingZheng*,PingZheng*)),this,SLOT(curPzChanged(PingZheng*,PingZheng*)));
     connect(curSuiteMgr,SIGNAL(pzSetStateChanged(PzsState)),this,SLOT(pzSetStateChanged(PzsState)));
     connect(curSuiteMgr,SIGNAL(pzExtraStateChanged(bool)),this,SLOT(pzSetExtraStateChanged(bool)));
@@ -1720,6 +1766,8 @@ void MainWindow::suiteViewSwitched(AccountSuiteManager *previous, AccountSuiteMa
     if(undoView)
         undoView->setStack(undoStack);
     adjustEditMenus(UT_PZ,false);
+    refreshShowPzsState();
+    rfNaviBtn();
     //调整其他界面元素的可用性等......
 }
 
@@ -1744,8 +1792,6 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
         else{
             historyPzMonth[suiteId] = month;
             historyPzSetIndex[suiteId] = 0;
-            //if(!subWinGroups.contains(suiteId))
-            //    subWinGroups[suiteId] = new SubWinGroupMgr(suiteId,ui->mdiArea);
             HistoryPzForm* w;
             if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_HISTORYVIEW)){
                 dbUtil->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
@@ -1765,25 +1811,26 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
         PzDialog* w = NULL;
         if((curSuiteMgr != accSmg) || ((curSuiteMgr == accSmg) && (curSuiteMgr->month() != month)))
             curSuiteMgr = accSmg;
-        if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT_new)){
-            dbUtil->getSubWinInfo(SUBWIN_PZEDIT_new,winfo,sinfo);
+        if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
+            dbUtil->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
             PzDialog* w = new PzDialog(month,curSuiteMgr,sinfo);
             w->setWindowTitle(tr("凭证编辑窗口）"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
-            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT_new,w,winfo);
+            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,w,winfo);
         }
         else{
-            w = static_cast<PzDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZEDIT_new));
+            w = static_cast<PzDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZEDIT));
             if(w)
                 w->setMonth(month);
-            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT_new,NULL,winfo);
+            subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,NULL,winfo);
         }
         //undoView->setStack(curSuiteMgr->getUndoStack());
     }
     //调整界面部件的启用性，以使用户可以导航凭证集和进行其他帐务处理工作
     //导航按钮控制
-    rfNaveBtn();
+    rfNaviBtn();
+    refreshShowPzsState();
     //如果凭证集是以编辑模式打开，则还要控制其他高级帐务处理动作
 
 }
@@ -1818,20 +1865,23 @@ void MainWindow::prepareClosePzSet(AccountSuiteManager *accSmg, int month)
     }
     //关闭凭证集时，要先关闭所有与该凭证集相关的子窗口
     SubWinGroupMgr* gm = subWinGroups.value(accSmg->getSuiteRecord()->id);
-    gm->closeSubWindow(SUBWIN_PZEDIT_new);  //凭证编辑窗口（新）
-    gm->closeSubWindow(SUBWIN_PZSTAT2);     //本期统计的窗口（新）
-//    if(subWindows.contains(SUBWIN_PZEDIT_new))             //凭证编辑窗口（新）
-//        subWindows.value(SUBWIN_PZEDIT_new)->close();
-//    if(subWindows.contains(SUBWIN_PZSTAT))                 //显示本期统计的窗口
-//        subWindows.value(SUBWIN_PZSTAT)->close();
-//    if(subWindows.contains(SUBWIN_PZSTAT2))                //显示本期统计的窗口（新）
-//        subWindows.value(SUBWIN_PZSTAT2)->close();
-//    if(subWindows.contains(DETAILSVIEW))            //明细账窗口
-//        subWindows.value(DETAILSVIEW)->close();
-//    if(subWindows.contains(SUBWIN_DETAILSVIEW2))           //明细账窗口（新）
-//        subWindows.value(SUBWIN_DETAILSVIEW2)->close();
-//    if(subWindows.contains(TOTALDAILY))             //总分类账窗口
-//        subWindows.value(TOTALDAILY)->close();
+    if(gm){
+        gm->closeSubWindow(SUBWIN_PZEDIT);  //凭证编辑窗口（新）
+        gm->closeSubWindow(SUBWIN_PZSTAT);     //本期统计的窗口（新）
+    //    if(subWindows.contains(SUBWIN_PZEDIT_new))             //凭证编辑窗口（新）
+    //        subWindows.value(SUBWIN_PZEDIT_new)->close();
+    //    if(subWindows.contains(SUBWIN_PZSTAT))                 //显示本期统计的窗口
+    //        subWindows.value(SUBWIN_PZSTAT)->close();
+    //    if(subWindows.contains(SUBWIN_PZSTAT2))                //显示本期统计的窗口（新）
+    //        subWindows.value(SUBWIN_PZSTAT2)->close();
+    //    if(subWindows.contains(DETAILSVIEW))            //明细账窗口
+    //        subWindows.value(DETAILSVIEW)->close();
+    //    if(subWindows.contains(SUBWIN_DETAILSVIEW2))           //明细账窗口（新）
+    //        subWindows.value(SUBWIN_DETAILSVIEW2)->close();
+    //    if(subWindows.contains(TOTALDAILY))             //总分类账窗口
+    //        subWindows.value(TOTALDAILY)->close();
+    }
+
 }
 
 /**
@@ -1930,7 +1980,7 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
 //处理添加凭证动作事件
 void MainWindow::on_actAddPz_triggered()
 {
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->addPz();
         refreshShowPzsState();
@@ -1944,7 +1994,7 @@ void MainWindow::on_actAddPz_triggered()
  */
 void MainWindow::on_actInsertPz_triggered()
 {
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->insertPz();
         refreshShowPzsState();
@@ -1955,7 +2005,7 @@ void MainWindow::on_actInsertPz_triggered()
 //删除凭证（综合考虑凭证集状态和凭证类别，来决定新的凭证集状态）
 void MainWindow::on_actDelPz_triggered()
 {
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->removePz();
         //isExtraVolid = false; //删除包含有会计分录（且金额非零）的凭证将导致余额的失效。这里不做过于细致的检测
@@ -1970,7 +2020,7 @@ void MainWindow::on_actDelPz_triggered()
  */
 void MainWindow::on_actAddAction_triggered()
 {
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed)
         w->addBa();
 }
@@ -1981,18 +2031,18 @@ void MainWindow::on_actAddAction_triggered()
  */
 void MainWindow::on_actInsertBa_triggered()
 {
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed)
         w->insertBa();
 }
 
 /**
  * @brief MainWindow::on_actDelAction_triggered
- *  删除业务活动
+ *  删除分录
  */
 void MainWindow::on_actDelAction_triggered()
 {
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed)
         w->removeBa();
 }
@@ -2004,10 +2054,10 @@ void MainWindow::on_actDelAction_triggered()
 void MainWindow::on_actGoFirst_triggered()
 {
     subWindowType winType = activedMdiChild();
-    if(winType == SUBWIN_PZEDIT_new){
+    if(winType == SUBWIN_PZEDIT){
         PingZheng* oldPz = curSuiteMgr->getCurPz();
         PingZheng* newPz = curSuiteMgr->first();
-        rfNaveBtn();
+        rfNaviBtn();
         curPzChanged(newPz,oldPz);
     }
     else if(winType == SUBWIN_HISTORYVIEW){
@@ -2015,7 +2065,7 @@ void MainWindow::on_actGoFirst_triggered()
         HistoryPzForm* w = static_cast<HistoryPzForm*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_HISTORYVIEW));
         historyPzSetIndex[suiteId] = 0;
         w->setPz(historyPzSet.value(suiteId).first());
-        rfNaveBtn();
+        rfNaviBtn();
     }
 }
 
@@ -2026,10 +2076,10 @@ void MainWindow::on_actGoFirst_triggered()
 void MainWindow::on_actGoPrev_triggered()
 {
     subWindowType winType = activedMdiChild();
-    if(winType == SUBWIN_PZEDIT_new){
+    if(winType == SUBWIN_PZEDIT){
         PingZheng* oldPz = curSuiteMgr->getCurPz();
         PingZheng* newPz = curSuiteMgr->previou();
-        rfNaveBtn();
+        rfNaviBtn();
         curPzChanged(newPz,oldPz);
     }
     else if(winType == SUBWIN_HISTORYVIEW){
@@ -2038,7 +2088,7 @@ void MainWindow::on_actGoPrev_triggered()
         if(historyPzSetIndex.value(suiteId) > 0){
             historyPzSetIndex[suiteId] -= 1;
             w->setPz(historyPzSet.value(suiteId).at(historyPzSetIndex.value(suiteId)));
-            rfNaveBtn();
+            rfNaviBtn();
         }
     }
 }
@@ -2050,10 +2100,10 @@ void MainWindow::on_actGoPrev_triggered()
 void MainWindow::on_actGoNext_triggered()
 {
     subWindowType winType = activedMdiChild();
-    if(winType == SUBWIN_PZEDIT_new){
+    if(winType == SUBWIN_PZEDIT){
         PingZheng* oldPz = curSuiteMgr->getCurPz();
         PingZheng* newPz = curSuiteMgr->next();
-        rfNaveBtn();
+        rfNaviBtn();
         curPzChanged(newPz,oldPz);
     }
     else if(winType == SUBWIN_HISTORYVIEW){
@@ -2062,7 +2112,7 @@ void MainWindow::on_actGoNext_triggered()
         if(historyPzSetIndex.value(suiteId) < historyPzSet.value(suiteId).count()-1){
             historyPzSetIndex[suiteId] += 1;
             w->setPz(historyPzSet.value(suiteId).at(historyPzSetIndex.value(suiteId)));
-            rfNaveBtn();
+            rfNaviBtn();
         }
     }
 }
@@ -2074,10 +2124,10 @@ void MainWindow::on_actGoNext_triggered()
 void MainWindow::on_actGoLast_triggered()
 {
     subWindowType winType = activedMdiChild();
-    if(winType == SUBWIN_PZEDIT_new){
+    if(winType == SUBWIN_PZEDIT){
         PingZheng* oldPz = curSuiteMgr->getCurPz();
         PingZheng* newPz = curSuiteMgr->last();
-        rfNaveBtn();
+        rfNaviBtn();
         curPzChanged(newPz,oldPz);
     }
     else if(winType == SUBWIN_HISTORYVIEW){
@@ -2085,7 +2135,7 @@ void MainWindow::on_actGoLast_triggered()
         HistoryPzForm* w = static_cast<HistoryPzForm*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_HISTORYVIEW));
         historyPzSetIndex[suiteId] = historyPzSet.value(suiteId).count()-1;
         w->setPz(historyPzSet.value(suiteId).last());
-        rfNaveBtn();
+        rfNaviBtn();
     }
 }
 
@@ -2096,8 +2146,8 @@ void MainWindow::on_actGoLast_triggered()
 void MainWindow::on_actSave_triggered()
 {
     subWindowType winType = activedMdiChild();
-    if(winType == SUBWIN_PZEDIT_new){
-        PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    if(winType == SUBWIN_PZEDIT){
+        PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
         if(w)
             w->save();
     }
@@ -2143,19 +2193,40 @@ void MainWindow::showPzNumsAffected(int num)
 
 /**
  * @brief MainWindow::refreshShowPzsState
- *  保存当前凭证集的状态信息，并在状态条上显示
+ *  在状态条上显示当前打开的凭证集的信息（时间范围、状态、凭证数、余额有效性等）
  */
 void MainWindow::refreshShowPzsState()
 {
-    //显示各类凭证的数目
-    if(!curSuiteMgr || !curSuiteMgr->isOpened()){
-        ui->statusbar->setPzSetState(Ps_NoOpen);
-        return;
+    //如果存在以编辑模式打开的凭证集，则显示该凭证集的信息，否者如果存在打开的历史凭证集，则显示该历史凭证集信息
+    int y=0,m=0;
+    int repealNum=0,recordingNum=0,verifyNum=0,instatNum=0,amount=0;
+    PzsState state = Ps_NoOpen;
+    bool extraState = false;
+    if(curSuiteMgr){
+        y = curSuiteMgr->year();
+        if(curSuiteMgr->isOpened()){
+            m = curSuiteMgr->month();
+            repealNum = curSuiteMgr->getRepealCount();
+            recordingNum = curSuiteMgr->getRecordingCount();
+            verifyNum = curSuiteMgr->getVerifyCount();
+            instatNum = curSuiteMgr->getInstatCount();
+            state = curSuiteMgr->getState();
+            extraState = curSuiteMgr->getExtraState();
+        }
+        else{
+            m = historyPzMonth.value(curSuiteMgr->getSuiteRecord()->id);
+            if(m > 0 && m < 13){
+                curSuiteMgr->getPzCountForMonth(m,repealNum,recordingNum,verifyNum,instatNum);
+                state = curSuiteMgr->getState(m);
+                extraState = curSuiteMgr->getExtraState(m);
+            }
+        }
+        amount = repealNum+recordingNum+verifyNum+instatNum;
     }
-    ui->statusbar->setPzCounts(curSuiteMgr->getRepealCount(),curSuiteMgr->getRecordingCount(),
-                               curSuiteMgr->getVerifyCount(),curSuiteMgr->getInstatCount(),curSuiteMgr->getPzCount());
-    ui->statusbar->setPzSetState(curSuiteMgr->getState());
-    ui->statusbar->setExtraState(curSuiteMgr->getExtraState());
+    ui->statusbar->setPzSetDate(y,m);
+    ui->statusbar->setPzCounts(repealNum,recordingNum,verifyNum,instatNum,amount);
+    ui->statusbar->setPzSetState(state);
+    ui->statusbar->setExtraState(extraState);
 }
 
 /**
@@ -2208,9 +2279,9 @@ void MainWindow::on_actFordEx_triggered()
     if(!curSuiteMgr->isOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT_new))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && !w->crtJzhdPz())
         QMessageBox::critical(0,tr("错误信息"),tr("在创建结转汇兑损益的凭证时发生错误!"));
 }
@@ -2221,9 +2292,9 @@ void MainWindow::on_actFordPl_triggered()
     if(!curSuiteMgr->isOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT_new))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && w->crtJzsyPz())
         QMessageBox::critical(0,tr("错误信息"),tr("在创建结转损益的凭证时发生错误!"));
 }
@@ -2247,17 +2318,17 @@ void MainWindow::on_actCurStatNew_triggered()
     SubWindowDim* winfo = NULL;
     QByteArray* sinfo = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZSTAT2)){
-        dbUtil->getSubWinInfo(SUBWIN_PZSTAT2,winfo,sinfo);
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZSTAT)){
+        dbUtil->getSubWinInfo(SUBWIN_PZSTAT,winfo,sinfo);
         dlg = new CurStatDialog(curSuiteMgr->getStatUtil(), sinfo, this);
         connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
     }
     else{
-        dlg = static_cast<CurStatDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZSTAT2));
+        dlg = static_cast<CurStatDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZSTAT));
         if(dlg)
             dlg->stat();
     }
-    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZSTAT2,dlg,winfo);
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZSTAT,dlg,winfo);
     if(winfo)
         delete winfo;
     if(sinfo)
@@ -2315,9 +2386,9 @@ void MainWindow::on_actPrint_triggered()
  */
 void MainWindow::on_actPrintAdd_triggered()
 {
-    if(!curSuiteMgr->isOpened() || !curSuiteMgr->getCurPz())
+    if(!curSuiteMgr || !curSuiteMgr->isOpened() || !curSuiteMgr->getCurPz())
         return;
-    if(activedMdiChild() == SUBWIN_PZEDIT_new)
+    if(activedMdiChild() == SUBWIN_PZEDIT)
         PrintPznSet.insert(curSuiteMgr->getCurPz()->number());
 
 }
@@ -2325,9 +2396,9 @@ void MainWindow::on_actPrintAdd_triggered()
 //将当前显示的凭证号从打印队列中移除
 void MainWindow::on_actPrintDel_triggered()
 {
-    if(!curSuiteMgr->isOpened() || !curSuiteMgr->getCurPz())
+    if(!curSuiteMgr || !curSuiteMgr->isOpened() || !curSuiteMgr->getCurPz())
         return;
-    if(activedMdiChild() == SUBWIN_PZEDIT_new)
+    if(activedMdiChild() == SUBWIN_PZEDIT)
         PrintPznSet.remove(curSuiteMgr->getCurPz()->number());
 }
 
@@ -2377,21 +2448,21 @@ void MainWindow::on_actSecCon_triggered()
 }
 
 
-//向上移动业务活动
+//向上移动分录
 void MainWindow::on_actMvUpAction_triggered()
 {
-    if(activedMdiChild() == SUBWIN_PZEDIT_new){
-        PzDialog* pzEdit = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    if(activedMdiChild() == SUBWIN_PZEDIT){
+        PzDialog* pzEdit = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
         pzEdit->moveUpBa();
     }
 
 }
 
-//向下移动业务活动
+//向下移动分录
 void MainWindow::on_actMvDownAction_triggered()
 {
-    if(activedMdiChild() == SUBWIN_PZEDIT_new){
-        PzDialog* pzEdit = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    if(activedMdiChild() == SUBWIN_PZEDIT){
+        PzDialog* pzEdit = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
         pzEdit->moveDownBa();
     }
 }
@@ -2406,13 +2477,26 @@ void MainWindow::on_actSearch_triggered()
 //转到指定号码的凭证
 void MainWindow::on_actNaviToPz_triggered()
 {
-    if(activedMdiChild() == SUBWIN_PZEDIT_new){
-        int num = spnNaviTo->value();
+    int num = spnNaviTo->value();
+    if(activedMdiChild() == SUBWIN_PZEDIT){
         if(!curSuiteMgr->seek(num)){
             QMessageBox::question(this,tr("错误提示"),
                                   tr("没有凭证号为%1的凭证").arg(num));
 
         }
+    }
+    else if(activedMdiChild() == SUBWIN_HISTORYVIEW){
+        int suiteId = curSuiteMgr->getSuiteRecord()->id;
+        HistoryPzForm* win = qobject_cast<HistoryPzForm*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_HISTORYVIEW));
+        PingZheng* pz = NULL;
+        foreach (PingZheng* p, historyPzSet.value(suiteId)) {
+            if(p->number() == num){
+                pz = p;
+                break;
+            }
+        }
+        if(pz)
+            win->setPz(pz);
     }
     //rfNaveBtn();
 }
@@ -2771,14 +2855,14 @@ void MainWindow::on_actDetailView_triggered()
 {
     QByteArray* sinfo = NULL;
     SubWindowDim* winfo = NULL;
-    ShowDZDialog2* dlg = NULL;
+    ShowDZDialog* dlg = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_DETAILSVIEW2)){
-        dbUtil->getSubWinInfo(SUBWIN_DETAILSVIEW2,winfo,sinfo);
-        dlg = new ShowDZDialog2(curAccount,sinfo);
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_DETAILSVIEW)){
+        dbUtil->getSubWinInfo(SUBWIN_DETAILSVIEW,winfo,sinfo);
+        dlg = new ShowDZDialog(curAccount,sinfo);
         connect(dlg,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
     }
-    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_DETAILSVIEW2,dlg,winfo);
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_DETAILSVIEW,dlg,winfo);
     if(sinfo)
         delete sinfo;
     if(winfo)
@@ -2796,9 +2880,9 @@ void MainWindow::on_actInStatPz_triggered()
     if(!curSuiteMgr->isOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT_new))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w)
         w->setPzState(Pzs_Instat);
 }
@@ -2814,9 +2898,9 @@ void MainWindow::on_actVerifyPz_triggered()
     if(!curSuiteMgr->isOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT_new))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w)
         w->setPzState(Pzs_Verify);
 }
@@ -2833,9 +2917,9 @@ void MainWindow::on_actAntiVerify_triggered()
     if(!curSuiteMgr->isOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT_new))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w)
         w->setPzState(Pzs_Recording);
 }
@@ -3128,9 +3212,9 @@ void MainWindow::on_actSetPzCls_triggered()
     if(!curSuiteMgr->isOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT_new))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT_new));
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(!w)
         return;
 
@@ -3181,6 +3265,7 @@ void MainWindow::on_actPzErrorInspect_triggered()
         dbUtil->getSubWinInfo(SUBWIN_VIEWPZSETERROR,dim,state);
         w = new ViewPzSetErrorForm(curSuiteMgr,state);
         if(!dim){
+            dim = new SubWindowDim;
             dim->x = 10; dim->y = 10; dim->w = 600; dim->h = 400;
         }
         connect(w,SIGNAL(reqLoation(int,int)),this,SLOT(openSpecPz(int,int)));

@@ -556,12 +556,10 @@ struct PingZhengError{
 
 //可以在MDI区域打开的子窗口类型代码
 enum subWindowType{
-    SUBWIN_NONE       = 0,    //不指代任何子窗口类型
-    SUBWIN_PZEDIT     = 1,    //凭证编辑窗口
-    SUBWIN_PZSTAT     = 2,    //本期统计窗口
-    SUBWIN_PZSTAT2    = 3,    //本期统计窗口（新）
-    SUBWIN_DETAILSVIEW2 = 4,  //明细账视图（新）
-    SUBWIN_PZEDIT_new     = 5,    //凭证编辑窗口（新）
+    SUBWIN_NONE         = 0,    //不指代任何子窗口类型
+    SUBWIN_PZEDIT       = 1,    //凭证编辑窗口（新）
+    SUBWIN_PZSTAT       = 2,    //本期统计窗口（新）
+    SUBWIN_DETAILSVIEW  = 3,    //明细账视图（新）
     //CASHDAILY  = 3,    //现金日记账窗口
     //BANKDAILY  = 4,    //银行日记账窗口
     //DETAILSDAILY=5,    //明细科目日记账窗口

@@ -307,7 +307,7 @@ bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QLis
 {
     //注意：衔接映射表的命名规则：subSysJoin_n1_n2，其中n1用源科目系统代码表示，n2用目的科目系统代码表示
     QSqlQuery q(db);
-    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getCode()).arg(des->getCode());
+    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getSubSysCode()).arg(des->getSubSysCode());
     QString s = QString("select name from sqlite_master where type='table' and name='%1'").arg(tname);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -379,7 +379,7 @@ bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QLis
 bool DbUtil::setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs)
 {
     QSqlQuery q(db);
-    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getCode()).arg(des->getCode());
+    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getSubSysCode()).arg(des->getSubSysCode());
     QString s = QString("update %1 set %2=:dSub,%3=:isMap,%4=:ssubMaps where %5=:sSub")
             .arg(tname).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps).arg(fld_ssjc_sSub);
     if(!db.transaction()){
@@ -829,7 +829,8 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     }
 
     //3、装载所有二级科目
-    s = QString("select * from %1").arg(tbl_ssub);
+    s = QString("select * from %1 where %2=%3").arg(tbl_ssub)
+            .arg(fld_ssub_subsys).arg(subSys);
     if(!q.exec(s))
         return false;
 
@@ -841,14 +842,12 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
         if(!fsub){
             LOG_INFO(QObject::tr("Find a second subject(id=%1) don't belong to any first subject!").arg(id));
             continue;
-            //return false;
         }
         int sid = q.value(SSUB_NID).toInt();
         if(!smg->nameItems.contains(sid)){
             LOG_INFO(QObject::tr("Find a name item(id=%1,fid=%2 %3,sid=%4) don't exist!")
                      .arg(id).arg(fid).arg(fsub->getName()).arg(sid));
             continue;
-            //return false;
         }
         code = q.value(SSUB_SUBCODE).toString();
         weight = q.value(SSUB_WEIGHT).toInt();
@@ -986,6 +985,8 @@ bool DbUtil::savefstSubject(FirstSubject *fsub)
  */
 int DbUtil::getBankSubMatchMoney(SecondSubject *sub)
 {
+    if(!sub)
+        return 0;
     QSqlQuery q(db);
     if(!db.transaction()){
         LOG_ERROR(QObject::tr("Start transaction failed!"));
@@ -2002,7 +2003,8 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
 bool DbUtil::getDetViewFilters(int suiteId, QList<DVFilterRecord *> &rs)
 {
     QSqlQuery q(db);
-    QString s = QString("select * from %1").arg(tbl_dvfilters);
+    QString s = QString("select * from %1 where %2=%3").arg(tbl_dvfilters)
+            .arg(fld_dvfs_suite).arg(suiteId);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -2096,9 +2098,8 @@ bool DbUtil::saveDetViewFilter(const QList<DVFilterRecord*>& dvfs)
  * @brief DbUtil::getDailyAccount2
  *  获取指定时间范围内、指定科目范围、符合指定条件的日记账数据
  * @param smgs          每个帐套年份对应的科目管理器对象
- * @param y             搜索的年份
- * @param sm            搜索的开始月份
- * @param em            搜索的结束月份
+ * @param sd            搜索的开始日期
+ * @param ed            搜索的结束日期
  * @param fid           一级科目id（0表示所有一级科目）
  * @param sid           二级科目id（0表示指定一级科目下的所有二级科目）
  * @param mt            币种代码
@@ -2140,15 +2141,55 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
 
     //只有提取指定总账科目的明细发生项的情况下，读取余额才有意义
     if(fid != 0){
-        QHash<int,MoneyDirection>dirs;
-        //读取总账科目或明细科目的余额
-        if(sid == 0){
-            if(!_readExtraForFSub(yy,mm,fid,preExtra,preExtraR,dirs))
-                return false;}
+        QHash<int,MoneyDirection>dirs;        
+        bool isTrans;
+        QHash<int,int> fMaps,sMaps;
+        if(sd.month() > 1)
+            isTrans = false;
         else{
-            if(!_readExtraForSSub(yy,mm,sid,preExtra,preExtraR,dirs))
+            if(!_isTransformExtra(sd.year(),isTrans,fMaps,sMaps))
                 return false;
         }
+        int pre_fid=fid,pre_sid=sid;
+        if(isTrans){
+            QHashIterator<int,int> it(fMaps);
+            while(it.hasNext()){
+                it.next();
+                if(fid == it.value()){
+                    pre_fid = it.key();
+                    break;
+                }
+            }
+            if(sid != 0){
+                QHashIterator<int,int> it(sMaps);
+                while(it.hasNext()){
+                    it.next();
+                    if(it.value() == sid){
+                        pre_sid = it.key();
+                        break;
+                    }
+                }
+            }
+        }
+
+        //读取总账科目或明细科目的余额
+        if(sid == 0){
+            if(!_readExtraForFSub(yy,mm,pre_fid,preExtra,preExtraR,dirs))
+                return false;
+        }
+        else{
+            if(!_readExtraForSSub(yy,mm,pre_sid,preExtra,preExtraR,dirs))
+                return false;
+        }
+
+
+        //因为期初余额值表的键为币种代码，因此，无须进行转换。。。。。
+//        if(isTrans){
+//            if(sid == 0 && !_transformExtra(fMaps,preExtra,preExtraR,dirs))
+//                return false;
+//            else if(sid != 0 && !_transformExtra(sMaps,preExtra,preExtraR,dirs))
+//                return false;
+//        }
 
         //原先方向是用整形来表示的，而新实现是用枚举类型来实现的，因此先进行转换以使用原先的数据生成代码
         //待验证明细帐功能正确后可以移除
@@ -2252,15 +2293,6 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     //构造查询语句
     QString sdStr = sd.toString(Qt::ISODate);
     QString edStr = ed.toString(Qt::ISODate);
-
-//    s = QString("select PingZhengs.date,PingZhengs.number,BusiActions.summary,"
-//                "BusiActions.id,BusiActions.pid,BusiActions.jMoney,"
-//                "BusiActions.moneyType,BusiActions.dir,BusiActions.firSubID,"
-//                "BusiActions.secSubID,PingZhengs.isForward "
-//                "from PingZhengs join BusiActions on BusiActions.pid = PingZhengs.id "
-//                "where (PingZhengs.date >= '%1') and (PingZhengs.date <= '%2')")
-//                .arg(sd).arg(ed);
-    //date,number,summary,bid,pid,value,mt,dir,fid,sid,pzClass
     s = QString("select %1.%2,%1.%3,%4.%5,"
                 "%4.id,%4.%6,%4.%7,%4.%8,"
                 "%4.%9,%4.%10,"
@@ -2271,32 +2303,19 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
             .arg(fld_ba_pid).arg(fld_ba_value).arg(fld_ba_mt).arg(fld_ba_dir).arg(fld_ba_fid)
             .arg(fld_ba_sid).arg(fld_pz_class).arg(sdStr).arg(edStr);
     if(fid != 0)
-        //s.append(QString(" and (BusiActions.firSubID = %1)").arg(fid));
         s.append(QString(" and (%1.%2 = %3)").arg(tbl_ba).arg(fld_ba_fid).arg(fid));
     if(sid != 0)
-        //s.append(QString(" and (BusiActions.secSubID = %1)").arg(sid));
         s.append(QString(" and (%1.%2 = %3)").arg(tbl_ba).arg(fld_ba_sid).arg(sid));
-    //if(mt != ALLMT)
-    //    s.append(QString(" and (BusiActions.moneyType = %1)").arg(mt));
     if(gv != 0)
-//        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney > %3)) "
-//                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney > %3)))")
-//                 .arg(DIR_J).arg(DIR_D).arg(gv.toString()));
         s.append(QString(" and (%1.%2 > %3)")
                  .arg(tbl_ba).arg(fld_ba_value).arg(gv.toString()));
     if(lv != 0)
-//        s.append(QString(" and (((BusiActions.dir = %1) and (BusiActions.jMoney < %3)) "
-//                         "or ((BusiActions.dir = %2) and (BusiActions.dMoney < %3)))")
-//                 .arg(DIR_J).arg(DIR_D).arg(lv.toString()));
         s.append(QString(" and (%1.%2 < %3)")
                  .arg(tbl_ba).arg(fld_ba_value).arg(lv.toString()));
     if(!inc) //将已入账的凭证纳入统计范围
-        //s.append(QString(" and (PingZhengs.pzState = %1)").arg(Pzs_Instat));
         s.append(QString(" and (%1.%2 = %3)").arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Instat));
     else     //将未审核、已审核、已入账的凭证纳入统计范围
-        //s.append(QString(" and (PingZhengs.pzState != %1)").arg(Pzs_Repeal));
         s.append(QString(" and (%1.%2 != %3)").arg(tbl_pz).arg(fld_pz_state).arg(Pzs_Repeal));
-    //s.append(" order by PingZhengs.date");
     s.append(QString(" order by %1.%2,%1.%3").arg(tbl_pz).arg(fld_pz_date).arg(fld_pz_number));
 
     if(!q.exec(s))
@@ -2305,7 +2324,6 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     int mType,fsubId,ssubId;
     PzClass pzCls;
     int cwfyId; //财务费用的科目id
-    //getIdByCode(cwfyId,"5503");//################################
 
     while(q.next()){
         //id = q.value(8).toInt();  //fid
@@ -2742,7 +2760,7 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, AccountSuiteManage
 
     pzs.clear();
     Account* account = parent->getAccount();
-    int subSys = account->getSuite(y)->subSys;
+    int subSys = account->getSuiteRecord(y)->subSys;
     SubjectManager* smg = account->getSubjectManager(subSys);
     QHash<int,Money*> mts = account->getAllMoneys();
     PingZheng* pz;
@@ -2801,10 +2819,13 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, AccountSuiteManage
                 pz->setOppoSubject(fsub);
                 isJzhdPz=false; //后续的判断都是多余的
             }
-            if(dir == MDIR_J)
-                js += v*rates.value(mt->code(),1.0);
-            else
-                ds += v*rates.value(mt->code(),1.0);
+            if(mt && v != 0.0){
+                if(dir == MDIR_J)
+                    js += v*rates.value(mt->code(),1.0);
+                else
+                    ds += v*rates.value(mt->code(),1.0);
+            }
+
         }
         pzs<<pz;
         //纠正凭证表中的借贷合计值
@@ -2816,7 +2837,7 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, AccountSuiteManage
     }
 
     if(!db.commit()){
-        warn_transaction(Transaction_commit,QObject::tr("When load PingZheng set(%1-%2) failed!"));
+        warn_transaction(Transaction_commit,QObject::tr("When load PingZheng set(%1-%2) failed!").arg(y).arg(m));
         return false;
     }
     return true;
@@ -3128,7 +3149,7 @@ bool DbUtil::getPz(int pid, PingZheng *&pz, AccountSuiteManager* parent)
 
     pz = new PingZheng(parent,id,d,pnum,znum,jsum,dsum,pzCls,encnum,pzState,
                        vu,ru,bu);
-    SubjectManager* smg = account->getSubjectManager(account->getSuite(pz->getDate2().year())->subSys);
+    SubjectManager* smg = account->getSubjectManager(account->getSuiteRecord(pz->getDate2().year())->subSys);
     QHash<int,Double> rates;
     account->getRates(pz->getDate2().year(),pz->getDate2().month(),rates);
     s = QString("select * from %1 where %2=%3 order by %4")
@@ -3184,7 +3205,7 @@ bool DbUtil::savePingZhengs(QList<PingZheng *> pzs)
         if(!_savePingZheng(pz)){
             LOG_SQLERROR(QObject::tr("保存凭证时发生错误！"));
             errorNotify(QObject::tr("保存凭证时发生错误！"));
-            db.commit();
+            //db.commit();
             return false;
         }
     }
@@ -3927,7 +3948,7 @@ bool DbUtil::_saveFirstSubject(FirstSubject *sub)
         s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%,10) values(%11,'%12','%13',%14,%15,%16,%17,%18,'%19')")
                 .arg(tbl_fsub).arg(fld_fsub_subSys).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
                 .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isview).arg(fld_fsub_isUseWb)
-                .arg(fld_fsub_weight).arg(fld_fsub_name).arg(sub->parent()->getCode())
+                .arg(fld_fsub_weight).arg(fld_fsub_name).arg(sub->parent()->getSubSysCode())
                 .arg(sub->getCode()).arg(sub->getRemCode()).arg(sub->getSubClass())
                 .arg(sub->getJdDir()?1:0).arg(sub->isEnabled()?1:0).arg(sub->isUseForeignMoney()?1:0)
                 .arg(sub->getWeight()).arg(sub->getName());
@@ -4005,11 +4026,12 @@ bool DbUtil::_saveSecondSubject(SecondSubject *sub)
         return false;
 
     if(sub->getId() == UNID)
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) "
-                    "values(%9,%10,'%11',%12,%13,'%14',%15)").arg(tbl_ssub)
-                .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9) "
+                    "values(%10,%11,%12,'%13',%14,%15,'%16',%17)").arg(tbl_ssub)
+                .arg(fld_ssub_subsys).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
                 .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_crtTime)
-                .arg(fld_ssub_creator).arg(sub->getParent()->getId()).arg(sub->getNameItem()->getId())
+                .arg(fld_ssub_creator).arg(sub->getParent()->parent()->getSubSysCode())
+                .arg(sub->getParent()->getId()).arg(sub->getNameItem()->getId())
                 .arg(sub->getCode()).arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
                 .arg(sub->getCreateTime().toString(Qt::ISODate)).arg(sub->getCreator()->getUserId());
     else{
@@ -4118,7 +4140,7 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
                 .arg(fld_pz_jsum).arg(fld_pz_dsum).arg(fld_pz_class).arg(fld_pz_encnum)
                 .arg(fld_pz_state).arg(fld_pz_ru).arg(fld_pz_vu).arg(fld_pz_bu)
                 .arg(pz->getDate()).arg(pz->number()).arg(pz->zbNumber())
-                .arg(pz->jsum().toString()).arg(pz->dsum().toString()).arg(pz->getPzClass())
+                .arg(pz->jsum().toString2()).arg(pz->dsum().toString2()).arg(pz->getPzClass())
                 .arg(pz->encNumber()).arg(pz->getPzState())
                 .arg(pz->recordUser()?pz->recordUser()->getUserId():0)
                 .arg(pz->verifyUser()?pz->verifyUser()->getUserId():0)
@@ -4148,9 +4170,9 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
         if(state.testFlag(ES_PZ_PZSTATE))
             s.append(QString("%1=%2,").arg(fld_pz_state).arg(pz->getPzState()));
         if(state.testFlag(ES_PZ_JSUM))
-            s.append(QString("%1=%2,").arg(fld_pz_jsum).arg(pz->jsum().toString()));
+            s.append(QString("%1=%2,").arg(fld_pz_jsum).arg(pz->jsum().toString2()));
         if(state.testFlag(ES_PZ_DSUM))
-            s.append(QString("%1=%2,").arg(fld_pz_dsum).arg(pz->dsum().toString()));
+            s.append(QString("%1=%2,").arg(fld_pz_dsum).arg(pz->dsum().toString2()));
         if(state.testFlag(ES_PZ_CLASS))
             s.append(QString("%1=%2,").arg(fld_pz_class).arg(pz->getPzClass()));
         if(state.testFlag(ES_PZ_RUSER))
@@ -4204,7 +4226,7 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
                     .arg(ba->getFirstSubject()?ba->getFirstSubject()->getId():0)
                     .arg(ba->getSecondSubject()?ba->getSecondSubject()->getId():0)
                     .arg(ba->getMt()?ba->getMt()->code():0)
-                    .arg(ba->getValue().toString()).arg(ba->getDir())
+                    .arg(ba->getValue().toString2()).arg(ba->getDir())
                     .arg(i+1);
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
@@ -4233,7 +4255,7 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
             if(state.testFlag(ES_BA_MT))
                 s.append(QString("%1=%2,").arg(fld_ba_mt).arg(ba->getMt()->code()));
             if(state.testFlag(ES_BA_VALUE))
-                s.append(QString("%1=%2,").arg(fld_ba_value).arg(ba->getValue().toString()));
+                s.append(QString("%1=%2,").arg(fld_ba_value).arg(ba->getValue().toString2()));
             if(state.testFlag(ES_BA_DIR))
                 s.append(QString("%1=%2,").arg(fld_ba_dir).arg(ba->getDir()));
             if(s.endsWith(',')){
@@ -5076,6 +5098,106 @@ int DbUtil::_genKeyForExtraPoint(int y, int m, int mt)
         return y*1000+m*100+mt;
     else if(m > 9 && m <= 12)
         return y*1000+m*10+mt;
+}
+
+/**
+ * @brief 判定指定年份与前一年份的帐套所使用的科目系统是否发生了变化
+ * @param y
+ * @param isTrans   是否需要转换
+ * @param fMaps     如果发生了变化，则此参数返回一级科目映射表
+ * @param sMaps     二级科目映射表
+ * @return
+ */
+bool DbUtil::_isTransformExtra(int y, bool &isTrans, QHash<int, int> &fMaps, QHash<int, int> &sMaps)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1 from %5 where %2=%3 or %2=%4 order by %2")
+            .arg(fld_accs_subSys).arg(fld_accs_year).arg(y).arg(y-1).arg(tbl_accSuites);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        isTrans = false;
+        return false;
+    }
+    if(!q.first()){
+        LOG_ERROR("Account %1 is exist!");
+        isTrans = false;
+        return false;
+    }
+    int preSubSys = q.value(0).toInt();
+    if(!q.next()){
+        isTrans = false;
+        return true;
+    }
+    int curSubSys = q.value(0).toInt();
+    if(curSubSys == preSubSys){
+        isTrans = false;
+        return true;
+    }
+    isTrans = true;
+    QString tName = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(preSubSys).arg(curSubSys);
+    s = QString("select * from %1").arg(tName);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QStringList sl;
+    int sFid,dFid,sSid,dSid;
+    bool isMapping,ok;
+    while(q.next()){
+        sl.clear();
+        isMapping = q.value(SSJC_ISMAP).toBool();
+        if(!isMapping){
+            errorNotify(QObject::tr("科目系统升级衔接配置不完整！"));
+            return false;
+        }
+        sFid = q.value(SSJC_SSUB).toInt();
+        dFid = q.value(SSJC_DSUB).toInt();
+        sl = q.value(SSJC_SSUBMaps).toString().split(",",QString::SkipEmptyParts);
+        if(!sl.isEmpty()){
+            for(int i = 0; i < sl.count(); i+=2){
+                sSid = sl.at(i).toInt(&ok);
+                dSid = sl.at(i+1).toInt(&ok);
+                if(!ok){
+                    errorNotify(QObject::tr("二级科目衔接配置有问题（一级科目id=%1）").arg(sFid));
+                    return false;
+                }
+                sMaps[sSid] = dSid;
+            }
+        }
+        fMaps[sFid] = dFid;
+    }
+    return true;
+}
+
+/**
+ * @brief 根据指定的科目映射表，转换余额值表
+ * @param maps      科目映射表
+ * @param ExtrasP   原币形式余额值
+ * @param extrasM   本币形式余额值
+ * @param dirs      余额方向
+ * @return
+ */
+bool DbUtil::_transformExtra(QHash<int,int> maps, QHash<int,Double>& ExtrasP, QHash<int,Double>& extrasM, QHash<int,MoneyDirection>& dirs)
+{
+    QHashIterator<int,Double> it(ExtrasP);
+    int sid,key,mt;
+    while(it.hasNext()){
+        it.next();
+        sid = it.key()/10;
+        mt = it.key()%10;
+        if(!maps.contains(sid))
+            return false;
+        key = maps.value(sid) * 10 + mt;
+        ExtrasP[key] = it.value();
+        dirs[key] = dirs.value(it.key());
+        if(extrasM.contains(it.key())){
+            extrasM[key] = extrasM.value(it.key());
+            extrasM.remove(it.key());
+        }
+        ExtrasP.remove(it.key());
+        dirs.remove(it.key());
+    }
+    return true;
 }
 
 void DbUtil::crtGdzcTable()

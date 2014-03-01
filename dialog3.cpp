@@ -886,10 +886,10 @@ void GdzcAdminDialog::on_actViewList_triggered()
 {
     //打开选择对话框，由用户在当前帐套内选择要显示的月份
     bool ok;
-    int y = curAccount->getCurSuite()->year;
+    int y = curAccount->getCurSuiteRecord()->year;
     QString t = curAccount->getSuiteName(y);
     int im,m;
-    if(curAccount->getCurSuite()->year == curAccount->getEndSuite()->year)
+    if(curAccount->getCurSuiteRecord()->year == curAccount->getEndSuiteRecord()->year)
         im = curAccount->getEndDate().month();
     else
         im = 12;
@@ -1784,10 +1784,10 @@ void DtfyAdminDialog::on_actView_triggered()
 {
     //打开选择对话框，由用户在当前帐套内选择要显示的月份
     bool ok;
-    int y = curAccount->getCurSuite()->year;
+    int y = curAccount->getCurSuiteRecord()->year;
     QString t = curAccount->getSuiteName(y);
     int im,m;
-    if(curAccount->getCurSuite()->year == curAccount->getEndSuite()->year)
+    if(curAccount->getCurSuiteRecord()->year == curAccount->getEndSuiteRecord()->year)
         im = curAccount->getEndDate().month();
     else
         im = 12;
@@ -1994,7 +1994,6 @@ ShowTZDialog::ShowTZDialog(int y, int m, QByteArray* sinfo, QWidget *parent) : Q
 
     headerModel = NULL;
     dataModel = NULL;
-    imodel = NULL;
     hv = NULL;
 
     //初始化一级科目组合框
@@ -2194,7 +2193,7 @@ void ShowTZDialog::refreshTable()
     if(dataModel){
         delete dataModel;
     }
-    dataModel = new QStandardItemModel;
+    dataModel = new MyWithHeaderModels;
 
     if((fid == subBankId) || (fid == subYsId) || (fid == subYfId)){
         curFormat = THREERAIL;
@@ -2207,16 +2206,8 @@ void ShowTZDialog::refreshTable()
         genDataForCommon();
     }
 
-    if(imodel){
-        delete imodel;
-    }
-    imodel = new ProxyModelWithHeaderModels;
-
-    //imodel->setModel(dataModel);
-    imodel->setSourceModel(dataModel);
-    imodel->setHorizontalHeaderModel(headerModel);
-
-    ui->tview->setModel(imodel);
+    dataModel->setHorizontalHeaderModel(headerModel);
+    ui->tview->setModel(dataModel);
 
     //设置列宽
     for(int i = 0; i < colWidths.value(curFormat).count(); ++i)
@@ -2519,14 +2510,10 @@ void ShowTZDialog::genDataForThreeRail()
 void ShowTZDialog::printCommon(PrintTask task, QPrinter* printer)
 {
     HierarchicalHeaderView* thv = new HierarchicalHeaderView(Qt::Horizontal);
-    ProxyModelWithHeaderModels* m = new ProxyModelWithHeaderModels;
-    //m->setModel(dataModel);
-    m->setSourceModel(dataModel);
-    m->setHorizontalHeaderModel(headerModel);
 
     //创建打印模板实例
     QList<int> colw(colPrtWidths.value(curFormat));
-    PrintTemplateTz* pt = new PrintTemplateTz(m,thv,&colw);
+    PrintTemplateTz* pt = new PrintTemplateTz(dataModel,thv,&colw);
     SubjectManager* sm = curAccount->getSubjectManager();
     pt->setMasteMt(allMts.value(RMB));
     pt->setSubName(tr("%1（%2）").arg(sm->getFstSubject(fid)->getName())
@@ -2560,8 +2547,6 @@ void ShowTZDialog::printCommon(PrintTask task, QPrinter* printer)
     }
 
     delete thv;
-    delete m;
-    //delete pt;
 }
 
 void ShowTZDialog::on_actToPdf_triggered()

@@ -4,6 +4,7 @@
 #include <QMouseEvent>
 #include <QVBoxLayout>
 #include <QApplication>
+#include <QDebug>
 
 #include "global.h"
 #include "delegates.h"
@@ -26,11 +27,12 @@ SummaryEdit::SummaryEdit(int row,int col,QWidget* parent) : QLineEdit(parent)
     oppoSubject = 0;
     connect(this, SIGNAL(returnPressed()),
             this, SLOT(summaryEditingFinished())); //输入焦点自动转移到右边一列
-    shortCut = new QShortcut(QKeySequence(PZEDIT_COPYPREVROW_2),this);
+    //经过测试发现，在这种临时部件上不能捕获快捷键，用alt键序列，在按下alt键后会失去光标而关闭编辑器，用ctrl键序列无反映
+    //shortCut = new QShortcut(QKeySequence(PZEDIT_COPYPREVROW),this);
     //shortCut->setContext(Qt::WidgetShortcut);
     //shortCut = new QShortcut(QKeySequence(tr("Ctrl+=")),this,0,0,Qt::WidgetShortcut);
     //shortCut = new QShortcut(QKeySequence(tr("Ctrl+P")),this);
-    connect(shortCut,SIGNAL(activated()),this,SLOT(shortCutActivated()));
+    //connect(shortCut,SIGNAL(activated()),this,SLOT(shortCutActivated()));
 }
 
 //设置内容
@@ -134,16 +136,23 @@ void SummaryEdit::summaryEditingFinished()
 }
 
 //捕获自动复制上一条会计分录的快捷方式
-void SummaryEdit::shortCutActivated()
-{
-    if(row > 0)
-        emit copyPrevShortcutPressed(row,col);
-}
-
-//重载此函数的目的是创建一种输入摘要引用体内容的方法
-//void SummaryEdit::keyPressEvent(QKeyEvent *event)
+//void SummaryEdit::shortCutActivated()
 //{
-//    //if(event->modifiers() == Qt::AltModifier){
+//    if(row > 0)
+//        emit copyPrevShortcutPressed(row,col);
+//}
+
+//重载此函数的目的是为了捕获拷贝上一条分录的快捷键序列
+void SummaryEdit::keyPressEvent(QKeyEvent *event)
+{
+    if(event->modifiers() == Qt::ControlModifier){
+        int key = event->key();
+        if(key == Qt::Key_Equal){
+            emit copyPrevShortcutPressed(row,col);
+        }
+    }
+    else
+        QLineEdit::keyPressEvent(event);
 
 //    int key = event->key();
 //    bool alt = false;
@@ -180,7 +189,7 @@ void SummaryEdit::shortCutActivated()
 
 
 //    QLineEdit::keyPressEvent(event);
-//}
+}
 
 //void SummaryEdit::mouseDoubleClickEvent(QMouseEvent *e)
 //{
@@ -1238,15 +1247,23 @@ MoneyValueEdit::MoneyValueEdit(int row, int witch, Double v, QWidget *parent)
     :QLineEdit(parent),row(row),witch(witch)
 {
     setValue(v);
-    QDoubleValidator* validator  = new QDoubleValidator(this);
+    validator  = new QDoubleValidator(this);
     validator->setDecimals(2);
-    setValidator(validator);
+    //setValidator(validator);
     connect(this,SIGNAL(textChanged(QString)),this,SLOT(valueChanged(QString)));
     //connect(this,SIGNAL(editingFinished()),this,SLOT(valueEdited()));
 }
 
+void MoneyValueEdit::setValue(Double v)
+{
+    this->v = v;
+    setText(v.toString());
+}
+
 void MoneyValueEdit::keyPressEvent(QKeyEvent *e)
 {
+    //在Qt5下，如果编辑器被设置了验证器，则在文本为空时，将接收不到任何按键信息，不知为何？
+    //因此，这里的实现只能自己利用浮点数验证器对象进行手工验证
     int key = e->key();
     if((key == Qt::Key_Return) || (key == Qt::Key_Enter)){
         v = text().toDouble();
@@ -1257,16 +1274,28 @@ void MoneyValueEdit::keyPressEvent(QKeyEvent *e)
         if(witch == 0)
             emit nextRow(row);  //传播给代理，代理再传播给凭证编辑窗
         emit editNextItem(row,col);
-
     }
-    else
+    else if((key >= Qt::Key_0 && key <= Qt::Key_9) || key == Qt::Key_Period){
+        QString t = text()+ e->text();
+        int i = 0;
+        QValidator::State state = validator->validate(t,i);
+        if(state == QValidator::Acceptable)
+            QLineEdit::keyPressEvent(e);
+    }
+    else if(key == Qt::Key_Minus && cursorPosition() == 0)
+        QLineEdit::keyPressEvent(e);
+    else if(key == Qt::Key_Backspace)
+        QLineEdit::keyPressEvent(e);
+    else if(key == Qt::Key_Up || key == Qt::Key_Down)
         QLineEdit::keyPressEvent(e);
 }
 
 void MoneyValueEdit::valueChanged(const QString &text)
 {
     v = text.toDouble();
+    //qDebug()<<QString("value is %1").arg(v.toString());
 }
+
 
 //void MoneyValueEdit::valueEdited()
 //{

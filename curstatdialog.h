@@ -19,7 +19,7 @@ class Account;
 class QStandardItem;
 class QStandardItemModel;
 class HierarchicalHeaderView;
-class ProxyModelWithHeaderModels;
+class MyWithHeaderModels;
 class FirstSubject;
 class SecondSubject;
 class Money;
@@ -100,23 +100,19 @@ private:
     void genDatas();
     void printCommon(PrintTask task, QPrinter* printer);
     void setTableRowBackground(TableRowType rt, const QList<QStandardItem*> l);
+    void setTableRowTextColor(TableRowType rt, const QList<QStandardItem*> l);
 
     Ui::CurStatDialog *ui;
     Account* account;
     StatUtil* statUtil;
 
     QPrinter* printer;
-    //int y,m; //统计数据集所属年月
 
     //与表格有关的数据成员
     HierarchicalHeaderView* hv;
-    ProxyModelWithHeaderModels* imodel; //与表格视图相连的包含了表头数据模型的代理模型
     QStandardItemModel* headerModel;    //表头数据模型
-    QStandardItemModel* dataModel; //表格内容数据模型
+    MyWithHeaderModels* dataModel;
 
-
-    //QHash<int,FirstSubject*> allFSubs;
-    //QHash<int,SecondSubject*> allSSubs;
     QHash<int,Double> sRates,eRates; //期初、期末汇率表
     QHash<int,Money*> allMts;      //所有币种代码到币种名称的映射
     QList<int> mts; //外币代码列表（用于保持外币金额显示的一致顺序）取代上面4个列表
@@ -142,6 +138,10 @@ private:
 
     SubjectManager* smg;
 
+    //表格行文本色
+//    QColor row_tc_ssub;
+//    QColor row_tc_fsub;
+//    QColor row_tc_sum;
     //表格行背景色
     QBrush row_bk_ssub;    //子目行
     QBrush row_bk_fsub;    //总目行

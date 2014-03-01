@@ -161,6 +161,8 @@ private slots:
 
     void on_btnClose_clicked();
 
+    void on_btnSave_clicked();
+
 private:
     void initConf();
     void initAcc();
@@ -174,6 +176,7 @@ private:
     VMBase* vmObj;      //具体执行对应模块升级服务的对象
     QList<int> upVers;  //待升级的版本号列表
     QHash<int,QStringList> upgradeInfos; //每个版本的升级过程信息
+    QString oldVersion; //升级前的版本号
 
     Ui::VersionManager *ui;
 };

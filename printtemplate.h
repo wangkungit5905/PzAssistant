@@ -84,7 +84,7 @@ class PrintTemplateDz : public /*QWidget,*/PrintTemplateBase
     Q_OBJECT
 
 public:
-    explicit PrintTemplateDz(ProxyModelWithHeaderModels* model,
+    explicit PrintTemplateDz(MyWithHeaderModels* model,
                              HierarchicalHeaderView* headView,
                              QList<int>* colWidths,
                              QWidget *parent = 0);
@@ -109,7 +109,7 @@ private slots:
 
 private:
     Ui::PrintTemplateDz *ui;
-    ProxyModelWithHeaderModels* model;
+    MyWithHeaderModels* model;
     HierarchicalHeaderView* hv;
     QList<int>* colWidths; //表格列宽
 
@@ -122,7 +122,7 @@ class PrintTemplateTz : public PrintTemplateBase
     Q_OBJECT
 
 public:
-    explicit PrintTemplateTz(ProxyModelWithHeaderModels* model,
+    explicit PrintTemplateTz(MyWithHeaderModels* model,
                              HierarchicalHeaderView* headView,
                              QList<int>* colWidths,
                              QWidget *parent = 0);
@@ -146,7 +146,7 @@ private slots:
 
 private:
     Ui::PrintTemplateTz *ui;
-    ProxyModelWithHeaderModels* model;
+    MyWithHeaderModels* model;
     HierarchicalHeaderView* hv;
     QList<int>* colWidths; //表格列宽
 };
@@ -157,7 +157,7 @@ class PrintTemplateStat: public PrintTemplateBase
     Q_OBJECT
 
 public:
-    explicit PrintTemplateStat(ProxyModelWithHeaderModels* model,
+    explicit PrintTemplateStat(MyWithHeaderModels* model,
                                HierarchicalHeaderView* headView,
                                QList<int>* colWidths,
                                QWidget *parent = 0);
@@ -178,7 +178,7 @@ private slots:
 
 private:
     Ui::PrintTemplateStat *ui;
-    ProxyModelWithHeaderModels* model;
+    MyWithHeaderModels* model;
     HierarchicalHeaderView* hv;
     QList<int>* colWidths; //表格列宽
 };

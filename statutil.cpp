@@ -68,7 +68,7 @@ bool StatUtil::save()
         return false;
     if(!dbUtil->saveExtraForMm(y,m,endFExaM,endSExaM))
         return false;
-    AccountSuiteManager* pzMgr = account->getPzSet(account->getSuite(y)->id);
+    AccountSuiteManager* pzMgr = account->getSuiteMgr(account->getSuiteRecord(y)->id);
     pzMgr->setExtraState(true);
     if(!dbUtil->setExtraState(y,m,true))
         return false;
@@ -391,8 +391,8 @@ bool StatUtil::_readPreExtra()
         return false;
     if(isConvert){
         QHash<int,int> fMaps,sMaps;
-        int sc = account->getSuite(yy)->subSys;
-        int dc = account->getSuite(y)->subSys;
+        int sc = account->getSuiteRecord(yy)->subSys;
+        int dc = account->getSuiteRecord(y)->subSys;
         if(!account->getSubSysJoinMaps(sc,dc,fMaps,sMaps))
             return false;
         if(!account->convertExtra(preFExa,preFDir,fMaps))
@@ -400,7 +400,7 @@ bool StatUtil::_readPreExtra()
         QHash<int,MoneyDirection> dirs;
         if(!account->convertExtra(preFExaM,dirs,fMaps))
             return false;
-        if(!account->convertExtra(preSExaM,dirs,fMaps))
+        if(!account->convertExtra(preSExaM,dirs,sMaps))
             return false;
         if(!account->convertExtra(preSExa,preSDir,sMaps))
             return false;

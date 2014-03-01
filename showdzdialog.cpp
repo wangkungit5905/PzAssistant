@@ -1,6 +1,6 @@
 #include "ui_showdzdialog2.h"
 #include "ui_subjectrangeselectdialog.h"
-#include "showdzdialog2.h"
+#include "showdzdialog.h"
 #include "account.h"
 #include "previewdialog.h"
 #include "HierarchicalHeaderView.h"
@@ -11,7 +11,7 @@
 #include <QInputDialog>
 
 
-ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent) :
+ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) :
     QDialog(parent),ui(new Ui::ShowDZDialog2),account(account)
 {
     ui->setupUi(this);
@@ -19,7 +19,7 @@ ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent
     policy.setHorizontalStretch(QSizePolicy::Maximum);
     ui->tview->setSizePolicy(policy);
 
-    curSuite = account->getCurSuite();
+    curSuite = account->getCurSuiteRecord();
     smg = account->getSubjectManager(curSuite->subSys);
     allMts = account->getAllMoneys();
     mmtObj = account->getMasterMt();
@@ -28,7 +28,6 @@ ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent
     curFilter = NULL;
     otf = tf = NONE;
     preview = NULL;
-    pDataModel = NULL;
     pt = NULL;
 
     row_bk_data = QBrush(QColor(200,200,255));
@@ -40,11 +39,7 @@ ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent
     connect(actMoveTo, SIGNAL(triggered()), this, SLOT(moveTo()));
 
     headerModel = NULL;
-    pHeaderModel = NULL;
     dataModel = NULL;
-    pDataModel = NULL;
-    imodel = NULL;
-    //ipmodel = NULL;
     hv = NULL;
 
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
@@ -85,7 +80,7 @@ ShowDZDialog2::ShowDZDialog2(Account* account,QByteArray* sinfo, QWidget *parent
     connect(ui->endDate,SIGNAL(dateChanged(QDate)),this,SLOT(endDateChanged(QDate)));
 }
 
-ShowDZDialog2::~ShowDZDialog2()
+ShowDZDialog::~ShowDZDialog()
 {
     //delete fcom;  //会崩溃
     //delete scom;
@@ -97,8 +92,9 @@ ShowDZDialog2::~ShowDZDialog2()
 }
 
 //设置视图的内部状态
-void ShowDZDialog2::setState(QByteArray* info)
+void ShowDZDialog::setState(QByteArray* info)
 {
+    QList<int> sizes;
     if(info == NULL){
         //屏幕视图上的表格列宽
         colWidths[CASHDAILY]<<45<<25<<25<<50<<300<<0<<100<<100<<50<<100<<0<<0;
@@ -150,6 +146,7 @@ void ShowDZDialog2::setState(QByteArray* info)
         margins.unit = QPrinter::Didot;
         margins.left = 20; margins.right = 20;
         margins.top = 30; margins.bottom = 30;
+        sizes<<200<<100;
     }
     else{
         QBuffer bf(info);
@@ -186,14 +183,16 @@ void ShowDZDialog2::setState(QByteArray* info)
         in>>d;
         margins.top = d;
         in>>d;
-        margins.bottom = d;
-
+        margins.bottom = d;        
+        in>>i16;sizes<<i16;
+        in>>i16;sizes<<i16;
         bf.close();
     }
+    ui->splitter->setSizes(sizes);
 }
 
 //获取视图的内部状态
-QByteArray* ShowDZDialog2::getState()
+QByteArray* ShowDZDialog::getState()
 {
     QByteArray* ba = new QByteArray;
     QBuffer bf(ba);
@@ -274,6 +273,11 @@ QByteArray* ShowDZDialog2::getState()
     d = margins.top; out<<d;
     d = margins.bottom; out<<d;
 
+    QList<int> sizes = ui->splitter->sizes();
+    for(int i = 0; i < sizes.count(); ++i){
+        i16= sizes.at(i);
+        out<<i16;
+    }
     bf.close();
     return ba;
 }
@@ -284,7 +288,7 @@ QByteArray* ShowDZDialog2::getState()
  * @param current
  * @param previous
  */
-void ShowDZDialog2::curFilterChanged(QListWidgetItem *current, QListWidgetItem *previous)
+void ShowDZDialog::curFilterChanged(QListWidgetItem *current, QListWidgetItem *previous)
 {
     if(curFilter){
         curFilter->isCur = false;
@@ -307,14 +311,14 @@ void ShowDZDialog2::curFilterChanged(QListWidgetItem *current, QListWidgetItem *
  *  开始日期改变
  * @param date
  */
-void ShowDZDialog2::startDateChanged(const QDate &date)
+void ShowDZDialog::startDateChanged(const QDate &date)
 {
     //ui->endDate->setMinimumDate(date);
     curFilter->startDate = date;
     adjustSaveBtn();
 }
 
-void ShowDZDialog2::endDateChanged(const QDate &date)
+void ShowDZDialog::endDateChanged(const QDate &date)
 {
     curFilter->endDate = date;
     adjustSaveBtn();
@@ -327,7 +331,7 @@ void ShowDZDialog2::endDateChanged(const QDate &date)
  *  当用户选择一个一级科目时，则装载该科目下的所有二级科目到二级科目选择组合框中
  * @param index
  */
-void ShowDZDialog2::onSelFstSub(int index)
+void ShowDZDialog::onSelFstSub(int index)
 {
     curFSub = ui->cmbFsub->itemData(index).value<FirstSubject*>();
     curFilter->curFSub = curFSub?curFSub->getId():0;
@@ -381,7 +385,7 @@ void ShowDZDialog2::onSelFstSub(int index)
  *  当用户选择一个二级科目时，根据一级科目的货币使用属性，调整可用的货币选项
  * @param index
  */
-void ShowDZDialog2::onSelSndSub(int index)
+void ShowDZDialog::onSelSndSub(int index)
 {
     curSSub = ui->cmbSsub->itemData(index).value<SecondSubject*>();
     curFilter->curSSub = curSSub?curSSub->getId():0;
@@ -454,7 +458,7 @@ void ShowDZDialog2::onSelSndSub(int index)
 }
 
 //用户选择币种
-void ShowDZDialog2::onSelMt(int index)
+void ShowDZDialog::onSelMt(int index)
 {
     curMt = ui->cmbMt->itemData(index).value<Money*>();
     curFilter->curMt = curMt?curMt->code():0;
@@ -463,7 +467,7 @@ void ShowDZDialog2::onSelMt(int index)
 }
 
 //转到该凭证
-void ShowDZDialog2::moveTo()
+void ShowDZDialog::moveTo()
 {
     QItemSelectionModel* selModel = ui->tview->selectionModel();
     if(selModel->hasSelection()){
@@ -486,15 +490,15 @@ void ShowDZDialog2::moveTo()
             pidCol = 13;
             break;
         }
-        int pid = imodel->data(imodel->index(row, pidCol)).toInt();
-        int bid =  imodel->data(imodel->index(row, pidCol+1)).toInt();
+        int pid = dataModel->data(dataModel->index(row, pidCol)).toInt();
+        int bid =  dataModel->data(dataModel->index(row, pidCol+1)).toInt();
         emit  openSpecPz(pid, bid);
 
     }
 }
 
 //当用户改变表格的列宽时，记录在内部状态表中
-void ShowDZDialog2::colWidthChanged(int logicalIndex, int oldSize, int newSize)
+void ShowDZDialog::colWidthChanged(int logicalIndex, int oldSize, int newSize)
 {
     colWidths[tf][logicalIndex] = newSize;
 }
@@ -502,7 +506,7 @@ void ShowDZDialog2::colWidthChanged(int logicalIndex, int oldSize, int newSize)
 
 //更新明细账表格数据（生成页面数据）
 //参数 pageNum = 0时表示刷新视图的表格内容，其他大于0的值，表示请求刷新指定打印页的表格内容
-void ShowDZDialog2::refreshTalbe()
+void ShowDZDialog::refreshTalbe()
 {
     disconnect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(colWidthChanged(int,int,int)));
@@ -575,7 +579,7 @@ void ShowDZDialog2::refreshTalbe()
         delete dataModel;
         dataModel = NULL;
     }
-    dataModel = new QStandardItemModel;
+    dataModel = new MyWithHeaderModels;
 
     //生成表头和表格数据内容
     QList<DailyAccountData2*> datas;    //数据
@@ -587,15 +591,12 @@ void ShowDZDialog2::refreshTalbe()
     //混合了各币种余额值和方向
     Double prev;  //期初余额
     int preDir;   //期初余额方向
-    //if(!BusiUtil::getDailyAccount2(cury,sm,em,fid,sid,mt,prev,preDir,datas,
-    //                              preExtra,preExtraR,preExtraDir,rates,fids,sids,gv,lv,inc))
-    //    return;
     QHash<int,SubjectManager*> smgs;
     for(int y = ui->startDate->date().year(); y <= ui->endDate->date().year(); ++y){
-        smgs[y] = account->getSubjectManager(account->getSuite(y)->subSys);
+        smgs[y] = account->getSubjectManager(account->getSuiteRecord(y)->subSys);
     }
     if(!account->getDbUtil()->getDailyAccount2(smgs,ui->startDate->date(),ui->endDate->date(),fid,sid,mt,prev,preDir,datas,
-                                  preExtra,preExtraR,preExtraDir,rates,subIds,gv,lv,inc))
+                                  preExtra,preExtraR,preExtraDir,rates,subIds,gv,lv,true))
         return;
 
     pdatas.clear();  //还要注意删除列表内的每个元素对象
@@ -624,17 +625,8 @@ void ShowDZDialog2::refreshTalbe()
     foreach(QList<QStandardItem*> l, pdatas)
         dataModel->appendRow(l);
 
-    if(imodel){
-        delete imodel;
-        //imodel = NULL;
-    }
-    imodel = new ProxyModelWithHeaderModels;
-
-    //imodel->setModel(dataModel);
-    imodel->setSourceModel(dataModel);
-    imodel->setHorizontalHeaderModel(headerModel);
-
-    ui->tview->setModel(imodel); //它会调用verticalHeader->setModel(model)
+    dataModel->setHorizontalHeaderModel(headerModel);
+    ui->tview->setModel(dataModel);
 
     //隐藏列
     switch(tf){
@@ -694,7 +686,7 @@ void ShowDZDialog2::refreshTalbe()
 /**
  * @brief ShowDZDialog2::readFilters
  */
-void ShowDZDialog2::readFilters()
+void ShowDZDialog::readFilters()
 {
     if(!account->getDbUtil()->getDetViewFilters(curSuite->id, filters))
         QMessageBox::critical(this,tr("出错信息"),tr("读取明细账的历史过滤条件时出错"));
@@ -737,7 +729,7 @@ void ShowDZDialog2::readFilters()
  * @brief ShowDZDialog2::initFilter
  *  根据当前选中的过滤条件项目，设置窗明细账口的过滤条件（时间范围、科目范围、当前选中的科目和币种等）
  */
-void ShowDZDialog2::initFilter()
+void ShowDZDialog::initFilter()
 {
     //时间范围
     ui->startDate->setDate(curFilter->startDate);
@@ -750,7 +742,7 @@ void ShowDZDialog2::initFilter()
  * @brief ShowDZDialog2::initSubjectItems
  *  根据当前过滤条件的科目范围设定，装载选定的科目到科目选择组合框
  */
-void ShowDZDialog2::initSubjectItems()
+void ShowDZDialog::initSubjectItems()
 {
     QVariant v;
     FirstSubject* fsub;
@@ -801,7 +793,7 @@ void ShowDZDialog2::initSubjectItems()
  * @brief ShowDZDialog2::initSubjectList
  *  根据当前过滤条件的科目范围设定，在科目列表框中显示选定的科目
  */
-void ShowDZDialog2::initSubjectList()
+void ShowDZDialog::initSubjectList()
 {
     ui->lstSubs->clear();
     QVariant v;
@@ -830,7 +822,7 @@ void ShowDZDialog2::initSubjectList()
  * @brief ShowDZDialog2::adjustSaveBtn
  *  调整保存按钮的启用状态
  */
-void ShowDZDialog2::adjustSaveBtn()
+void ShowDZDialog::adjustSaveBtn()
 {
     if(curFilter->editState != CIES_NEW){
         curFilter->editState = CIES_CHANGED;
@@ -844,7 +836,7 @@ void ShowDZDialog2::adjustSaveBtn()
  * @param rowType   行类别
  * @param rows      行中的单元格表格单元格项目列表
  */
-void ShowDZDialog2::setTableRowBackground(ShowDZDialog2::TableRowType rowType, const QList<QStandardItem *> cols)
+void ShowDZDialog::setTableRowBackground(ShowDZDialog::TableRowType rowType, const QList<QStandardItem *> cols)
 {
     QBrush bb;
     switch(rowType){
@@ -885,7 +877,7 @@ void ShowDZDialog2::setTableRowBackground(ShowDZDialog2::TableRowType rowType, c
 
 
 //生成现金日记账表头
-void ShowDZDialog2::genThForCash(QStandardItemModel* model)
+void ShowDZDialog::genThForCash(QStandardItemModel* model)
 {
     //总共12个字段，其中3个隐藏了（序号分别为5、10、11）
     QList<QStandardItem*> l1;
@@ -911,12 +903,12 @@ void ShowDZDialog2::genThForCash(QStandardItemModel* model)
 }
 
 //生成银行人民币日记账表头
-void ShowDZDialog2::genThForBankRmb(QStandardItemModel* model)
+void ShowDZDialog::genThForBankRmb(QStandardItemModel* model)
 {
     //总共13个字段，其中4个隐藏了（序号分别为5、6、11、12）
     QList<QStandardItem*> l1;
 
-    l1<<new QStandardItem(tr("1年")); //0
+    l1<<new QStandardItem(tr("年")); //0
     l1<<new QStandardItem(tr("月"));  //1
     l1<<new QStandardItem(tr("日"));  //2
     l1<<new QStandardItem(tr("凭证号"));//3
@@ -938,7 +930,7 @@ void ShowDZDialog2::genThForBankRmb(QStandardItemModel* model)
 }
 
 //生成银行外币日记账表头
-void ShowDZDialog2::genThForBankWb(QStandardItemModel* model)
+void ShowDZDialog::genThForBankWb(QStandardItemModel* model)
 {
     //总共17个字段，其中4个隐藏了（序号分别为4、5、14、15）在只有一种外币的情况下
     QStandardItem* fi;  //第一级表头
@@ -1008,7 +1000,7 @@ void ShowDZDialog2::genThForBankWb(QStandardItemModel* model)
 }
 
 //生成通用明细账表头（金额式-即不需要外币金额栏）
-void ShowDZDialog2::genThForCommon(QStandardItemModel* model)
+void ShowDZDialog::genThForCommon(QStandardItemModel* model)
 {
     //总共10个字段，其中2个隐藏了（序号分别为9、10）
     QList<QStandardItem*> l1;
@@ -1032,7 +1024,7 @@ void ShowDZDialog2::genThForCommon(QStandardItemModel* model)
 }
 
 //生成明细账表头（三栏明细式）
-void ShowDZDialog2::genThForThreeRail(QStandardItemModel* model)
+void ShowDZDialog::genThForThreeRail(QStandardItemModel* model)
 {
     //总共15个字段，其中2个隐藏了（序号分别为13、14）在只有一种外币的情况下
     QStandardItem* fi;  //第一级表头
@@ -1104,7 +1096,7 @@ void ShowDZDialog2::genThForThreeRail(QStandardItemModel* model)
 //}
 
 //生成现金日记账数据（返回值为总共生成的行数）
-int ShowDZDialog2::genDataForCash(QList<DailyAccountData2 *> datas,
+int ShowDZDialog::genDataForCash(QList<DailyAccountData2 *> datas,
                                  QList<QList<QStandardItem*> >& pdatas,
                                  Double prev, int preDir,
                                  QHash<int, Double> preExtra,
@@ -1294,7 +1286,7 @@ int ShowDZDialog2::genDataForCash(QList<DailyAccountData2 *> datas,
 }
 
 //生成银行日记账数据
-int ShowDZDialog2::genDataForBankRMB(QList<DailyAccountData2*> datas,
+int ShowDZDialog::genDataForBankRMB(QList<DailyAccountData2*> datas,
                                      QList<QList<QStandardItem*> >& pdatas,
                                      Double prev, int preDir,
                                      QHash<int,Double> preExtra,
@@ -1445,7 +1437,7 @@ int ShowDZDialog2::genDataForBankRMB(QList<DailyAccountData2*> datas,
 }
 
 //生成三栏金额式数据，参数mt是要显示的货币代码
-int ShowDZDialog2::genDataForBankWb(QList<DailyAccountData2 *> datas,
+int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
                                     QList<QList<QStandardItem*> >& pdatas,
                                     Double prev, int preDir,
                                     QHash<int, Double> preExtra,
@@ -1457,7 +1449,7 @@ int ShowDZDialog2::genDataForBankWb(QList<DailyAccountData2 *> datas,
     int rows = 0;
 
     //期初余额部分
-    l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;  //0、1、2、3 跳过年、月、日、凭证号栏
+    l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;  //0、1、2、3 跳过年、月、日、凭证号栏
     if(ui->startDate->date().month() == 1)
         l<<new ApStandardItem(tr("上年结转"));  //4 摘要栏
     else
@@ -1573,7 +1565,7 @@ int ShowDZDialog2::genDataForBankWb(QList<DailyAccountData2 *> datas,
         l<<new ApStandardItem<<new ApStandardItem; //5：结算号，6：对方科目
 
         //因为对于每一次的发生项，只能对应一个币种，因此可以直接提取汇率在下面使用
-        Double rate = rates.value(datas[i]->y*1000+datas[i]->m*10+datas[i]->mt);
+        Double rate = rates.value(datas[i]->y*1000+datas[i]->m*10+datas[i]->mt,1.0);
         //汇率部分
         for(int j = 0; j < mts.count(); ++j){
             if(datas[i]->mt == mts[j])
@@ -1686,7 +1678,7 @@ int ShowDZDialog2::genDataForBankWb(QList<DailyAccountData2 *> datas,
 }
 
 //生成其他科目明细账数据（不区分外币）
-int ShowDZDialog2::genDataForCommon(QList<DailyAccountData2*> datas,
+int ShowDZDialog::genDataForCommon(QList<DailyAccountData2*> datas,
                                      QList<QList<QStandardItem*> >& pdatas,
                                      Double prev, int preDir,
                                      QHash<int,Double> preExtra,
@@ -1843,7 +1835,7 @@ int ShowDZDialog2::genDataForCommon(QList<DailyAccountData2*> datas,
 }
 
 //生成三栏明细式表格数据（仅对应收/应付，或在显示所有币种的明细账时）
-int ShowDZDialog2::genDataForThreeRail(QList<DailyAccountData2 *> datas,
+int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
                                     QList<QList<QStandardItem*> >& pdatas,
                                     Double prev, int preDir,
                                     QHash<int, Double> preExtra,
@@ -2066,7 +2058,7 @@ int ShowDZDialog2::genDataForThreeRail(QList<DailyAccountData2 *> datas,
  * @param rowsInTable   每页可打印的最大行数
  * @param pageNum       需要多少页
  */
-void ShowDZDialog2::paging(int rowsInTable, int& pageNum)
+void ShowDZDialog::paging(int rowsInTable, int& pageNum)
 {
     //如果当前显示的是所有明细科目或所有币种，则需要按明细科目、币种和可打印行数进行分页处理
     maxRows = rowsInTable;
@@ -2080,7 +2072,7 @@ void ShowDZDialog2::paging(int rowsInTable, int& pageNum)
     //1、确定要显示的总账科目、明细科目和币种的范围
     QList<int> fids,sids,mts;
     if(!curFSub)
-        fids = curFilter->subIds;//即在打开明细视图前你指定的一级科目范围
+        fids = curFilter->subIds;//即你当前过滤条件中指定的一级科目范围
     else
         fids<<curFSub->getId();
     if(!curMt)
@@ -2117,10 +2109,10 @@ void ShowDZDialog2::paging(int rowsInTable, int& pageNum)
                 datas.clear();
                 QHash<int,SubjectManager*> smgs;
                 for(int y = ui->startDate->date().year(); y <= ui->endDate->date().year(); ++y){
-                    smgs[y] = account->getSubjectManager(account->getSuite(y)->subSys);
+                    smgs[y] = account->getSubjectManager(account->getSuiteRecord(y)->subSys);
                 }
                 if(!account->getDbUtil()->getDailyAccount2(smgs,ui->startDate->date(),ui->endDate->date(),fids.at(i),sids.at(j),mts.at(k),prev,preDir,datas,
-                                              preExtra,preExtraR,preExtraDir,rates,subIds,gv,lv,inc))
+                                              preExtra,preExtraR,preExtraDir,rates,subIds,gv,lv,true))
                     return;
 
                 //跳过无余额且期间内未发生的
@@ -2208,28 +2200,28 @@ void ShowDZDialog2::paging(int rowsInTable, int& pageNum)
  * @param pdModel   表格数据
  * @param phModel   表头数据
  */
-void ShowDZDialog2::renPageData(int pageNum, QList<int>*& colWidths, QStandardItemModel& pdModel,
-                               QStandardItemModel& phModel)
+void ShowDZDialog::renPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels &pdModel)
 {
     if(pageNum > pageTfs.count())
         return;
 
     //生成列标题和列宽
+    QStandardItemModel* hmodel = new QStandardItemModel;
     switch(pageTfs[pageNum-1]){
     case CASHDAILY:
-        genThForCash(&phModel);
+        genThForCash(hmodel);
         break;
     case BANKRMB:
-        genThForBankRmb(&phModel);
+        genThForBankRmb(hmodel);
         break;
     case BANKWB:
-        genThForBankWb(&phModel);
+        genThForBankWb(hmodel);
         break;
     case COMMON:
-        genThForCommon(&phModel);
+        genThForCommon(hmodel);
         break;
     case THREERAIL:
-        genThForThreeRail(&phModel);
+        genThForThreeRail(hmodel);
         break;
     }
     colWidths = &this->colWidths[pageTfs[pageNum-1]];
@@ -2264,7 +2256,7 @@ void ShowDZDialog2::renPageData(int pageNum, QList<int>*& colWidths, QStandardIt
         pdModel.appendRow(l);
         l.clear();
     }
-
+    pdModel.setHorizontalHeaderModel(hmodel);
     //处理其他页面数据
     QString s;
     if((pfids[pageNum-1] == smg->getCashSub()->getId()) ||
@@ -2307,23 +2299,13 @@ void ShowDZDialog2::renPageData(int pageNum, QList<int>*& colWidths, QStandardIt
 //}
 
 //打印任务公共操作
-void ShowDZDialog2::printCommon(QPrinter* printer)
+void ShowDZDialog::printCommon(QPrinter* printer)
 {
     HierarchicalHeaderView* thv = new HierarchicalHeaderView(Qt::Horizontal);
-    ProxyModelWithHeaderModels* m = new ProxyModelWithHeaderModels;
-
-    if(!curFSub || !curSSub || !curMt){
-        m->setHorizontalHeaderModel(headerModel);
-    }
-    else{
-        //m->setModel(dataModel);
-        m->setSourceModel(dataModel);
-        m->setHorizontalHeaderModel(headerModel);
-    }
     //创建打印模板实例
     QList<int> colw(colPrtWidths[tf]);
     if(pt == NULL)
-        pt = new PrintTemplateDz(m,thv,&colw);
+        pt = new PrintTemplateDz(dataModel,thv,&colw);
 
     //如果是明确的一二级科目和币种的组合，即由预览框来负责分页处理
     if(curFSub && curSSub && curMt){
@@ -2367,14 +2349,11 @@ void ShowDZDialog2::printCommon(QPrinter* printer)
         preview = new PreviewDialog(pt,DETAILPAGE,printer,true);
         connect(preview,SIGNAL(reqPaging(int,int&)),
                 this,SLOT(paging(int,int&)));
-        connect(preview,SIGNAL(reqPageData(int,QList<int>*&,QStandardItemModel&,QStandardItemModel&)),
-                this,SLOT(renPageData(int,QList<int>*&,QStandardItemModel&,QStandardItemModel&)));
+        connect(preview,SIGNAL(reqPageData(int,QList<int>*&,MyWithHeaderModels&)),
+                this,SLOT(renPageData(int,QList<int>*&,MyWithHeaderModels&)));
     }
     else
         preview = new PreviewDialog(pt,DETAILPAGE,printer);
-
-    //connect(preview,SIGNAL(priorPaging(bool,int)),this,SLOT(priorPaging(bool,int)));
-    //preview->setupPage(true);
 
     //设置打印页的范围
     printer->setFromTo(1,pages);
@@ -2398,13 +2377,12 @@ void ShowDZDialog2::printCommon(QPrinter* printer)
     }
 
     delete thv;
-    delete m;
     delete pt;
     pt = NULL;
 }
 
 //打印
-void ShowDZDialog2::on_actPrint_triggered()
+void ShowDZDialog::on_actPrint_triggered()
 {
     curPrintTask = TOPRINT;
     QPrinter* printer= new QPrinter(QPrinter::PrinterResolution);
@@ -2415,7 +2393,7 @@ void ShowDZDialog2::on_actPrint_triggered()
 }
 
 //打印预览
-void ShowDZDialog2::on_actPreview_triggered()
+void ShowDZDialog::on_actPreview_triggered()
 {
     curPrintTask = PREVIEW;
     QPrinter* printer= new QPrinter(QPrinter::HighResolution);
@@ -2426,7 +2404,7 @@ void ShowDZDialog2::on_actPreview_triggered()
 }
 
 //打印到PDF文件
-void ShowDZDialog2::on_actToPdf_triggered()
+void ShowDZDialog::on_actToPdf_triggered()
 {
     curPrintTask = TOPDF;
     QPrinter* printer= new QPrinter(QPrinter::ScreenResolution);
@@ -2445,7 +2423,7 @@ void ShowDZDialog2::on_actToPdf_triggered()
  * @brief ShowDZDialog2::on_btnSaveFiler_clicked
  *  保存过滤条件
  */
-void ShowDZDialog2::on_btnSaveFilter_clicked()
+void ShowDZDialog::on_btnSaveFilter_clicked()
 {
 
     if(!account->getDbUtil()->saveDetViewFilter(filters))
@@ -2457,7 +2435,7 @@ void ShowDZDialog2::on_btnSaveFilter_clicked()
  * @brief ShowDZDialog2::on_btnSaveAs_clicked
  *  将默认过滤条件保存为命名的过滤条件
  */
-void ShowDZDialog2::on_btnSaveAs_clicked()
+void ShowDZDialog::on_btnSaveAs_clicked()
 {
     //如果当前选择的过滤条件是默认的，则允许用户为创建一个新的过滤条件而输入命名的名称
     if(!curFilter->isDef)
@@ -2495,7 +2473,7 @@ void ShowDZDialog2::on_btnSaveAs_clicked()
  * @brief ShowDZDialog2::on_btnDelFilter_clicked
  *  删除选定的过滤条件项目
  */
-void ShowDZDialog2::on_btnDelFilter_clicked()
+void ShowDZDialog::on_btnDelFilter_clicked()
 {
     QListWidgetItem* item = ui->lstHistory->currentItem();
     DVFilterRecord* r = item->data(Qt::UserRole).value<DVFilterRecord*>();
@@ -2507,7 +2485,7 @@ void ShowDZDialog2::on_btnDelFilter_clicked()
  * @brief ShowDZDialog2::on_btnSubRange_clicked
  *  打开设定科目范围对话框
  */
-void ShowDZDialog2::on_btnSubRange_clicked()
+void ShowDZDialog::on_btnSubRange_clicked()
 {
     SubjectRangeSelectDialog* dlg = new SubjectRangeSelectDialog(smg,curFilter->subIds,curFilter->isFst?0:curFilter->curFSub,this);
     if(QDialog::Rejected == dlg->exec())
@@ -2524,7 +2502,7 @@ void ShowDZDialog2::on_btnSubRange_clicked()
     initFilter();
 }
 
-void ShowDZDialog2::on_btnRefresh_clicked()
+void ShowDZDialog::on_btnRefresh_clicked()
 {
     if(ui->startDate->date() > ui->endDate->date()){
         QMessageBox::warning(this,tr("错误警告"),tr("开始时间必须在结束时间之前！"));
@@ -2538,7 +2516,7 @@ void ShowDZDialog2::on_btnRefresh_clicked()
  *  双击一个科目，则生成该科目的明细账
  * @param item
  */
-void ShowDZDialog2::on_lstSubs_itemDoubleClicked(QListWidgetItem *item)
+void ShowDZDialog::on_lstSubs_itemDoubleClicked(QListWidgetItem *item)
 {
     int index;
     QVariant v;
@@ -2558,7 +2536,7 @@ void ShowDZDialog2::on_lstSubs_itemDoubleClicked(QListWidgetItem *item)
 
 
 
-ShowDZDialog2::TableFormat ShowDZDialog2::decideTableFormat(int fid,int sid, int mt)
+ShowDZDialog::TableFormat ShowDZDialog::decideTableFormat(int fid,int sid, int mt)
 {
     //判定要采用的表格格式
     TableFormat tf;

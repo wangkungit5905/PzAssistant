@@ -158,6 +158,7 @@ const int NI_CREATOR     = 6;
 //*************************二级科目表*************************//
 //字段名
 const QString tbl_ssub        = "SndSubject";
+const QString fld_ssub_subsys  = "subSys" ;       //所属科目系统代码
 const QString fld_ssub_fid     = "fid";           //所属的一级科目ID（INTEGER）
 const QString fld_ssub_nid     = "nid";           //对应的名称条目中的ID（INTEGER）
 const QString fld_ssub_code    = "subCode";       //科目代码（用户根据行业特点自定义的）（TEXT）
@@ -167,14 +168,15 @@ const QString fld_ssub_disTime = "disabledTime";  //禁用时间（TEXT）
 const QString fld_ssub_crtTime = "createdTime";   //创建时间（TEXT）（NOT NULL DEFAULT (datetime('now','localtime'))）
 const QString fld_ssub_creator = "creator";       //创建者（INTEGER）
 //字段索引
-const int SSUB_FID         = 1;
-const int SSUB_NID         = 2;
-const int SSUB_SUBCODE     = 3;
-const int SSUB_WEIGHT      = 4;
-const int SSUB_ENABLED     = 5;
-const int SSUB_DISABLETIME = 6;
-const int SSUB_CREATETIME  = 7;
-const int SSUB_CREATOR     = 8;
+const int SSUB_SUBSYS      = 1;
+const int SSUB_FID         = 2;
+const int SSUB_NID         = 3;
+const int SSUB_SUBCODE     = 4;
+const int SSUB_WEIGHT      = 5;
+const int SSUB_ENABLED     = 6;
+const int SSUB_DISABLETIME = 7;
+const int SSUB_CREATETIME  = 8;
+const int SSUB_CREATOR     = 9;
 
 //******************凭证表*********************************//
 //字段名

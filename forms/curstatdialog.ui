@@ -163,8 +163,14 @@
    </item>
    <item>
     <widget class="QTableView" name="tview">
+     <property name="autoFillBackground">
+      <bool>false</bool>
+     </property>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
+     </property>
+     <property name="cornerButtonEnabled">
+      <bool>false</bool>
      </property>
     </widget>
    </item>

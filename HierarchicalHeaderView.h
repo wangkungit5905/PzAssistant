@@ -31,6 +31,24 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QHeaderView>
 #include <QAbstractProxyModel>
 #include <QPointer>
+#include <QStandardItemModel>
+
+/**
+ * @brief 这个代理模型，将表格的行列表头所用到的数据模型与表格本身的数据模型结合在一起统一管理
+ * 由于QTableView.setModel()内部会调用horizontalHeader->setModel(model)和
+ * verticalHeader->setModel(model)，因此有必要使用此代理模型
+ */
+class MyWithHeaderModels : public QStandardItemModel{
+  Q_OBJECT
+public:
+    MyWithHeaderModels(QObject* parent = 0);
+    QVariant data(const QModelIndex& index, int role=Qt::DisplayRole) const;
+    void setHorizontalHeaderModel(QAbstractItemModel* model);
+    QAbstractItemModel* getHorizontalHeaderModel();
+
+private:
+    QPointer<QAbstractItemModel> _horizontalHeaderModel;//行列表头所用的数据模型
+};
 
 /**
 层次式的QTableView.
@@ -38,46 +56,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 对于水平表头使用HorizontalHeaderDataRole，而垂直标题使用VerticalHeaderDataRole。
 如果表头数据模型的data()函数的Qt::UserRole角色返回一个有效的QVariant，则表头的文本被旋转。否则以正常的水平方式显示。
 */
-
-
-//这个代理模型，将表格的行列表头所用到的数据模型与表格本身的数据模型结合在一起统一管理
-//由于QTableView.setModel()内部会调用horizontalHeader->setModel(model)和
-//verticalHeader->setModel(model)，因此有必要使用此代理模型
-class ProxyModelWithHeaderModels: public QAbstractProxyModel
-{
-    Q_OBJECT
-public:
-    ProxyModelWithHeaderModels(QObject* parent=0);
-
-    QVariant data(const QModelIndex& index, int role=Qt::DisplayRole) const;
-
-    void setHorizontalHeaderModel(QAbstractItemModel* model);
-
-    QAbstractItemModel* getHorizontalHeaderModel();
-
-    void setVerticalHeaderModel(QAbstractItemModel* model);
-
-    QAbstractItemModel* getVerticalHeaderModel();
-
-    //I added
-    //QAbstractItemModel*	sourceModel() const;
-    //void setSourceModel(QAbstractItemModel * sourceModel);
-
-    //I added(must implement)
-    int columnCount(const QModelIndex &parent) const;
-    int rowCount(const QModelIndex &parent = QModelIndex()) const;
-    QModelIndex index(int row, int column, const QModelIndex &parent = QModelIndex()) const;
-    QModelIndex parent(const QModelIndex &index = QModelIndex()) const;
-    QModelIndex	mapFromSource(const QModelIndex & sourceIndex) const;
-    QModelIndex	mapToSource(const QModelIndex & proxyIndex) const;
-
-private:
-    QAbstractItemModel* smodel;
-    QPointer<QAbstractItemModel> _horizontalHeaderModel;//行列表头所用的数据模型
-    QPointer<QAbstractItemModel> _verticalHeaderModel;
-};
-
-
 class HierarchicalHeaderView : public QHeaderView
 {
     Q_OBJECT

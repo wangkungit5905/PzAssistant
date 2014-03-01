@@ -126,17 +126,17 @@ public:
     void delLogs(QDateTime start, QDateTime end);
 
     //帐套相关
-    AccountSuiteRecord *appendSuite(int y, QString name, int subSys = 1);
+    AccountSuiteRecord *appendSuiteRecord(int y, QString name, int subSys = 1);
     void addSuite(AccountSuiteRecord* as){suiteRecords.append(as);}
     void delSuite(int y);
     QString getSuiteName(int y);
     void setSuiteName(int y, QString name);
-    QList<int> getSuites();
-    QList<AccountSuiteRecord*> getAllSuites(){return suiteRecords;}
-    AccountSuiteRecord* getStartSuite(){return suiteRecords.first();}
-    AccountSuiteRecord* getEndSuite(){return suiteRecords.last();}
-    AccountSuiteRecord* getCurSuite();
-    AccountSuiteRecord* getSuite(int y);
+    QList<int> getSuiteYears();
+    QList<AccountSuiteRecord*> getAllSuiteRecords(){return suiteRecords;}
+    AccountSuiteRecord* getStartSuiteRecord(){return suiteRecords.first();}
+    AccountSuiteRecord* getEndSuiteRecord(){return suiteRecords.last();}
+    AccountSuiteRecord* getCurSuiteRecord();
+    AccountSuiteRecord* getSuiteRecord(int y);
     void setCurSuite(int y);
     bool getSuiteMonthRange(int y, int& sm,int& em);
     bool containSuite(int y);
@@ -150,7 +150,7 @@ public:
     int getBaseMonth();
     void getVersion(int &mv,int &sv);
 
-    AccountSuiteManager* getPzSet(int suiteId = 0);
+    AccountSuiteManager* getSuiteMgr(int suiteId = 0);
     void colsePzSet();
     SubjectManager* getSubjectManager(int subSys = 0);
     //SubjectManager* getSubjectManager();

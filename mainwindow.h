@@ -189,7 +189,7 @@ private slots:
     void showAndHideToolView(int vtype);
     void DockWindowVisibilityChanged(bool visible);
     void pzCountChanged(int count);
-    void rfNaveBtn();
+    void rfNaviBtn();
     void curPzChanged(PingZheng* newPz=NULL, PingZheng* oldPz=NULL);
     void baIndexBoundaryChanged(bool first, bool last);
     void baSelectChanged(QList<int> rows, bool conti);
@@ -323,7 +323,7 @@ private:
 
     void rfPzAct(bool enable);
     void rfAdvancedAct();
-    void rfEditAct();
+    void rfEditInPzAct(PingZheng *pz);
 
     /////////////////////////////
     void rfAct();

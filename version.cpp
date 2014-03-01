@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "dbutil.h"
 #include "configvariablenames.h"
+#include "subject.h"
 
 #include "ui_versionmanager.h"
 
@@ -383,11 +384,11 @@ bool VMAccount::updateTo1_3()
     emit upgradeStep(verNum,tr("将表“FSAgent”改名为“old_FSAgent”！"),VUR_OK);
 
     s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER, %3 INTEGER, "
-                "%4 varchar(5),%5 INTEGER,%6 INTEGER,%7 TimeStamp, "
-                "%8 TimeStamp NOT NULL DEFAULT (datetime('now','localtime')),%9 integer)")
-            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
-            .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_disTime)
-            .arg(fld_ssub_crtTime).arg(fld_ssub_creator);
+                "%4 INTEGER, %5 varchar(5),%6 INTEGER,%7 INTEGER,%8 TimeStamp, "
+                "%9 TimeStamp NOT NULL DEFAULT (datetime('now','localtime')),%10 integer)")
+            .arg(tbl_ssub).arg(fld_ssub_subsys).arg(fld_ssub_fid).arg(fld_ssub_nid)
+            .arg(fld_ssub_code).arg(fld_ssub_weight).arg(fld_ssub_enable)
+            .arg(fld_ssub_disTime).arg(fld_ssub_crtTime).arg(fld_ssub_creator);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在创建“%1”表时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
@@ -395,10 +396,11 @@ bool VMAccount::updateTo1_3()
     emit upgradeStep(verNum,tr("成功创建“%1”表！").arg(tbl_ssub),VUR_OK);
 
 
-    s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7) select id,fid,sid,subCode,"
+    s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7,%8) select id,%9,fid,sid,subCode,"
                 "FrequencyStat,isEnabled,1 as user from old_FSAgent")
-            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
-            .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_creator);
+            .arg(tbl_ssub).arg(fld_ssub_subsys).arg(fld_ssub_fid).arg(fld_ssub_nid)
+            .arg(fld_ssub_code).arg(fld_ssub_weight).arg(fld_ssub_enable)
+            .arg(fld_ssub_creator).arg(DEFAULT_SUBSYS_CODE);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在从表“old_FSAgent”转移数据到表“%1”时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
@@ -446,6 +448,8 @@ bool VMAccount::updateTo1_3()
     s = "drop table old_FSAgent";
     if(!q.exec(s))
         emit upgradeStep(verNum,tr("在删除表“old_FSAgent”表时发生错误!"),VUR_WARNING);
+
+
 
     //3、修改FirSubjects表，添加科目系统（subSys）字段
     emit upgradeStep(verNum,tr("第三步：修改FirSubjects表，添加科目系统（subSys）字段"),VUR_OK);
@@ -779,6 +783,8 @@ bool VMAccount::updateTo1_3()
  *  4、修改币种表，添加字段“是否是母币”，并用账户信息表中的相应记录初始化后移除
  *
  *  5、修改Busiactions表的结构，将jMoney、dMoney字段合并为value字段
+ *
+ *  6、设置常用一级科目下的默认二级科目
  * @return
  */
 bool VMAccount::updateTo1_4()
@@ -1001,6 +1007,88 @@ bool VMAccount::updateTo1_4()
         return false;
     }
     emit upgradeStep(verNum,tr("成功修改会计分录表结构！"),VUR_OK);
+
+    //6、设置常用一级科目下的默认二级科目
+    s = QString("update %1 set %2=%3 where %4=:fid and %5=:nid").arg(tbl_ssub)
+            .arg(fld_ssub_weight).arg(DEFALUT_SUB_WEIGHT).arg(fld_ssub_fid).arg(fld_ssub_nid);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("未能执行设置常用一级科目下的默认科目!"),VUR_ERROR);
+        return false;
+    }
+    //现金-本币
+    QStringList subNames;
+    QString fname,sname;
+    subNames<<"现金"<<"银行存款"<<"财务费用"<<"应交税金"<<" 主营业务收入"<<"主营业务成本"
+           <<"应付工资"<<"管理费用";
+    int nid=0,nums=0;
+    for(int i = 0; i < subNames.count(); ++i){
+        fname = subNames.at(i);
+        s = QString("select id from %1 where %2='%3'").arg(tbl_fsub)
+                .arg(fld_fsub_name).arg(fname);
+        if(!q2.exec(s) || !q2.first())
+            emit upgradeStep(verNum,tr("未能找到 %1 科目").arg(fname),VUR_ERROR);
+        fid = q2.value(0).toInt();
+        switch(i){
+        case 0:
+            sname = "人民币";
+            break;
+        case 2:
+            sname = "汇兑损益";
+            break;
+        case 3:
+            sname = "应交增值税（进项）";
+            break;
+        case 4:
+        case 5:
+            sname = "包干费等";
+            break;
+        case 6:
+            sname = "工资";
+            break;
+        case 7:
+            sname = "快件费";
+            break;
+        }
+        if(i == 1){
+            s = QString("select %1.%4 from %1 join %2 on %1.%5=%2.id join %3 on %1.%6=%3.id "
+                        "where %2.%7='true' and %3.%8=1").arg(tbl_bankAcc).arg(tbl_bank).arg(tbl_moneyType)
+                    .arg(fld_bankAcc_nameId).arg(fld_bankAcc_bankId).arg(fld_bankAcc_mt)
+                    .arg(fld_bank_isMain).arg(fld_mt_isMaster);
+            if(!q2.exec(s)){
+                emit upgradeStep(verNum,tr("在查找与基本户（本币）的银行账户对应的名称条目时发生错误!"),VUR_ERROR);
+                continue;
+            }
+            if(!q2.first()){
+                emit upgradeStep(verNum,tr("未找到与基本户（本币）的银行账户对应的名称条目!"),VUR_ERROR);
+                continue;
+            }
+            nid = q2.value(0).toInt();
+        }
+        else{
+            s = QString("select id from %1 where %2='%3'").arg(tbl_nameItem)
+                    .arg(fld_ni_name).arg(sname);
+            if(!q2.exec(s)){
+                emit upgradeStep(verNum,tr("在查找名称条目（%1）时发生错误！").arg(sname),VUR_ERROR);
+                continue;
+            }
+            if(!q2.first()){
+                emit upgradeStep(verNum,tr("未能找到名称条目（%1）！").arg(sname),VUR_ERROR);
+                continue;
+            }
+            nid = q2.value(0).toInt();
+        }
+        q.bindValue(":fid", fid);
+        q.bindValue(":nid", nid);
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("在设置%1的默认科目时发生错误!").arg(fname),VUR_ERROR);
+            continue;
+        }
+        nums = q.numRowsAffected();
+        if(nums == 0)
+            emit upgradeStep(verNum,tr("未找到%1科目下的默认科目!").arg(fname),VUR_ERROR);
+        if(nums > 1)
+            emit upgradeStep(verNum,tr("%1科目下存在多个默认科目!").arg(fname),VUR_ERROR);
+    }
 
     if(setCurVersion(1,4)){
         emit endUpgrade(verNum,tr("账户文件格式成功更新到1.4版本！"),VUR_OK);
@@ -1343,6 +1431,7 @@ bool VMAccount::updateTo1_5()
  * @brief VMAccount::updateTo1_6
  *  任务描述：
  *  1、添加配置变量表
+ *  2、清空子窗口状态信息表
  * @return
  */
 bool VMAccount::updateTo1_6()
@@ -1351,6 +1440,7 @@ bool VMAccount::updateTo1_6()
     int verNum = 106;
     emit startUpgrade(verNum,tr("开始更新到版本“1.6”..."));
 
+    //1、添加配置变量表
     emit upgradeStep(verNum,tr("创建配置变量表（%1）").arg(tbl_cfgVariable),VUR_OK);
     QString s = QString("create table %1(id integer primary key, %2 text, %3 text)")
             .arg(tbl_cfgVariable).arg(fld_cfgv_name).arg(fld_cfgv_value);
@@ -1368,7 +1458,13 @@ bool VMAccount::updateTo1_6()
 //        return false;
 //    }
 
-    endUpgrade(verNum,"",VUR_OK);
+    //2、清空子窗口状态信息表
+    s = QString("delete from %1").arg(tbl_subWinInfo);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("清空子窗口状态信息表（%1）时出错！").arg(tbl_subWinInfo),VUR_ERROR);
+        return false;
+    }
+    endUpgrade(verNum,tr("成功升级到版本1.6"),VUR_OK);
     return setCurVersion(1,6);
 }
 
@@ -1971,12 +2067,16 @@ void VersionManager::upgradeStepInform(int verNum, const QString &infos, Version
 
 void VersionManager::on_btnStart_clicked()
 {
+    int curm,curs;
+    vmObj->getCurVersion(curm,curs);
+    oldVersion = QString("%1.%2").arg(curm).arg(curs);
     ui->btnClose->setEnabled(false);
     closeBtnState = true;
     ui->btnStart->setEnabled(false);
     upgradeResult = versionMaintain();    
     ui->btnClose->setText(tr("关闭"));
     ui->btnClose->setEnabled(true);
+    ui->btnSave->setEnabled(true);
 }
 
 void VersionManager::initConf()
@@ -2041,3 +2141,35 @@ void VersionManager::on_btnClose_clicked()
 }
 
 
+//保存升级日志
+void VersionManager::on_btnSave_clicked()
+{
+    QString fname = fileName;
+    int index = fname.indexOf('.');
+    if(index != -1)
+        fname.chop(fname.length()-index);
+    int curm,curs;
+    vmObj->getCurVersion(curm,curs);
+    QString curVersion = QString("%1.%2").arg(curm).arg(curs);
+    if(mt == MT_ACC)
+        fname = QString("%1%2（从%3-%4）升级日志.log")
+                .arg(LOGS_PATH).arg(fname).arg(oldVersion).arg(curVersion);
+    else
+        fname = QString("%1基本库从（%2-%3）升级日志.log").arg(LOGS_PATH)
+                .arg(oldVersion).arg(curVersion);
+    QFile logFile(fname);
+    if(!logFile.open(QIODevice::WriteOnly | QIODevice::Text)){
+        QMessageBox::warning(this,tr("警告信息"),tr("无法将日志信息写入文件"));
+        return;
+    }
+    QTextStream ds(&logFile);
+    QList<int> vers = upgradeInfos.keys();
+    qSort(vers);
+    for(int i = 0; i < vers.count(); ++i){
+        foreach (QString info, upgradeInfos.value(vers.at(i))) {
+            ds<<info<<"\n";
+        }
+    }
+    ds.flush();
+    ui->btnSave->setEnabled(false);
+}

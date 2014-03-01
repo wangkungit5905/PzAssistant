@@ -99,6 +99,7 @@ public:
     bool isLast(){return !pzs || (curIndex == pzs->count()-1);}
 
     //返回凭证数的方法
+    void getPzCountForMonth(int m,int& repealNum, int& recordingNum, int& verifyNum, int& instatNum);
     int getPzCount();
     int getRecordingCount(){return c_recording;}
     int getVerifyCount(){return c_verify;}
@@ -161,7 +162,7 @@ private:
     void watchPz(PingZheng* pz, bool en=true);
     void cachePz(PingZheng* pz);
     bool isZbNumConflict(int num);
-    void scanPzCount();
+    void scanPzCount(int& repealNum, int& recordingNum, int& verifyNum, int& instatNum, QList<PingZheng*>* pzLst);
     void _determinePzSetState(PzsState& state);
     void _determineCurPzChanged(PingZheng* oldPz);
     bool _inspectDirEngageError(FirstSubject* fsud, MoneyDirection dir, PzClass pzc, QString& eStr);

@@ -61,7 +61,7 @@ bool AccountSuiteManager::open(int m)
     curM=m;
     suiteRecord->recentMonth = m;
     pzs = &pzSetHash[m];
-    scanPzCount();
+    scanPzCount(c_repeal,c_recording,c_verify,c_instat,pzs);
     if(!statUtil)
         statUtil = new StatUtil(pzs,this);
     //凭证集的状态以实际凭证为准
@@ -84,9 +84,7 @@ bool AccountSuiteManager::open(int m)
             maxZbNum = pz->number();
     }
     maxZbNum++;
-
-    if(!statUtil->stat())
-        return false;
+    statUtil->stat();
     if(!pzs->isEmpty()){
         PingZheng* oldPz = curPz;
         curPz = pzs->first();
@@ -838,6 +836,26 @@ bool AccountSuiteManager::seek(PingZheng *pz)
     return false;
 }
 
+/**
+ * @brief 返回指定月份凭证集内各类凭证的数目
+ * @param m             凭证集所处月份
+ * @param repealNum     作废凭证数
+ * @param recordingNum  录入凭证数
+ * @param verifyNum     审核凭证数
+ * @param instatNum     入账凭证数
+ */
+void AccountSuiteManager::getPzCountForMonth(int m, int &repealNum, int &recordingNum, int &verifyNum, int &instatNum)
+{
+    if(!pzSetHash.contains(m)){
+        repealNum=0;
+        recordingNum=0;
+        verifyNum=0;
+        instatNum=0;
+        return;
+    }
+    scanPzCount(repealNum,recordingNum,verifyNum,instatNum,&pzSetHash[m]);
+}
+
 //添加空白凭证
 PingZheng* AccountSuiteManager::appendPz(PzClass pzCls)
 {
@@ -1108,26 +1126,24 @@ bool AccountSuiteManager::isZbNumConflict(int num)
 
 /**
  * @brief PzSetMgr::scanPzCount
- *  扫描打开凭证集内各种状态的凭证数
+ *  扫描指定凭证集内各种状态的凭证数
  */
-void AccountSuiteManager::scanPzCount()
+void AccountSuiteManager::scanPzCount(int& repealNum, int& recordingNum, int& verifyNum, int& instatNum, QList<PingZheng*>* pzLst)
 {
-    if(!isOpened())
-        return;
-    c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
-    foreach(PingZheng* pz, *pzs){
+    recordingNum=0;verifyNum=0;instatNum=0;repealNum=0;
+    foreach(PingZheng* pz, *pzLst){
         switch(pz->getPzState()){
         case Pzs_Recording:
-            c_recording++;
+            recordingNum++;
             break;
         case Pzs_Verify:
-            c_verify++;
+            verifyNum++;
             break;
         case Pzs_Instat:
-            c_instat++;
+            instatNum++;
             break;
         case Pzs_Repeal:
-            c_repeal++;
+            repealNum++;
             break;
         }
     }
@@ -1146,7 +1162,7 @@ void AccountSuiteManager::_determinePzSetState(PzsState &state)
     else if(getState() == Ps_Jzed)
         state = Ps_Jzed;
     else{
-        scanPzCount();
+        scanPzCount(c_repeal,c_recording,c_verify,c_instat,pzs);
         if(c_recording > 0)
             state = Ps_Rec;
         else
@@ -1187,15 +1203,17 @@ void AccountSuiteManager::_determineCurPzChanged(PingZheng *oldPz)
  */
 bool AccountSuiteManager::_inspectDirEngageError(FirstSubject *fsub, MoneyDirection dir, PzClass pzc, QString &eStr)
 {
-    SubjectManager* sm = account->getSubjectManager(account->getCurSuite()->subSys);
+    if(!fsub)
+        return true;
+    SubjectManager* sm = account->getSubjectManager(account->getCurSuiteRecord()->subSys);
     if(pzc == Pzc_Hand){
         if(fsub->getSubClass() == SC_SY){
-            if(!fsub->getJdDir() && (dir == MDIR_J)){
-                eStr = tr("手工凭证中，收入类科目必须在贷方");
+            if(fsub->getJdDir() && (dir == MDIR_D)){
+                eStr = tr("手工凭证中，费用类科目必须在贷方");
                 return false;
             }
-            else if(fsub->getJdDir() && (dir == MDIR_D)){
-                eStr = tr("手工凭证中，费用类科目必须在借方");
+            else if(!fsub->getJdDir() && (dir == MDIR_J)){
+                eStr = tr("手工凭证中，收入类科目必须在借方");
                 return false;
             }
             else
@@ -1320,21 +1338,22 @@ bool AccountSuiteManager::remove(PingZheng *pz)
         curIndex = -1;
         maxPzNum=1;
         maxZbNum=1;
-        return true;
-    }
-    //调整移除凭证后的凭证号
-    for(int j = i;j<pzs->count();++j)
-        pzs->at(j)->setNumber(j+1);
-    if(pz->number() == pzs->count()+1){ //移除的是最后一张凭证
-        curPz = pzs->last();
-        curIndex = pzs->count()-1;
     }
     else{
-        curPz = pzs->at(i);
-        curIndex = i;
+        //调整移除凭证后的凭证号
+        for(int j = i;j<pzs->count();++j)
+            pzs->at(j)->setNumber(j+1);
+        if(pz->number() == pzs->count()+1){ //移除的是最后一张凭证
+            curPz = pzs->last();
+            curIndex = pzs->count()-1;
+        }
+        else{
+            curPz = pzs->at(i);
+            curIndex = i;
+        }
+        maxPzNum--;
+        maxZbNum--;
     }
-    maxPzNum--;
-    maxZbNum--;
     switch(pz->getPzState()){
     case Pzs_Recording:
         c_recording--;
@@ -1479,8 +1498,8 @@ bool AccountSuiteManager::savePz(PingZheng *pz)
 /**
  * @brief PzSetMgr::savePz
  *  保存打开凭证集内的所有被修改和删除的凭证
- *  对应被删除的凭证，其对象仍将保存在缓存队列（pz_saveAfterDels）中，且对象ID复位
- *  当这些被删除且已实际删除的凭证复时，将以新凭证的面目出现
+ *  对于被删除的凭证，其对象仍将保存在缓存队列（pz_saveAfterDels）中，且对象ID复位
+ *  当这些被删除且已实际删除的凭证恢复时，将以新凭证的面目出现
  * @param pzs
  * @return
  */
@@ -1556,7 +1575,7 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
         return true;
 
     //获取财务费用、及其下的汇兑损益科目id
-    SubjectManager* subMgr = account->getSubjectManager(account->getSuite(y)->subSys);
+    SubjectManager* subMgr = account->getSubjectManager(account->getSuiteRecord(y)->subSys);
     FirstSubject* cwfySub = subMgr->getCwfySub();
     SecondSubject* hdsySub = NULL;
     foreach(SecondSubject* ssub, cwfySub->getChildSubs()){
@@ -1709,7 +1728,7 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
 {
     //读取余额
     QList<int> in_sids, fei_sids; //分别是收入类和费用类损益类二级科目的id集合
-    SubjectManager* subMgr = account->getSubjectManager(account->getSuite(y)->subSys);
+    SubjectManager* subMgr = account->getSubjectManager(account->getSuiteRecord(y)->subSys);
     //QList<FirstSubject*> in_subs,fei_subs; //收入类和费用类的损益类一级科目
     //in_subs = subMgr->getSyClsSubs();
     foreach(FirstSubject* fsub, subMgr->getSyClsSubs()){

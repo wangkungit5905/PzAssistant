@@ -229,6 +229,8 @@ private:
     bool _saveExtrasForSubLst(int y,int m, const QList<int> sids, const QHash<int,Double>& pvs, const QHash<int,Double>& mvs, const QHash<int,MoneyDirection>& dirs,bool isFst = true);
     //
     int _genKeyForExtraPoint(int y, int m, int mt);
+    bool _isTransformExtra(int y, bool& isTrans, QHash<int, int> &fMaps, QHash<int, int> &sMaps);
+    bool _transformExtra(QHash<int,int> maps, QHash<int,Double>& ExtrasP, QHash<int,Double>& extrasM, QHash<int,MoneyDirection>& dirs);
 
     //表格创建函数
     void crtGdzcTable();

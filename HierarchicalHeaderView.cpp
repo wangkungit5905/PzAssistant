@@ -29,100 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <QPainter>
 #include <QAbstractItemModel>
 
-ProxyModelWithHeaderModels::ProxyModelWithHeaderModels(QObject* parent)
-    : QAbstractProxyModel(parent)
-{}
 
-QVariant ProxyModelWithHeaderModels::data(const QModelIndex& index, int role) const
-{
-    //请求水平表头数据
-    if(_horizontalHeaderModel && role==HierarchicalHeaderView::HorizontalHeaderDataRole)
-    {
-        QVariant v;
-        v.setValue((QObject*)_horizontalHeaderModel.data());
-        return v;
-    }
-    //请求垂直表头数据
-    if(_verticalHeaderModel && role==HierarchicalHeaderView::VerticalHeaderDataRole)
-    {
-        QVariant v;
-        v.setValue((QObject*)_verticalHeaderModel.data());
-        return v;
-    }
-    //如果不是请求行列标题数据，则返回数据模型的对应数据
-    //return QAbstractProxyModel::data(index, role);
-    return sourceModel()->data(index, role);
-}
-
-//设置水平表头数据模型
-void ProxyModelWithHeaderModels::setHorizontalHeaderModel(QAbstractItemModel* headerModel)
-{
-    _horizontalHeaderModel=headerModel;
-    //int cnt=model()->columnCount();
-    int cnt=columnCount(QModelIndex());
-    if(cnt)
-        emit headerDataChanged(Qt::Horizontal, 0, cnt-1);
-}
-
-QAbstractItemModel* ProxyModelWithHeaderModels::getHorizontalHeaderModel()
-{
-    return _horizontalHeaderModel;
-}
-
-//设置垂直表头数据模型
-void ProxyModelWithHeaderModels::setVerticalHeaderModel(QAbstractItemModel* headerModel)
-{
-    _verticalHeaderModel=headerModel;
-    //int cnt=model()->rowCount();
-    int cnt=rowCount();
-    if(cnt)
-        emit headerDataChanged(Qt::Vertical, 0, cnt-1);
-}
-
-QAbstractItemModel* ProxyModelWithHeaderModels::getVerticalHeaderModel()
-{
-    return _verticalHeaderModel;
-}
-
-//I added
-int ProxyModelWithHeaderModels::columnCount(const QModelIndex &parent) const
-{
-    if(_horizontalHeaderModel)
-        return _horizontalHeaderModel->columnCount(parent);
-    if(_verticalHeaderModel)
-        return _verticalHeaderModel->columnCount(parent);
-}
-
-//I added
-int ProxyModelWithHeaderModels::rowCount(const QModelIndex &parent) const
-{
-//    if(_horizontalHeaderModel)
-//        return _horizontalHeaderModel->rowCount(parent);
-//    if(_verticalHeaderModel)
-//        return _verticalHeaderModel->rowCount(parent);
-    return sourceModel()->rowCount(parent);
-}
-
-QModelIndex ProxyModelWithHeaderModels::index(int row, int column, const QModelIndex &parent) const
-{
-    return sourceModel()->index(row,column,parent);
-    //return createIndex(row, column, quintptr(-1));
-}
-
-QModelIndex ProxyModelWithHeaderModels::parent(const QModelIndex &index) const
-{
-    return QModelIndex();
-}
-
-QModelIndex ProxyModelWithHeaderModels::mapFromSource(const QModelIndex &sourceIndex) const
-{
-    return sourceIndex;
-}
-
-QModelIndex ProxyModelWithHeaderModels::mapToSource(const QModelIndex &proxyIndex) const
-{
-    return proxyIndex;
-}
 
 class HierarchicalHeaderView::private_data
 {
@@ -611,4 +518,35 @@ void HierarchicalHeaderView::setModel(QAbstractItemModel* model)
     int cnt=(orientation()==Qt::Horizontal ? model->columnCount() : model->rowCount());
     if(cnt)
         initializeSections(0, cnt-1);
+}
+
+//////////////////////////////MyWithHeaderModels///////////////////////////////////
+MyWithHeaderModels::MyWithHeaderModels(QObject *parent):QStandardItemModel(parent)
+{}
+
+QVariant MyWithHeaderModels::data(const QModelIndex &index, int role) const
+{
+    //请求水平表头数据
+    if(_horizontalHeaderModel && role==HierarchicalHeaderView::HorizontalHeaderDataRole)
+    {
+        QVariant v;
+        v.setValue((QObject*)_horizontalHeaderModel.data());
+        return v;
+    }
+    //如果不是请求行列标题数据，则返回数据模型的对应数据
+    return QStandardItemModel::data(index, role);
+}
+
+void MyWithHeaderModels::setHorizontalHeaderModel(QAbstractItemModel *model)
+{
+    _horizontalHeaderModel=model;
+    int cnt=columnCount();
+    //int cnt=columnCount(QModelIndex());
+    if(cnt)
+        emit headerDataChanged(Qt::Horizontal, 0, cnt-1);
+}
+
+QAbstractItemModel *MyWithHeaderModels::getHorizontalHeaderModel()
+{
+    return _horizontalHeaderModel;
 }

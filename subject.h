@@ -58,7 +58,7 @@ public:
     virtual void setDelete(bool isDeleted)=0;
     virtual bool isDelete()=0;
 };
-
+Q_DECLARE_METATYPE(SubjectBase*)
 
 
 

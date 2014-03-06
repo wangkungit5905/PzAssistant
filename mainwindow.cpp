@@ -3418,6 +3418,8 @@ void MainWindow::on_actViewLog_triggered()
 }
 
 //#include <QToolTip>
+#include "widgets/subjectselectorcombobox.h"
+#include "testform.h"
 bool MainWindow::impTestDatas()
 {
 //    SubjectManager* subMgr = curAccount->getSubjectManager();
@@ -3482,6 +3484,22 @@ bool MainWindow::impTestDatas()
 //        ds<<s<<"\n";
 //    }
 //    ds.flush();
+
+//    QDialog dlg(this);
+//    SubjectManager* subMgr = curAccount->getSubjectManager(1);
+//    //SubjectSelectorComboBox cmb(subMgr,subMgr->getFstSubject("1131"),
+//    //                            SubjectSelectorComboBox::SC_SND,&dlg);
+//    SubjectSelectorComboBox cmb(subMgr,subMgr->getFstSubject("1002"),
+//                                SubjectSelectorComboBox::SC_FST,&dlg);
+
+//    QHBoxLayout* l = new QHBoxLayout;
+//    l->addWidget(&cmb);
+//    dlg.setLayout(l);
+//    dlg.resize(300,200);
+//    dlg.exec();
+
+    TestForm form(this);
+    form.exec();
     int i = 0;
 }
 

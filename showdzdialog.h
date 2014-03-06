@@ -61,7 +61,7 @@ private slots:
     void moveTo();
     void colWidthChanged(int logicalIndex, int oldSize, int newSize);
     void paging(int rowsInTable, int& pageNum);
-    void renPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels& pdModel);
+    void renPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels* pdModel);
     //void priorPaging(bool out, int pages);
 
     void on_actPrint_triggered();

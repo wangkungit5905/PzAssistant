@@ -32,16 +32,12 @@ public:
     //的表格视图对象（QTableView）提供。根据页面类型的不同，该表格视图可能使用不同的数据模型
     //和表头结构。对于COMMON类型，其表头使用标准表头（QHeadView），数据使用标准的模型
     //（QStandardItemModel），除此之外的页面类型，使用了层次式表头（HierarchicalHeaderView）
-    //数据源使用了复合代理模型（ProxyModelWithHeaderModels），此复合模型内，包含了表示表头
+    //数据源使用了复合代理模型（MyWithHeaderModels），此复合模型内，包含了表示表头
     //的数据模型和表格内容的数据模型
-
-
 
     explicit PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pageType,
                            QPrinter* printer, bool outPaging = false, QWidget *parent = 0);
     ~PreviewDialog();
-    //void setPaging(PagingFun pagingFun);
-    //void setPagedData(QStandardItemModel* model);
     virtual void print();
     virtual int exec();
     virtual void exportPdf(const QString &filename);
@@ -70,7 +66,7 @@ signals:
      * @param colWidths 列宽
      * @param pdModel   表格数据模型（附带表头数据模型）
      */
-    void reqPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels& pdModel);
+    void reqPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels* pdModel);
 
 
 
@@ -101,11 +97,9 @@ private:
     QPrinter *printer;
     QGraphicsScene pageScene;
 
-    QStandardItemModel *dataModel;      //用于保存所有分页前的原始表格数据
+    QStandardItemModel* dataModel;      //用于保存所有分页前的原始表格数据
     QAbstractItemModel* headerModel;    //表头数据模型（自理分页用）
-
-    //QStandardItemModel oHeaderModel;    //表头数据模型（外部分页用）
-    MyWithHeaderModels oPageModel;      //用于保存每页中的表格数据的模型（外部分页用）
+    MyWithHeaderModels* pageModel;      //用于保存每个打印页中表格的数据模型
 
     QStringList headDatas;              //当打印通用表格时，可以用来保存表头数据
 
@@ -117,6 +111,7 @@ private:
     QGraphicsRectItem* pageBack;  //页面的背景矩形
     bool isPreview;    //当前打印任务是否是预览
     bool outPaging;    //是否由外部进行分页处理
+    QList<int>* colWidths;
 };
 
 #endif // PREVIEWDIALOG_H

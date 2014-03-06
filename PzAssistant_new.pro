@@ -64,7 +64,9 @@ SOURCES += main.cpp\
     suiteswitchpanel.cpp \
     databaseaccessform.cpp \
     transfers.cpp \
-    showdzdialog.cpp
+    showdzdialog.cpp \
+    widgets/subjectselectorcombobox.cpp \
+    testform.cpp
 
 HEADERS  += \
     connection.h \
@@ -125,7 +127,9 @@ HEADERS  += \
     databaseaccessform.h \
     keysequence.h \
     transfers.h \
-    showdzdialog.h
+    showdzdialog.h \
+    widgets/subjectselectorcombobox.h \
+    testform.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -177,7 +181,8 @@ FORMS    += \
     forms/databaseaccessform.ui \
     forms/apcdata.ui \
     forms/transferoutdialog.ui \
-    forms/transferindialog.ui
+    forms/transferindialog.ui \
+    forms/testform.ui
 
 RESOURCES += \
     imgers.qrc \

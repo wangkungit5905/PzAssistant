@@ -408,6 +408,7 @@ void ShowDZDialog::onSelSndSub(int index)
     if(curFSub && !curFSub->isUseForeignMoney()){
         v.setValue<Money*>(mmtObj);
         ui->cmbMt->addItem(mmtObj->name(),v);
+        curMt = mmtObj;
     }
     //如果是银行子科目，则根据子科目名的币名后缀,自动设置对应币种
     else if(curSSub && (curFSub->getId() == smg->getBankSub()->getId())){
@@ -418,9 +419,8 @@ void ShowDZDialog::onSelSndSub(int index)
         while(it.hasNext()){
             it.next();
             if(name == it.value()->name()){
-                curMt = it.value();
-                v.setValue<Money*>(curMt);
-                ui->cmbMt->addItem(curMt->name(),v);
+                v.setValue<Money*>(it.value());
+                ui->cmbMt->addItem(it.value()->name(),v);
                 break;
             }
         }
@@ -435,22 +435,19 @@ void ShowDZDialog::onSelSndSub(int index)
             v.setValue<Money*>(mt);
             ui->cmbMt->addItem(mt->name(),v);
         }
+        curMt=0;
     }
     int curIndex;
-    if(curFilter->curMt == 0){
+    if(curMt == 0){
         curIndex = 0;
-        //ui->cmbMt->setCurrentIndex(0);
-        //onSelMt(0);
     }
     else{
-        v.setValue<Money*>(allMts.value(curFilter->curMt));
+        v.setValue<Money*>(curMt);
         int index = ui->cmbMt->findData(v,Qt::UserRole);
         if(index == -1)
             curIndex = 0;
-            //onSelMt(0);
         else
             curIndex = index;
-            //onSelMt(index);
     }
     ui->cmbMt->setCurrentIndex(curIndex);
     onSelMt(curIndex);
@@ -2200,7 +2197,7 @@ void ShowDZDialog::paging(int rowsInTable, int& pageNum)
  * @param pdModel   表格数据
  * @param phModel   表头数据
  */
-void ShowDZDialog::renPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels &pdModel)
+void ShowDZDialog::renPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels* pdModel)
 {
     if(pageNum > pageTfs.count())
         return;
@@ -2224,7 +2221,7 @@ void ShowDZDialog::renPageData(int pageNum, QList<int>*& colWidths, MyWithHeader
         genThForThreeRail(hmodel);
         break;
     }
-    colWidths = &this->colWidths[pageTfs[pageNum-1]];
+    colWidths = &this->colPrtWidths[pageTfs[pageNum-1]];
 
     //从pdatas列表中提取属于指定页的行数据
     int start,end;
@@ -2253,10 +2250,10 @@ void ShowDZDialog::renPageData(int pageNum, QList<int>*& colWidths, MyWithHeader
                 item = NULL;
             l<<item;
         }
-        pdModel.appendRow(l);
+        pdModel->appendRow(l);
         l.clear();
     }
-    pdModel.setHorizontalHeaderModel(hmodel);
+    pdModel->setHorizontalHeaderModel(hmodel);
     //处理其他页面数据
     QString s;
     if((pfids[pageNum-1] == smg->getCashSub()->getId()) ||
@@ -2349,8 +2346,8 @@ void ShowDZDialog::printCommon(QPrinter* printer)
         preview = new PreviewDialog(pt,DETAILPAGE,printer,true);
         connect(preview,SIGNAL(reqPaging(int,int&)),
                 this,SLOT(paging(int,int&)));
-        connect(preview,SIGNAL(reqPageData(int,QList<int>*&,MyWithHeaderModels&)),
-                this,SLOT(renPageData(int,QList<int>*&,MyWithHeaderModels&)));
+        connect(preview,SIGNAL(reqPageData(int,QList<int>*&,MyWithHeaderModels*)),
+                this,SLOT(renPageData(int,QList<int>*&,MyWithHeaderModels*)));
     }
     else
         preview = new PreviewDialog(pt,DETAILPAGE,printer);

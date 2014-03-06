@@ -185,11 +185,6 @@
     </property>
     <addaction name="actAbout"/>
    </widget>
-   <widget class="QMenu" name="mnuOption">
-    <property name="title">
-     <string>选项</string>
-    </property>
-   </widget>
    <widget class="QMenu" name="mnuWindow">
     <property name="title">
      <string>窗口</string>
@@ -214,7 +209,6 @@
    <addaction name="menuEdit"/>
    <addaction name="mnuData"/>
    <addaction name="mnuAccPrcess"/>
-   <addaction name="mnuOption"/>
    <addaction name="mnuTool"/>
    <addaction name="mnuView"/>
    <addaction name="mnuWindow"/>

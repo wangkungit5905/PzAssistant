@@ -71,6 +71,7 @@ public:
     virtual void setPageNum(QString strNum) = 0; //设置页号
     virtual PrintPageType getPageType() = 0;     //返回打印页的类型
     virtual void setColWidth(QList<int>* colWidths) = 0;  //设置列宽
+    virtual QList<int>* getColWidths() = 0;     //返回列宽
     //virtual void setPageOrientation(QPrinter::Orientation pageOri) = 0;
     //virtual QPrinter::Orientation getPageOrientation() = 0;
 
@@ -95,6 +96,7 @@ public:
     PrintPageType getPageType();
     void setPageNum(QString strNum);
     void setColWidth(QList<int>* colWidths);
+    QList<int>* getColWidths(){return colWidths;}
 
     void setMasteMt(QString mtName);
     void setDateRange(int y, int sm, int em);
@@ -133,6 +135,7 @@ public:
     PrintPageType getPageType();
     void setPageNum(QString strNum);
     void setColWidth(QList<int>* colWidths);
+    QList<int>* getColWidths(){return 0;}
 
     void setMasteMt(QString mtName);
     void setSubName(QString subName);
@@ -168,6 +171,7 @@ public:
     PrintPageType getPageType();
     void setPageNum(QString strNum);
     void setColWidth(QList<int>* colWidths);
+    QList<int>* getColWidths(){return 0;}
 
     void setAccountName(QString name);
     void setCreator(QString name);
@@ -198,6 +202,7 @@ public:
     PrintPageType getPageType();
     void setPageNum(QString strNum);
     void setColWidth(QList<int>* colWidths);
+    QList<int>* getColWidths(){return 0;}
 
     void setDate(int y, int m);
 
@@ -225,6 +230,7 @@ public:
     PrintPageType getPageType();
     void setPageNum(QString strNum);
     void setColWidth(QList<int>* colWidths);
+    QList<int>* getColWidths(){return 0;}
 
     void setDate(int y, int m);
 

@@ -21,9 +21,11 @@ PreviewDialog::PreviewDialog(PrintTemplateBase* templateWidget, PrintPageType pa
 {
     dataModel = NULL;
     headerModel = NULL;
+    pageModel = NULL;
     this->outPaging = outPaging;
     this->pageType = pageType;
     tWidget = templateWidget;
+    colWidths = tWidget->getColWidths();
     tv = tWidget->findChild<QTableView*>("tview");
 
     if(pageType != COMMONPAGE){
@@ -167,10 +169,16 @@ void PreviewDialog::paintPage(int pagenum)
     QString pageNumber = QString("%1/%2").arg(pagenum).arg(pages);
 
     //为当前打印页表格创建一个新的数据源
-    oPageModel.clear();
+    if(pageModel){
+        if(outPaging)
+            delete pageModel->getHorizontalHeaderModel();
+        delete pageModel;
+    }
+    pageModel = new MyWithHeaderModels(this);
     if(outPaging) //如果由外部进行分页，则从调用方请求页面表格数据
-        emit reqPageData(pagenum,colWidths,oPageModel);
+        emit reqPageData(pagenum,colWidths,pageModel);
     else{ //由预览框自己进行分页处理
+        colWidths = this->colWidths;
         //确定起始边界
         int start,end;
         if(pagenum == 1)
@@ -181,11 +189,12 @@ void PreviewDialog::paintPage(int pagenum)
         if(end > dataModel->rowCount())
             end = dataModel->rowCount();
 
+
         //装载数据
         QList<QStandardItem*> l;
         QStandardItem* item;
         Qt::Alignment align;
-        int cols = oPageModel.columnCount();
+        int cols = dataModel->columnCount();
         for(int i = start; i < end; ++i){
             for(int j = 0; j < cols; ++j){
                 item = dataModel->item(i,j);
@@ -199,34 +208,22 @@ void PreviewDialog::paintPage(int pagenum)
                     item = NULL;
                 l<<item;
             }
-            oPageModel.appendRow(l);
+            pageModel->appendRow(l);
             l.clear();
         }
+        pageModel->setHorizontalHeaderModel(headerModel);
     }
 
-    //将数据模型附加到表格视图
-    if(pageType != COMMONPAGE){
-        //构造复合模型
-        //oPageModel.setHorizontalHeaderModel(headerModel);
-        if(outPaging)
-            tWidget->setColWidth(colWidths);
-    }
-    else{
+    if(pageType == COMMONPAGE){
         if(!outPaging){ //如果由预览框自己处理分页，则必须重新设置表头内容
-            oPageModel.setHorizontalHeaderLabels(headDatas);
+            pageModel->setHorizontalHeaderLabels(headDatas);
         }
     }
-    tv->setModel(&oPageModel);
-    if(outPaging){
-        for(int i = 0; i < oPageModel.columnCount(); ++i)
-            tv->setColumnWidth(i,colWidths->value(i));
-        for(int i = 0; i < oPageModel.rowCount(); ++i)
-            tv->setRowHeight(i,rowHeight);
-    }
-    else{
-        for(int i = 0; i < oPageModel.rowCount(); ++i)
-            tv->setRowHeight(i,rowHeight);
-    }
+    tv->setModel(pageModel);
+    for(int i = 0; i < pageModel->columnCount(); ++i)
+        tv->setColumnWidth(i,colWidths->value(i));
+    for(int i = 0; i < pageModel->rowCount(); ++i)
+        tv->setRowHeight(i,rowHeight);
     if(!outPaging)
         tWidget->setPageNum(pageNumber);
 }

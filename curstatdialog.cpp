@@ -43,10 +43,10 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     mnuPrint->addAction(ui->actToExcel);
     ui->btnPrt->setMenu(mnuPrint);
 
-    fcom = new SubjectComplete;
-    scom = new SubjectComplete(SndSubject);
-    ui->cmbFstSub->setCompleter(fcom);
-    ui->cmbSndSub->setCompleter(scom);
+    //fcom = new SubjectComplete;
+    //scom = new SubjectComplete(SndSubject);
+    //ui->cmbFstSub->setCompleter(fcom);
+    //ui->cmbSndSub->setCompleter(scom);
 
     setState(sinfo);
     stat();
@@ -190,7 +190,7 @@ void CurStatDialog::setState(QByteArray *info)
         ui->rdoJe->setChecked(false);
 
     ui->chkIsDet->setChecked(stateInfo.viewDetails);
-    ui->cmbSndSub->setEnabled(stateInfo.viewDetails);
+    //ui->cmbSndSub->setEnabled(stateInfo.viewDetails);
 
     connect(ui->rdoJe,SIGNAL(toggled(bool)),this,SLOT(onTableFormatChanged(bool)));
     connect(ui->chkIsDet,SIGNAL(toggled(bool)),this,SLOT(onDetViewChanged(bool)));
@@ -296,6 +296,7 @@ void CurStatDialog::colWidthChanged(int logicalIndex, int oldSize, int newSize)
 void CurStatDialog::onSelFstSub(int index)
 {
     fsub = ui->cmbFstSub->itemData(index).value<FirstSubject*>();
+    //fsub = ui->cmbFstSub->getFirstSubject();
     disconnect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     if(index == 0){
         ui->cmbSndSub->clear();
@@ -304,14 +305,15 @@ void CurStatDialog::onSelFstSub(int index)
     }
     else{
         ui->cmbSndSub->setEnabled(true);
-        ui->cmbSndSub->clear();
-        ui->cmbSndSub->addItem(tr("所有"),0);
-        QVariant v;
-        foreach(SecondSubject* sub, fsub->getChildSubs()){
-            v.setValue<SecondSubject*>(sub);
-            ui->cmbSndSub->addItem(sub->getName(),v);
-        }
-        scom->setPid(fsub->getId());
+        ui->cmbSndSub->setFirstSubject(fsub);
+        //ui->cmbSndSub->clear();
+        ui->cmbSndSub->insertItem(0,tr("所有"),0);
+        //QVariant v;
+        //foreach(SecondSubject* sub, fsub->getChildSubs()){
+        //    v.setValue<SecondSubject*>(sub);
+        //    ui->cmbSndSub->addItem(sub->getName(),v);
+        //}
+        //scom->setPid(fsub->getId());
     }
     ssub = NULL;
     connect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
@@ -359,6 +361,12 @@ void CurStatDialog::init(Account *acc)
 {
     account = statUtil->getAccount();
     smg = account->getSubjectManager();
+    ui->cmbFstSub->setSubjectManager(smg);
+    ui->cmbFstSub->setSubjectClass();
+    ui->cmbFstSub->insertItem(0,tr("所有"));
+    ui->cmbSndSub->setSubjectManager(smg);
+    ui->cmbSndSub->setSubjectClass(SubjectSelectorComboBox::SC_SND);
+
     //初始化货币代码列表，并使它们以一致的顺序显示
     mts = account->getAllMoneys().keys();
     mts.removeOne(account->getMasterMt()->code());
@@ -370,23 +378,23 @@ void CurStatDialog::init(Account *acc)
     disconnect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int))
             ,this, SLOT(colWidthChanged(int,int,int)));
 
-    ui->cmbFstSub->clear();
-    ui->cmbFstSub->addItem(tr("所有"),0);
-    FSubItrator* fsubIt = smg->getFstSubItrator();
-    QVariant v;
-    while(fsubIt->hasNext()){
-        fsubIt->next();
-        v.setValue<FirstSubject*>(fsubIt->value());
-        ui->cmbFstSub->addItem(fsubIt->value()->getName(),v);
-    }
-    ui->cmbSndSub->clear();
+    //ui->cmbFstSub->clear();
+    //ui->cmbFstSub->addItem(tr("所有"),0);
+    //FSubItrator* fsubIt = smg->getFstSubItrator();
+    //QVariant v;
+    //while(fsubIt->hasNext()){
+    //    fsubIt->next();
+    //    v.setValue<FirstSubject*>(fsubIt->value());
+    //    ui->cmbFstSub->addItem(fsubIt->value()->getName(),v);
+    //}
+    //ui->cmbSndSub->clear();
     ui->cmbSndSub->addItem(tr("所有"),0);
     fsub = NULL; ssub = NULL;
 
 
     ui->lbly->setText(QString::number(statUtil->year()));
     ui->lblm->setText(QString::number(statUtil->month()));
-
+    ui->cmbFstSub->setCurrentIndex(0);
     connect(ui->cmbFstSub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelFstSub(int)));
     connect(ui->cmbSndSub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int))

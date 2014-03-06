@@ -286,6 +286,7 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAnd
 {
     QTableWidgetItem* ti;
     ti = new QTableWidgetItem(tr("%1月").arg(m));
+    ti->setFlags(Qt::NoItemFlags|Qt::ItemIsEnabled);
     tw->setItem(row,COL_MONTH,ti);
     QToolButton* btn = new QToolButton(this);
     //btn->setIcon(QIcon(":/images/open.png"));

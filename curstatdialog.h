@@ -131,7 +131,7 @@ private:
 
     QMenu* mnuPrint; //附加在打印按钮上的菜单
 
-    SubjectComplete *fcom, *scom;  //一二级科目选择框使用的完成器
+    //SubjectComplete *fcom, *scom;  //一二级科目选择框使用的完成器
     FirstSubject* fsub;     //当前选择的一二级科目对象
     SecondSubject* ssub;
     bool isCanSave; //是否可以保存余额（基于当前的凭证集状态）

@@ -234,12 +234,16 @@ void PrintTemplateDz::setPageNum(QString strNum)
     ui->lblPageNum->setText(strNum);
 }
 
-//设置列宽（此函数在在打印指定范围的明细帐时，因为由打印预览对象的外部提供页面数据，而外部、
+//设置列宽（此函数在打印指定范围的明细帐时，因为由打印预览对象的外部提供页面数据，而外部、
 //的数据提供者会根据科目和币种自动选择所使用的表格格式，因此，模板类必须知道当前的表格格式
 //以对用户改变列宽作成响应）
 void PrintTemplateDz::setColWidth(QList<int>* colWidths)
 {
+    if(ui->tview->colorCount() != colWidths->count())
+        return;
     this->colWidths = colWidths;
+    for(int i = 0; i < colWidths->count(); ++i)
+        ui->tview->setColumnWidth(i,colWidths->at(i));
 }
 
 //设置打印页标题

@@ -75,7 +75,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="cmbFstSub">
+        <widget class="SubjectSelectorComboBox" name="cmbFstSub">
          <property name="editable">
           <bool>true</bool>
          </property>
@@ -92,7 +92,7 @@
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="cmbSndSub">
+        <widget class="SubjectSelectorComboBox" name="cmbSndSub">
          <property name="enabled">
           <bool>true</bool>
          </property>
@@ -309,6 +309,13 @@
    </property>
   </action>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>SubjectSelectorComboBox</class>
+   <extends>QComboBox</extends>
+   <header>widgets/subjectselectorcombobox.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

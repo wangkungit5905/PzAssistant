@@ -42,6 +42,7 @@ class MyWithHeaderModels : public QStandardItemModel{
   Q_OBJECT
 public:
     MyWithHeaderModels(QObject* parent = 0);
+    //~MyWithHeaderModels();
     QVariant data(const QModelIndex& index, int role=Qt::DisplayRole) const;
     void setHorizontalHeaderModel(QAbstractItemModel* model);
     QAbstractItemModel* getHorizontalHeaderModel();

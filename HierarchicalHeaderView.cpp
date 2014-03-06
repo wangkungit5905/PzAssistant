@@ -524,6 +524,12 @@ void HierarchicalHeaderView::setModel(QAbstractItemModel* model)
 MyWithHeaderModels::MyWithHeaderModels(QObject *parent):QStandardItemModel(parent)
 {}
 
+//MyWithHeaderModels::~MyWithHeaderModels()
+//{
+//    if(_horizontalHeaderModel)
+//        delete _horizontalHeaderModel;
+//}
+
 QVariant MyWithHeaderModels::data(const QModelIndex &index, int role) const
 {
     //请求水平表头数据

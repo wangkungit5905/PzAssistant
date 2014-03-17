@@ -12,7 +12,7 @@
 #include "previewdialog.h"
 
 CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *parent)
-    :QDialog(parent),ui(new Ui::CurStatDialog),statUtil(statUtil)
+    :DialogWithPrint(parent),ui(new Ui::CurStatDialog),statUtil(statUtil)
 {
     ui->setupUi(this);
     init(account);
@@ -35,19 +35,6 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     hv->setSectionsClickable(true);
     //hv->setStyleSheet("QHeaderView::section {background-color:darkcyan;}");
     ui->tview->setHorizontalHeader(hv);
-    //添加按钮菜单
-    mnuPrint = new QMenu;
-    mnuPrint->addAction(ui->actPrint);
-    mnuPrint->addAction(ui->actPreview);
-    mnuPrint->addAction((ui->actToPDF));
-    mnuPrint->addAction(ui->actToExcel);
-    ui->btnPrt->setMenu(mnuPrint);
-
-    //fcom = new SubjectComplete;
-    //scom = new SubjectComplete(SndSubject);
-    //ui->cmbFstSub->setCompleter(fcom);
-    //ui->cmbSndSub->setCompleter(scom);
-
     setState(sinfo);
     stat();
 }
@@ -260,12 +247,31 @@ void CurStatDialog::stat()
 }
 
 /**
+ * @brief 打印统计表格
+ * @param action
+ */
+void CurStatDialog::print(PrintActionClass action)
+{
+    switch (action) {
+    case PAC_TOPRINTER:
+        on_actPrint_triggered();
+        break;
+    case PAC_PREVIEW:
+        on_actPreview_triggered();
+        break;
+    case PAC_TOPDF:
+        on_actToPDF_triggered();
+        break;
+    }
+}
+
+/**
  * @brief CurStatDialog::save
  *  保存当前余额数据到数据库中
  */
 void CurStatDialog::save()
 {
-    if(curAccount->getReadOnly())
+    if(curAccount->isReadOnly())
         return;
     if(!statUtil->save()){
         QMessageBox::critical(this,tr("错误提示"),tr("保存余额时，发生错误！"));
@@ -565,7 +571,7 @@ void CurStatDialog::viewTable()
             ,this, SLOT(colWidthChanged(int,int,int)));
 
     //决定保存按钮的启用状态
-    if(account->getReadOnly()){
+    if(account->isReadOnly()){
         ui->btnSave->setEnabled(false);
         return;
     }

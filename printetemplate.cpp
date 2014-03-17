@@ -427,7 +427,7 @@ void PrintTemplateStat::setPageNum(QString strNum)
 
 void PrintTemplateStat::setColWidth(QList<int>* colWidths)
 {
-
+    this->colWidths = colWidths;
 }
 
 void PrintTemplateStat::setAccountName(QString name)

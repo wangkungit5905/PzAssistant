@@ -10,6 +10,7 @@
 #include "tables.h"
 #include "version.h"
 #include "transfers.h"
+#include "globalVarNames.h"
 
 QSettings* AppConfig::appIni;
 AppConfig* AppConfig::instance = 0;
@@ -189,23 +190,23 @@ bool AppConfig::getConfigVar(QString name, int type)
 //初始化全局配置变量
 bool AppConfig::initGlobalVar()
 {
-    if(!getConVar("recentLoginUser", recentUserId))
+    if(!getConVar(GVN_RECENT_LOGIN_USER, recentUserId))
         recentUserId = 1;
-    if(!getConVar("isCollapseJz",isCollapseJz))
+    if(!getConVar(GVN_IS_COLLAPSE_JZ,isCollapseJz))
         isCollapseJz = true;
-    if(!getConVar("isByMtForOppoBa", isByMt))
+    if(!getConVar(GVN_IS_BY_MT_FOR_OPPO_BA, isByMt))
         isByMt = false;
-    if(!getConVar("autoSaveInterval",autoSaveInterval))
+    if(!getConVar(GVN_AUTOSAVE_INTERVAL,autoSaveInterval))
         autoSaveInterval = 600000;
-    if(!getConVar("jzlrByYear", jzlrByYear))
+    if(!getConVar(GVN_JZLR_BY_YEAR, jzlrByYear))
         jzlrByYear = true;
-    if(!getConVar("viewHideColInDailyAcc1", viewHideColInDailyAcc1))
+    if(!getConVar(GVN_VIEWORHIDE_COL_IN_DAILY_1, viewHideColInDailyAcc1))
         viewHideColInDailyAcc1 = false;
-    if(!getConVar("viewHideColInDailyAcc2", viewHideColInDailyAcc2))
+    if(!getConVar(GVN_VIEWORHIDE_COL_IN_DAILY_2, viewHideColInDailyAcc2))
         viewHideColInDailyAcc2 = false;
-    if(!getConVar("canZhiRate", czRate))
+    if(!getConVar(GVN_GDZC_CZ_RATE, czRate))
         czRate = 0;
-    if(!getConVar("rt_update_extra", rt_update_extra))
+    if(!getConVar(GVN_IS_RUNTIMNE_UPDATE_EXTRA, rt_update_extra))
         rt_update_extra = true;
 }
 
@@ -213,17 +214,14 @@ bool AppConfig::initGlobalVar()
 bool AppConfig::saveGlobalVar()
 {
     bool r;
-    //r = setConVar("RecentOpenAccId", curAccountId);
-    setConVar("recentLoginUser", recentUserId);
-    r = setConVar("isCollapseJz", isCollapseJz);
-    r = setConVar("isByMtForOppoBa", isByMt);
-    r = setConVar("autoSaveInterval", autoSaveInterval);
-    r = setConVar("zlrByYear", autoSaveInterval);
-    r = setConVar("viewHideColInDailyAcc1", viewHideColInDailyAcc1);
-    r = setConVar("viewHideColInDailyAcc2", viewHideColInDailyAcc2);
-    r = setConVar("rt_update_extra", rt_update_extra);
-    //r = setConVar("viewHideColInDailyAcc1", false);
-    //r = setConVar("viewHideColInDailyAcc2", false);
+    setConVar(GVN_RECENT_LOGIN_USER, recentUserId);
+    r = setConVar(GVN_IS_COLLAPSE_JZ, isCollapseJz);
+    r = setConVar(GVN_IS_BY_MT_FOR_OPPO_BA, isByMt);
+    r = setConVar(GVN_AUTOSAVE_INTERVAL, autoSaveInterval);
+    r = setConVar(GVN_JZLR_BY_YEAR, autoSaveInterval);
+    r = setConVar(GVN_VIEWORHIDE_COL_IN_DAILY_1, viewHideColInDailyAcc1);
+    r = setConVar(GVN_VIEWORHIDE_COL_IN_DAILY_2, viewHideColInDailyAcc2);
+    r = setConVar(GVN_IS_RUNTIMNE_UPDATE_EXTRA, rt_update_extra);
     return r;
 }
 
@@ -492,6 +490,22 @@ void AppConfig::setRecentOpenAccount(QString code)
             item->lastOpened = false;
     }
     saveAllAccountCaches();
+}
+
+/**
+ * @brief 清除最近打开账户的标志
+ */
+void AppConfig::clearRecentOpenAccount()
+{
+    if(!init_accCache)
+        return;
+    foreach(AccountCacheItem* item,accountCaches){
+        if(item->lastOpened){
+            item->lastOpened = false;
+            _saveAccountCacheItem(item);
+            return;
+        }
+    }
 }
 
 /**

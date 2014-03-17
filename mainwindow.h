@@ -95,8 +95,9 @@ public:
 private slots:
     void subWindowClosed(MyMdiSubWindow *subWin);
 
-//signals:
+signals:
 //    void saveSubWinState(subWindowType winType,QByteArray* state,SubWindowDim* dim);
+    void specSubWinClosed(subWindowType winType);
 
 private:
     int groupId;
@@ -189,7 +190,7 @@ private slots:
     void showAndHideToolView(int vtype);
     void DockWindowVisibilityChanged(bool visible);
     void pzCountChanged(int count);
-    void rfNaviBtn();
+    //void rfNaviBtn();
     void curPzChanged(PingZheng* newPz=NULL, PingZheng* oldPz=NULL);
     void baIndexBoundaryChanged(bool first, bool last);
     void baSelectChanged(QList<int> rows, bool conti);
@@ -202,6 +203,9 @@ private slots:
     void prepareClosePzSet(AccountSuiteManager* accSmg, int month);
     void pzSetClosed(AccountSuiteManager* accSmg, int month);
     void commonSubWindowClosed(MyMdiSubWindow *subWin);
+    void subWindowActivated(QMdiSubWindow * window);
+    void specSubWinClosed(subWindowType winType);
+    void printProcess();
 
     void on_actAddPz_triggered();
 
@@ -228,12 +232,6 @@ private slots:
     void on_actFordPl_triggered();
 
     void on_actFordEx_triggered();
-
-    void on_actPrint_triggered();
-
-    void on_actPrintAdd_triggered();
-
-    void on_actPrintDel_triggered();
 
     void on_actLogin_triggered();
 
@@ -315,22 +313,28 @@ private:
     void initTvActions();
     void accountInit(AccountCacheItem *ci);
     subWindowType activedMdiChild();
-    void rfOther();
-    void rfLogin(bool login = true);
-    void rfMainAct(bool open = true);
-    void rfPzSetAct(bool open = true);
+    //void pzSetSavePrompt();
+
+    //菜单项启用性控制
+    bool isSuiteEditable();
+    bool isPzSetEditable();
+    bool isPzEditable();
+    void rfLogin();
+    void rfMainAct();
+    void rfSuiteAct();
+    void rfPzSetOpenAct();
+    void rfPzSetStateAct();
+    void rfPzSetEditAct(bool editable);
+    void rfPzNaviAct();
+    void rfBaEditAct();
+    void rfSaveBtn();
+    //void rfBasiMoveAct();
+    //void rfPzStateAct();
 
 
-    void rfPzAct(bool enable);
-    void rfAdvancedAct();
-    void rfEditInPzAct(PingZheng *pz);
-
-    /////////////////////////////
-    void rfAct();
+    //void rfEditInPzAct(PingZheng *pz);
 
 
-
-    /////////////////////////////////////////
 
     void rightWarnning(int right);
     void pzsWarning();
@@ -364,7 +368,6 @@ private:
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
     QSignalMapper* tvMapper;     //用于处理从视图菜单中选择显示的工具视图
 
-    QSet<int> PrintPznSet; //欲打印的凭证号集合
     bool sortBy; //凭证集的排序方式（true：按凭证号，false：按自编号）
 
     QHash<ToolViewType,QDockWidget*> dockWindows;     //工具视图窗口集
@@ -372,6 +375,11 @@ private:
 
     //工具条上的部件
     CustomSpinBox* spnNaviTo;
+    QToolButton* btnPrint;
+    //与打印任务相相关的动作对象
+    QAction* actPrintPreview;
+    QAction* actPrintToPDF;
+    QAction* actPrintToPrinter;
 
     AccountSuiteManager* curSuiteMgr;
     DbUtil* dbUtil;
@@ -385,7 +393,7 @@ private:
     SuiteSwitchPanel* curSSPanel;                       //当前帐套切换面板对象
     QHash<subWindowType,MyMdiSubWindow*> commonGroups; //公共类（唯一性子窗口）
     QMultiHash<subWindowType,MyMdiSubWindow*> commonGroups_multi; //公共类（多子窗口共存）
-    QHash<int,SubWinGroupMgr*> subWinGroups;       //帐套视图子窗口组表（键为帐套id）
+    QHash<int,SubWinGroupMgr*> subWinGroups;       //帐套视图子窗口组表（键为帐套记录id）
     QHash<int,QList<PingZheng*> > historyPzSet;    //每个帐套视图当前正浏览的历史凭证列表
     QHash<int,int> historyPzSetIndex;              //每个帐套视图当前正浏览的历史凭证集的当前索引
     QHash<int,int> historyPzMonth;                 //每个账套视图当前装载的历史凭证的月份数

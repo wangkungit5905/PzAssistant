@@ -67,12 +67,12 @@ class PrintSelectDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit PrintSelectDialog(AccountSuiteManager* pzMgr,QWidget *parent = 0);
+    explicit PrintSelectDialog(QList<PingZheng*> choosablePzSets, PingZheng* curPz, QWidget *parent = 0);
     ~PrintSelectDialog();
     void setPzSet(QSet<int> pznSet);
     void setCurPzn(int pzNum);
     int getSelectedPzs(QList<PingZheng*>& pzs);
-    int getPrintMode();
+    //int getPrintMode();
 
 private slots:
     void selectedSelf(bool checked);
@@ -83,7 +83,9 @@ private:
 
     Ui::PrintSelectDialog *ui;
     QSet<int> pznSet;  //欲对应的凭证号码的集合
-    AccountSuiteManager* pzMgr;
+    //AccountSuiteManager* pzMgr;
+    PingZheng* curPz;         //当前显示的凭证（可能在凭证编辑对话框或历史凭证对话框中）
+    QList<PingZheng*> pzSets; //可选的凭证集合
 };
 
 

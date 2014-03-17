@@ -975,8 +975,14 @@ bool SubjectManager::isSySubject(int sid)
 bool SubjectManager::isSyClsSubject(int sid, bool &yes, bool isFst)
 {
     FirstSubject* fsub;
-    if(!isFst)
-        fsub = getSndSubject(sid)->getParent();
+    if(!isFst){
+        SecondSubject* ssub = getSndSubject(sid);
+        if(!ssub){
+            LOG_ERROR("fsub is null");
+            return false;
+        }
+        fsub = ssub->getParent();
+    }
     else
         fsub = getFstSubject(sid);
     if(!fsub){

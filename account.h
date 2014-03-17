@@ -164,8 +164,8 @@ public:
     QDateTime getLastAccessTime(){return QDateTime::fromString(accInfos.lastAccessTime,Qt::ISODate);}
     void setLastAccessTime(QDateTime time){accInfos.lastAccessTime = time.toString(Qt::ISODate);}
 
-	void setReadOnly(bool readOnly){isReadOnly=readOnly;}
-	bool getReadOnly(){return isReadOnly;}
+    void setReadOnly(bool readOnly){readOnly=readOnly;}
+    bool isReadOnly(){return readOnly;}
     QList<BankAccount*> getAllBankAccount();
     QList<Bank*> getAllBank(){return banks;}
     bool saveBank(Bank* bank);
@@ -199,9 +199,9 @@ private:
     //AccountSuiteManager* pzSetMgr;      //凭证集对象
     QList<SubSysNameItem*> subSysLst; //账户支持的科目系统
     QHash<int,SubjectManager*> smgs;  //科目管理对象（键为科目系统代码）
-    QHash<int,AccountSuiteManager*> suiteHash; //帐套管理对象表（键为帐套的id）
+    QHash<int,AccountSuiteManager*> suiteHash; //帐套管理对象表（键为帐套记录的id）
     QList<AccountSuiteRecord*> suiteRecords;         //帐套记录结构列表
-	bool isReadOnly;         //是否只读模式
+    bool readOnly;         //是否只读模式
 
     DbUtil* dbUtil; //直接访问账户文件的数据库访问对象
     AccountInfo accInfos;   //账户信息

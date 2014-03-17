@@ -7,6 +7,7 @@
 
 #include "common.h"
 #include "commdatastruct.h"
+#include "widgets.h"
 
 
 namespace Ui {
@@ -27,11 +28,13 @@ class Double;
 class SubjectComplete;
 class SubjectManager;
 
+
+
 /**
  * @brief The CurStatDialog class
  *  本期统计对话框类（统计数据来自于StatUtil类）
  */
-class CurStatDialog : public QDialog
+class CurStatDialog : public DialogWithPrint
 {
     Q_OBJECT
     
@@ -62,6 +65,7 @@ public:
     void setState(QByteArray* info);
     QByteArray* getState();
     void stat();
+    void print(PrintActionClass action = PAC_TOPRINTER);
 
 public slots:
     void save();

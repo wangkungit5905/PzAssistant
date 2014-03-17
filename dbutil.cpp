@@ -219,7 +219,7 @@ bool DbUtil::importFstSubjects(int subSys, QString fname)
     }
     while(qm.next()){
         q.bindValue(":code",qm.value(2).toString());
-        q.bindValue("remCode",qm.value(3).toString());
+        q.bindValue(":remCode",qm.value(3).toString());
         q.bindValue(":clsId",qm.value(4).toInt());
         q.bindValue(":jdDir",qm.value(5).toInt());
         q.bindValue(":isView",qm.value(6).toInt());

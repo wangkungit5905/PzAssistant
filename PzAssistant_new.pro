@@ -129,7 +129,8 @@ HEADERS  += \
     transfers.h \
     showdzdialog.h \
     widgets/subjectselectorcombobox.h \
-    testform.h
+    testform.h \
+    globalVarNames.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

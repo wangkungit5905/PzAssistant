@@ -560,6 +560,7 @@ enum subWindowType{
     SUBWIN_PZEDIT       = 1,    //凭证编辑窗口（新）
     SUBWIN_PZSTAT       = 2,    //本期统计窗口（新）
     SUBWIN_DETAILSVIEW  = 3,    //明细账视图（新）
+
     //CASHDAILY  = 3,    //现金日记账窗口
     //BANKDAILY  = 4,    //银行日记账窗口
     //DETAILSDAILY=5,    //明细科目日记账窗口
@@ -569,8 +570,8 @@ enum subWindowType{
     SUBWIN_BASEDATAEDIT = 9,  //基本数据库编辑窗口
     SUBWIN_GDZCADMIN =  10,   //固定资产管理窗口
     //DTFYADMIN = 11,    //待摊费用管理窗口
-    TOTALVIEW = 12,    //总账视图
-    DETAILSVIEW = 13,  //明细账视图
+    SUBWIN_TOTALVIEW = 12,    //总账视图
+    //DETAILSVIEW = 13,  //明细账视图
     SUBWIN_HISTORYVIEW = 14,  //历史凭证
     SUBWIN_LOOKUPSUBEXTRA =15,//查看科目余额
     SUBWIN_ACCOUNTPROPERTY=16,//查看账户属性
@@ -578,6 +579,13 @@ enum subWindowType{
     SUBWIN_SQL = 18           //SQL工具窗口
     //设置期初余额的窗口
     //科目配置窗口
+};
+
+enum PrintActionClass{
+    PAC_NONE        = 0,    //未知打印动作
+    PAC_TOPRINTER   = 1,    //输出到打印机
+    PAC_PREVIEW     = 2,    //打印预览
+    PAC_TOPDF       = 3     //输出到pdf文件
 };
 
 //enum MachineType{

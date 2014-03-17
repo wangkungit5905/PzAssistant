@@ -103,6 +103,7 @@ public:
     QList<AccountCacheItem *> getAllCachedAccounts();
     AccountCacheItem *getRecendOpenAccount();
     void setRecentOpenAccount(QString code);
+    void clearRecentOpenAccount();
     QHash<AccountTransferState,QString> getAccTranStates();
 
     bool getSubSysItems(QList<SubSysNameItem *> &items);

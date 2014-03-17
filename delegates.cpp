@@ -427,6 +427,8 @@ void FstSubComboBox::reloadFSubs(int witch, QString startStr)
     foreach(FirstSubject* fsub, fsubs){
         //LOG_INFO(QString("compare fsub(%1),remCode(%2),subCode(%3)")
         //         .arg(fsub->getName()).arg(fsub->getRemCode()).arg(fsub->getCode()));
+        if(!fsub->isEnabled())
+            continue;
         bool isCrt = false;
         if(witch == 0 && fsub->getName().startsWith(startStr,Qt::CaseInsensitive))
             isCrt = true;

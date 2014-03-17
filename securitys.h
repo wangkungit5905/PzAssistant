@@ -9,6 +9,8 @@
 #include <QSqlQuery>
 #include <QVariant>
 
+static int USER_GROUP_ROOT_ID = 1;
+
 //权限类
 class Right
 {
@@ -110,6 +112,7 @@ public:
     void setHaveRights(QSet<Right*> rights);
     void addRight(Right* right);
     void delRight(Right* right);
+    int getGroupCode();
 
 private:
     int code;
@@ -134,6 +137,7 @@ public:
     QSet<Right*> getAllRight();
     bool haveRight(Right* right);
     bool haveRights(QSet<Right*> rights);
+    bool isSuperUser();
 
     static QString encryptPw(QString pw){return pw;} //默认实现不对密码进行加密
 

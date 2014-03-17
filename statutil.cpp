@@ -25,7 +25,7 @@ StatUtil::StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager *parent):QObject
 bool StatUtil::stat()
 {
     _clearDatas();
-    if(!sm->isOpened()){
+    if(!sm->isPzSetOpened()){
         clear();
         QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在未打开凭证集时不能进行本期统计！"));
         return false;

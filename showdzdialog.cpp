@@ -12,7 +12,7 @@
 
 
 ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) :
-    QDialog(parent),ui(new Ui::ShowDZDialog2),account(account)
+    DialogWithPrint(parent),ui(new Ui::ShowDZDialog2),account(account)
 {
     ui->setupUi(this);
     QSizePolicy policy = ui->tview->sizePolicy();
@@ -66,9 +66,9 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
     mts.removeOne(account->getMasterMt()->code());
     qSort(mts.begin(),mts.end());
 
-    ui->btnPrint->addAction(ui->actPrint);
-    ui->btnPrint->addAction(ui->actPreview);
-    ui->btnPrint->addAction(ui->actToPdf);
+//    ui->btnPrint->addAction(ui->actPrint);
+//    ui->btnPrint->addAction(ui->actPreview);
+//    ui->btnPrint->addAction(ui->actToPdf);
 
     setState(sinfo);
     readFilters();
@@ -280,6 +280,25 @@ QByteArray* ShowDZDialog::getState()
     }
     bf.close();
     return ba;
+}
+
+/**
+ * @brief ShowDZDialog::print
+ * @param pac
+ */
+void ShowDZDialog::print(PrintActionClass pac)
+{
+    switch (pac) {
+    case PAC_TOPRINTER:
+        on_actPrint_triggered();
+        break;
+    case PAC_PREVIEW:
+        on_actPreview_triggered();
+        break;
+    case PAC_TOPDF:
+        on_actToPdf_triggered();
+        break;
+    }
 }
 
 /**

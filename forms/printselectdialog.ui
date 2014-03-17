@@ -20,191 +20,140 @@ QGroupBox {background-color: rgb(170, 255, 255)}
 
 QLineEdit:active { background-color: rgb(255, 255, 127)}</string>
   </property>
-  <widget class="QLabel" name="label">
-   <property name="geometry">
-    <rect>
-     <x>50</x>
-     <y>10</y>
-     <width>251</width>
-     <height>21</height>
-    </rect>
-   </property>
-   <property name="font">
-    <font>
-     <pointsize>16</pointsize>
-    </font>
-   </property>
-   <property name="text">
-    <string>请选择要打印的凭证及模式</string>
-   </property>
-  </widget>
-  <widget class="QGroupBox" name="groupBox">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>40</y>
-     <width>321</width>
-     <height>131</height>
-    </rect>
-   </property>
-   <property name="title">
-    <string/>
-   </property>
-   <widget class="QWidget" name="layoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>0</y>
-      <width>321</width>
-      <height>131</height>
-     </rect>
-    </property>
-    <layout class="QGridLayout" name="gridLayout" rowstretch="0,1,1,1" columnstretch="1,1">
-     <item row="0" column="1">
-      <widget class="QLabel" name="label_2">
-       <property name="text">
-        <string>凭证号</string>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="0">
-      <widget class="QRadioButton" name="rdoCur">
-       <property name="toolTip">
-        <string>打印当前打开的凭证</string>
-       </property>
-       <property name="text">
-        <string>当前凭证</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="1" column="1">
-      <widget class="QLineEdit" name="edtCur">
-       <property name="text">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="0">
-      <widget class="QRadioButton" name="rdoSel">
-       <property name="toolTip">
-        <string>多个凭证之间可以用“,”分隔，连续的凭证可以用“-”连接</string>
-       </property>
-       <property name="text">
-        <string>自选凭证</string>
-       </property>
-      </widget>
-     </item>
-     <item row="2" column="1">
-      <widget class="QLineEdit" name="edtSel">
-       <property name="toolTip">
-        <string/>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="0">
-      <widget class="QRadioButton" name="rdoAll">
-       <property name="toolTip">
-        <string>打印所有凭证集中的凭证</string>
-       </property>
-       <property name="text">
-        <string>所有凭证</string>
-       </property>
-      </widget>
-     </item>
-     <item row="3" column="1">
-      <widget class="QLineEdit" name="edtAll">
-       <property name="toolTip">
-        <string/>
-       </property>
-       <property name="readOnly">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-    </layout>
-   </widget>
-  </widget>
-  <widget class="QPushButton" name="pushButton">
-   <property name="geometry">
-    <rect>
-     <x>70</x>
-     <y>230</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>确定</string>
-   </property>
-  </widget>
-  <widget class="QPushButton" name="pushButton_2">
-   <property name="geometry">
-    <rect>
-     <x>220</x>
-     <y>230</y>
-     <width>75</width>
-     <height>23</height>
-    </rect>
-   </property>
-   <property name="text">
-    <string>取消</string>
-   </property>
-  </widget>
-  <widget class="QGroupBox" name="groupBox_2">
-   <property name="geometry">
-    <rect>
-     <x>10</x>
-     <y>180</y>
-     <width>321</width>
-     <height>41</height>
-    </rect>
-   </property>
-   <property name="title">
-    <string/>
-   </property>
-   <widget class="QWidget" name="layoutWidget">
-    <property name="geometry">
-     <rect>
-      <x>0</x>
-      <y>10</y>
-      <width>316</width>
-      <height>25</height>
-     </rect>
-    </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,5,1">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="font">
+      <font>
+       <pointsize>16</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>请选择要打印的凭证</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QGroupBox" name="groupBox">
+     <property name="title">
+      <string/>
+     </property>
+     <widget class="QWidget" name="layoutWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>321</width>
+        <height>131</height>
+       </rect>
+      </property>
+      <layout class="QGridLayout" name="gridLayout" rowstretch="0,1,1,1" columnstretch="1,1">
+       <item row="0" column="1">
+        <widget class="QLabel" name="label_2">
+         <property name="text">
+          <string>凭证号</string>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0">
+        <widget class="QRadioButton" name="rdoCur">
+         <property name="toolTip">
+          <string>打印当前打开的凭证</string>
+         </property>
+         <property name="text">
+          <string>当前凭证</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="1">
+        <widget class="QLineEdit" name="edtCur">
+         <property name="text">
+          <string/>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="0">
+        <widget class="QRadioButton" name="rdoSel">
+         <property name="toolTip">
+          <string>多个凭证之间可以用“,”分隔，连续的凭证可以用“-”连接</string>
+         </property>
+         <property name="text">
+          <string>自选凭证</string>
+         </property>
+        </widget>
+       </item>
+       <item row="2" column="1">
+        <widget class="QLineEdit" name="edtSel">
+         <property name="toolTip">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="0">
+        <widget class="QRadioButton" name="rdoAll">
+         <property name="toolTip">
+          <string>打印所有凭证集中的凭证</string>
+         </property>
+         <property name="text">
+          <string>所有凭证</string>
+         </property>
+        </widget>
+       </item>
+       <item row="3" column="1">
+        <widget class="QLineEdit" name="edtAll">
+         <property name="toolTip">
+          <string/>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
      <item>
-      <widget class="QRadioButton" name="rdoPrint">
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="pushButton">
        <property name="text">
-        <string>输出到打印机</string>
+        <string>确定</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QRadioButton" name="rdoPreview">
+      <widget class="QPushButton" name="pushButton_2">
        <property name="text">
-        <string>打印预览</string>
-       </property>
-       <property name="checked">
-        <bool>true</bool>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QRadioButton" name="rdoPdf">
-       <property name="text">
-        <string>输出到PDF文件</string>
+        <string>取消</string>
        </property>
       </widget>
      </item>
     </layout>
-   </widget>
-  </widget>
+   </item>
+  </layout>
  </widget>
  <resources/>
  <connections>

@@ -197,6 +197,7 @@ public:
 
 
     //会计分录方法
+    BusiAction* getCurBa(){return curBa;}
     void setCurBa(BusiAction* ba){curBa = ba;}   //设置凭证的当前会计分录
     BusiAction* getBusiAction(int n);
     BusiAction* appendBlank();
@@ -209,6 +210,9 @@ public:
     BusiAction* take(int index);
     bool moveUp(int row,int nums = 1);
     bool moveDown(int row,int nums = 1);
+    bool isEmpty(){return baLst.isEmpty();}
+    bool isFirst(){return (!baLst.isEmpty() && (baLst.first() == curBa));}
+    bool isLast(){return (!baLst.isEmpty() && (baLst.last() == curBa));}
 
     int baCount(){return baLst.count();}
     QList<BusiAction*>& baList(){return baLst;}

@@ -325,8 +325,8 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
             this,SLOT(creatNewNameItemMapping(int,int,FirstSubject*,SubjectNameItem*,SecondSubject*&)));
     connect(delegate,SIGNAL(crtNewSndSubject(int,int,FirstSubject*,SecondSubject*&,QString)),
             this,SLOT(creatNewSndSubject(int,int,FirstSubject*,SecondSubject*&,QString)));
-    connect(ui->tview,SIGNAL(currentCellChanged(int,int,int,int)),
-            this,SLOT(currentCellChanged(int,int,int,int)));
+    //connect(ui->tview,SIGNAL(currentCellChanged(int,int,int,int)),
+    //        this,SLOT(currentCellChanged(int,int,int,int)));
     //connect(delegate,SIGNAL(moveNextRow(int)),this,SLOT(moveToNextBa(int)));
 
     //adjustTableSize();
@@ -1114,8 +1114,10 @@ void PzDialog::currentCellChanged(int currentRow, int currentColumn, int previou
 //        delegate->setVolidRows(currentRow+1);
     //moveToNextBa(currentRow);
     curRow = currentRow;
-    if(curPz)
+    if(curPz){
         curBa = curPz->getBusiAction(currentRow);
+        curPz->setCurBa(curBa);
+    }
     else
         curBa = NULL;
 }
@@ -1573,6 +1575,8 @@ void PzDialog::refreshActions()
     //validBas = curPz->baCount();
     //delegate->setVolidRows(validBas);
 
+    disconnect(ui->tview,SIGNAL(currentCellChanged(int,int,int,int)),
+               this,SLOT(currentCellChanged(int,int,int,int)));
     disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
     ui->tview->clearContents();
     int maxRows;
@@ -1602,6 +1606,8 @@ void PzDialog::refreshActions()
     //curRow = -1;
     curBa = NULL;
     connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
+    connect(ui->tview,SIGNAL(currentCellChanged(int,int,int,int)),
+            this,SLOT(currentCellChanged(int,int,int,int)));
 }
 
 /**

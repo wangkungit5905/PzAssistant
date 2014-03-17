@@ -36,9 +36,9 @@ bool initSecurity()
     while(q.next()){
         int code = q.value(1).toInt();        
         QString name = q.value(2).toString();
-        if(code == 1){ //超级用户组
-            group = new UserGroup(1, name);
-            allGroups[1] = group;
+        if(code == USER_GROUP_ROOT_ID){ //超级用户组
+            group = new UserGroup(USER_GROUP_ROOT_ID, name);
+            allGroups[USER_GROUP_ROOT_ID] = group;
             continue;
         }
         QString rs = q.value(3).toString();        
@@ -184,6 +184,20 @@ bool User::haveRights(QSet<Right*> rights)
     return this->rights.contains(rights);
 }
 
+/**
+ * @brief 是否是超级用户
+ * @return
+ */
+bool User::isSuperUser()
+{
+    QSetIterator<UserGroup*> it(groups);
+    while(it.hasNext()){
+        if(it.next()->getGroupCode() == USER_GROUP_ROOT_ID)
+            return true;
+    }
+    return false;
+}
+
 ///////////////////////////right类////////////////////////////////////
 
 Right::Right(int code, int type, QString name, QString explain)
@@ -278,6 +292,14 @@ void UserGroup::addRight(Right* right)
 void UserGroup::delRight(Right* right)
 {
     rights.remove(right);
+}
+
+/**
+ * @brief 返回组代码
+ */
+int UserGroup::getGroupCode()
+{
+    return code;
 }
 
 

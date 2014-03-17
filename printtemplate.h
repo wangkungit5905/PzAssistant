@@ -171,7 +171,7 @@ public:
     PrintPageType getPageType();
     void setPageNum(QString strNum);
     void setColWidth(QList<int>* colWidths);
-    QList<int>* getColWidths(){return 0;}
+    QList<int>* getColWidths(){return colWidths;}
 
     void setAccountName(QString name);
     void setCreator(QString name);

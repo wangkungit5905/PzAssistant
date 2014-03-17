@@ -35,12 +35,14 @@ public:
     ~AccountSuiteManager();
     Account* getAccount(){return account;}
     AccountSuiteRecord* getSuiteRecord(){return suiteRecord;}
+    bool isSuiteClosed(){return suiteRecord->isClosed;} //是否已关账
     SubjectManager* getSubjectManager();
     int getSubSysCode(){return suiteRecord->subSys;}
     bool open(int m);
-    bool isOpened();
+    bool isPzSetOpened();
     bool isDirty();
-    void close();
+    void closePzSet();
+    void rollback();
     int newPzSet();
     //StatUtil &getStatObj();
     StatUtil* getStatUtil(){return statUtil;}
@@ -64,7 +66,6 @@ public:
 
     int verifyAll(User* user);
     int instatAll(User* user);
-
     bool inspectPzError(QList<PingZhengError *> &errors);
 
     //这些保存或读取指定年月余额的方法，内部会自动处理由于科目系统的变更而自动替换正确的科目id
@@ -116,7 +117,7 @@ public:
     PingZheng* getPz(int num);
     void setCurPz(PingZheng *pz);
     bool savePz(PingZheng* pz);
-    bool savePzSet();
+
     bool save(SaveWitch witch=SW_ALL);
 
     //期末处理方法
@@ -159,6 +160,7 @@ signals:
     void pzSetStateChanged(PzsState newState);
     void pzExtraStateChanged(bool newState);
 private:
+    bool _savePzSet();
     void watchPz(PingZheng* pz, bool en=true);
     void cachePz(PingZheng* pz);
     bool isZbNumConflict(int num);

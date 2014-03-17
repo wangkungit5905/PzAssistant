@@ -175,7 +175,7 @@
     </widget>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="2,1,1">
+    <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="2,1,0,1">
      <item>
       <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,1,1,2">
        <item>
@@ -236,17 +236,20 @@
       </layout>
      </item>
      <item>
-      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="1,0,0,0">
-       <item>
-        <widget class="QToolButton" name="btnPrt">
-         <property name="text">
-          <string>打印输出</string>
-         </property>
-         <property name="popupMode">
-          <enum>QToolButton::InstantPopup</enum>
-         </property>
-        </widget>
-       </item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="horizontalLayout_4" stretch="0,0,0">
        <item>
         <widget class="QPushButton" name="btnSave">
          <property name="text">

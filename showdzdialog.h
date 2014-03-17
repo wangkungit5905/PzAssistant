@@ -25,7 +25,7 @@ const int DV_COL_CNT_BANKRMB = 13;
 const int DV_COL_CNT_COMMON = 11;
 
 //明细账视图窗口类
-class ShowDZDialog : public QDialog
+class ShowDZDialog : public DialogWithPrint
 {
     Q_OBJECT
 
@@ -50,6 +50,7 @@ public:
     ~ShowDZDialog();
     void setState(QByteArray* info);
     QByteArray* getState();
+    void print(PrintActionClass pac = PAC_TOPRINTER);
 
 private slots:
     void curFilterChanged(QListWidgetItem* current, QListWidgetItem* previous);

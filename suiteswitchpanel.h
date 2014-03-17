@@ -49,14 +49,15 @@ private:
     void init();
     void initSuiteContent(AccountSuiteRecord* as);
     void crtTableRow(int row, int m, QTableWidget* tw, bool viewAndEdit=true);
-    void witchSuiteMonth(AccountSuiteRecord *&suiteRecord, int &month, QObject* sender, ColType col);
+    void witchSuiteMonth(int &month, QObject* sender, ColType col);
     void setBtnIcon(QToolButton* btn, bool opened);
 
     Ui::SuiteSwitchPanel *ui;
     Account* account;
     QHash<int,AccountSuiteRecord*> suiteRecords;    //帐套记录表（键为帐套id）
     QHash<int,int> openedMonths;                    //每个帐套当前以编辑模式打开的月份数（键为帐套id）
-    int curAsrId;  //当前选择的帐套记录的id
+    //int curAsrId;  //当前选择的帐套记录的id
+    AccountSuiteManager* curSuite;                   //当前选择的帐套对象
     QIcon icon_unSelected, icon_selected;
     QIcon icon_open, icon_close, icon_edit, icon_lookup; //凭证集的打开、关闭、编辑和查看图标
 

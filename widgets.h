@@ -79,6 +79,17 @@ private:
     bool isHideWhenColse;
 };
 
+/**
+ * @brief 有打印需求的子窗口类都从此类继承，只需重新实现虚函数“print()”即可
+ */
+class DialogWithPrint : public QDialog{
+    Q_OBJECT
+public:
+    DialogWithPrint(QWidget* parent = 0):QDialog(parent){}
+    virtual void print(PrintActionClass pac = PAC_TOPRINTER){}
+    //virtual bool demandPrint(){return true;}
+};
+
 //在QTableWidget中显示业务活动摘要部分内容的表格项
 class BASummaryItem : public QTableWidgetItem
 {

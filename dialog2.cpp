@@ -150,19 +150,20 @@ QString BASummaryForm::getData()
 
 
 ////////////////////////PrintSelectDialog////////////////////////////////////
-PrintSelectDialog::PrintSelectDialog(AccountSuiteManager *pzMgr, QWidget *parent) :
-    QDialog(parent),ui(new Ui::PrintSelectDialog),pzMgr(pzMgr)
+PrintSelectDialog::PrintSelectDialog(QList<PingZheng*> choosablePzSets, PingZheng* curPz, QWidget *parent) :
+    QDialog(parent),ui(new Ui::PrintSelectDialog),pzSets(choosablePzSets),curPz(curPz)
 {
     ui->setupUi(this);
-    if(pzMgr->getPzCount() == 0)
+    if(choosablePzSets.isEmpty())
         enableWidget(false);
     else{
-        ui->edtCur->setText(QString::number(pzMgr->getCurPz()->number()));
+        ui->edtCur->setText(QString::number(curPz?curPz->number():0));
         QString allText;
-        if(pzMgr->getPzCount() == 1)
+        int count = pzSets.count();
+        if(count == 1)
             allText = "1";
         else
-            allText = QString("1-%1").arg(pzMgr->getPzCount());
+            allText = QString("1-%1").arg(count);
         ui->edtAll->setText(allText);
     }
     connect(ui->rdoSel,SIGNAL(toggled(bool)),this,SLOT(selectedSelf(bool)));
@@ -202,14 +203,14 @@ void PrintSelectDialog::setCurPzn(int pzNum)
 int PrintSelectDialog::getSelectedPzs(QList<PingZheng *> &pzs)
 {
     pzs.clear();
-    if(pzMgr->getPzCount() == 0)
+    if(pzSets.isEmpty())
         return 0;
-    if(ui->rdoCur->isChecked()){
-        pzs<<pzMgr->getCurPz();
+    if(ui->rdoCur->isChecked() && curPz){
+        pzs<<curPz;
         return 2;
     }
     else if(ui->rdoAll->isChecked()){
-        pzs = pzMgr->getPzSpecRange(QSet<int>());
+        pzs = pzSets;
         return 1;
     }
     else{
@@ -218,21 +219,24 @@ int PrintSelectDialog::getSelectedPzs(QList<PingZheng *> &pzs)
             QMessageBox::warning(this,tr("警告信息"),tr("凭证范围选择格式有误！"));
             return 0;
         }
-        pzs = pzMgr->getPzSpecRange(pzNums);
+        foreach (PingZheng* pz, pzSets){
+            if(pzNums.contains(pz->number()))
+                pzs<<pz;
+        }
         return 3;
     }
 }
 
 //获取打印模式（返回值 1：输出地打印机，2:打印预览，3：输出到PDF）
-int PrintSelectDialog::getPrintMode()
-{
-    if(ui->rdoPrint->isChecked())
-        return 1;
-    else if(ui->rdoPreview->isChecked())
-        return 2;
-    else
-        return 3;
-}
+//int PrintSelectDialog::getPrintMode()
+//{
+//    if(ui->rdoPrint->isChecked())
+//        return 1;
+//    else if(ui->rdoPreview->isChecked())
+//        return 2;
+//    else
+//        return 3;
+//}
 
 /**
  * @brief PrintSelectDialog::selectedSelf

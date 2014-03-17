@@ -223,12 +223,13 @@ void BusiAction::setEditState(BusiActionEditState state)
 
 /////////////////PingZheng/////////////////////////////////////////
 PingZheng::PingZheng(AccountSuiteManager *parent):ID(0),p(parent),isDeleted(false),encNum(0),
-    state(Pzs_Recording),pzCls(Pzc_Hand),ru(NULL),vu(NULL),bu(NULL),oppoSub(NULL){md=PZMD++;}
+    state(Pzs_Recording),pzCls(Pzc_Hand),ru(NULL),vu(NULL),bu(NULL),oppoSub(NULL),curBa(NULL)
+{md=PZMD++;}
 
 PingZheng::PingZheng(AccountSuiteManager* parent, int id, QString date, int pnum, int znum, Double js, Double ds,
           PzClass pzCls, int encnum, PzState state, User* vu, User* ru, User* bu)
     :p(parent),ID(id),date(date),pnum(pnum),m_znum(znum),js(js),ds(ds)/*,pzCls(pcls)*/,
-      encNum(encnum),state(state),vu(vu),ru(ru),bu(bu),isDeleted(false)
+      encNum(encnum),state(state),vu(vu),ru(ru),bu(bu),isDeleted(false),curBa(NULL)
 {
     md=PZMD++;
     oppoSub=NULL;

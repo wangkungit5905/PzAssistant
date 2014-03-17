@@ -13,6 +13,7 @@ SuiteSwitchPanel::SuiteSwitchPanel(Account *account, QWidget *parent) :
     QWidget(parent), ui(new Ui::SuiteSwitchPanel), account(account)
 {
     ui->setupUi(this);
+    curSuite = NULL;
     init();
 }
 
@@ -42,48 +43,20 @@ void SuiteSwitchPanel::setJzState(AccountSuiteManager *sm, int month, bool jzed)
 
 void SuiteSwitchPanel::curSuiteChanged(QListWidgetItem *current, QListWidgetItem *previous)
 {
-    int preSuiteId=0;
-    AccountSuiteRecord* currentASR,*previousASR;
+    AccountSuiteManager* preSuite=NULL;
     if(previous){
-        preSuiteId = previous->data(ROLE_CUR_SUITE).toInt();
+        int preSuiteId = previous->data(ROLE_CUR_SUITE).toInt();
+        preSuite = account->getSuiteMgr(preSuiteId);
         previous->setIcon(icon_unSelected);
     }
     if(current){
-        curAsrId = current->data(ROLE_CUR_SUITE).toInt();
+        int asrId = current->data(ROLE_CUR_SUITE).toInt();
+        curSuite = account->getSuiteMgr(asrId);
         current->setIcon(icon_selected);
     }
     ui->stackedWidget->setCurrentIndex(ui->lstSuite->currentRow());
-    currentASR = suiteRecords.value(curAsrId);
-    previousASR = suiteRecords.value(preSuiteId);
-    account->setCurSuite(currentASR->year);
-    AccountSuiteManager* curSuite=NULL,*preSuite=NULL;
-    if(previousASR != 0)
-        preSuite = account->getSuiteMgr(previousASR->id);
-    if(curAsrId != 0)
-        curSuite = account->getSuiteMgr(curAsrId);
+    account->setCurSuite(curSuite->getSuiteRecord()->year);
     emit selectedSuiteChanged(preSuite,curSuite);
-//    if(!current)
-//        return;
-//    QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
-//    if(!tw)
-//        return;
-//    QPushButton* btn = qobject_cast<QPushButton*>(tw->cellWidget(tw->rowCount()-1,0));
-//    if(!btn)
-//        return;
-//    bool b = current->data(ROLE_CUR_SUITE).toBool();
-//    btn->setEnabled(!b);
-
-//    if(!previous)
-//        return;
-//    int row = previous->listWidget()->row(previous);
-//    tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(row));
-//    if(!tw)
-//        return;
-//    btn = qobject_cast<QPushButton*>(tw->cellWidget(tw->rowCount()-1,0));
-//    if(!btn)
-//        return;
-//    b = previous->data(ROLE_CUR_SUITE).toBool();
-//    btn->setEnabled(!b);
 }
 
 
@@ -93,46 +66,56 @@ void SuiteSwitchPanel::curSuiteChanged(QListWidgetItem *current, QListWidgetItem
  */
 void SuiteSwitchPanel::viewBtnClicked()
 {
-    AccountSuiteRecord* asr;
+    QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
     int month;
-    witchSuiteMonth(asr,month,sender(),COL_VIEW);
-    AccountSuiteManager* previous = account->getSuiteMgr(curAsrId);
-    AccountSuiteManager* current = previous;
-    if(curAsrId != asr->id){
-        curAsrId = asr->id;
-        current = account->getSuiteMgr(curAsrId);
-        emit selectedSuiteChanged(previous,current);
-    }
-    //如果要以编辑模式打开，则调整打开凭证集按钮的图标和文本
-    if(asr->id == curAsrId && !asr->isClosed && current->getState(month) != Ps_Jzed){
+    witchSuiteMonth(month,sender(),COL_VIEW);
+    int curRow = month - curSuite->getSuiteRecord()->startMonth;
+    QToolButton* curBtn = qobject_cast<QToolButton*>(tw->cellWidget(curRow,COL_OPEN));
+    QToolButton* btn;
+
+    if(!curSuite->isSuiteClosed() && curSuite->getState(month) != Ps_Jzed){
         //在同一帐套内，同时只能打开一个凭证集进行编辑操作，因此打开另一个月份的凭证集前要关闭先前打开的凭证集
-        if(current == previous && current->isOpened() && current->month() != month){
-            if(current->isDirty())
-                current->save();
-            emit prepareClosePzSet(current,current->month());
-            int m = current->month();
-            int row = m - asr->startMonth;
-            QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
-            QToolButton* btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_OPEN));
-            current->close();
+        if(curSuite->isPzSetOpened() && curSuite->month() != month){
+            if(curSuite->isDirty())
+                curSuite->save();
+            emit prepareClosePzSet(curSuite,curSuite->month());
+            int m = curSuite->month();
+            int row = m - curSuite->getSuiteRecord()->startMonth;
+            btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_OPEN));
+            curSuite->closePzSet();
             if(btn)
                 setBtnIcon(btn,false);
-            emit pzsetClosed(current,current->month());
+            emit pzsetClosed(curSuite,curSuite->month());
+            if(!curSuite->open(month)){
+                QMessageBox::critical(this,tr("出错信息"),tr("在打开%1年%2月的凭证集时出错！").arg(curSuite->year()).arg(month));
+                return;
+            }
+            emit pzSetOpened(curSuite,month);
         }
-        if(!current->open(month)){
-            QMessageBox::critical(this,tr("出错信息"),tr("在打开%1年%2月的凭证集时出错！").arg(asr->year).arg(month));
-            return;
+        else if(!curSuite->isPzSetOpened()){
+            if(!curSuite->open(month)){
+                QMessageBox::critical(this,tr("出错信息"),tr("在打开%1年%2月的凭证集时出错！").arg(curSuite->year()).arg(month));
+                return;
+            }
+            emit pzSetOpened(curSuite,month);
         }
-        emit pzSetOpened(current,month);
-        int row = month - asr->startMonth;
-        QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
-        QToolButton* btn = qobject_cast<QToolButton*>(tw->cellWidget(row,COL_OPEN));
-        if(btn){
-            setBtnIcon(btn,true);
-            btn->setChecked(!btn->isChecked());
+        if(curBtn){
+            setBtnIcon(curBtn,true);
+            curBtn->setChecked(!curBtn->isChecked());
         }
     }
-    emit viewPzSet(current,month);
+    else{
+        int rows = curSuite->getSuiteRecord()->endMonth - curSuite->getSuiteRecord()->startMonth + 1;
+        for(int i = 0; i < rows; ++i){
+            btn = qobject_cast<QToolButton*>(tw->cellWidget(i,COL_OPEN));
+            if(btn){
+                if(!btn->text().isEmpty())
+                    btn->setText("");
+            }
+        }
+        curBtn->setText("*");
+    }
+    emit viewPzSet(curSuite,month);
 }
 
 /**
@@ -140,17 +123,15 @@ void SuiteSwitchPanel::viewBtnClicked()
  */
 void SuiteSwitchPanel::openBtnClicked(bool checked)
 {
-    AccountSuiteRecord* asr;
     int month;
-    witchSuiteMonth(asr,month,sender(),COL_OPEN);
+    witchSuiteMonth(month,sender(),COL_OPEN);
     QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
-    AccountSuiteManager* curSuite = account->getSuiteMgr(asr->id);
-    if(curSuite->isOpened()){
+    if(curSuite->isPzSetOpened()){
         int preOpenedMonth = curSuite->month();
-        if(curSuite->isDirty())
-            curSuite->save();
+        //if(curSuite->isDirty())
+        //    curSuite->save();
         emit prepareClosePzSet(curSuite,preOpenedMonth);
-        curSuite->close();
+        curSuite->closePzSet();
         emit pzsetClosed(curSuite,preOpenedMonth);
         if(preOpenedMonth != month){
             int row = preOpenedMonth - curSuite->getSuiteRecord()->startMonth;
@@ -163,10 +144,12 @@ void SuiteSwitchPanel::openBtnClicked(bool checked)
     }
     QToolButton* btn = qobject_cast<QToolButton*>(sender());
     if(btn){
-        setBtnIcon(btn,checked);
+        setBtnIcon(btn,checked);        
+        if(!btn->text().isEmpty())
+            btn->setText("");
         if(checked){
             if(!curSuite->open(month)){
-                QMessageBox::critical(this,tr("出错信息"),tr("打开%1年%2月凭证集时发生错误！").arg(asr->year).arg(month));
+                QMessageBox::critical(this,tr("出错信息"),tr("打开%1年%2月凭证集时发生错误！").arg(curSuite->year()).arg(month));
                 return;
             }
             else
@@ -182,9 +165,9 @@ void SuiteSwitchPanel::newPzSet()
 {
     if(QMessageBox::Yes == QMessageBox::warning(this,tr("确认信息"),tr("确定要新建凭证集吗？"),QMessageBox::Yes|QMessageBox::No)){
 
-        int month = account->getSuiteMgr(curAsrId)->newPzSet();
+        int month = curSuite->newPzSet();
         QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
-        AccountSuiteRecord* asr = suiteRecords.value(curAsrId);
+        AccountSuiteRecord* asr = curSuite->getSuiteRecord();
         int row = asr->endMonth - asr->startMonth;
         tw->insertRow(row);
         crtTableRow(row,month,tw,false);
@@ -196,7 +179,6 @@ void SuiteSwitchPanel::init()
     setMaximumWidth(240);
     btn_tip_edit = tr("编辑");
     btn_tip_view = tr("查看");
-    curAsrId = 0;
     icon_selected = QIcon(":/images/accSuiteSelected.png");
     icon_unSelected = QIcon(":/images/accSuiteUnselected.png");
     icon_open = QIcon(":/images/pzs_open.png");
@@ -208,38 +190,30 @@ void SuiteSwitchPanel::init()
         suiteRecords[as->id] = as;
         li = new QListWidgetItem(ui->lstSuite);
         li->setData(ROLE_CUR_SUITE,as->id);
-        //li->setData(ROLE_CUR_SUITE, false);
         li->setIcon(icon_unSelected);
         li->setText(as->name);
         if(as->isCur)
-            curAsrId = as->id;
+            curSuite = account->getSuiteMgr(as->id);
         initSuiteContent(as);
     }
     connect(ui->lstSuite,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
             this,SLOT(curSuiteChanged(QListWidgetItem*,QListWidgetItem*)));
-    //connect(ui->lstSuite,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(swichBtnClicked()));
-    AccountSuiteRecord* curSuite = account->getCurSuiteRecord();
     if(curSuite){
-        curAsrId = curSuite->id;
+        int asrId = curSuite->getSuiteRecord()->id;
         for(int i = 0; i < ui->lstSuite->count(); ++i){
-            if(ui->lstSuite->item(i)->data(ROLE_CUR_SUITE).toInt() == curAsrId){
+            if(ui->lstSuite->item(i)->data(ROLE_CUR_SUITE).toInt() == asrId){
                 ui->lstSuite->item(i)->setIcon(icon_selected);
-                //ui->lstSuite->item(i)->setData(ROLE_CUR_SUITE,true);
                 ui->lstSuite->setCurrentRow(i);                
                 break;
             }
         }
     }
-    else
-        curAsrId = 0;
-
 }
 
 void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
 {
     QTableWidget* tw = new QTableWidget(this);
     tw->setMaximumWidth(130);
-    //tw->setGridStyle(Qt::NoPen);
     tw->setShowGrid(false);
     tw->horizontalHeader()->setVisible(false);
     tw->verticalHeader()->setVisible(false);
@@ -249,13 +223,12 @@ void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
     tw->setColumnWidth(COL_MONTH,40);
     tw->setColumnWidth(COL_OPEN,40);
     tw->setColumnWidth(COL_VIEW,40);
-    QTableWidgetItem* ti;
     for(int row = 0,m = as->startMonth; m <= as->endMonth; ++row,++m){
         bool viewAndEdit=true;
         if(!as->isClosed){
             PzsState state;
             account->getDbUtil()->getPzsState(as->year,m,state);
-            if(state != Ps_Jzed && curAsrId == as->id)
+            if(state != Ps_Jzed)
                 viewAndEdit = false;
         }
         crtTableRow(row,m,tw,viewAndEdit);
@@ -266,11 +239,6 @@ void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
         tw->setCellWidget(tw->rowCount()-1,1,btn);
         connect(btn,SIGNAL(clicked()),this,SLOT(newPzSet()));
     }
-    //tw->insertRow(tw->rowCount());
-    //tw->setSpan(tw->rowCount()-1,0,1,3);
-    //QPushButton* btn = new QPushButton(tr("切换到该账套"));
-    //tw->setCellWidget(tw->rowCount()-1,0,btn);
-    //connect(btn,SIGNAL(clicked()),this,SLOT(swichBtnClicked()));
     ui->stackedWidget->addWidget(tw);
 }
 
@@ -289,7 +257,6 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAnd
     ti->setFlags(Qt::NoItemFlags|Qt::ItemIsEnabled);
     tw->setItem(row,COL_MONTH,ti);
     QToolButton* btn = new QToolButton(this);
-    //btn->setIcon(QIcon(":/images/open.png"));
     btn->setIcon(viewAndEdit?icon_lookup:icon_edit);
     btn->setToolTip(viewAndEdit?btn_tip_view:btn_tip_edit);
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -298,6 +265,7 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAnd
     btn = new QToolButton(this);
     btn->setCheckable(true);
     setBtnIcon(btn,false);
+    btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     tw->setCellWidget(row,COL_OPEN,btn);
     connect(btn,SIGNAL(clicked(bool)),this,SLOT(openBtnClicked(bool)));
 }
@@ -307,16 +275,13 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAnd
  * @param suiteId   帐套id
  * @param month     月份
  */
-void SuiteSwitchPanel::witchSuiteMonth(AccountSuiteRecord* &suiteRecord, int &month, QObject *sender, ColType col)
+void SuiteSwitchPanel::witchSuiteMonth(int &month, QObject *sender, ColType col)
 {
-
-    int suiteId = ui->lstSuite->currentItem()->data(ROLE_CUR_SUITE).toInt();
-    suiteRecord = suiteRecords.value(suiteId);
     QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
     month = 0;
     for(int i = 0; i < tw->rowCount(); ++i){
         if(sender == tw->cellWidget(i,col)){
-            month = suiteRecord->startMonth + i;
+            month = curSuite->getSuiteRecord()->startMonth + i;
             break;
         }
     }
@@ -331,12 +296,10 @@ void SuiteSwitchPanel::setBtnIcon(QToolButton *btn, bool opened)
 {
     if(opened){
         btn->setIcon(icon_close);
-        //btn->setArrowType(Qt::LeftArrow);
         btn->setToolTip(tr("关闭凭证集"));
     }
     else{
         btn->setIcon(icon_open);
-        //btn->setArrowType(Qt::RightArrow);
         btn->setToolTip(tr("打开凭证集"));
     }
 }

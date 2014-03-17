@@ -18,7 +18,7 @@ QSqlDatabase* Account::db;
 Account::Account(QString fname, QObject *parent):QObject(parent)
 {
     isOpened = false;
-    isReadOnly = false;
+    readOnly = false;
     accInfos.fileName = fname;
     if(!init())
         QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("账户在初始化时发生错误！"));
@@ -356,7 +356,7 @@ void Account::getVersion(int &mv, int &sv)
 
 /**
  * @brief 返回指定的帐套管理对象
- * @param suiteId   帐套id，如果为0，则返回当前帐套
+ * @param suiteId   帐套记录id，如果为0，则返回当前帐套
  * @return
  */
 AccountSuiteManager *Account::getSuiteMgr(int suiteId)

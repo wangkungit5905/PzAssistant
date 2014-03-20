@@ -256,6 +256,41 @@ void ModifyPzBUserCmd::redo()
     pm->setCurPz(pz);
 }
 
+//////////////////////////////ModifyPzComment////////////////////////////////////
+ModifyPzComment::ModifyPzComment(AccountSuiteManager *pm, PingZheng *pz, QString info, QUndoCommand *parent):
+    QUndoCommand(parent),pm(pm),pz(pz)
+{
+    setText(QObject::tr("修改备注信息为“%1”").arg(info));
+    oldInfo = pz->memInfo();
+    newInfo = info;
+}
+
+bool ModifyPzComment::mergeWith(const QUndoCommand *command)
+{
+    if(command->id() != CMD_PZCOMMENT)
+        return false;
+
+    const ModifyPzComment* other = static_cast<const ModifyPzComment*>(command);
+    if (pz != other->pz)
+        return false;
+
+    newInfo = other->newInfo;
+    setText(QObject::tr("修改备注信息为“%1”").arg(newInfo));
+    return true;
+}
+
+void ModifyPzComment::undo()
+{
+    pz->setMemInfo(oldInfo);
+    pm->setCurPz(pz);
+}
+
+void ModifyPzComment::redo()
+{
+    pz->setMemInfo(newInfo);
+    pm->setCurPz(pz);
+}
+
 /////////////////////////////////CrtBlankBaCmd///////////////////////////////
 AppendBaCmd::AppendBaCmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction* ba, QUndoCommand *parent)
     :QUndoCommand(parent),pm(pm),pz(pz),ba(ba)
@@ -925,6 +960,9 @@ void ModifyMultiPropertyOnBa::redo()
 {
     ba->integratedSetValue(newFSub,newSSub,newMt,newValue,newDir);
 }
+
+
+
 
 
 

@@ -164,6 +164,7 @@ void AccountSuiteManager::rollback()
         int index = undoStack->cleanIndex();
         undoStack->setIndex(index);
     }
+    undoStack->clear();
     //恢复余额状态和凭证集的状态
     dbUtil->getPzsState(suiteRecord->year,curM,states[curM]);
     extraStates[curM] = dbUtil->getExtraState(suiteRecord->year,curM);

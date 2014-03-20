@@ -8,22 +8,23 @@
 #include "commdatastruct.h"
 #include "cal.h"
 
-#define CMD_PZDATE   1
-#define CMD_PZZNUM   2
-#define CMD_PZENCNUM 3
-#define CMD_PZVSTATE 4
-#define CMD_PZVUSER  5
-#define CMD_PZBUSER  6
+static int CMD_PZDATE       = 1;
+static int CMD_PZZNUM       = 2;
+static int CMD_PZENCNUM     = 3;
+static int CMD_PZVSTATE     = 4;
+static int CMD_PZVUSER      = 5;
+static int CMD_PZBUSER      = 6;
+static int CMD_PZCOMMENT    = 7;
 
-#define CMD_CRTBBA   20
-#define CMD_BA_SUMMARY 21
-#define CMD_BA_FSTSUB  22
-#define CMD_BA_SNDSUB  23
-#define CMD_BA_MT      24
-#define CMD_BA_VALUE   25
-#define CMD_BA_REMOVE  26
-#define CMD_BA_MOVE    27
-#define CMD_BA_CUT     28
+static int CMD_CRTBBA       = 20;
+static int CMD_BA_SUMMARY   = 21;
+static int CMD_BA_FSTSUB    = 22;
+static int CMD_BA_SNDSUB    = 23;
+static int CMD_BA_MT        = 24;
+static int CMD_BA_VALUE     = 25;
+static int CMD_BA_REMOVE    = 26;
+static int CMD_BA_MOVE      = 27;
+static int CMD_BA_CUT       = 28;
 
 class SubjectManager;
 class SubjectNameItem;
@@ -227,6 +228,23 @@ private:
     PingZheng* pz;    //凭证对象
     User* oldUser;
     User* newUser;
+};
+
+/**
+ * @brief 修改凭证的备注信息
+ */
+class ModifyPzComment : public QUndoCommand{
+public:
+    ModifyPzComment(AccountSuiteManager* pm, PingZheng* pz, QString info, QUndoCommand* parent = 0);
+    int	id() const{return CMD_PZCOMMENT;}
+    bool mergeWith(const QUndoCommand* command);
+    void undo();
+    void redo();
+private:
+    AccountSuiteManager* pm;     //凭证集
+    PingZheng* pz;    //凭证对象
+    QString oldInfo;
+    QString newInfo;
 };
 
 //1、添加会计分录

@@ -61,25 +61,6 @@
 #include "account.h"
 #include "cal.h"
 
-////////////////////////////////////////////////////////////
-//bool MouseHoverEventFilter::eventFilter(QObject *obj, QEvent *event)
-//{
-//    QEvent::Type et = event->type();
-//    if(event->type() == QEvent::ToolTipChange){
-//    //if(event->type() == QEvent::MouseButtonPress){
-//        QString clsName = QString(obj->metaObject()->className());
-//        QString objName = obj->objectName();
-//        if(clsName == "QLabel"){
-//            QPoint p = QCursor::pos();
-//            QToolTip::showText(p,"Hello tooltip!");
-//        }
-//        return true;
-//    }
-//    return QObject::eventFilter(obj, event);
-//}
-
-
-
 /////////////////////////////////PaStatusBar////////////////////////////////
 PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
 {
@@ -112,26 +93,6 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     QHBoxLayout* hl3 = new QHBoxLayout(this);
     hl3->addWidget(l);
     hl3->addWidget(&pzCount);
-//    l = new QLabel(tr("作废："));
-//    pzRepeal.setFrameShadow(QFrame::Sunken);
-//    pzRepeal.setFrameShape(QFrame::StyledPanel);
-//    pzRepeal.setText(" ");
-//    hl3->addWidget(l);hl3->addWidget(&pzRepeal);
-//    l = new QLabel(tr("录入："));
-//    pzRecording.setFrameShadow(QFrame::Sunken);
-//    pzRecording.setFrameShape(QFrame::StyledPanel);
-//    pzRecording.setText("   ");
-//    hl3->addWidget(l);hl3->addWidget(&pzRecording);
-//    l = new QLabel(tr("审核："));
-//    pzVerify.setFrameShadow(QFrame::Sunken);
-//    pzVerify.setFrameShape(QFrame::StyledPanel);
-//    pzVerify.setText(" ");
-//    hl3->addWidget(l);hl3->addWidget(&pzVerify);
-//    l = new QLabel(tr("入账："));
-//    pzInstat.setFrameShadow(QFrame::Sunken);
-//    pzInstat.setFrameShape(QFrame::StyledPanel);
-//    pzInstat.setText(" ");
-//    hl3->addWidget(l);hl3->addWidget(&pzInstat);
 
     l = new QLabel(tr("登录用户:"),this);
     lblUser.setFrameShadow(QFrame::Sunken);
@@ -364,27 +325,6 @@ MyMdiSubWindow* SubWinGroupMgr::showSubWindow(subWindowType winType, QWidget *wi
         return subWinHashs.value(winType);
     }
 
-//    QByteArray* state = NULL;
-//    SubWindowDim* dim = NULL;
-//    if(curAccount)
-//        curAccount->getDbUtil()->getSubWinInfo(winType,dim,state);
-
-//    if(winType == SUBWIN_PZEDIT_new){
-//        PzDialog* w = static_cast<PzDialog*>(widget);
-//        if(w)
-//            w->setState(state);
-//    }
-//    else if(winType == SUBWIN_HISTORYVIEW){
-//        HistoryPzForm* w = static_cast<HistoryPzForm*>(widget);
-//        if(w)
-//            w->setState(state);
-//    }
-//    else if(winType == SUBWIN_DETAILSVIEW2){
-//        ShowDZDialog2* w = static_cast<ShowDZDialog2*>(widget);
-//        if(w)
-//            w->setState(state);
-//    }
-
     MyMdiSubWindow* sw = new MyMdiSubWindow(groupId,winType);
     sw->setWidget(widget);
     sw->setAttribute(Qt::WA_DeleteOnClose);
@@ -422,6 +362,7 @@ void SubWinGroupMgr::closeAll()
     QHashIterator<subWindowType,MyMdiSubWindow*> it(subWinHashs);
     while(it.hasNext()){
         it.next();
+        it.value()->close();
         parent->removeSubWindow(it.value());
         delete it.value();
     }
@@ -466,7 +407,6 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         disconnect(w,SIGNAL(reqLoation(int,int)),this,SLOT(openSpecPz(int,int)));
         delete w;
     }
-    //emit saveSubWinState(t,state,dim);
     if(curAccount)
         curAccount->getDbUtil()->saveSubWinInfo(t,dim,state);
     subWinHashs.remove(subWin->getWindowType());
@@ -491,9 +431,6 @@ MainWindow::MainWindow(QWidget *parent) :
     setCentralWidget(ui->mdiArea);
 
     curSuiteMgr = NULL;
-    //commonGroups = NULL;
-
-    //curPzSetState = Ps_NoOpen;
     sortBy = true; //默认按凭证号进行排序
     dbUtil = NULL;
     undoStack = NULL;
@@ -562,11 +499,6 @@ void MainWindow::getMdiAreaSize(int &mdiAreaWidth, int &mdiAreaHeight)
     mdiAreaHeight = ui->mdiArea->height();
 }
 
-void MainWindow::hideDockWindows()
-{
-//    QAction* act = subjectSearchDock->toggleViewAction();
-//    act->trigger();
-}
 
 /**
  * @brief MainWindow::AccountVersionMaintain
@@ -610,6 +542,8 @@ bool MainWindow::AccountVersionMaintain(QString fname)
 
 void MainWindow::initActions()
 {
+    undoAction = ui->actUndo;
+    redoAction = ui->actRedo;
     //文件菜单
     connect(ui->actCrtAccount, SIGNAL(triggered()), this, SLOT(newAccount()));
     connect(ui->actOpenAccount, SIGNAL(triggered()), this, SLOT(openAccount()));
@@ -725,15 +659,11 @@ void MainWindow::accountInit(AccountCacheItem* ci)
         curAccount->setReadOnly(true);
     if(!curSuiteMgr)
         QMessageBox::warning(this,tr("友情提示"),tr("本账户还没有设置任何帐套，请在账户属性设置窗口的帐套页添加一个帐套以供帐务处理！"));
-    else{
-        //connect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
-        suiteViewSwitched(NULL,curSuiteMgr);
-    }
+    else
+        suiteViewSwitched(NULL,curSuiteMgr);    
     undoStack = curSuiteMgr?curSuiteMgr->getUndoStack():NULL;
-    //connect(pzSetMgr,SIGNAL(pzSetChanged()),this, SLOT(PzChangedInSet()));
     if(!BusiUtil::init(curAccount->getDbUtil()->getDb()))
         QMessageBox::critical(this,tr("错误信息"),tr("BusiUtil对象初始化阶段发生错误！"));
-    //initSearchClientToolView();
     AccountSuiteRecord* curSuite = curAccount->getCurSuiteRecord();
     if(curSuite && !subWinGroups.contains(curSuite->id)){
         SubWinGroupMgr* grpMgr = new SubWinGroupMgr(curSuite->id,ui->mdiArea);
@@ -755,51 +685,27 @@ void MainWindow::accountInit(AccountCacheItem* ci)
 void MainWindow::updateWindowMenu()
 {
     ui->mnuWindow->clear();
-    //ui->mnuWindow->addAction(subjectSearchDock->toggleViewAction());
     ui->mnuWindow->addAction(ui->actCloseCurWindow);
     ui->mnuWindow->addAction(ui->actCloseAllWindow);
-    ui->mnuWindow->addSeparator();
-    ui->mnuWindow->addAction(ui->actTileWindow);
-    ui->mnuWindow->addAction(ui->actCascadeWindow);
-    ui->mnuWindow->addSeparator();
-    ui->mnuWindow->addAction(ui->actPrevWindow);
-    ui->mnuWindow->addAction(ui->actNextWindow);
-    QAction *separatorAct = new QAction(this);
-    separatorAct->setSeparator(true);
-    ui->mnuWindow->addAction(separatorAct);
-
-    QList<QMdiSubWindow *> windows = ui->mdiArea->subWindowList();
-    separatorAct->setVisible(!windows.isEmpty());
-
-    for(int i = 0; i < windows.size(); ++i){
-        QMdiSubWindow* w = windows.at(i);
-        QString text;
-        if (i < 9)
-            text = tr("&%1 %2").arg(i + 1).arg(w->windowTitle());
-        else
-            text = tr("%1 %2").arg(i + 1).arg(w->windowTitle());
-        QAction *action  = ui->mnuWindow->addAction(text);
-        action->setChecked(w == ui->mdiArea->activeSubWindow());
-        connect(action, SIGNAL(triggered()), windowMapper, SLOT(map()));
-        windowMapper->setMapping(action, windows.at(i));
+    bool nonSubWin = true;
+    if(curSuiteMgr){
+        int key = curSuiteMgr->getSuiteRecord()->id;
+        if(subWinGroups.contains(key) && subWinGroups.value(key)->count()>0){
+            addSubWindowMenuItem(subWinGroups.value(key)->getAllSubWindows());
+            nonSubWin = false;
+        }
     }
-//    for(int i = 0; i < windows.size(); ++i){
-//        QDialog* child = qobject_cast<QDialog*>(windows.at(i)->widget());
+    if(!commonGroups.isEmpty()){
+        addSubWindowMenuItem(commonGroups.values());
+        nonSubWin = false;
+    }
+    if(!commonGroups_multi.isEmpty()){
+        addSubWindowMenuItem(commonGroups_multi.values());
+        nonSubWin = false;
+    }
+    ui->actCloseAllWindow->setEnabled(!nonSubWin);
+    ui->actCloseCurWindow->setEnabled(!nonSubWin);
 
-//        QString text;
-//        if (i < 9) {
-//            text = tr("&%1 %2").arg(i + 1)
-//                               .arg(child->windowTitle());
-//        } else {
-//            text = tr("%1 %2").arg(i + 1)
-//                              .arg(child->windowTitle());
-//        }
-//        QAction *action  = ui->mnuWindow->addAction(text);
-//        action->setCheckable(true);
-//        action->setChecked(child == activeMdiChild());
-//        connect(action, SIGNAL(triggered()), windowMapper, SLOT(map()));
-//        windowMapper->setMapping(action, windows.at(i));
-//    }
 }
 
 //返回当前活动的子窗口的类型
@@ -812,21 +718,15 @@ subWindowType MainWindow::activedMdiChild()
         return SUBWIN_NONE;
 }
 
-/**
- * @brief 凭证集保存提示，这些操作由帐套对象的关闭凭证集操作来完成
- */
-//void MainWindow::pzSetSavePrompt()
-//{
-//    if(undoStack && !undoStack->isClean()){
-//        if(QMessageBox::No == QMessageBox::warning(this,tr("提示信息"),
-//                                                    tr("凭证集已经被编辑，需要保存吗？"),
-//                                                    QMessageBox::Yes|QMessageBox::No)){
-//            int index = undoStack->cleanIndex();
-//            undoStack->setIndex(index);
-//        }
-//        curSuiteMgr->save();
-//    }
-//}
+void MainWindow::addSubWindowMenuItem(QList<MyMdiSubWindow *> windows)
+{
+    ui->mnuWindow->addSeparator();
+    foreach(MyMdiSubWindow* w, windows){
+        QAction* action = ui->mnuWindow->addAction(w->windowTitle());
+        connect(action,SIGNAL(triggered()),windowMapper,SLOT(map()));
+        windowMapper->setMapping(action,w);
+    }
+}
 
 /**
  * @brief 当前帐套是否可编辑
@@ -881,33 +781,6 @@ void MainWindow::rfLogin()
     //如果当前登录的root用户，则启用安全配置菜单项，目前未实现，暂不启用
     ui->actSecCon->setEnabled(login && curUser->isSuperUser());
     rfMainAct();
-    //如果用户没有登录，则禁用所有与账户有关的所有菜单项
-//    if(!login){
-//        ui->actCrtAccount->setEnabled(false);
-//        ui->actOpenAccount->setEnabled(false);
-//        ui->actCloseAccount->setEnabled(false);
-//        ui->actAccProperty->setEnabled(false);
-//        ui->actSave->setEnabled(false);
-//        ui->actPrint->setEnabled(false);
-//        ui->actCurStat->setEnabled(false);
-//        ui->actCurStatNew->setEnabled(false);
-//        ui->actDetailView->setEnabled(false);
-//        ui->actAddPz->setEnabled(false);
-//        ui->actInsertPz->setEnabled(false);
-//        ui->actDelPz->setEnabled(false);
-//        ui->actGoFirst->setEnabled(false);
-//        ui->actGoNext->setEnabled(false);
-//        ui->actGoPrev->setEnabled(false);
-//        ui->actGoLast->setEnabled(false);
-//        ui->actAddAction->setEnabled(false);
-//        ui->actInsertBa->setEnabled(false);
-//        ui->actDelAction->setEnabled(false);
-//        ui->actMvUpAction->setEnabled(false);
-//        ui->actMvDownAction->setEnabled(false);
-
-//        //......
-//    }
-
 }
 
 /**
@@ -1018,7 +891,9 @@ void MainWindow::rfPzNaviAct()
     bool isEmpty = false;
     bool isFirst = false;
     bool isLast = false;
+    bool isPrint = false;
     if(type == SUBWIN_PZEDIT){
+        isPrint = true;
         en = open;
         isEmpty = (!open || curSuiteMgr->getPzCount() == 0);
         isFirst = open && curSuiteMgr->isFirst();
@@ -1026,6 +901,7 @@ void MainWindow::rfPzNaviAct()
     }
     else if(type == SUBWIN_HISTORYVIEW){
         en = true;
+        isPrint = true;
         int suiteId = curSuiteMgr->getSuiteRecord()->id;
         isEmpty = historyPzSet.value(suiteId).isEmpty();
         isFirst = historyPzSetIndex.value(suiteId) == 0;
@@ -1035,6 +911,7 @@ void MainWindow::rfPzNaviAct()
     ui->actGoLast->setEnabled(en && !isEmpty && !isLast);
     ui->actGoNext->setEnabled(en && !(isEmpty || isLast));
     ui->actGoPrev->setEnabled(en && !(isEmpty || isFirst));
+    btnPrint->setEnabled(isPrint);
 }
 
 /**
@@ -1066,89 +943,9 @@ void MainWindow::rfBaEditAct()
  */
 void MainWindow::rfSaveBtn()
 {
-    //bool en = (curSuiteMgr && curSuiteMgr->isDirty())?true:false;
     bool en = (curSuiteMgr && !curSuiteMgr->getUndoStack()->isClean())?true:false;
     ui->actSave->setEnabled(en);
 }
-
-/**
- * 控制分录上下移动操作的启用性
- */
-//void MainWindow::rfBasiMoveAct()
-//{
-//    PzDialog* pd = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
-//    if(pd){
-//        pd->getBaSelectedCase(rows,conti);
-//        baSelectChanged(rows,conti);
-//    }
-//}
-
-
-
-// * @brief MainWindow::rfPzSetAct *
-// */
-//void MainWindow::rfPzSetAct(bool open)
-//{
-//    bool ro = curAccount && curAccount->getReadOnly();  //账户是否只读
-
-
-//    //
-
-//    //
-
-
-//    bool r = (open && (curSuiteMgr->getState() == Ps_Rec));
-//    ui->actPzErrorInspect->setEnabled(open);//凭证集错误检测
-//    r = r && !ro;
-//    ui->actAllVerify->setEnabled(r);        //全部审核
-//    ui->actAllInstat->setEnabled(!ro && open && !curSuiteMgr->isAllInstat()); //全部入账
-
-
-
-//    r = (!ro && open && (curSuiteMgr->getState() != Ps_Jzed));
-//    ui->actFordEx->setEnabled(r);   //结转汇兑损益
-//    ui->actFordPl->setEnabled(r);   //结转损益
-//    ui->actJzbnlr->setEnabled(r);   //结转本年利润
-//    ui->actEndAcc->setEnabled(r);   //结账
-
-
-//    ui->actAntiJz->setEnabled(r);   //反结转
-//    ui->actAntiEndAcc->setEnabled(!ro && open && curSuiteMgr->getState() == Ps_Jzed);//反结账
-
-
-
-
-//}
-
-
-
-
-
-/**
- * @brief MainWindow::rfEditAct
- *  控制凭证内部的编辑命令的启用性，这些命令包括
- *  1、添加、插入、移除凭证，
- *  2、审核、入账、取消审核、作废、取消作废
- *  启用条件：凭证集打开且未结账，凭证编辑窗口打开
- */
-//void MainWindow::rfEditInPzAct(PingZheng* pz)
-//{
-//    bool r;
-//    if(!pz || pz->parent()->getState() == Ps_Jzed ||
-//            pz->getPzState() != Pzs_Recording)
-//        r = false;
-//    else
-//        r = true;
-//    ui->actAddAction->setEnabled(r);
-//    ui->actDelAction->setEnabled(r);
-//    ui->actInsertBa->setEnabled(r);
-//    //对于分录移动操作，由baIndexBoundaryChanged(bool first, bool last)方法处理
-//    ui->actMvDownAction->setEnabled(r);
-//    ui->actMvUpAction->setEnabled(r);
-
-//}
-
-
 
 //设置当前活动的窗口
 void MainWindow::setActiveSubWindow(QWidget *window)
@@ -1201,6 +998,17 @@ void MainWindow::openAccount()
 
 void MainWindow::closeAccount()
 {
+    //检查是否有未保存的修改
+    if(!subWinGroups.isEmpty()){
+        foreach(int asrId, subWinGroups.keys()){
+            AccountSuiteManager* sm = curAccount->getSuiteMgr(asrId);
+            if(sm->isDirty()){
+                if(QMessageBox::Yes == QMessageBox::warning(this,tr("保存提醒"),tr("帐套“%1”已被修改，需要保存吗？").arg(sm->getSuiteRecord()->name),
+                                                            QMessageBox::Yes|QMessageBox::No))
+                    sm->save();
+            }
+        }
+    }
     //关闭所有属于该账户的子窗口
     if(!commonGroups.isEmpty()){
         QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups);
@@ -1259,16 +1067,6 @@ void MainWindow::closeAccount()
 
     if(curSuiteMgr->isPzSetOpened())
         curSuiteMgr->closePzSet();
-    //disconnect(curSuiteMgr,SIGNAL(pzCountChanged(int)),this,SLOT(pzCountChanged(int)));
-    //disconnect(pzSetMgr,SIGNAL(pzSetChanged()),this, SLOT(PzChangedInSet()));
-    //关闭账户前，还应关闭与此账户有关的其他子窗口
-    //if(subWindows.contains(SETUPBANK)){  //设置银行账户窗口
-    //    subWindows.value(SETUPBANK)->close();
-    //}
-
-    //设置期初余额的窗口
-    //科目配置窗口
-    //......
 
     curAccount->setLastAccessTime(QDateTime::currentDateTime());
     curAccount->close();
@@ -1289,12 +1087,10 @@ void MainWindow::closeEvent(QCloseEvent *event)
 {
     ui->mdiArea->closeAllSubWindows();
     if(curAccount)       //为了在下次打开应用时自动打开最后打开的账户
-        closeAccount();    
-    //appExit();
+        closeAccount();
     if (ui->mdiArea->currentSubWindow()) {
         event->ignore();
     } else {
-        //writeSettings();
         event->accept();
     }
 }
@@ -1615,6 +1411,7 @@ void MainWindow::UndoIndexChanged(int idx)
     //         .arg(idx).arg(undoStack->count()));
 
     static int oriSize = 0;    //undo栈的原始尺寸
+    static int oriIdx = -1;      //undo栈的初始索引
     int newSize = undoStack->count();
 
     //这种情况是在凭证集没有进行undo操作，由用户在凭证编辑界面直接修改引起
@@ -1625,9 +1422,12 @@ void MainWindow::UndoIndexChanged(int idx)
         //LOG_INFO(QString("oriSize change to %1").arg(oriSize));
         return;
     }
-    PzDialog* pd = qobject_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
-    if(pd)
-        pd->updateContent();
+    if(oriIdx != idx){
+        PzDialog* pd = qobject_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
+        if(pd)
+            pd->updateContent();
+    }
+    oriIdx = idx;
 
 
     //用户在凭证编辑窗口的编辑动作，一方面界面的内容已经更新，这时会产生一个编辑命令并
@@ -1700,88 +1500,6 @@ void MainWindow::pzCountChanged(int count)
                                curSuiteMgr->getVerifyCount(),curSuiteMgr->getInstatCount(),
                                curSuiteMgr->getPzCount());
 }
-
-/**
- * @brief MainWindow::refreshPzNaveBtnEnable
- *  已弃用，用新的rfPzNaviAct()代替
- *  刷新凭证任务相关Action的可用性（导航按钮，凭证编辑按钮（添加、插入、删除等）
- */
-//void MainWindow::rfNaviBtn()
-//{
-//    subWindowType wtype = activedMdiChild();
-//    if(!curSuiteMgr || (wtype != SUBWIN_PZEDIT && wtype != SUBWIN_HISTORYVIEW)){
-//        ui->actAddPz->setEnabled(false);
-//        ui->actInsertPz->setEnabled(false);
-//        ui->actDelPz->setEnabled(false);
-//        ui->actGoFirst->setEnabled(false);
-//        ui->actGoLast->setEnabled(false);
-//        ui->actGoPrev->setEnabled(false);
-//        ui->actGoNext->setEnabled(false);
-//        ui->actMvUpAction->setEnabled(false);
-//        ui->actMvDownAction->setEnabled(false);
-//        ui->actAddAction->setEnabled(false);
-//        ui->actInsertBa->setEnabled(false);
-//        ui->actDelAction->setEnabled(false);
-//    }
-//    else{
-//        if(wtype == SUBWIN_PZEDIT){
-//            if(curSuiteMgr->getCurPz()){
-//                spnNaviTo->setMaximum(curSuiteMgr->getPzCount());
-//                spnNaviTo->setMinimum(1);
-//                spnNaviTo->setValue(curSuiteMgr->getCurPz()->number());
-//            }
-
-
-//            //启用这些按钮的先决条件是凭证集打开且未结账
-//            ui->actPrint->setEnabled(true);
-//            bool ro = curAccount && curAccount->isReadOnly();
-//            bool r = !ro && (curSuiteMgr->getState()!=Ps_NoOpen) || (curSuiteMgr->getState()!= Ps_Jzed);
-//            ui->actAddPz->setEnabled(r);
-//            ui->actInsertPz->setEnabled(r);
-//            r = r && curSuiteMgr->getCurPz();
-//            ui->actDelPz->setEnabled(r);
-//            bool isEmpty = (curSuiteMgr->getPzCount() == 0);
-//            bool isFirst = curSuiteMgr->isFirst();
-//            bool isLast = curSuiteMgr->isLast();
-//            ui->actGoFirst->setEnabled(!isEmpty && !isFirst);
-//            ui->actGoLast->setEnabled(!isEmpty && !isLast);
-//            ui->actGoNext->setEnabled(!(isEmpty || isLast));
-//            ui->actGoPrev->setEnabled(!(isEmpty || isFirst));
-//            //根据当前的分录选择情况，控制移动分录按钮的可用性
-//            QList<int> rows; bool conti;
-//            //PzDialog* pd = static_cast<PzDialog*>(subWindows.value(SUBWIN_PZEDIT_new)->widget());
-//            PzDialog* pd = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
-//            if(pd){
-//                pd->getBaSelectedCase(rows,conti);
-//                baSelectChanged(rows,conti);
-//            }
-//        }
-//        else{
-//            int suiteId = curSuiteMgr->getSuiteRecord()->id;
-//            bool isEmpty = historyPzSet.value(suiteId).isEmpty();
-//            bool isFirst = historyPzSetIndex.value(suiteId) == 0;
-//            bool isLast = (historyPzSetIndex.value(suiteId) == historyPzSet.value(suiteId).count()-1);
-//            ui->actGoFirst->setEnabled(!isEmpty && !isFirst);
-//            ui->actGoLast->setEnabled(!isEmpty && !isLast);
-//            ui->actGoNext->setEnabled(!(isEmpty || isLast));
-//            ui->actGoPrev->setEnabled(!(isEmpty || isFirst));
-//            if(historyPzSet.value(suiteId).isEmpty()){
-//                spnNaviTo->setMaximum(0);
-//                spnNaviTo->setMinimum(0);
-//                spnNaviTo->clear();
-//            }
-//            else{
-//                if(!spnNaviTo->isEnabled()){
-//                    spnNaviTo->setEnabled(true);
-//                    ui->actNaviToPz->setEnabled(true);
-//                }
-//                spnNaviTo->setMinimum(historyPzSet.value(suiteId).first()->number());
-//                spnNaviTo->setMaximum(historyPzSet.value(suiteId).last()->number());
-//                spnNaviTo->setValue(historyPzSetIndex.value(suiteId)+1);
-//            }
-//        }
-//    }
-//}
 
 /**
  * @brief MainWindow::curPzChanged
@@ -1884,6 +1602,7 @@ void MainWindow::suiteViewSwitched(AccountSuiteManager *previous, AccountSuiteMa
             //connect(subWinGroups.value(key),SIGNAL(saveSubWinState(subWindowType,QByteArray*,SubWindowDim*)),
             //        this,SLOT(saveSubWindowState(subWindowType,QByteArray*,SubWindowDim*)));
         }
+        adjustEditMenus(UT_PZ,true);
         subWinGroups.value(key)->show();
         //if(commonGroups && commonGroups->isShow())
         //    commonGroups->hide();
@@ -1912,7 +1631,16 @@ void MainWindow::suiteViewSwitched(AccountSuiteManager *previous, AccountSuiteMa
     connect(undoStack,SIGNAL(undoTextChanged(QString)),this,SLOT(undoTextChanged(QString)));
     if(undoView)
         undoView->setStack(undoStack);
-    adjustEditMenus(UT_PZ,false);
+    undoAction = undoStack->createUndoAction(this);
+    redoAction = undoStack->createRedoAction(this);
+    undoAction->setIcon(QIcon(":/images/edit-undo.png"));
+    redoAction->setIcon(QIcon(":/images/edit-redo.png"));
+    MyMdiSubWindow* subWin = qobject_cast<MyMdiSubWindow*>(ui->mdiArea->activeSubWindow());
+    if(subWin){
+        if(subWin->getWindowType() == SUBWIN_PZEDIT){
+            adjustEditMenus(UT_PZ,false);
+        }
+    }
     refreshShowPzsState();
     rfPzNaviAct();
     rfBaEditAct();
@@ -1964,7 +1692,7 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
             dbUtil->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
             PzDialog* w = new PzDialog(month,curSuiteMgr,sinfo);
-            w->setWindowTitle(tr("凭证编辑窗口）"));
+            w->setWindowTitle(tr("凭证编辑窗口"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
             subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,w,winfo);
@@ -1978,9 +1706,12 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
         editable = (curSuiteMgr->getState() != Ps_Jzed) &&
                 (curSuiteMgr->getCurPz()->getPzState() == Pzs_Recording);
         //undoView->setStack(curSuiteMgr->getUndoStack());
+        //adjustEditMenus(UT_PZ,true);
+        rfPzSetEditAct(true);
     }
     //调整界面部件的启用性，以使用户可以导航凭证集和进行其他帐务处理工作
     //导航按钮控制
+
     rfPzNaviAct();
     rfBaEditAct();
     refreshShowPzsState();
@@ -1998,6 +1729,7 @@ void MainWindow::pzSetOpen(AccountSuiteManager *accSmg, int month)
     refreshShowPzsState();
     ui->statusbar->setPzSetDate(accSmg->getSuiteRecord()->year,month);
     rfPzSetOpenAct();
+    //switchUndoAction(false);
 }
 
 /**
@@ -2052,7 +1784,8 @@ void MainWindow::pzSetClosed(AccountSuiteManager *accSmg, int month)
     //rfAct();
     //rfTbrVisble();
     //refreshActEnanble();
-    adjustEditMenus(UT_PZ,true);
+    //adjustEditMenus(UT_PZ,true);
+    //switchUndoAction(true);
 }
 
 /**
@@ -2104,8 +1837,13 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
 void MainWindow::subWindowActivated(QMdiSubWindow *window)
 {
     MyMdiSubWindow* win = qobject_cast<MyMdiSubWindow*>(window);
-    if(win && win->getWindowType() == SUBWIN_PZEDIT)
+    if(win && win->getWindowType() == SUBWIN_PZEDIT){
         rfSaveBtn();
+        adjustEditMenus(UT_PZ,false);
+    }
+    else{
+        adjustEditMenus(UT_PZ,true);
+    }
     rfBaEditAct();
     rfPzNaviAct();
 }
@@ -2122,11 +1860,14 @@ void MainWindow::specSubWinClosed(subWindowType winType)
                                                         tr("凭证集已被修改，需要保存吗？"),
                                                         QMessageBox::Yes|QMessageBox::No))
                 curSuiteMgr->save();
-            else
+            else{
                 curSuiteMgr->rollback();
+            }
         }
         ui->actSave->setEnabled(false);
     }
+    //adjustEditMenus(UT_PZ,false);
+    rfPzSetEditAct(false);
     rfBaEditAct();
     rfPzNaviAct();
 }
@@ -2209,30 +1950,6 @@ void MainWindow::printProcess()
     }
 }
 
-
-///**
-// * @brief 当子窗口关闭时，保存子窗口的位置、尺寸以及内部状态信息
-// * @param state
-// * @param dim
-// */
-//void MainWindow::saveSubWindowState(subWindowType winType, QByteArray *state, SubWindowDim *dim)
-//{
-//    curAccount->getDbUtil()->saveSubWinInfo(winType,dim,state);
-//}
-
-
-/**
- * @brief MainWindow::PzChangedInSet
- *  由于凭证集内凭证内容的任何改变，将需要启用保存按钮以使用户可以执行保存操作
- *  监视凭证内容的改变，可以通过监视undoStack的干净状态改变信号而得
- */
-//void MainWindow::PzChangedInSet()
-//{
-//    ui->actSave->setEnabled(true);
-//}
-
-
-
 //处理添加凭证动作事件
 void MainWindow::on_actAddPz_triggered()
 {
@@ -2254,7 +1971,6 @@ void MainWindow::on_actInsertPz_triggered()
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->insertPz();
         refreshShowPzsState();
-        //refreshActEnanble();
     }
 }
 
@@ -3197,6 +2913,42 @@ void MainWindow::on_actInAccount_triggered()
     dlg.exec();
 }
 
+
+void MainWindow::on_actCloseCurWindow_triggered()
+{
+    QMdiSubWindow* w = ui->mdiArea->activeSubWindow();
+    if(!w)
+        return;
+    w->close();
+}
+
+void MainWindow::on_actCloseAllWindow_triggered()
+{
+    if(!commonGroups.isEmpty()){
+        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups);
+        while(it.hasNext()){
+            it.next();
+            it.value()->close();
+        }
+        commonGroups.clear();
+    }
+    if(!commonGroups_multi.isEmpty()){
+        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups_multi);
+        while(it.hasNext()){
+            it.next();
+            it.value()->close();
+        }
+        commonGroups_multi.clear();
+    }
+    if(curSuiteMgr){
+        int key = curSuiteMgr->getSuiteRecord()->id;
+        if(subWinGroups.value(key)->count() != 0){
+            subWinGroups.value(key)->closeAll();
+        }
+    }
+}
+
+
 /**
  * @brief 判断公共类窗口类型是否是唯一性子窗口
  * @param winType
@@ -3282,22 +3034,22 @@ void MainWindow::initUndoView()
  * @brief MainWindow::clearUndo
  *  清除Undo相关的对象（在关闭凭证集时调用）
  */
-void MainWindow::clearUndo()
-{
-    if(!undoView)
-        return;
-    disconnect(undoView,SIGNAL(pressed(QModelIndex)),this,SLOT(undoViewItemClicked(QModelIndex)));
-    ui->menuEdit->removeAction(undoAction);
-    ui->menuEdit->removeAction(redoAction);
-    ui->tbrEdit->removeAction(undoAction);
-    ui->tbrEdit->removeAction(redoAction);
-    removeDockWidget(dockWindows.value(TV_UNDO));
-    delete dockWindows[TV_UNDO];
-    dockWindows.remove(TV_UNDO);
-    //delete undoView;
-    undoView = NULL;
-    adjustViewMenus(TV_UNDO,true);
-}
+//void MainWindow::clearUndo()
+//{
+//    if(!undoView)
+//        return;
+//    disconnect(undoView,SIGNAL(pressed(QModelIndex)),this,SLOT(undoViewItemClicked(QModelIndex)));
+//    ui->menuEdit->removeAction(undoAction);
+//    ui->menuEdit->removeAction(redoAction);
+//    ui->tbrEdit->removeAction(undoAction);
+//    ui->tbrEdit->removeAction(redoAction);
+//    removeDockWidget(dockWindows.value(TV_UNDO));
+//    delete dockWindows[TV_UNDO];
+//    dockWindows.remove(TV_UNDO);
+//    //delete undoView;
+//    undoView = NULL;
+//    adjustViewMenus(TV_UNDO,true);
+//}
 
 /**
  * @brief MainWindow::adjustViewMenus
@@ -3330,6 +3082,8 @@ void MainWindow::adjustViewMenus(MainWindow::ToolViewType t, bool isRestore)
 /**
  * @brief MainWindow::adjustEditMenus
  *  调整编辑菜单下的Undo、Redo菜单项的实际对应的QAction
+ * @param   ut
+ * @param   restore true：恢复为ui文件中定义的，false：替换为Undo栈产生的
  */
 void MainWindow::adjustEditMenus(UndoType ut, bool restore)
 {
@@ -3339,14 +3093,8 @@ void MainWindow::adjustEditMenus(UndoType ut, bool restore)
         redo = ui->actRedo;
     }
     else{
-        switch(ut){
-        case UT_PZ:
-            undo = undoStack->createUndoAction(this);
-            redo = undoStack->createRedoAction(this);
-            break;
-        }
-        undo->setIcon(QIcon(":/images/edit-undo.png"));
-        redo->setIcon(QIcon(":/images/edit-redo.png"));
+        undo = undoAction;
+        redo = redoAction;
     }
     QList<QAction*> actions;
     actions = ui->menuEdit->actions();
@@ -3361,19 +3109,6 @@ void MainWindow::adjustEditMenus(UndoType ut, bool restore)
     ui->tbrEdit->clear();
     ui->tbrEdit->addActions(actions);
 }
-
-/**
- * @brief 切换到与指定帐套对应的帐套视图
- * @param suiteId
- */
-//void MainWindow::switchSubWindowGroup(int suiteId)
-//{
-//    if(suiteId != 0){
-//        //隐藏当前帐套对应的所有子窗口
-
-//        //显示新帐套的所有已打开的子窗口
-//    }
-//}
 
 //显示账户属性对话框
 void MainWindow::on_actAccProperty_triggered()
@@ -3693,6 +3428,7 @@ bool MainWindow::impTestDatas()
     form.exec();
     int i = 0;
 }
+
 
 
 

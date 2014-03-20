@@ -125,11 +125,12 @@ enum PingZhengEditState{
     ES_PZ_PZSTATE    = 0x10,     //凭证审核状态
     ES_PZ_JSUM       = 0x20,     //借方合计
     ES_PZ_DSUM       = 0x40,     //贷方合计
-    ES_PZ_RUSER      = 0x080,     //录入用户
-    ES_PZ_VUSER      = 0x100,     //审核用户
-    ES_PZ_BUSER      = 0x200,     //入账用户
-    ES_PZ_CLASS      = 0x400,     //凭证类别
-    ES_PZ_BACTION    = 0x8000     //会计分录
+    ES_PZ_RUSER      = 0x080,    //录入用户
+    ES_PZ_VUSER      = 0x100,    //审核用户
+    ES_PZ_BUSER      = 0x200,    //入账用户
+    ES_PZ_CLASS      = 0x400,    //凭证类别
+    ES_PZ_MEMINFO    = 0x800,    //凭证备注信息
+    ES_PZ_BACTION    = 0x8000    //会计分录
 };
 Q_DECLARE_FLAGS(PingZhengEditStates, PingZhengEditState)
 Q_DECLARE_OPERATORS_FOR_FLAGS(PingZhengEditStates)
@@ -192,8 +193,8 @@ public:
     void setRecordUser(User* user);
     User* bookKeeperUser(){return bu;}
     void setBookKeeperUser(User* user);
-    QString memInfo(){return "";}
-    void setMemInfo(QString info){}
+    QString memInfo(){return memInfos;}
+    void setMemInfo(QString info);
 
 
     //会计分录方法
@@ -276,6 +277,7 @@ private:
     BusiAction* curBa;                  //当前会计分录对象
     bool isDeleted;                     //是否被删除的标记
     FirstSubject* oppoSub;              //结转汇兑损益类凭证的对方科目
+    QString memInfos;                   //凭证备注信息
 
     friend class AccountSuiteManager;
     friend class BusiAction;

@@ -143,7 +143,11 @@
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QComboBox" name="FSubCls"/>
+          <widget class="QComboBox" name="FSubCls">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+          </widget>
          </item>
          <item row="2" column="0">
           <widget class="QLabel" name="label_3">
@@ -153,7 +157,11 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QLineEdit" name="fsubCode"/>
+          <widget class="QLineEdit" name="fsubCode">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="3" column="0">
           <widget class="QLabel" name="label_2">
@@ -163,7 +171,11 @@
           </widget>
          </item>
          <item row="3" column="1">
-          <widget class="QLineEdit" name="fsubName"/>
+          <widget class="QLineEdit" name="fsubName">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="4" column="0">
           <widget class="QLabel" name="label_6">
@@ -173,7 +185,11 @@
           </widget>
          </item>
          <item row="4" column="1">
-          <widget class="QLineEdit" name="fsubRemCode"/>
+          <widget class="QLineEdit" name="fsubRemCode">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="5" column="0">
           <widget class="QLabel" name="label_5">
@@ -191,6 +207,9 @@
             <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
            </property>
            <widget class="QRadioButton" name="jdDir_N">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="geometry">
              <rect>
               <x>68</x>
@@ -204,6 +223,9 @@
             </property>
            </widget>
            <widget class="QRadioButton" name="jdDir_P">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="geometry">
              <rect>
               <x>9</x>
@@ -227,6 +249,9 @@
          </item>
          <item row="6" column="1">
           <widget class="QCheckBox" name="isUseWb">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string/>
            </property>
@@ -241,6 +266,9 @@
          </item>
          <item row="7" column="1">
           <widget class="QCheckBox" name="fsubIsEnable">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string/>
            </property>
@@ -255,8 +283,14 @@
          </item>
          <item row="8" column="1">
           <widget class="QLineEdit" name="fsubWeight">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string/>
+           </property>
+           <property name="readOnly">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
@@ -424,10 +458,18 @@
           </widget>
          </item>
          <item row="2" column="1">
-          <widget class="QLineEdit" name="ssubWeight"/>
+          <widget class="QLineEdit" name="ssubWeight">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="7" column="1">
-          <widget class="QLineEdit" name="ssubDisTime"/>
+          <widget class="QLineEdit" name="ssubDisTime">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="6" column="0">
           <widget class="QLabel" name="label_31">
@@ -444,7 +486,11 @@
           </widget>
          </item>
          <item row="8" column="1">
-          <widget class="QLineEdit" name="ssubCreator"/>
+          <widget class="QLineEdit" name="ssubCreator">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="4" column="0">
           <widget class="QLabel" name="label_29">
@@ -475,7 +521,11 @@
           </widget>
          </item>
          <item row="1" column="1">
-          <widget class="QLineEdit" name="ssubCode"/>
+          <widget class="QLineEdit" name="ssubCode">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="3" column="0">
           <widget class="QLabel" name="label_21">
@@ -493,6 +543,9 @@
          </item>
          <item row="3" column="1">
           <widget class="QCheckBox" name="ssubIsEnable">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string/>
            </property>
@@ -519,7 +572,11 @@
           </widget>
          </item>
          <item row="9" column="1">
-          <widget class="QLineEdit" name="ssubCrtTime"/>
+          <widget class="QLineEdit" name="ssubCrtTime">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
          </item>
          <item row="5" column="1">
           <widget class="QLineEdit" name="ssubLName">
@@ -537,6 +594,9 @@
          </item>
          <item row="10" column="1">
           <widget class="QCheckBox" name="ssubIsDef">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string/>
            </property>
@@ -596,6 +656,9 @@
         <layout class="QVBoxLayout" name="verticalLayout_5">
          <item>
           <widget class="QPushButton" name="btnNewNI">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string>创建</string>
            </property>
@@ -624,6 +687,9 @@
          </item>
          <item>
           <widget class="QPushButton" name="btnNIMerge">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string>合并</string>
            </property>

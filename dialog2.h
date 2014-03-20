@@ -23,14 +23,10 @@
 
 
 #ifdef Q_OS_LINUX
-#include "ExcelFormat.h"
-//#include "BasicExcel.h"
-using namespace ExcelFormat;
-using namespace YExcel;
 #endif
 
 #ifdef Q_OS_WIN
-#include "excelUtils.h"
+//#include "excelUtils.h"
 #endif
 
 #define FSTSUBTYPE QTreeWidgetItem::UserType+1  //放置一级科目的树节点的类型

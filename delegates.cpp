@@ -11,6 +11,7 @@
 #include "tables.h"
 #include "dialogs.h"
 #include "widgets/variousWidgets.h"
+#include "widgets/fstsubeditcombobox.h"
 #include "logs/Logger.h"
 #include "subject.h"
 #include "statements.h"
@@ -211,253 +212,6 @@ void SummaryEdit::keyPressEvent(QKeyEvent *event)
 //    QLineEdit::focusOutEvent(e);
 //}
 
-/////////////////////////////FstSubComboBox//////////////////////////
-FstSubComboBox::FstSubComboBox(SubjectManager* subMgr, QWidget *parent)
-    :QWidget(parent),subMgr(subMgr),sortBy(SM_NAME),textChangeReson(true)
-{
-    lw = new QListWidget(this);
-    com = new PAComboBox(this);
-    com->setEditable(true);       //使其可以输入新的名称条目
-    com->setCompleter(NULL);
-    com->setPartner(lw);
-    com->setPartnerViewState(false);
-    lw->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    connect(lw,SIGNAL(itemActivated(QListWidgetItem*)),this,SLOT(itemSelected(QListWidgetItem*)));
-
-    keys = new QString;
-    expandHeight = 200;
-    lw->setHidden(true);
-    QVBoxLayout* l = new QVBoxLayout;
-    l->setSpacing(0);
-    l->setContentsMargins(0,0,0,0);
-    l->addWidget(com);
-    l->addWidget(lw);
-    setLayout(l);
-
-    //装载所有一级科目到列表框和组合框（开始时默认按科目代码）
-    QVariant v;
-    FirstSubject* sub;
-    QListWidgetItem* item;
-    FSubItrator* it = subMgr->getFstSubItrator();
-    while(it->hasNext()){
-        it->next();
-        sub = it->value();
-        fsubs<<sub;
-        v.setValue(sub);
-        com->addItem(sub->getName(),v);
-        item = new QListWidgetItem(sub->getName());
-        item->setData(Qt::EditRole,v);
-        lw->addItem(item);        
-    }
-    connect(com->lineEdit(),SIGNAL(textChanged(QString)),this,SLOT(nameTextChanged(QString)));
-}
-
-FstSubComboBox::~FstSubComboBox()
-{
-    delete com;
-    delete lw;
-    delete keys;
-}
-
-/**
- * @brief FstSubComboBox2::setSubject
- * @param fsub
- */
-void FstSubComboBox::setSubject(FirstSubject *fsub)
-{
-    QVariant v;
-    v.setValue(fsub);
-    com->setCurrentIndex(com->findData(v,Qt::EditRole));
-}
-
-void FstSubComboBox::addItem(const QString &text, const QVariant &userData)
-{
-    com->addItem(text,userData);
-}
-
-int FstSubComboBox::currentIndex() const
-{return com->currentIndex();}
-
-void FstSubComboBox::setCurrentIndex(int index)
-{
-    com->setCurrentIndex(index);
-    fsub = com->itemData(index,Qt::UserRole).value<FirstSubject*>();
-}
-
-int FstSubComboBox::findData(const QVariant &data, int role, Qt::MatchFlags flags) const
-{return com->findData(data,role,flags);}
-
-QVariant FstSubComboBox::itemData(int index, int role) const
-{return com->itemData(index,role);}
-
-void FstSubComboBox::keyPressEvent(QKeyEvent *e)
-{
-    static int i = 0;
-    static bool isDigit = true;  //true：输入的是科目的数字代码，false：科目的助记符
-
-    if((e->modifiers() != Qt::NoModifier) &&
-      (e->modifiers() != Qt::KeypadModifier)){
-        e->ignore();
-        QWidget::keyPressEvent(e);
-        return;
-    }
-
-    int keyCode = e->key();
-
-    //如果是字母键，则输入的是科目助记符，则按助记符快速定位
-    if(((keyCode >= Qt::Key_A) && (keyCode <= Qt::Key_Z))){
-        keys->append(keyCode);
-        //接收到第一个字符，需要重新按科目助记符排序，并装载到列表框
-        if(keys->size() == 1){
-            isDigit = false;
-            hideList(false);
-        }
-        reloadFSubs(1,*keys);
-    }
-    //如果是数字键则键入的是科目代码，则按科目代码快速定位
-    else if((keyCode >= Qt::Key_0) && (keyCode <= Qt::Key_9)){
-        keys->append(keyCode);
-        if(keys->size() == 1){
-            isDigit = true;
-            hideList(false);
-        }
-        reloadFSubs(2,*keys);
-    }
-    //如果是其他编辑键
-    else if(lw->isVisible()){
-        FirstSubject* fsub;
-        QVariant v;
-        int idx;
-        switch(keyCode){
-        case Qt::Key_Backspace:  //退格键，则维护键盘字符缓存，并进行重新定位
-            keys->chop(1);
-            if(keys->size() == 0)
-                hideList(true);
-            else{
-                if(isDigit){
-                    reloadFSubs(2,*keys);
-                }
-                else{
-                    reloadFSubs(1,*keys);
-                }
-            }
-            break;
-        case Qt::Key_Up:
-            //LOG_INFO("press up arrow key!");
-            if(lw->currentRow() == 0)
-                break;
-            lw->setCurrentRow(lw->currentRow()-1);
-            break;
-
-        case Qt::Key_Down:
-            //LOG_INFO("press down arrow key!");
-            if(lw->currentRow() == lw->count()-1)
-                break;
-            lw->setCurrentRow(lw->currentRow()+1);
-            break;
-
-        case Qt::Key_Return:  //回车键
-        case Qt::Key_Enter:
-            if(!lw->currentItem())
-                break;
-            fsub = lw->currentItem()->data(Qt::UserRole).value<FirstSubject*>();
-            v.setValue(fsub);
-            setCurrentIndex(findData(v,Qt::UserRole));
-            hideList(true);
-            keys->clear();
-            emit dataEditCompleted(BT_FSTSUB, true);
-            break;
-        }
-    }
-    //增加这个检测是为了能够以一贯的方式（即用回车键完成输入焦点的移动）移动焦点到下一个表格项
-    else if((keyCode == Qt::Key_Enter) || (keyCode == Qt::Key_Return))
-        emit dataEditCompleted(BT_FSTSUB, true);
-    else
-        QWidget::keyPressEvent(e);
-}
-
-void FstSubComboBox::itemSelected(QListWidgetItem *item)
-{
-    com->setCurrentIndex(com->findData(item->data(Qt::UserRole)));
-    hideList(true);
-}
-
-void FstSubComboBox::nameTextChanged(const QString &text)
-{
-    //LOG_INFO(QString("nameTextChanged() text=%1").arg(text));
-    if(sortBy != SM_NAME)
-        return;
-    //LOG_INFO("reload items");
-    reloadFSubs(0,text);
-    hideList(false);
-    textChangeReson = false;
-}
-
-void FstSubComboBox::nameTexteditingFinished()
-{
-    if(lw->currentRow() != -1){
-        com->setCurrentIndex(com->findData(lw->currentItem()->data(Qt::UserRole)));
-        emit dataEditCompleted(BT_FSTSUB, true);
-    }
-}
-
-void FstSubComboBox::subSelectChanged(const int index)
-{
-}
-
-/**
- * @brief FstSubComboBox2::reloadFSubs
- * 重新装载一级科目到智能提示列表框
- * @param witch：（0：按名称字符顺序，1：助记符，2：科目代码）
- * @param startStr：前缀字符串
- */
-void FstSubComboBox::reloadFSubs(int witch, QString startStr)
-{
-    //LOG_INFO(QString("enter FstSubComboBox2::reloadFSubs() fsub=%1,witch=%2,startStr=%3")
-    //         .arg(fsub->getName()).arg(witch).arg(startStr));
-    lw->clear();
-    if(witch == 0)
-        qSort(fsubs.begin(),fsubs.end(),byNameThan_fs);
-    else if(witch == 1)
-        qSort(fsubs.begin(),fsubs.end(),byRemCodeThan_fs);
-    else
-        qSort(fsubs.begin(),fsubs.end(),bySubCodeThan_fs);
-    QListWidgetItem* item;
-    QVariant v;
-    foreach(FirstSubject* fsub, fsubs){
-        //LOG_INFO(QString("compare fsub(%1),remCode(%2),subCode(%3)")
-        //         .arg(fsub->getName()).arg(fsub->getRemCode()).arg(fsub->getCode()));
-        if(!fsub->isEnabled())
-            continue;
-        bool isCrt = false;
-        if(witch == 0 && fsub->getName().startsWith(startStr,Qt::CaseInsensitive))
-            isCrt = true;
-        else if(witch == 1 && fsub->getRemCode().startsWith(startStr,Qt::CaseInsensitive))
-            isCrt = true;
-        else if(witch == 2 && fsub->getCode().startsWith(startStr,Qt::CaseInsensitive))
-            isCrt = true;
-        if(isCrt){
-            //LOG_INFO("join item");
-            item = new QListWidgetItem(fsub->getName());
-            v.setValue(fsub);
-            item->setData(Qt::UserRole,v);
-            lw->addItem(item);
-        }
-    }
-    if(lw->count()>0)
-        lw->setCurrentRow(0);
-}
-
-void FstSubComboBox::hideList(bool isHide)
-{
-    lw->setHidden(isHide);
-    com->setPartnerViewState(!isHide);
-    if(isHide)
-        resize(width(),height() - expandHeight);
-    else
-        resize(width(),height() + expandHeight);
-}
-
 
 ////////////////////////////SndSubComboBox//////////////////////////
 SndSubComboBox::SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectManager *subMgr,
@@ -571,7 +325,7 @@ void SndSubComboBox::keyPressEvent(QKeyEvent *e)
         isDigit = false;
         if(keys->size() == 1){ //接收到第一个字符，需要重新按科目助记符排序，并装载到列表框
             isDigit = false;
-            sortBy = SM_REMCOD;
+            sortBy = SM_REMCODE;
             qSort(allNIs.begin(),allNIs.end(),byRemCodeThan_ni);
             lw->clear();
             QVariant v;
@@ -824,7 +578,7 @@ void SndSubComboBox::filterListItem()
                 lw->item(i)->setHidden(true);
         }
     }
-    else if(sortBy == SM_REMCOD){
+    else if(sortBy == SM_REMCODE){
         for(int i = 0; i < allNIs.count(); ++i){
             if(allNIs.at(i)->getRemCode().startsWith(*keys,Qt::CaseInsensitive))
                 lw->item(i)->setHidden(false);
@@ -1349,7 +1103,8 @@ QWidget* ActionEditItemDelegate::createEditor(QWidget *parent, const QStyleOptio
             return editor;
         }
         else if(col == BT_FSTSUB){ //总账科目列
-            FstSubComboBox* editor = new FstSubComboBox(subMgr, parent);
+            //FstSubComboBox* editor = new FstSubComboBox(subMgr, parent);
+            FstSubEditComboBox* editor = new FstSubEditComboBox(subMgr,parent);
             connect(editor, SIGNAL(dataEditCompleted(int,bool)),
                     this, SLOT(commitAndCloseEditor(int,bool)));
             return editor;
@@ -1416,7 +1171,8 @@ void ActionEditItemDelegate::setEditorData(QWidget *editor, const QModelIndex &i
        }
     }
     else if(col == BT_FSTSUB){
-        FstSubComboBox* cmb = qobject_cast<FstSubComboBox*>(editor);
+        //FstSubComboBox* cmb = qobject_cast<FstSubComboBox*>(editor);
+        FstSubEditComboBox* cmb  = qobject_cast<FstSubEditComboBox*>(editor);
         if(cmb){
             //FirstSubject* fsub = index.model()->
             //        data(index, Qt::EditRole).value<FirstSubject*>();
@@ -1470,7 +1226,8 @@ void ActionEditItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *m
         }
     }
     else if(col == BT_FSTSUB){
-        FstSubComboBox* cmb = qobject_cast<FstSubComboBox*>(editor);
+        //FstSubComboBox* cmb = qobject_cast<FstSubComboBox*>(editor);
+        FstSubEditComboBox* cmb = qobject_cast<FstSubEditComboBox*>(editor);
         if(cmb){
             FirstSubject* fsub = cmb->itemData(cmb->currentIndex(), Qt::UserRole).value<FirstSubject*>();
             if(fsub != model->data(index,Qt::EditRole).value<FirstSubject*>())
@@ -1520,7 +1277,8 @@ void ActionEditItemDelegate::commitAndCloseEditor(int colIndex, bool isMove)
     if(colIndex == BT_SUMMARY)
         editor = qobject_cast<SummaryEdit*>(sender());
     else if(colIndex == BT_FSTSUB)
-        editor = qobject_cast<FstSubComboBox*>(sender());
+        //editor = qobject_cast<FstSubComboBox*>(sender());
+        editor = qobject_cast<FstSubEditComboBox*>(sender());
     else if(colIndex == BT_SNDSUB){
         editor = qobject_cast<SndSubComboBox*>(sender());
         //LOG_INFO("SndSubComboBox commit data!");

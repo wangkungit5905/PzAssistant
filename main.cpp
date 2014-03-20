@@ -97,7 +97,6 @@ int main(int argc, char *argv[])
 
     MainWindow mainWin;
     mainWin.showMaximized();
-    mainWin.hideDockWindows();
     mainWin.getMdiAreaSize(mdiAreaWidth, mdiAreaHeight);
     int exitCode = app.exec();
 

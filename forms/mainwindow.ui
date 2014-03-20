@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1061</width>
+    <width>1052</width>
     <height>600</height>
    </rect>
   </property>
@@ -33,7 +33,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1061</width>
+     <width>1052</width>
      <height>20</height>
     </rect>
    </property>
@@ -1163,120 +1163,7 @@
  <resources>
   <include location="../imgers.qrc"/>
  </resources>
- <connections>
-  <connection>
-   <sender>actCloseCurWindow</sender>
-   <signal>triggered()</signal>
-   <receiver>mdiArea</receiver>
-   <slot>closeActiveSubWindow()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>459</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actCloseAllWindow</sender>
-   <signal>triggered()</signal>
-   <receiver>mdiArea</receiver>
-   <slot>closeAllSubWindows()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>459</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actTileWindow</sender>
-   <signal>triggered()</signal>
-   <receiver>mdiArea</receiver>
-   <slot>tileSubWindows()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>459</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actCascadeWindow</sender>
-   <signal>triggered()</signal>
-   <receiver>mdiArea</receiver>
-   <slot>cascadeSubWindows()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>459</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actPrevWindow</sender>
-   <signal>triggered()</signal>
-   <receiver>mdiArea</receiver>
-   <slot>activatePreviousSubWindow()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>459</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actNextWindow</sender>
-   <signal>triggered()</signal>
-   <receiver>mdiArea</receiver>
-   <slot>activateNextSubWindow()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>459</x>
-     <y>317</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>mdiArea</sender>
-   <signal>subWindowActivated(QMdiSubWindow*)</signal>
-   <receiver>MainWindow</receiver>
-   <slot>subWindowActivated(QMdiSubWindow*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>798</x>
-     <y>207</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>870</x>
-     <y>213</y>
-    </hint>
-   </hints>
-  </connection>
- </connections>
+ <connections/>
  <slots>
   <slot>subWindowActivated(QMdiSubWindow*)</slot>
   <slot>userModifyPzState(QAction*)</slot>

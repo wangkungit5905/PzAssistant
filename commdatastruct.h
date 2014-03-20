@@ -37,7 +37,7 @@ enum ClipboardOperate{
 enum SortByMode{
     SM_NAME   = 1,     //按名称字符
     SM_CODE   = 2,     //按科目代码
-    SM_REMCOD = 3      //按助记符
+    SM_REMCODE = 3      //按助记符
 };
 
 //应用错误级别名称

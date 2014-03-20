@@ -95,6 +95,16 @@ void ValidableTableWidgetItem::setData(int role, const QVariant& value)
 //    close();
 //}
 
+//void MyMdiSubWindow::close()
+//{
+//    if(isHideWhenColse)
+//        hide();
+//    else{
+//        emit windowClosed(this);
+//        QMdiSubWindow::close();
+//    }
+//}
+
 void MyMdiSubWindow::closeEvent(QCloseEvent *closeEvent)
 {
     if(isHideWhenColse)

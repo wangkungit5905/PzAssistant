@@ -22,7 +22,6 @@ SOURCES += main.cpp\
     completsubinfodialog.cpp \
     dialog2.cpp \
     mainwindow.cpp \
-    ExcelFormat.cpp \
     BasicExcel.cpp \
     printUtils.cpp \
     printetemplate.cpp \
@@ -66,7 +65,8 @@ SOURCES += main.cpp\
     transfers.cpp \
     showdzdialog.cpp \
     widgets/subjectselectorcombobox.cpp \
-    testform.cpp
+    testform.cpp \
+    widgets/fstsubeditcombobox.cpp
 
 HEADERS  += \
     connection.h \
@@ -82,7 +82,6 @@ HEADERS  += \
     completsubinfodialog.h \
     dialog2.h \
     mainwindow.h \
-    ExcelFormat.h \
     BasicExcel.h \
     printUtils.h \
     printtemplate.h \
@@ -130,7 +129,8 @@ HEADERS  += \
     showdzdialog.h \
     widgets/subjectselectorcombobox.h \
     testform.h \
-    globalVarNames.h
+    globalVarNames.h \
+    widgets/fstsubeditcombobox.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

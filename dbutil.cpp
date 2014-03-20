@@ -2835,6 +2835,19 @@ bool DbUtil::loadPzSet(int y, int m, QList<PingZheng *> &pzs, AccountSuiteManage
             pz->ds = ds;
         js=0.0;ds=0.0;
     }
+    //装载凭证备注信息
+    foreach(PingZheng* pz, pzs){
+        s = QString("select %1 from %2 where %3=%4").arg(fld_pzmi_info)
+                .arg(tbl_pz_meminfos).arg(fld_pzmi_pid).arg(pz->id());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        if(!q.first())
+            continue;
+        QString info = q.value(0).toString();
+        pz->setMemInfo(info);
+    }
 
     if(!db.commit()){
         warn_transaction(Transaction_commit,QObject::tr("When load PingZheng set(%1-%2) failed!").arg(y).arg(m));
@@ -4155,6 +4168,14 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
             return false;
         }
         q.first(); pz->ID = q.value(0).toInt();
+        if(!pz->memInfo().isEmpty()){
+            s = QString("insert into %1(%2,%3) values(%4,'%5')").arg(tbl_pz_meminfos)
+                    .arg(fld_pzmi_pid).arg(fld_pzmi_info).arg(pz->id()).arg(pz->memInfo());
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
         return _saveBusiactionsInPz(pz);
     }
     else{   //如果是原有凭证        
@@ -4181,6 +4202,7 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
             s.append(QString("%1=%2,").arg(fld_pz_vu).arg(pz->verifyUser()->getUserId()));
         if(state.testFlag(ES_PZ_BUSER))
             s.append(QString("%1=%2,").arg(fld_pz_bu).arg(pz->bookKeeperUser()->getUserId()));
+
         if(s.endsWith(',')){
             s.chop(1);
             s.append(QString(" where id=%1").arg(pz->id()));
@@ -4189,6 +4211,23 @@ bool DbUtil::_savePingZheng(PingZheng *pz)
                 return false;
             }
         }
+        if(state.testFlag(ES_PZ_MEMINFO)){
+            s = QString("update %1 set %2='%3' where %4=%5").arg(tbl_pz_meminfos)
+                    .arg(fld_pzmi_info).arg(pz->memInfo()).arg(fld_pzmi_pid).arg(pz->id());
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            if(q.numRowsAffected() == 0){
+                s = QString("insert into %1(%2,%3) values(%4,'%5')").arg(tbl_pz_meminfos)
+                        .arg(fld_pzmi_pid).arg(fld_pzmi_info).arg(pz->id()).arg(pz->memInfo());
+                if(!q.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+            }
+        }
+
         if(state.testFlag(ES_PZ_BACTION))
             return _saveBusiactionsInPz(pz);
     }
@@ -4301,6 +4340,10 @@ bool DbUtil::_delPingZheng(PingZheng *pz)
         LOG_SQLERROR(s);
         return false;
     }
+    s = QString("delete from %1 where %2=%3").arg(tbl_pz_meminfos).arg(fld_pzmi_pid).arg(pz->id());
+    if(!q.exec(s))
+        LOG_SQLERROR(s);
+
     s = QString("delete from %1 where id=%2").arg(tbl_pz).arg(pz->id());
     if(!q.exec(s)){
         LOG_SQLERROR(s);

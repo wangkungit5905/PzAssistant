@@ -74,50 +74,6 @@ private:
     //QShortcut* shortCut;
 };
 
-//显示和编辑总账科目
-class FstSubComboBox : public QWidget
-{
-    Q_OBJECT
-public:
-    FstSubComboBox(SubjectManager* subMgr, QWidget *parent = 0);
-    ~FstSubComboBox();
-    void setSubject(FirstSubject* fsub);
-    FirstSubject* getSubject(){return fsub;}
-
-    void addItem(const QString& text, const QVariant& userData = QVariant());
-    int	currentIndex() const;
-    void setCurrentIndex(int index);
-
-    int	findData(const QVariant& data, int role = Qt::UserRole,
-                 Qt::MatchFlags flags = static_cast<Qt::MatchFlags>
-            ( Qt::MatchExactly | Qt::MatchCaseSensitive ) ) const;
-    QVariant itemData (int index, int role = Qt::UserRole) const;
-protected:
-    void keyPressEvent(QKeyEvent* e );
-
-private slots:
-    void itemSelected(QListWidgetItem* item);
-    void nameTextChanged(const QString& text);
-    void nameTexteditingFinished();
-    void subSelectChanged(const int index);
-signals:
-    void dataEditCompleted(int col, bool isMove);
-private:
-    void reloadFSubs(int witch, QString startStr);
-    void hideList(bool isHide);
-
-    QString* keys;
-    SortByMode sortBy;
-    int expandHeight;  //当出现智能提示框时要伸展的高度
-    FirstSubject* fsub;              //
-    SubjectManager *subMgr;          //
-    QList<FirstSubject*> fsubs;  //所有二级科目
-
-    bool textChangeReson; //组合框的文本是怎么改变的（true：鼠标选择组合框的下拉列表中的一个项目，false：用户输入到组合框的文本编辑区域）
-    PAComboBox* com;       //显示当前一级科目下的可选的二级科目的组合框
-    QListWidget* lw;      //智能提示列表框（显示所有带有指定前缀的名称条目）
-};
-
 //编辑和显示明细科目
 class SndSubComboBox : public QWidget
 {
@@ -285,7 +241,7 @@ signals:
     void moveNextRow(int row);
     void reqCopyPrevAction(int row);
 
-    void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);
+    //void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);
 
 private:
     //int witch;  //代理当前编辑的是业务活动的哪个列

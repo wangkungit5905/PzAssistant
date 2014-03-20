@@ -24,16 +24,6 @@ namespace Ui {
     class MainWindow;
 }
 
-//class MouseHoverEventFilter : public QObject
-// {
-//     Q_OBJECT
-//public:
-//    MouseHoverEventFilter(QObject* parent=0):QObject(parent){}
-// protected:
-//     bool eventFilter(QObject *obj, QEvent *event);
-// };
-
-
 class PaStatusBar : public QStatusBar
 {
     Q_OBJECT
@@ -91,21 +81,20 @@ public:
     QWidget* getSubWinWidget(subWindowType winType);
     void closeSubWindow(subWindowType winType);
     void closeAll();
+    int count(){return subWinHashs.count();}
+    QList<MyMdiSubWindow*> getAllSubWindows(){return subWinHashs.values();}
 
 private slots:
     void subWindowClosed(MyMdiSubWindow *subWin);
 
 signals:
-//    void saveSubWinState(subWindowType winType,QByteArray* state,SubWindowDim* dim);
     void specSubWinClosed(subWindowType winType);
 
 private:
     int groupId;
     QMdiArea* parent;
     QHash<subWindowType,MyMdiSubWindow*> subWinHashs; //唯一性子窗口映射表
-    //QList<QMdiSubWindow*> subWindows;                //所有子窗口列表
     bool isShowed;                                   //当前子窗口组是否处于显示状态
-    //DbUtil* dbUtil;
 };
 
 
@@ -136,7 +125,6 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     void getMdiAreaSize(int &mdiAreaWidth, int &mdiAreaHeight);
-    void hideDockWindows();
     bool AccountVersionMaintain(QString fname);
 protected:
     void closeEvent(QCloseEvent *event);
@@ -172,16 +160,12 @@ private slots:
     void showTemInfo(QString info);
     void showRuntimeInfo(QString info, AppErrorLevel level);
     void refreshShowPzsState();
-    //void extraChanged(){isExtraVolid = false;} //由于凭证集发生了影响统计余额的改变，导致当前余额失效，
-                                               //目前主要由凭证编辑窗口的编辑动作引起，反馈给主窗口
     void extraValid();
     void pzSetStateChanged(PzsState newState);
     void pzSetExtraStateChanged(bool valid);
 
     //Undo框架相关槽
     void undoViewItemClicked(const QModelIndex &indexes);
-    //void canRedoChanged(bool canRedo);
-    //void canUndoChanged(bool canUndo);
     void undoCleanChanged(bool clean);
     void UndoIndexChanged(int idx);
     void redoTextChanged(const QString& redoText);
@@ -190,11 +174,9 @@ private slots:
     void showAndHideToolView(int vtype);
     void DockWindowVisibilityChanged(bool visible);
     void pzCountChanged(int count);
-    //void rfNaviBtn();
     void curPzChanged(PingZheng* newPz=NULL, PingZheng* oldPz=NULL);
     void baIndexBoundaryChanged(bool first, bool last);
     void baSelectChanged(QList<int> rows, bool conti);
-    //void PzChangedInSet();
 
     /////////////////////////////////////////////////////////////////
     void suiteViewSwitched(AccountSuiteManager* previous, AccountSuiteManager* current);
@@ -303,6 +285,10 @@ private slots:
 
     void on_actInAccount_triggered();
 
+    void on_actCloseCurWindow_triggered();
+
+    void on_actCloseAllWindow_triggered();
+
 private:
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
@@ -313,7 +299,7 @@ private:
     void initTvActions();
     void accountInit(AccountCacheItem *ci);
     subWindowType activedMdiChild();
-    //void pzSetSavePrompt();
+    void addSubWindowMenuItem(QList<MyMdiSubWindow*> windows);
 
     //菜单项启用性控制
     bool isSuiteEditable();
@@ -328,13 +314,6 @@ private:
     void rfPzNaviAct();
     void rfBaEditAct();
     void rfSaveBtn();
-    //void rfBasiMoveAct();
-    //void rfPzStateAct();
-
-
-    //void rfEditInPzAct(PingZheng *pz);
-
-
 
     void rightWarnning(int right);
     void pzsWarning();
@@ -345,12 +324,11 @@ private:
 
 
     void initUndoView();
-    void clearUndo();
+    //void clearUndo();
     void adjustViewMenus(ToolViewType t, bool isRestore = false);
     void adjustEditMenus(UndoType ut=UT_PZ, bool restore = false);
 
     /////////////////////////////////////////////////////////////////
-    //void switchSubWindowGroup(int suiteId);
 
     /////////////////////////////////////////////////////////////////
 
@@ -360,10 +338,6 @@ private:
 
     //ToolBars
     QToolBar *fileToolBar;
-
-    //创建新账户的4个步骤的对话框
-    //CreateAccountDialog* dlgAcc;
-    //SetupBankDialog* dlgBank;
 
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
     QSignalMapper* tvMapper;     //用于处理从视图菜单中选择显示的工具视图
@@ -388,8 +362,6 @@ private:
     QUndoView* undoView;       //Undo视图
     QAction *undoAction, *redoAction; //执行undo，redo操作
 
-    //QHash<QString,SuiteSwitchPanel*> ssPanels;              //
-    //bool isAccountChanged;                              //账户是否已变更的标记
     SuiteSwitchPanel* curSSPanel;                       //当前帐套切换面板对象
     QHash<subWindowType,MyMdiSubWindow*> commonGroups; //公共类（唯一性子窗口）
     QMultiHash<subWindowType,MyMdiSubWindow*> commonGroups_multi; //公共类（多子窗口共存）

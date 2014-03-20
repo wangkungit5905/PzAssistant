@@ -67,8 +67,8 @@ public:
     //~MyMdiSubWindow();
     int getGroupId(){return groupId;}
     subWindowType getWindowType(){return winType;}
-public slots:
-    //void centrlWidgetClosed();
+//public slots:
+//    void close();
 signals:
     void windowClosed(MyMdiSubWindow* subWin);
 protected:

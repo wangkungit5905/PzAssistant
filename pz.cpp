@@ -346,6 +346,15 @@ void PingZheng::setBookKeeperUser(User *user)
     }
 }
 
+void PingZheng::setMemInfo(QString info)
+{
+    if(memInfos != info){
+       memInfos=info;
+       setEditState(ES_PZ_MEMINFO);
+       emit pzContentChanged(this);
+    }
+}
+
 BusiAction *PingZheng::getBusiAction(int n)
 {
     if(n >= baLst.count() || n < 0)

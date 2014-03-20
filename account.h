@@ -164,7 +164,7 @@ public:
     QDateTime getLastAccessTime(){return QDateTime::fromString(accInfos.lastAccessTime,Qt::ISODate);}
     void setLastAccessTime(QDateTime time){accInfos.lastAccessTime = time.toString(Qt::ISODate);}
 
-    void setReadOnly(bool readOnly){readOnly=readOnly;}
+    void setReadOnly(bool readOnly){this->readOnly=readOnly;}
     bool isReadOnly(){return readOnly;}
     QList<BankAccount*> getAllBankAccount();
     QList<Bank*> getAllBank(){return banks;}

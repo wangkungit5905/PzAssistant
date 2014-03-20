@@ -14,6 +14,7 @@
 #include "completsubinfodialog.h"
 #include "statutil.h"
 #include "keysequence.h"
+#include "widgets.h"
 
 #include "ui_pzdialog.h"
 #include "ui_historypzform.h"
@@ -290,6 +291,7 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     initResources();
     setState(sinfo);
 
+
     msgTimer = new QTimer(this);
     msgTimer->setInterval(INFO_TIMEOUT);
     msgTimer->setSingleShot(true);
@@ -340,8 +342,8 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     setMonth(month);
     connect(pzMgr->getStatUtil(),SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
             this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
-    connect(delegate,SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
-            this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
+    //connect(delegate,SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
+    //        this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
 
     actModifyRate = new QAction(tr("修改汇率"),this);
     ui->edtRate->setContextMenuPolicy(Qt::ActionsContextMenu);
@@ -507,7 +509,7 @@ void PzDialog::restoreStateInfo()
  */
 void PzDialog::updateContent()
 {
-    curPz = pzMgr->getCurPz();
+    //curPz = pzMgr->getCurPz();
     refreshPzContent();
 }
 
@@ -1062,6 +1064,14 @@ void PzDialog::updatePzCount(int count)
  */
 void PzDialog::curPzChanged(PingZheng *newPz, PingZheng *oldPz)
 {
+//    if(oldPz){
+//        if(isPzMemModified){
+//            ModifyPzComment* cmd = new ModifyPzComment(pzMgr,oldPz,ui->edtComment->toPlainText());
+//            pzMgr->getUndoStack()->push(cmd);
+//            isPzMemModified = false;
+//        }
+//    }
+    curPz = newPz;
     updateContent();
 }
 
@@ -1484,6 +1494,20 @@ void PzDialog::modifyRate()
         QMessageBox::critical(this,tr("出错信息"),tr("在保存%1年%2月的汇率时出错！"));
 }
 
+/**
+ * @brief 监视凭证备注内容的改变
+ */
+void PzDialog::pzCommentChanged()
+{
+    ModifyPzComment* cmd = new ModifyPzComment(pzMgr,curPz,ui->edtComment->toPlainText());
+    pzMgr->getUndoStack()->push(cmd);
+}
+
+void PzDialog::pzMemInfoModified(bool changed)
+{
+    isPzMemModified = changed;
+}
+
 
 /**
  * @brief PzDialog::adjustTableSize
@@ -1517,6 +1541,7 @@ void PzDialog::adjustTableSize()
 void PzDialog::refreshPzContent()
 {
     //显示本期凭证总数
+    isPzMemModified = false;
     installInfoWatch(false);
     if(curPz == NULL){
         disconnect(curPz,SIGNAL(updateBalanceState(bool)),ui->tview,SLOT(setBalance(bool)));
@@ -1549,6 +1574,8 @@ void PzDialog::refreshPzContent()
         ui->edtVUser->setText(curPz->verifyUser()?curPz->verifyUser()->getName():"");
         ui->edtBUser->setText(curPz->bookKeeperUser()?curPz->bookKeeperUser()->getName():"");
         ui->edtComment->setReadOnly(false);
+        ui->edtComment->setPlainText(curPz->memInfo());
+        //ui->edtComment->document()->setModified(true);
         ui->lblClass->setPixmap(icons_pzcls.value(curPz->getPzClass()));
         ui->lblState->setPixmap(icons_pzstate.value(curPz->getPzState()));        
         setReadonly();
@@ -1832,12 +1859,16 @@ void PzDialog::installInfoWatch(bool install)
         connect(ui->spnZbNum,SIGNAL(valueChanged(int)),this,SLOT(pzZbNumChanged(int)));
         connect(ui->spnEncNum,SIGNAL(valueChanged(int)),this,SLOT(pzEncNumChanged(int)));
         //connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
+        connect(ui->edtComment,SIGNAL(textChanged()),this,SLOT(pzCommentChanged()));
+        //connect(ui->edtComment,SIGNAL(modificationChanged(bool)),this,SLOT(pzMemInfoModified(bool)));
     }
     else{
         disconnect(ui->dateEdit,SIGNAL(dateChanged(QDate)),this,SLOT(pzDateChanged(QDate)));
         disconnect(ui->spnZbNum,SIGNAL(valueChanged(int)),this,SLOT(pzZbNumChanged(int)));
         disconnect(ui->spnEncNum,SIGNAL(valueChanged(int)),this,SLOT(pzEncNumChanged(int)));
         //disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
+        disconnect(ui->edtComment,SIGNAL(textChanged()),this,SLOT(pzCommentChanged()));
+        //disconnect(ui->edtComment,SIGNAL(modificationChanged(bool)),this,SLOT(pzMemInfoModified(bool)));
     }
 }
 
@@ -2096,4 +2127,26 @@ void HistoryPzForm::refreshSingleBa(int row, BusiAction *ba)
 
 void HistoryPzForm::adjustTableSize()
 {
+}
+
+void PzDialog::on_btnOk_clicked()
+{
+    if(!pzMgr->getUndoStack()->isClean())
+        pzMgr->save();
+    MyMdiSubWindow* p = qobject_cast<MyMdiSubWindow*>(parent());
+    if(p)
+        p->close();
+    else
+        close();
+}
+
+void PzDialog::on_btnCancel_clicked()
+{
+    if(!pzMgr->getUndoStack()->isClean())
+        pzMgr->rollback();
+    MyMdiSubWindow* p = qobject_cast<MyMdiSubWindow*>(parent());
+    if(p)
+        p->close();
+    else
+        close();
 }

@@ -49,8 +49,16 @@ void ApcBase::init()
         item->setData(Qt::UserRole,v);
         ui->lstWMt->addItem(item);
     }
-    connect(ui->edtName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
-    connect(ui->edtLName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
+    if(!account->isReadOnly()){
+        connect(ui->edtName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
+        connect(ui->edtLName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
+    }
+    else{
+        ui->addWb->setEnabled(false);
+        ui->delWb->setEnabled(false);
+        ui->edtName->setReadOnly(true);
+        ui->edtLName->setReadOnly(true);
+    }
     iniTag = true;
 }
 
@@ -60,6 +68,8 @@ void ApcBase::init()
  */
 void ApcBase::windowShallClosed()
 {
+    if(account->isReadOnly())
+        return;
     bool tag = false;
     if(ui->edtName->text() != account->getSName()){
         tag = true;
@@ -69,22 +79,6 @@ void ApcBase::windowShallClosed()
         tag = true;
         account->setLName(ui->edtLName->text());
     }
-//    QHash<int,Money*> moneys;
-//    moneys = account->getAllMoneys();
-//    for(int i = 0; i < ui->lstWMt->count(); ++i){
-//        Money* mt = ui->lstWMt->item(i)->data(Qt::UserRole).value<Money*>();
-//        if(!moneys.contains(mt->code())){
-//            account->addWaiMt(mt);
-//            tag = true;
-//        }
-//        else
-//            moneys.remove(mt->code());
-//    }
-//    if(!moneys.isEmpty()){
-//        foreach(Money* mt, moneys)
-//            account->delWaiMt(mt);
-//        tag = true;
-//    }
     //如果外币数目不同或相同但币种不同，则认为外币发生了改变
     if(wbs.count() != account->getWaiMt().count()){
         account->setWaiMts(wbs);
@@ -120,10 +114,6 @@ void ApcBase::on_addWb_clicked()
     mts = moneys.values();
     mts.removeOne(account->getMasterMt());
     Money* mt;
-//    for(int i = 0; i < ui->lstWMt->count(); ++i){
-//        mt = ui->lstWMt->item(i)->data(Qt::UserRole).value<Money*>();
-//        mts.removeOne(mt);
-//    }
     foreach(Money* mt, wbs){
         mts.removeOne(mt);
     }
@@ -188,9 +178,11 @@ ApcSuite::ApcSuite(Account *account, QWidget *parent) :
     ui->setupUi(this);
     iniTag = false;
     editAction = EA_NONE;
+    ui->btnNew->setEnabled(!account->isReadOnly());
+    if(!account->isReadOnly()){
+        connect(ui->lw,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(suiteDbClicked(QListWidgetItem*)));
+    }
     connect(ui->lw,SIGNAL(currentRowChanged(int)),this,SLOT(curSuiteChanged(int)));
-    connect(ui->lw,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(suiteDbClicked(QListWidgetItem*)));
-
 }
 
 ApcSuite::~ApcSuite()
@@ -218,6 +210,8 @@ void ApcSuite::init()
 
 void ApcSuite::windowShallClosed()
 {
+    if(account->isReadOnly())
+        return;
     if(editAction != EA_NONE){
         if(QMessageBox::warning(this,tr("警告信息"),tr("账套设置信息被修改，但未保存！"),QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
             on_btnCommit_clicked();
@@ -240,31 +234,35 @@ void ApcSuite::curSuiteChanged(int index)
         ui->isCur->setChecked(as->isClosed);
         ui->isUsed->setChecked(as->isUsed);
         ui->lblSubSys->setText(subSystems.value(as->subSys)->name);
-        ui->btnEdit->setEnabled(true);
+        ui->btnEdit->setEnabled(!curAccount->isReadOnly());
         ui->btnUsed->setEnabled(!as->isUsed);
-        //判断当前帐套的科目系统是否可以升级
-        //首先存在一个新的科目系统，且该科目系统必须已经导入，并正确地配置了新老科目之间的映射
-        QList<SubSysNameItem*> items = account->getSupportSubSys();
-        int idx = -1;
-        for(int i = 0; i < items.count(); ++i){
-            if(as->subSys == items.at(i)->code){
-                idx = i;
-                break;
-            }
-        }
-        //如果没有找到，或当前帐套使用的科目系统是最新的，则不能升级
-        if(idx == -1 || idx == (items.count()-1)){
-            ui->btnUpgrade->setEnabled(false);
-        }
-        //下一个新的科目系统还没有导入或还没有配置完成，也不能升级
-        else if(!items.at(idx+1)->isImport || !items.at(idx+1)->isConfiged){
-            ui->btnUpgrade->setEnabled(false);
-        }
-        //如果当前帐套不是最后一个帐套且其下一个帐套采用的科目系统与当前帐套的科目系统相同，也不能升级
-        else if(index < (suites.count()-1) && suites.at(index+1)->subSys == as->subSys)
-            ui->btnUpgrade->setEnabled(false);
-        else
-            ui->btnUpgrade->setEnabled(true);
+//        if(account->isReadOnly())
+//            ui->btnUpgrade->setEnabled(false);
+//        else{
+//            //判断当前帐套的科目系统是否可以升级
+//            //首先存在一个新的科目系统，且该科目系统必须已经导入，并正确地配置了新老科目之间的映射
+//            QList<SubSysNameItem*> items = account->getSupportSubSys();
+//            int idx = -1;
+//            for(int i = 0; i < items.count(); ++i){
+//                if(as->subSys == items.at(i)->code){
+//                    idx = i;
+//                    break;
+//                }
+//            }
+//            //如果没有找到，或当前帐套使用的科目系统是最新的，则不能升级
+//            if(idx == -1 || idx == (items.count()-1)){
+//                ui->btnUpgrade->setEnabled(false);
+//            }
+//            //下一个新的科目系统还没有导入或还没有配置完成，也不能升级
+//            else if(!items.at(idx+1)->isImport || !items.at(idx+1)->isConfiged){
+//                ui->btnUpgrade->setEnabled(false);
+//            }
+//            //如果当前帐套不是最后一个帐套且其下一个帐套采用的科目系统与当前帐套的科目系统相同，也不能升级
+//            else if(index < (suites.count()-1) && suites.at(index+1)->subSys == as->subSys)
+//                ui->btnUpgrade->setEnabled(false);
+//            else
+//                ui->btnUpgrade->setEnabled(true);
+//        }
     }
     else{
         ui->name->clear();
@@ -457,14 +455,44 @@ void ApcSuite::on_btnUpgrade_clicked()
 
 void ApcSuite::enWidget(bool en)
 {
-    //ui->year->setReadOnly(!en);
-    //ui->smonth->setReadOnly(!en);
-    //ui->emonth->setReadOnly(!en);
-    //ui->rmonth->setReadOnly(!en);
+    ui->lw->setEnabled(!en);
     ui->name->setReadOnly(!en);
-    //ui->subSys->setEnabled(en);
     ui->btnCommit->setEnabled(en);
     ui->btnEdit->setText(en?tr("取消"):tr("编辑"));
+    if(!en){
+        ui->btnUpgrade->setEnabled(false);
+        return;
+    }
+    //决定科目系统升级按钮的启用性
+    if(account->isReadOnly())
+        ui->btnUpgrade->setEnabled(false);
+    else{
+        //判断当前帐套的科目系统是否可以升级
+        //首先存在一个新的科目系统，且该科目系统必须已经导入，并正确地配置了新老科目之间的映射
+        int row = ui->lw->currentIndex().row();
+        AccountSuiteRecord* as = suites.at(row);
+        QList<SubSysNameItem*> items = account->getSupportSubSys();
+        int idx = -1;
+        for(int i = 0; i < items.count(); ++i){
+            if(as->subSys == items.at(i)->code){
+                idx = i;
+                break;
+            }
+        }
+        //如果没有找到，或当前帐套使用的科目系统是最新的，则不能升级
+        if(idx == -1 || idx == (items.count()-1)){
+            ui->btnUpgrade->setEnabled(false);
+        }
+        //下一个新的科目系统还没有导入或还没有配置完成，也不能升级
+        else if(!items.at(idx+1)->isImport || !items.at(idx+1)->isConfiged){
+            ui->btnUpgrade->setEnabled(false);
+        }
+        //如果当前帐套不是最后一个帐套且其下一个帐套采用的科目系统与当前帐套的科目系统相同，也不能升级
+        else if(row < (suites.count()-1) && suites.at(row+1)->subSys == as->subSys)
+            ui->btnUpgrade->setEnabled(false);
+        else
+            ui->btnUpgrade->setEnabled(true);
+    }
 }
 
 
@@ -578,8 +606,16 @@ ApcBank::ApcBank(Account* account, QWidget *parent) : QWidget(parent), ui(new Ui
     iniTag = false;
     curBank = NULL;
     editAction = EA_NONE;
-    delegate = new BankCfgItemDelegate(account,this);
-    ui->tvAccList->setItemDelegate(delegate);
+    delegate = NULL;
+    if(!account->isReadOnly()){
+        delegate = new BankCfgItemDelegate(account,this);
+        ui->tvAccList->setItemDelegate(delegate);
+    }
+    else{
+        ui->newBank->setEnabled(false);
+        ui->delBank->setEnabled(false);
+        ui->tvAccList->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    }
 }
 
 ApcBank::~ApcBank()
@@ -599,10 +635,14 @@ void ApcBank::init()
         item = new QListWidgetItem(bank->name);
         ui->lstBank->addItem(item);
     }
+    if(!account->isReadOnly()){
+        connect(ui->lstBank,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(bankDbClicked()));
+    }
     connect(ui->lstBank,SIGNAL(currentRowChanged(int)),this,SLOT(curBankChanged(int)));
-    connect(ui->lstBank,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(bankDbClicked()));
+
     if(!banks.isEmpty())
         ui->lstBank->setCurrentRow(0);
+    iniTag = true;
     enWidget(false);
 }
 
@@ -835,12 +875,15 @@ void ApcBank::on_delAcc_clicked()
 void ApcBank::viewBankAccounts()
 {
     if(!curBank){
+        ui->editBank->setEnabled(false);
         ui->chkIsMain->setChecked(false);
         ui->bankName->clear();
         ui->bankLName->clear();
         ui->tvAccList->setRowCount(0);
         return;
     }
+    else
+        ui->editBank->setEnabled(!account->isReadOnly());
     ui->chkIsMain->setChecked(curBank->isMain);
     ui->bankName->setText(curBank->name);
     ui->bankLName->setText(curBank->lname);
@@ -875,7 +918,8 @@ void ApcBank::viewBankAccounts()
  */
 void ApcBank::enWidget(bool en)
 {   ui->lstBank->setEnabled(!en);
-    delegate->setReadOnly(!en);
+    if(delegate)
+        delegate->setReadOnly(!en);
     ui->chkIsMain->setEnabled(en);
     ui->bankName->setReadOnly(!en);
     ui->bankLName->setReadOnly(!en);
@@ -945,6 +989,8 @@ void ApcSubject::save()
 
 void ApcSubject::windowShallClosed()
 {
+    if(account->isReadOnly())
+        return;
     if(editAction != APCEA_NONE){
         if(QMessageBox::warning(this,tr("警告信息"),tr("科目设置信息已被修改，但未保存！"),QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes){
             switch(editAction){
@@ -1078,7 +1124,7 @@ void ApcSubject::curFSubChanged(int row)
     }
     else{
         curFSub = ui->lwFSub->currentItem()->data(Qt::UserRole).value<FirstSubject*>();
-        ui->btnFSubEdit->setEnabled(true);
+        ui->btnFSubEdit->setEnabled(!account->isReadOnly());
     }
     enFSubWidget(false);
     curSSub = NULL;
@@ -1100,8 +1146,9 @@ void ApcSubject::curSSubChanged(int row)
     }
     else{
         curSSub = ui->lwSSub->item(row)->data(Qt::UserRole).value<SecondSubject*>();
-        ui->btnSSubDel->setEnabled(true);
-        ui->btnSSubEdit->setEnabled(true);
+        bool readonly = account->isReadOnly();
+        ui->btnSSubDel->setEnabled(!readonly);
+        ui->btnSSubEdit->setEnabled(!readonly);
     }
     enSSubWidget(false);
     viewSSub();
@@ -1158,10 +1205,11 @@ void ApcSubject::on_tw_currentChanged(int index)
  */
 void ApcSubject::currentNiClsRowChanged(int curRow)
 {
+    bool readonly = account->isReadOnly();
     QListWidgetItem* item = ui->lwNiCls->item(curRow);
     curNiCls = item?item->data(Qt::UserRole).toInt():0;
-    ui->btnNiClsEdit->setEnabled(curNiCls);
-    ui->btnDelNiCls->setEnabled(curNiCls);
+    ui->btnNiClsEdit->setEnabled(!readonly && curNiCls);
+    ui->btnDelNiCls->setEnabled(!readonly && curNiCls);
     viewNiCls(curNiCls);
 }
 
@@ -1189,8 +1237,9 @@ void ApcSubject::currentNiRowChanged(int curRow)
         viewNI(0);
     }
     else{
-        ui->btnNiEdit->setEnabled(true);
-        ui->btnDelNI->setEnabled(true);
+        bool readonly = account->isReadOnly();
+        ui->btnNiEdit->setEnabled(!readonly);
+        ui->btnDelNI->setEnabled(!readonly);
         curNI = item->data(Qt::UserRole).value<SubjectNameItem*>();
         viewNI(curNI);
     }
@@ -1202,7 +1251,6 @@ void ApcSubject::currentNiRowChanged(int curRow)
  */
 void ApcSubject::niDoubleClicked(QListWidgetItem *item)
 {
-    //curNI = item->data(Qt::UserRole).value<SubjectNameItem*>();
     on_btnNiEdit_clicked();
 }
 
@@ -1228,7 +1276,10 @@ void ApcSubject::init_subsys()
         else{
             QPushButton* btn = new QPushButton(tr("导入"),this);
             ui->tv_subsys->setCellWidget(i,3,btn);
-            connect(btn,SIGNAL(clicked()),this,SLOT(importBtnClicked()));
+            if(!account->isReadOnly())
+                connect(btn,SIGNAL(clicked()),this,SLOT(importBtnClicked()));
+            else
+                btn->setEnabled(false);
         }
 
         if(i > 0){
@@ -1239,7 +1290,10 @@ void ApcSubject::init_subsys()
             else{
                 QPushButton* btn = new QPushButton(tr("配置"),this);
                 ui->tv_subsys->setCellWidget(i,4,btn);
-                connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
+                if(!account->isReadOnly())
+                    connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
+                else
+                    btn->setEnabled(false);
             }
 
         }
@@ -1277,9 +1331,10 @@ void ApcSubject::init_NameItems()
     if(ui->lwNI->count())
         currentNiRowChanged(ui->lwNI->currentRow());
     connect(ui->niClsView,SIGNAL(currentIndexChanged(int)),this,SLOT(loadNameItems()));
-    connect(ui->lwNI,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niDoubleClicked(QListWidgetItem*)));
-    connect(ui->lwNiCls,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niClsDoubleClicked(QListWidgetItem*)));
-
+    if(!account->isReadOnly()){
+        connect(ui->lwNI,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niDoubleClicked(QListWidgetItem*)));
+        connect(ui->lwNiCls,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niClsDoubleClicked(QListWidgetItem*)));
+    }
 }
 
 /**
@@ -1291,9 +1346,9 @@ void ApcSubject::init_subs()
     if(iniTag_sub)
         return;
     //初始化科目系统的单选按钮列表
-    QRadioButton* initRb;
+    QRadioButton* initRb=NULL;
     int row = 0;
-    int rows = ui->gridLayout->rowCount();
+    //int rows = ui->gridLayout->rowCount();
     QVBoxLayout* l = new QVBoxLayout(this);
     foreach(SubSysNameItem* sn, subSysNames){
         row++;
@@ -1309,11 +1364,13 @@ void ApcSubject::init_subs()
     if(initRb)
         initRb->setChecked(true);
     connect(ui->lwFSub,SIGNAL(currentRowChanged(int)),SLOT(curFSubChanged(int)));
-    connect(ui->lwFSub,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(fsubDBClicked(QListWidgetItem*)));
-    connect(ui->lwSSub,SIGNAL(currentRowChanged(int)),SLOT(curSSubChanged(int)));
-    connect(ui->lwSSub,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(ssubDBClicked(QListWidgetItem*)));
-    connect(ui->cmbFSubCls,SIGNAL(currentIndexChanged(int)),this,SLOT(curFSubClsChanged(int)));
-    connect(ui->ssubIsDef,SIGNAL(clicked(bool)),this,SLOT(defSubCfgChanged(bool)));
+    if(!account->isReadOnly()){
+        connect(ui->lwFSub,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(fsubDBClicked(QListWidgetItem*)));
+        connect(ui->lwSSub,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(ssubDBClicked(QListWidgetItem*)));
+        connect(ui->ssubIsDef,SIGNAL(clicked(bool)),this,SLOT(defSubCfgChanged(bool)));
+    }
+    connect(ui->lwSSub,SIGNAL(currentRowChanged(int)),SLOT(curSSubChanged(int)));    
+    connect(ui->cmbFSubCls,SIGNAL(currentIndexChanged(int)),this,SLOT(curFSubClsChanged(int)));    
 }
 
 /**
@@ -1764,13 +1821,15 @@ void ApcSubject::on_btnDelNiCls_clicked()
 
 void ApcSubject::on_niClsBox_toggled(bool en)
 {
-    ui->niClsCode->setEnabled(en);
-    ui->niClsName->setEnabled(en);
-    ui->niClsExplain->setEnabled(en);
-    ui->btnNewNiCls->setEnabled(en && editAction==APCEA_NONE);
-    ui->btnNiClsEdit->setEnabled(en && curNiCls && editAction==APCEA_NONE);
-    ui->btnNiClsCommit->setEnabled(en && (editAction==APCEA_EDIT_NICLS || editAction==APCEA_NEW_NICLS));
-    ui->btnDelNiCls->setEnabled(en && curNiCls);
+    bool readonly = account->isReadOnly();
+    ui->niClsCode->setEnabled(/*!readonly && */en);
+
+    ui->niClsName->setEnabled(/*!readonly && */en);
+    ui->niClsExplain->setEnabled(/*!readonly && */en);
+    ui->btnNewNiCls->setEnabled(!readonly && en && editAction==APCEA_NONE);
+    ui->btnNiClsEdit->setEnabled(!readonly && en && curNiCls && editAction==APCEA_NONE);
+    ui->btnNiClsCommit->setEnabled(!readonly && en && (editAction==APCEA_EDIT_NICLS || editAction==APCEA_NEW_NICLS));
+    ui->btnDelNiCls->setEnabled(!readonly && en && curNiCls);
 }
 
 /**

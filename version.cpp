@@ -290,9 +290,10 @@ void VMAccount::appendVersion(int mv, int sv, UpgradeFun_Acc upFun)
  *  1、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
  *  2、创建新版“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、创建者、禁用时间列
  *  3、修改FirSubjects表，添加科目系统（subSys）
- *  4、修改一级科目类别表结构，增加科目系统类型字段“subSys”
- *  5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
- *  6
+ *  4、添加pzMemInfos表（保存凭证的备注信息）
+ *  5、修改一级科目类别表结构，增加科目系统类型字段“subSys”
+ *  6、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+ *
  * @return
  */
 bool VMAccount::updateTo1_3()
@@ -548,8 +549,17 @@ bool VMAccount::updateTo1_3()
     if(!q.exec(s))
         emit upgradeStep(verNum,tr("在删除表“old_FirSubjects”表时发生错误"),VUR_WARNING);
 
-    //4、修改一级科目类别表结构，增加科目系统类型字段“subSys”
-    emit upgradeStep(verNum,tr("第四步：修改一级科目类别表结构，增加科目系统类型字段“subSys”"),VUR_OK);
+    //4、添加pzMemInfos表（保存凭证的备注信息）
+    emit upgradeStep(verNum,tr("第四步：创建凭证备注信息表！"),VUR_OK);
+    s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER NOT NULL, %3 TEXT)")
+            .arg(tbl_pz_meminfos).arg(fld_pzmi_pid).arg(fld_pzmi_info);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在创建凭证备注信息表时发生错误！"),VUR_WARNING);
+        return false;
+    }
+
+    //5、修改一级科目类别表结构，增加科目系统类型字段“subSys”
+    emit upgradeStep(verNum,tr("第五步：修改一级科目类别表结构，增加科目系统类型字段“subSys”"),VUR_OK);
     s = "alter table FstSubClasses rename to old_FstSubClasses";
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在重命名表“FstSubClasses”时发生错误!"),VUR_WARNING);
@@ -579,8 +589,8 @@ bool VMAccount::updateTo1_3()
         emit upgradeStep(verNum,tr("在删除表“old_FstSubClasses”表时发生错误!"),VUR_WARNING);
 
 
-    //5、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
-    emit upgradeStep(verNum,tr("第五步：创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化"),VUR_OK);
+    //6、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+    emit upgradeStep(verNum,tr("第六步：创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化"),VUR_OK);
     s = QString("create table %1(id integer primary key, %2 integer, %3 integer, "
                 "%4 integer, %5 integer, %6 text, %7 integer, %8 integer, %9 integer)")
             .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
@@ -943,6 +953,9 @@ bool VMAccount::updateTo1_4()
     s = QString("delete from %1 where %2=%3").arg(tbl_accInfo).arg(fld_acci_code).arg(Account::WAIMT);
     if(!q.exec(s))
         emit upgradeStep(verNum,tr("在从账户信息表中移除外币设置信息时发生错误！"),VUR_WARNING);
+    s = QString("drop table old_%1").arg(tbl_moneyType);
+    if(!q.exec(s))
+        emit upgradeStep(verNum,tr("在删除表“old_%1”时发生错误！").arg(tbl_moneyType),VUR_WARNING);
 
     //5、修改Busiactions表的结构，将jMoney、dMoney字段合并为value字段
     s = QString("alter table %1 rename to old_%1").arg(tbl_ba);
@@ -1192,6 +1205,7 @@ bool VMAccount::updateTo1_8()
  *  1、将余额转移到新表系中
  *  2、添加明细账视图过滤条件表（DVFilters）
  *  3、设置启用的一级科目
+ *  4、删除老的余额表系
  * @return
  */
 bool VMAccount::updateTo1_5()
@@ -1378,7 +1392,7 @@ bool VMAccount::updateTo1_5()
 //        return false;
 //    }
 
-    //3、设置启用的一级科目
+    //3、设置启用的一级科目及其记账方向
     QStringList codes;
     codes<<"1001"<<"1002"<<"1131"<<"1133"<<"1151"<<"1301"<<"1501"<<"1502"<<"1801"
           <<"2121"<<"2131"<<"2151"<<"2171"<<"2176"<<"2181"<<"3101"<<"3131"<<"3141"
@@ -1387,8 +1401,8 @@ bool VMAccount::updateTo1_5()
         emit upgradeStep(verNum,tr("设置启用的一级科目时，启动事务失败！"),VUR_ERROR);
         return false;
     }
-    s = QString("update %1 set %2=0 where %3=1").arg(tbl_fsub)
-            .arg(fld_fsub_isview).arg(fld_fsub_subSys);
+    s = QString("update %1 set %2=0,%3=0 where %4=1").arg(tbl_fsub)
+            .arg(fld_fsub_isview).arg(fld_fsub_jddir).arg(fld_fsub_subSys);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("重置表“%1”的“%2”字段失败").arg(tbl_fsub).arg(fld_fsub_isview),VUR_ERROR);
         return false;
@@ -1402,11 +1416,38 @@ bool VMAccount::updateTo1_5()
             return false;
         }
     }
+    codes.clear();
+    codes<<"1001"<<"1002"<<"1131"<<"1133"<<"1301"<<"1501"<<"1502"<<"1801"<<"2131"<<"2151"
+         <<"2171"<<"3101"<<"3141"<<"5401"<<"5402"<<"5501"<<"5502"<<"5503"<<"5601"<<"5701";
+    foreach(QString code, codes){
+        s = QString("update %1 set %2=1 where %3=1 and %4='%5'")
+                .arg(tbl_fsub).arg(fld_fsub_jddir).arg(fld_fsub_subSys)
+                .arg(fld_fsub_subcode).arg(code);
+        if(!q.exec(s)){
+            emit upgradeStep(verNum,tr("更新表“%1”的“%2”字段失败").arg(tbl_fsub).arg(fld_fsub_jddir),VUR_ERROR);
+            return false;
+        }
+    }
     if(!db.commit()){
         emit upgradeStep(verNum,tr("设置启用的一级科目时，提交事务失败！"),VUR_ERROR);
         return false;
     }
     emit upgradeStep(verNum,tr("成功设置启用的一级科目！"),VUR_OK);
+
+    //4、删除老的余额表系
+    QStringList statments;
+    statments<<"SubjectExtras"<<"SubjectExtraDirs"
+               <<"detailExtras"<<"SubjectMmtExtras"
+               <<"detailMmtExtras";
+    foreach (QString tableName, statments){
+        s = QString("delete from %1").arg(tableName);
+        if(!q.exec(s))
+            emit upgradeStep(verNum,tr("在清空表“%1”的数据时发生错误！").arg(tableName),VUR_ERROR);
+        s = QString("drop table %1").arg(tableName);
+        if(!q.exec(s))
+            emit upgradeStep(verNum,tr("在删除表“%1”的数据时发生错误！").arg(tableName),VUR_ERROR);
+
+    }
 
     delete dbUtil;
     //恢复连接

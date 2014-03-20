@@ -10,7 +10,7 @@ SubjectSelectorComboBox::SubjectSelectorComboBox(QWidget *parent):QComboBox(pare
     fsub = NULL;
     ssub = NULL;
     which = SC_FST;
-    sortBy = FS_CODE;
+    sortBy = SM_CODE;
     init();
 }
 
@@ -20,9 +20,9 @@ SubjectSelectorComboBox::SubjectSelectorComboBox(SubjectManager* subMgr, FirstSu
 {
     ssub = NULL;
     if(which == SC_FST)
-        sortBy = FS_CODE;
+        sortBy = SM_CODE;
     else
-        sortBy = FS_REMCODE;
+        sortBy = SM_REMCODE;
     tv.setWindowFlags(Qt::ToolTip);
 
     if(!subMgr || !fsub)
@@ -46,7 +46,7 @@ void SubjectSelectorComboBox::setSubjectManager(SubjectManager *smg)
     subMgr = smg;
     fsub = NULL;
     ssub = NULL;
-    sortBy = FS_CODE;
+    sortBy = SM_CODE;
 }
 
 void SubjectSelectorComboBox::setSubjectClass(SubjectSelectorComboBox::SUBJECTCATALOG subClass)
@@ -73,10 +73,10 @@ void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
     int key = event->key();
     if(tv.isHidden()){
         if(key >= Qt::Key_0 && key <= Qt::Key_9){
-            sortBy = FS_CODE;
+            sortBy = SM_CODE;
         }
         else if(key >= Qt::Key_A && key <= Qt::Key_Z){
-            sortBy = FS_REMCODE;
+            sortBy = SM_REMCODE;
         }
         else{
             QComboBox::keyPressEvent(event);
@@ -89,16 +89,16 @@ void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
     }
     else{
         if(key >= Qt::Key_0 && key <= Qt::Key_9){
-            if(sortBy != FS_CODE){
-                sortBy = FS_CODE;
+            if(sortBy != SM_CODE){
+                sortBy = SM_CODE;
                 keys.clear();
             }
             keys.append(event->text());
             refreshModel();
         }
         else if(key >= Qt::Key_A && key <= Qt::Key_Z){
-            if(sortBy != FS_REMCODE){
-                sortBy = FS_REMCODE;
+            if(sortBy != SM_REMCODE){
+                sortBy = SM_REMCODE;
                 keys.clear();
             }
             keys.append(event->text());
@@ -131,7 +131,7 @@ void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
             else{
                 keys.chop(1);
             }
-            if(sortBy == FS_NAME)
+            if(sortBy == SM_NAME)
                 QComboBox::keyPressEvent(event);
             else
                 refreshModel();
@@ -173,8 +173,8 @@ void SubjectSelectorComboBox::nameChanged(const QString &text)
 {
     if(!lineEdit()->isModified()) //也可以用是否具有输入焦点来判断
         return;
-    if(sortBy != FS_NAME){
-        sortBy = FS_NAME;
+    if(sortBy != SM_NAME){
+        sortBy = SM_NAME;
     }
     keys = text;
     if(tv.isHidden())
@@ -198,19 +198,19 @@ void SubjectSelectorComboBox::switchModel(bool on)
     if(on){
         model.setSourceModel(&sourceModel);
         model.setSortCaseSensitivity(Qt::CaseInsensitive);
-        model.setFilterKeyColumn(sortBy);
+        model.setFilterKeyColumn(sortBy-1);
         tv.setModel(&model);
         tv.header()->setStretchLastSection(false);
         tv.header()->setSectionResizeMode(0, QHeaderView::Stretch);
         if(which == SC_FST){
-            tv.showColumn(FS_CODE);
-            tv.hideColumn(FS_REMCODE);
-            tv.setColumnWidth(FS_CODE,50);
+            tv.showColumn(SM_CODE-1);
+            tv.hideColumn(SM_REMCODE-1);
+            tv.setColumnWidth(SM_CODE-1,50);
         }
         else{
-            tv.showColumn(FS_REMCODE);
-            tv.hideColumn(FS_CODE);
-            tv.setColumnWidth(FS_REMCODE,50);
+            tv.showColumn(SM_REMCODE-1);
+            tv.hideColumn(SM_CODE-1);
+            tv.setColumnWidth(SM_REMCODE-1,50);
         }
     }
     else{
@@ -289,9 +289,9 @@ void SubjectSelectorComboBox::loadSndSubs()
 
 void SubjectSelectorComboBox::refreshModel()
 {
-    if(model.filterKeyColumn() != sortBy){
-        model.setFilterKeyColumn(sortBy);
-        model.sort(sortBy);
+    if(model.filterKeyColumn() != (sortBy-1)){
+        model.setFilterKeyColumn(sortBy-1);
+        model.sort(sortBy-1);
     }
     model.setFilterFixedString(keys);
     int count = model.rowCount();

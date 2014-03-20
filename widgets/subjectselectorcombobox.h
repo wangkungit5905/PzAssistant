@@ -1,6 +1,8 @@
 #ifndef SUBJECTSELECTORCOMBOBOX_H
 #define SUBJECTSELECTORCOMBOBOX_H
 
+#include "commdatastruct.h"
+
 #include <QComboBox>
 #include <QKeyEvent>
 #include <QStandardItemModel>
@@ -22,12 +24,12 @@ public:
         SC_SND = 2
     };
 
-    //过滤
-    enum FILTERSECTION{
-        FS_NAME = 0,
-        FS_CODE = 1,
-        FS_REMCODE = 2
-    };
+    //科目排序列
+//    enum SUBJECTSORTBY{
+//        FS_NAME = 0,
+//        FS_CODE = 1,
+//        FS_REMCODE = 2
+//    };
 
     explicit SubjectSelectorComboBox(QWidget *parent = 0);
     explicit SubjectSelectorComboBox(SubjectManager* subMgr, FirstSubject* fsub, SUBJECTCATALOG which = SC_FST, QWidget *parent = 0);
@@ -55,7 +57,7 @@ private:
     int findSubject(SubjectBase* sub);
 
     //QCompleter completer;
-    FILTERSECTION sortBy;
+    SortByMode sortBy;
     SUBJECTCATALOG which;
     SubjectManager* subMgr;
     FirstSubject* fsub;

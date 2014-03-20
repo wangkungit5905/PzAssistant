@@ -205,6 +205,15 @@ const int PZ_VUSER   = 9;
 const int PZ_RUSER   = 10;
 const int PZ_BUSER   = 11;
 
+//*********************凭证备注信息表**************************************//
+//字段名
+const QString tbl_pz_meminfos   = "pzMemInfos";
+const QString fld_pzmi_pid      = "pid";
+const QString fld_pzmi_info     = "infos";
+//字段索引
+const int PZMI_PID = 1;
+const int PZMI_INFO= 2;
+
 //会计分录表
 //字段名
 const QString tbl_ba         = "BusiActions";

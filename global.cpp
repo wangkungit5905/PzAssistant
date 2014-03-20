@@ -116,8 +116,8 @@ int appInit()
         return 3;
 
     //设置应用程序的版本号
-    int master = 0;
-    int second = 98;
+    int master = 1;
+    int second = 0;
     aboutStr = qApp->tr("凭证助手，版权属于小灵猫工作室所有。\n版本号：%1.%2").arg(master).arg(second);
 
 

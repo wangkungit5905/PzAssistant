@@ -224,6 +224,12 @@ private slots:
 
     void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);
     void modifyRate();
+    void pzCommentChanged();
+    void pzMemInfoModified(bool changed);
+    void on_btnOk_clicked();
+
+    void on_btnCancel_clicked();
+
 signals:
     void showMessage(QString info, AppErrorLevel levelS=AE_OK);
     void selectedBaChanged(QList<int> rows, bool conti);
@@ -265,6 +271,7 @@ private:
     BusiAction* curBa;           //当前会计分录
     int curRow;                  //当前选定的会计分录行号
     bool isInteracting;          //是否在与用户的交互中（当需要用户确认创建新名称映射或二级科目时）
+    bool isPzMemModified;        //凭证备注内容是否被修改的标记
 //    int curIdx;                  //当前凭证索引号
 //    int validBas;                //当前凭证的实际有效会计分录数
     QHash<int,Double> rates;     //当前凭证集对应月份的汇率

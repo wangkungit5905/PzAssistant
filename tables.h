@@ -13,6 +13,15 @@ const int ACCINFO_CODE  = 1;
 const int ACCINFO_NAME  = 2;
 const int ACCINFO_VALUE = 3;
 
+//账户属性名常量
+const QString ACCINFO_VNAME_CODE    = "accountCode";
+const QString ACCINFO_VNAME_SNAME   = "shortName";
+const QString ACCINFO_VNAME_LNAME   = "longName";
+const QString ACCINFO_VNAME_SUBSYS  = "subType";
+const QString ACCINFO_VNAME_DBVERSION = "db_version";
+//const QString ACCINFO_VNAME_LOGFILENAME = "logFileName";
+//const QString ACCINFO_VNAME_LASTTIME= "lastAccessTime";
+
 //帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
 //字段名
 const QString tbl_accSuites      = "accountSuites";
@@ -559,5 +568,48 @@ const int MACS_ISLOCAL    = 3;
 const int MACS_NAME       = 4;
 const int MACS_DESC       = 5;
 
+//账户数据库表格创建语句表（tableCrtSqls）
+const QString tbl_table_create_sqls = "tableCrtSqls";
+
+const QString tbl_base_fsub_cls = "FirstSubCls";
+const QString fld_base_fst_sub_cls_subSys = "subCls";
+const int FI_BASE_FSUB_CLS_SUBSYS = 1;
+const int FI_BASE_FSUB_CLS_CODE   = 2;
+const int FI_BASE_FSUB_CLS_NAME   = 3;
+
+const QString tbl_base_fsub = "FirstSubs";
+const QString fld_base_fsub_subsys = "subCls";
+const int FI_BASE_FSUB_SUBSYS = 1;
+const int FI_BASE_FSUB_SUBCODE= 2;
+const int FI_BASE_FSUB_REMCODE= 3;
+const int FI_BASE_FSUB_CLS    = 4;
+const int FI_BASE_FSUB_JDDIR  = 5;
+const int FI_BASE_FSUB_ENABLE = 6;
+const int FI_BASE_FSUB_USEDWB = 7;
+const int FI_BASE_FSUB_WEIGHT = 8;
+const int FI_BASE_FSUB_SUBNAME=9;
+
+//名称类别表
+const QString tbl_base_nic = "SecondSubCls";
+const QString fld_base_nic_code = "clsCode";
+const QString fld_base_nic_name = "name";
+const QString fld_base_nic_explain = "explain";
+const int FI_BASE_NIC_CODE = 2;
+const int FI_BASE_NIC_NAME = 3;
+const int FI_BASE_NIC_EXPLAIN = 4;
+
+//名称表
+const QString tbl_base_ni = "SecondSubs";
+const QString fld_base_ni_name = "subName";
+const QString fld_base_ni_lname = "subLName";
+const QString fld_base_ni_remcode = "remCode";
+const QString fld_base_ni_clsid = "classID";
+const QString fld_base_ni_belongto = "belongTo";
+const int FI_BASE_NI_BELONGTO = 6;
+const int FI_BASE_NI_SNAME  = 2;
+const int FI_BASE_NI_LNAME  = 3;
+const int FI_BASE_NI_REMCODE= 4;
+const int FI_BASE_NI_CLASS  = 5;
+const int FI_BASE_NI_CODE   = 7;
 
 #endif // TABLES_H

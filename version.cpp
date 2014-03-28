@@ -103,11 +103,18 @@ bool VMBase::_inspectVerBeforeUpdate(int mv, int sv)
  * @brief VMAccount::VMAccount
  * @param filename  账户文件名
  */
+void VMAccount::getAppSupportVersion(int &mv, int &sv)
+{
+    mv = 1;
+    sv = 7;
+}
+
 VMAccount::VMAccount(QString filename):fileName(filename)
 {
     if(!restoreConnect())
         return;
     //appendVersion(1,1,VMAccount::up);
+    //注意：每添加一个新版本，则修改getAppSupportVersion()返回的版本号，要对应。
     appendVersion(1,2,NULL);
     appendVersion(1,3,&VMAccount::updateTo1_3);
     appendVersion(1,4,&VMAccount::updateTo1_4);
@@ -1487,6 +1494,14 @@ bool VMAccount::updateTo1_6()
             .arg(tbl_cfgVariable).arg(fld_cfgv_name).arg(fld_cfgv_value);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("创建配置变量表（%1）时出错！").arg(tbl_cfgVariable),VUR_ERROR);
+        return false;
+    }
+    //为默认科目系统设置该科目系统已导入的配置变量（subSysImport_1）
+    s = QString("insert into %1(%2,%3) values('%4',1)").arg(tbl_cfgVariable)
+            .arg(fld_cfgv_name).arg(fld_cfgv_value).arg(QString("%1_%2")
+            .arg(CFG_SUBSYS_IMPORT_PRE).arg(DEFAULT_SUBSYS_CODE));
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("为默认科目系统设置该科目系统已导入的配置变量时出错！"),VUR_ERROR);
         return false;
     }
 

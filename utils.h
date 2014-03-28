@@ -672,8 +672,9 @@ class BackupUtil
 {
 public:
     enum BackupReason{
-        BR_UPGRADE = 1,     //账户升级
-        BR_TRANSFERIN = 2   //账户转入
+        BR_UPGRADE      = 1,    //账户升级
+        BR_TRANSFERIN   = 2,    //账户转入
+        BR_REMOVE       = 3     //账户移除
     };
 
     BackupUtil(QString srcDir="", QString bacDir="");

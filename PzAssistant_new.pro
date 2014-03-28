@@ -22,7 +22,6 @@ SOURCES += main.cpp\
     completsubinfodialog.cpp \
     dialog2.cpp \
     mainwindow.cpp \
-    BasicExcel.cpp \
     printUtils.cpp \
     printetemplate.cpp \
     securitys.cpp \
@@ -66,7 +65,9 @@ SOURCES += main.cpp\
     showdzdialog.cpp \
     widgets/subjectselectorcombobox.cpp \
     testform.cpp \
-    widgets/fstsubeditcombobox.cpp
+    widgets/fstsubeditcombobox.cpp \
+    nabaseinfodialog.cpp \
+    newsndsubdialog.cpp
 
 HEADERS  += \
     connection.h \
@@ -82,7 +83,6 @@ HEADERS  += \
     completsubinfodialog.h \
     dialog2.h \
     mainwindow.h \
-    BasicExcel.h \
     printUtils.h \
     printtemplate.h \
     commdatastruct.h \
@@ -130,7 +130,9 @@ HEADERS  += \
     widgets/subjectselectorcombobox.h \
     testform.h \
     globalVarNames.h \
-    widgets/fstsubeditcombobox.h
+    widgets/fstsubeditcombobox.h \
+    nabaseinfodialog.h \
+    newsndsubdialog.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -183,7 +185,9 @@ FORMS    += \
     forms/apcdata.ui \
     forms/transferoutdialog.ui \
     forms/transferindialog.ui \
-    forms/testform.ui
+    forms/testform.ui \
+    forms/nabaseinfodialog.ui \
+    forms/newsndsubdialog.ui
 
 RESOURCES += \
     imgers.qrc \
@@ -204,9 +208,9 @@ OTHER_FILES += \
     bugs.txt \
     修改日志.txt
 
-win32{
-    RC_FILE = exeico.rc
-}
+#win32{
+#    RC_FILE = exeico.rc
+#}
 
 
 

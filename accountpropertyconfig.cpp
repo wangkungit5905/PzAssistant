@@ -7,6 +7,7 @@
 #include "delegates.h"
 #include "widgets/bawidgets.h"
 #include "version.h"
+#include "newsndsubdialog.h"
 
 
 #include <QListWidget>
@@ -150,6 +151,7 @@ void ApcBase::on_addWb_clicked()
             item->setData(Qt::UserRole,v);
             ui->lstWMt->addItem(item);
             wbs.append(mt);
+            account->addWaiMt(mt);
         }
     }
 }
@@ -168,7 +170,8 @@ void ApcBase::on_delWb_clicked()
     }
     ui->lstWMt->takeItem(ui->lstWMt->currentRow());
     wbs.removeOne(mt);
-    }
+    account->delWaiMt(mt);
+}
 
 
 //////////////////////////////ApcSuite////////////////////////////////////////////////
@@ -612,10 +615,10 @@ ApcBank::ApcBank(Account* account, QWidget *parent) : QWidget(parent), ui(new Ui
         ui->tvAccList->setItemDelegate(delegate);
     }
     else{
-        ui->newBank->setEnabled(false);
-        ui->delBank->setEnabled(false);
+        ui->newBank->setEnabled(false);        
         ui->tvAccList->setEditTriggers(QAbstractItemView::NoEditTriggers);
     }
+    ui->delBank->setEnabled(false);
 }
 
 ApcBank::~ApcBank()
@@ -662,10 +665,25 @@ void ApcBank::curBankChanged(int index)
 {
     if(index < 0 || index >= ui->lstBank->count()){
         curBank = NULL;
+        ui->delBank->setEnabled(false);
         return;
     }
     curBank = banks.at(index);
     viewBankAccounts();
+    ui->delBank->setEnabled(true);
+}
+
+/**
+ * @brief 跟踪银行帐号选择的改变
+ * @param currentRow
+ * @param currentColumn
+ * @param previousRow
+ * @param previousColumn
+ */
+void ApcBank::curBankAccountChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
+{
+    if(currentRow != previousRow)
+        ui->delAcc->setEnabled((editAction != EA_NONE) && (currentRow != -1));
 }
 
 /**
@@ -689,11 +707,14 @@ void ApcBank::crtNameBtnClicked()
     QInputDialog::getText(this,tr("信息获取"),tr("建议的名称"),QLineEdit::Normal,suggestName,&ok);
     if(ok){
         int cls = AppConfig::getInstance()->getSpecNameItemCls(AppConfig::SNIC_BANK);
-        SubjectNameItem* ni = SubjectManager::addNameItem(suggestName,QString("%1-%2").arg(curBank->name).arg(mt->name()),"",cls);
+        //SubjectNameItem* ni = SubjectManager::addNameItem(suggestName,QString("%1-%2").arg(curBank->name).arg(mt->name()),"",cls);
         //delete ui->tvAccList->cellWidget(row,CI_NAME);
+        SubjectNameItem* ni = new SubjectNameItem(UNID,cls,suggestName,QString("%1-%2").arg(curBank->lname).arg(mt->name()),"",
+                                                  QDateTime::currentDateTime(),curUser);
         ui->tvAccList->setCellWidget(row,CI_NAME,NULL);
         BankCfgNiCellWidget* item = new BankCfgNiCellWidget(ni);
         ui->tvAccList->setItem(row,CI_NAME,item);
+        //account->getDbUtil()->saveNameItem(ni);
     }
 }
 
@@ -764,11 +785,19 @@ void ApcBank::on_submit_clicked()
                 ba->accNumber = ui->tvAccList->item(i,CI_ACCOUNTNUM)->text();
                 ba->mt = ui->tvAccList->item(i,CI_MONEY)->data(Qt::EditRole).value<Money*>();
             }
-            if(ui->tvAccList->item(i,CI_NAME))
+            if(ui->tvAccList->item(i,CI_NAME)){
                 ba->niObj = ui->tvAccList->item(i,CI_NAME)->data(Qt::EditRole).value<SubjectNameItem*>();
+                if(ba->niObj->getId() == NULL){
+                    SubjectManager* sm = account->getSubjectManager();
+                    sm->addNameItem(ba->niObj);
+                    //创建二级科目
+                    sm->addSndSubject(sm->getBankSub(),ba->niObj,"");
+                }
+            }
             else
                 ba->niObj = NULL;
         }
+        account->saveBank(curBank);
     }
     else if(editAction == EA_NEW){
         curBank->isMain = ui->chkIsMain->isChecked();
@@ -788,18 +817,24 @@ void ApcBank::on_submit_clicked()
             ba->parent = curBank;
             ba->accNumber = ui->tvAccList->item(i,CI_ACCOUNTNUM)->text();
             ba->mt = ui->tvAccList->item(i,CI_MONEY)->data(Qt::EditRole).value<Money*>();
-            if(ui->tvAccList->item(i,CI_NAME))
+            if(ui->tvAccList->item(i,CI_NAME)){
                 ba->niObj = ui->tvAccList->item(i,CI_NAME)->data(Qt::EditRole).value<SubjectNameItem*>();
+                if(ba->niObj == NULL){
+                    SubjectManager* sm = account->getSubjectManager();
+                    sm->addNameItem(ba->niObj);
+                    sm->addSndSubject(sm->getBankSub(),ba->niObj,"");
+                }
+            }
             else
                 ba->niObj = NULL;
             curBank->bas<<ba;
         }
         banks<<curBank;
+        account->addBank(curBank);
         QListWidgetItem* item  = new QListWidgetItem(curBank->name);
         ui->lstBank->addItem(item);
         ui->lstBank->setCurrentRow(banks.count()-1);        
     }
-    account->saveBank(curBank);
     editAction = EA_NONE;
     enWidget(false);
     viewBankAccounts();
@@ -824,17 +859,19 @@ void ApcBank::on_newBank_clicked()
 void ApcBank::on_delBank_clicked()
 {
     int row  = ui->lstBank->currentRow();
+    if(row == -1)
+        return;
     if(curBank->id != UNID){
         foreach(BankAccount* ba, curBank->bas){
             if(ba->niObj && account->getDbUtil()->nameItemIsUsed(ba->niObj)){
-                QMessageBox::warning(this,tr("警告信息"),tr("该银行包含了已被使用的的名称条目，不能删除！"));
+                QMessageBox::warning(this,tr("警告信息"),tr("该银行关联的科目已被采用，不能删除！"));
                 return;
             }
         }
     }
-    account->getDbUtil()->saveBankInfo(curBank,true);
+    account->removeBank(curBank);
     delete ui->lstBank->takeItem(row);
-
+    ui->tvAccList->setRowCount(0);
 }
 
 void ApcBank::on_newAcc_clicked()
@@ -848,7 +885,7 @@ void ApcBank::on_newAcc_clicked()
     ui->tvAccList->setItem(row,CI_MONEY,cell);
     item = new QTableWidgetItem;
     ui->tvAccList->setItem(row,CI_ACCOUNTNUM,item);
-    QPushButton* btn = new QPushButton(tr("创建名称"),ui->tvAccList);
+    QPushButton* btn = new QPushButton(tr("创建关联科目"),ui->tvAccList);
     connect(btn,SIGNAL(clicked()),this,SLOT(crtNameBtnClicked()));
     ui->tvAccList->setCellWidget(row,CI_NAME,btn);
 }
@@ -860,13 +897,15 @@ void ApcBank::on_delAcc_clicked()
     if(id != UNID){
         BankAccount* ba = fondBankAccount(id);
         if(ba->niObj && account->getDbUtil()->nameItemIsUsed(ba->niObj)){
-            QMessageBox::warning(this,tr("警告信息"),tr("该银行帐号对应的名称条目已被二级科目采用，不能删除！"));
+            QMessageBox::warning(this,tr("警告信息"),tr("该银行帐号关联的科目已被采用，不能删除！"));
             return;
         }
         curBank->bas.removeOne(ba);
+        account->getSubjectManager()->removeNameItem(ba->niObj,true);
+        delete ba;
     }
     ui->tvAccList->removeRow(row);
-    }
+}
 
 
 /**
@@ -874,6 +913,8 @@ void ApcBank::on_delAcc_clicked()
  */
 void ApcBank::viewBankAccounts()
 {
+    disconnect(ui->tvAccList,SIGNAL(currentCellChanged(int,int,int,int)),
+               this,SLOT(curBankAccountChanged(int,int,int,int)));
     if(!curBank){
         ui->editBank->setEnabled(false);
         ui->chkIsMain->setChecked(false);
@@ -905,11 +946,15 @@ void ApcBank::viewBankAccounts()
             ui->tvAccList->setItem(row,CI_NAME,ni);
         }
         else{
-            QPushButton* btn = new QPushButton(tr("创建名称"),ui->tvAccList);
+            QPushButton* btn = new QPushButton(tr("创建关联科目"),ui->tvAccList);
+            btn->setEnabled(false);
             connect(btn,SIGNAL(clicked()),this,SLOT(crtNameBtnClicked()));
             ui->tvAccList->setCellWidget(row,CI_NAME,btn);
         }
     }
+    connect(ui->tvAccList,SIGNAL(currentCellChanged(int,int,int,int)),
+                   this,SLOT(curBankAccountChanged(int,int,int,int)));
+    ui->delAcc->setEnabled(false);
 }
 
 /**
@@ -927,6 +972,20 @@ void ApcBank::enWidget(bool en)
     ui->delAcc->setEnabled(en && ui->tvAccList->currentRow() != -1);
     ui->submit->setEnabled(en);
     ui->editBank->setText(en?tr("取消"):tr("编辑"));
+    ui->newBank->setEnabled(!en);
+    if(en)
+        ui->delBank->setEnabled(false);
+    else
+        ui->delBank->setEnabled(ui->lstBank->currentRow() != -1);
+    if(curBank && ui->tvAccList->rowCount() > 0){
+        for(int i = 0; i < curBank->bas.count(); ++i){
+            if(curBank->bas.at(i)->niObj == UNID){
+                QPushButton* btn = qobject_cast<QPushButton*>(ui->tvAccList->cellWidget(i,CI_NAME));
+                if(btn)
+                    btn->setEnabled(en);
+            }
+        }
+    }
 }
 
 /**
@@ -958,7 +1017,8 @@ ApcSubject::ApcSubject(Account *account, QWidget *parent) :
     curSSub = NULL;
     curNI = NULL;
     curNiCls = 0;
-    subSysNames = account->getSupportSubSys();
+    curSubMgr = NULL;
+    subSysNames = account->getSupportSubSys();    
 }
 
 ApcSubject::~ApcSubject()
@@ -1117,6 +1177,8 @@ void ApcSubject::fsubDBClicked(QListWidgetItem *item)
  */
 void ApcSubject::curFSubChanged(int row)
 {
+    if(editAction == APCEA_EDIT_FSUB)
+        on_btnFSubCommit_clicked();
     if(row == -1){
         curFSub = NULL;
         ui->btnFSubEdit->setEnabled(false);
@@ -1133,7 +1195,7 @@ void ApcSubject::curFSubChanged(int row)
 }
 
 /**
- * @brief 选择的一级科目改变了
+ * @brief 选择的二级科目改变了
  * @param row
  */
 void ApcSubject::curSSubChanged(int row)
@@ -1147,8 +1209,8 @@ void ApcSubject::curSSubChanged(int row)
     else{
         curSSub = ui->lwSSub->item(row)->data(Qt::UserRole).value<SecondSubject*>();
         bool readonly = account->isReadOnly();
-        ui->btnSSubDel->setEnabled(!readonly);
-        ui->btnSSubEdit->setEnabled(!readonly);
+        ui->btnSSubDel->setEnabled(!readonly && (editAction == APCEA_EDIT_FSUB));
+        ui->btnSSubEdit->setEnabled(!readonly && (editAction != APCEA_EDIT_FSUB));
     }
     enSSubWidget(false);
     viewSSub();
@@ -1246,7 +1308,7 @@ void ApcSubject::currentNiRowChanged(int curRow)
 }
 
 /**
- * @brief 双击运行对名称条目进行编辑
+ * @brief 双击对名称条目进行编辑
  * @param item
  */
 void ApcSubject::niDoubleClicked(QListWidgetItem *item)
@@ -1335,6 +1397,7 @@ void ApcSubject::init_NameItems()
         connect(ui->lwNI,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niDoubleClicked(QListWidgetItem*)));
         connect(ui->lwNiCls,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niClsDoubleClicked(QListWidgetItem*)));
     }
+    curSubMgr = account->getSubjectManager();
 }
 
 /**
@@ -1348,14 +1411,12 @@ void ApcSubject::init_subs()
     //初始化科目系统的单选按钮列表
     QRadioButton* initRb=NULL;
     int row = 0;
-    //int rows = ui->gridLayout->rowCount();
     QVBoxLayout* l = new QVBoxLayout(this);
     foreach(SubSysNameItem* sn, subSysNames){
         row++;
         QRadioButton* r = new QRadioButton(sn->name,this);
         if(row == 1)
             initRb = r;
-        //ui->gridLayout->addWidget(r,rows+row,1);
         l->addWidget(r);
         connect(r,SIGNAL(toggled(bool)),this,SLOT(selectedSubSys(bool)));
     }
@@ -1443,16 +1504,7 @@ void ApcSubject::viewFSub()
         ui->isUseWb->setChecked(curFSub->isUseForeignMoney());
         ui->jdDir_P->setChecked(curFSub->getJdDir());
         //ui->jdDir_N->setChecked(!curFSub->getJdDir());
-
-        //装载二级科目
-        QListWidgetItem* item;
-        QVariant v;
-        foreach(SecondSubject* ssub, curFSub->getChildSubs()){
-            v.setValue<SecondSubject*>(ssub);
-            item = new QListWidgetItem(ssub->getName());
-            item->setData(Qt::UserRole,v);
-            ui->lwSSub->addItem(item);
-        }
+        loadSSub();
     }
     else{
         ui->fsubID->clear();
@@ -1553,7 +1605,7 @@ void ApcSubject::viewNiCls(int cls)
 void ApcSubject::enFSubWidget(bool en)
 {
     ui->lwFSub->setEnabled(!en);
-    ui->lwSSub->setEnabled(!en);
+    //ui->lwSSub->setEnabled(!en);
     ui->FSubCls->setEnabled(en);
     ui->fsubCode->setReadOnly(!en);
     ui->fsubName->setReadOnly(!en);
@@ -1565,6 +1617,8 @@ void ApcSubject::enFSubWidget(bool en)
     ui->jdDir_P->setEnabled(en);
     ui->btnFSubEdit->setText(en?tr("取消"):tr("编辑"));
     ui->btnFSubCommit->setEnabled(en);
+    ui->btnSSubAdd->setEnabled(en);
+    ui->btnSSubDel->setEnabled(en && (ui->lwSSub->currentRow() != -1));
 }
 
 /**
@@ -1579,7 +1633,6 @@ void ApcSubject::enSSubWidget(bool en)
     ui->ssubWeight->setReadOnly(!en);
     ui->btnSSubCommit->setEnabled(en);
     ui->btnSSubEdit->setText(en?tr("取消"):tr("编辑"));
-    ui->btnSSubCommit->setEnabled(en);
     ui->ssubIsDef->setEnabled(en);
 }
 
@@ -1687,7 +1740,7 @@ void ApcSubject::on_btnNiCommit_clicked()
         ui->lwNI->currentItem()->setText(curNI->getShortName());
     }
     else if(editAction == APCEA_NEW_NI){
-        curNI = SubjectManager::addNameItem(name,lname,remCode,cls,QDateTime::currentDateTime(),curUser);
+        curNI = curSubMgr->addNameItem(name,lname,remCode,cls,QDateTime::currentDateTime(),curUser);
         QVariant v;
         v.setValue<SubjectNameItem*>(curNI);
         QListWidgetItem* item = new QListWidgetItem(name);
@@ -1725,13 +1778,19 @@ void ApcSubject::on_btnDelNI_clicked()
         return;
     if(!curNI)
         return;
-    if(account->getDbUtil()->nameItemIsUsed(curNI)){
-        QMessageBox::warning(this,tr("警告信息"),tr("该名称条目已被某些二级科目采用，不能删除！"));
+    if(curSubMgr->nameItemIsUsed(curNI)){
+        QMessageBox::warning(this,tr("警告信息"),tr("该名称条目已被某些二级科目引用，不能删除！"));
         return;
     }
     QListWidgetItem* item = ui->lwNI->takeItem(ui->lwNI->currentRow());
     delete item;
-    SubjectManager::removeNameItem(curNI);
+    curSubMgr->removeNameItem(curNI,true);
+    if(ui->lwNI->currentRow() != -1)
+        curNI = ui->lwNI->currentItem()->data(Qt::UserRole).value<SubjectNameItem*>();
+    else{
+        curNI = NULL;
+        ui->btnDelNI->setEnabled(false);
+    }
 }
 
 /**
@@ -1815,7 +1874,8 @@ void ApcSubject::on_btnDelNiCls_clicked()
         return ;
     }
     QListWidgetItem* item = ui->lwNiCls->takeItem(ui->lwNiCls->currentRow());
-    SubjectManager::removeNiCls(curNiCls);
+    int clsCode = item->data(Qt::UserRole).toInt();
+    account->getDbUtil()->removeNameItemCls(clsCode);
     delete item;
 }
 
@@ -1833,7 +1893,7 @@ void ApcSubject::on_niClsBox_toggled(bool en)
 }
 
 /**
- * @brief 启动或取消对当前选中的一级的编辑
+ * @brief 启动或取消对当前选中的一级科目的编辑
  */
 void ApcSubject::on_btnFSubEdit_clicked()
 {    
@@ -1861,6 +1921,13 @@ void ApcSubject::on_btnFSubEdit_clicked()
         ui->fsubIsEnable->setChecked(stack_ints.pop());
         int index = ui->FSubCls->findData(stack_ints.pop());
         ui->FSubCls->setCurrentIndex(index);
+        //如果有任何新建的不想提交的二级科目对象，则要删除否则造成内存泄漏
+        for(int i = 0; i < ui->lwSSub->count(); ++ i){
+            SecondSubject* sub = ui->lwSSub->item(i)->data(Qt::UserRole).value<SecondSubject*>();
+            if(sub->getId() == 0)
+                delete sub;
+        }
+        loadSSub();
         editAction = APCEA_NONE;
         enFSubWidget(false);
     }
@@ -1873,6 +1940,7 @@ void ApcSubject::on_btnFSubCommit_clicked()
 {
     if(editAction != APCEA_EDIT_FSUB)
         return;
+    //保存科目的属性
     curFSub->setSubClass((SubjectClass)ui->FSubCls->itemData(ui->FSubCls->currentIndex()).toInt());
     curFSub->setName(ui->fsubName->text());
     curFSub->setRemCode(ui->fsubRemCode->text());
@@ -1885,14 +1953,27 @@ void ApcSubject::on_btnFSubCommit_clicked()
         ui->lwFSub->currentItem()->setText(stack_strs.at(1));
     stack_ints.clear();
     stack_strs.clear();
-    if(!account->getDbUtil()->savefstSubject(curFSub))
-        QMessageBox::critical(this,tr("出错信息"),tr("在将一级科目保存当账户数据库中时发生错误！"));
+    //保存二级科目
+    QList<int> ids = curFSub->getAllSSubIds();
+    for(int i = 0; i < ui->lwSSub->count(); ++i){
+        SecondSubject* sub = ui->lwSSub->item(i)->data(Qt::UserRole).value<SecondSubject*>();
+        if(curFSub->containChildSub(sub))
+            ids.removeOne(sub->getId());
+        else
+            curFSub->addChildSub(sub);
+    }
+    if(!ids.isEmpty()){
+        foreach(int id, ids)
+            curFSub->removeChildSubForId(id);
+    }
+    if(!curSubMgr->saveFS(curFSub))
+        QMessageBox::critical(this,tr("出错信息"),tr("在保存一级科目时发生错误！"));
     editAction = APCEA_NONE;
     enFSubWidget(false);
 }
 
 /**
- * 启动或取消对当前选中的二级的编辑
+ * 启动或取消对当前选中的二级科目的编辑
  */
 void ApcSubject::on_btnSSubEdit_clicked()
 {
@@ -1928,10 +2009,10 @@ void ApcSubject::on_btnSSubCommit_clicked()
     //如果用户将本不是默认的科目设置为默认了
     if(ui->ssubIsDef->isChecked() && !stack_ints.at(2)){
         curFSub->setDefaultSubject(curSSub);
-        if(!account->getDbUtil()->savefstSubject(curFSub))
+        if(!curSubMgr->saveFS(curFSub))
             QMessageBox::critical(this,tr("出错信息"),tr("在将当前二级科目保存为当前一级科目的默认科目时出错！"));
     }
-    if(!account->getDbUtil()->saveSndSubject(curSSub))
+    if(curSubMgr->saveSS(curSSub))
         QMessageBox::critical(this,tr("出错信息"),tr("在将二级科目保存到账户数据库中时出错！"));
     editAction = APCEA_NONE;
     enSSubWidget(false);
@@ -1946,19 +2027,33 @@ void ApcSubject::on_btnSSubDel_clicked()
         QMessageBox::warning(this,tr("警告信息"),tr("二级科目“%1”已在账户中被采用，不能删除！").arg(curSSub->getName()));
         return;
     }
-    curFSub->removeChildSub(curSSub);
+    //curFSub->removeChildSub(curSSub);
     delete ui->lwSSub->takeItem(ui->lwSSub->currentRow());
+    //curSubMgr->saveFS(curFSub);
 }
 
 /**
- * @brief 科目系统衔接配置
- * @param sCode 源科目系统
- * @param dCode 目的科目系统
+ * @brief 新建二级科目
  */
-//void ApcSubject::subJoinConfig(int sCode, int dCode)
-//{
-//    int i = 0;
-//}
+void ApcSubject::on_btnSSubAdd_clicked()
+{
+    if(!curFSub)
+        return;
+    NewSndSubDialog dlg(curFSub, this);
+    if(dlg.exec() == QDialog::Accepted){
+        SecondSubject* sub = dlg.getCreatedSubject();
+        QListWidgetItem* item = new QListWidgetItem(sub->getName());
+        QVariant v; v.setValue<SecondSubject*>(sub);
+        item->setData(Qt::UserRole,v);
+        ui->lwSSub->addItem(item);
+        ui->lwSSub->setCurrentItem(item);
+        //viewFSub();
+        //on_btnFSubCommit_clicked();
+    }
+
+}
+
+
 
 bool ApcSubject::notCommitWarning()
 {
@@ -1983,14 +2078,6 @@ bool ApcSubject::notCommitWarning()
     return true;
 }
 
-//bool ApcSubject::testCommited()
-//{
-//    if(!stack_strs.isEmpty() || !stack_ints.isEmpty()){
-//        QMessageBox::warning(this,tr("警告信息"),tr("有未提交的编辑结果！"));
-//        return false;
-//    }
-//    return true;
-//}
 
 //////////////////////////SubSysJoinCfgForm////////////////////////////////////////
 SubSysJoinCfgForm::SubSysJoinCfgForm(int src, int des, Account* account, QWidget *parent)
@@ -3138,6 +3225,7 @@ void AccountPropertyConfig::createIcons()
     connect(contentsWidget,SIGNAL(currentRowChanged(int)),
          this, SLOT(pageChanged(int)));
 }
+
 
 
 

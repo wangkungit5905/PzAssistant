@@ -200,45 +200,8 @@ private:
     QString desc;
 };
 
-//编辑业务活动列表的自定义表格部件视图类
-class ActionEditTableWidget : public QTableWidget
-{
-    Q_OBJECT
-public:
-    ActionEditTableWidget(QWidget* parent = 0);    
-    void switchRow(int r1,int r2);
-    bool isCurRowVolid();
-    //bool isRailRow();
-    bool hasSelectedRow();
-    void selectedRows(QList<int>& rows, bool& isContinue);
-    void appendRow(int rowNums = 1);
-    void insertRows(int pos, int rowNums = 1);
-    void removeRows(int pos, int rowNums = 1);
-protected:
-    void keyPressEvent(QKeyEvent* e);
-    void mousePressEvent(QMouseEvent* event);
-signals:
-    //void requestCrtNewAction(bool dir);
-    void requestCrtNewOppoAction();            //请求创建新的合计对冲业务活动
-    void reqAutoCopyToCurAction();              //请求复制当前的业务活动并插入到当前行的下一行
-    void requestAppendNewAction(int row);      //请求添加新的空业务活动
-    void requestContextMenu(int row, int col); //请求对上下文菜单进行刷新
-
-private slots:
-    void newSndSubMapping(int pid, int nid, int row, int col, bool reqConfirm = true);
-    void newSndSubAndMapping(int fid, QString name, int row, int col);
-    void sndSubjectDisabeld(int id);
-    //void cellClicked(int row, int column);
-    void currentCellChanged(int currentRow, int curCol, int previousRow, int previousColumn);
 
 
-private:
-    SubjectManager* smg;
-    int volidRows;   //有效行数（那些处于表格上端的显示业务活动的行（包括表尾到备用空白行）才是有效行，其余空白的行都是无效的行）
-    int curRow;     //当前单元格的行和列
-    int curCol;
-    bool rowTag;      //折行标志
-};
 
 //用于显示借贷方向的表格项类
 class DirItem : public QTableWidgetItem

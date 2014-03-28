@@ -2,14 +2,13 @@
 #define CONFIG_H
 
 #include <QMap>
-#include <QSettings>
 #include <QSqlQuery>
 
 #include "commdatastruct.h"
 #include "common.h"
 #include "logs/Logger.h"
 
-
+class QSettings;
 class VersionManager;
 class Machine;
 //通过访问应用程序的基本库来存取配置信息
@@ -42,9 +41,10 @@ public:
      * @brief 在程序内部有特殊处理的名称类别枚举
      */
     enum SpecNameItemClass{
-        SNIC_CLIENT = 1,    //业务客户类
-        SNIC_GDZC   = 2,    //固定资产类
-        SNIC_BANK   = 3     //金融机构（常指银行）
+        SNIC_COMMON_CLIENT = 1,    //普通业务客户类
+        SNIC_WL_CLIENT     = 2,    //物流企业
+        SNIC_GDZC          = 3,    //固定资产类
+        SNIC_BANK          = 4     //金融机构（常指银行）
     };
 
 
@@ -97,8 +97,10 @@ public:
     bool clearAccountCache();
     bool isExist(QString code);
     bool refreshLocalAccount(int& count);
+    bool addAccountCacheItem(AccountCacheItem* accItem);
     bool saveAccountCacheItem(AccountCacheItem* accInfo);
     bool saveAllAccountCaches();
+    bool removeAccountCache(AccountCacheItem* accInfo);
     AccountCacheItem* getAccountCacheItem(QString code);
     QList<AccountCacheItem *> getAllCachedAccounts();
     AccountCacheItem *getRecendOpenAccount();
@@ -110,6 +112,9 @@ public:
 
     bool getSupportMoneyType(QHash<int, Money *> &moneys);
 
+    void updateTableCreateStatment(QStringList names, QStringList sqls);
+    bool getUpdateTableCreateStatment(QStringList &names, QStringList &sqls);
+
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);
@@ -117,6 +122,7 @@ private:
     bool _initAccountCaches();
     void _initMachines();
     void _initSpecSubCodes();
+    void _initSpecNameItemClses();
     bool _saveMachine(Machine* mac);
     AppConfig();
     bool getConfigVar(QString name, int type);
@@ -131,6 +137,9 @@ private:
     int iv;
     double dv;
     QString sv;
+
+    //特定名称类别的代码
+    QHash<SpecNameItemClass,int> specNICs;
 
     static AppConfig* instance;
     static QSqlDatabase db;

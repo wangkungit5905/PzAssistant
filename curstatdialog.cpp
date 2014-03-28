@@ -366,7 +366,8 @@ void CurStatDialog::onDetViewChanged(bool checked)
 void CurStatDialog::init(Account *acc)
 {
     account = statUtil->getAccount();
-    smg = account->getSubjectManager();
+    //smg = account->getSubjectManager();
+    smg = statUtil->getSubjectManager();
     ui->cmbFstSub->setSubjectManager(smg);
     ui->cmbFstSub->setSubjectClass();
     ui->cmbFstSub->insertItem(0,tr("所有"));

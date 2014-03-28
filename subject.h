@@ -24,6 +24,7 @@ static int SNDSUBMD = 1;     //二级科目对象使用的魔术字
 class Account;
 class SecondSubject;
 class FirstSubject;
+class DbUtil;
 struct SubjectNameItem;
 
 //虚拟科目对象
@@ -117,6 +118,7 @@ public:
     SecondSubject* restoreChildSub(SubjectNameItem* ni);
     bool removeChildSub(SecondSubject* sub);
     bool removeChildSub(SubjectNameItem* name);
+    bool removeChildSubForId(int id);
 
     SecondSubject* getChildSub(int index);
     QList<SecondSubject*>& getChildSubs(){return childSubs;}
@@ -127,6 +129,8 @@ public:
     SecondSubject* getChildSub(SubjectNameItem* ni);
     void setDefaultSubject(SecondSubject* ssub);
     SecondSubject* getDefaultSubject();
+
+
 
 private:
     SubjectManager* _parent;
@@ -337,6 +341,9 @@ public:
 
     //保存方法
     bool save();
+    bool saveFS(FirstSubject* fsub);
+    bool saveSS(SecondSubject* ssub);
+    bool saveNI(SubjectNameItem* ni);
     void rollback();
 
     //名称条目相关方法
@@ -349,7 +356,7 @@ public:
     static QList<SubjectNameItem*> getAllNameItems(){return nameItems.values();}
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
-    static void removeNameItem(SubjectNameItem* nItem);
+    void removeNameItem(SubjectNameItem* nItem, bool delInLib = false);
     static bool restoreNI(SubjectNameItem* nItem);
     static SubjectNameItem* restoreNI(QString sname, QString lname, QString remCode, int nameCls);
     static QHash<int,QStringList> getAllNICls(){return nameItemCls;}
@@ -358,6 +365,7 @@ public:
     static QHash<int,SubjectNameItem*>& getAllNI(){return nameItems;}
     static bool containNI(QString name);
     bool containNI(SubjectNameItem* ni);
+    bool nameItemIsUsed(SubjectNameItem* ni);
 
     QHash<SubjectClass,QString>& getFstSubClass(){return fsClsNames;}
     //按科目id获取科目对象的方法
@@ -391,103 +399,29 @@ public:
 
     bool isUsedSSub(SecondSubject* ssub);
 
-    //
-    static SubjectNameItem* addNameItem(QString sname,QString lname,QString rcode,int clsId,
+    SubjectNameItem* addNameItem(QString sname,QString lname,QString rcode,int clsId,
                                  QDateTime crtTime=QDateTime::currentDateTime(),User* creator=curUser);
+    void addNameItem(SubjectNameItem* ni);
 
     //
     SecondSubject* addSndSubject(FirstSubject* fsub,SubjectNameItem* ni,QString code="",
                                  int weight=1,bool isEnabled=true,
                                  QDateTime crtTime=QDateTime::currentDateTime(),User* creator=curUser);
 
-    ////////////////////////////////////////////////////////////
-    //获取科目名的方法
-    //QString getFstSubName(int id);
-    //QString getFstSubCode(int id);
-    //QString getSndSubName(int id);
-    //QString getSndSubLName(int id);
-    //bool getFstSubClasses(QHash<int,QString>& subcls);
-    //bool getSSClasses(QHash<int,QString>& subcls);
-    //bool getAllFstSub(QList<int>& ids, QList<QString>& names);
-    //bool getAllFstSub2(QList<int>& ids, QList<QString>& names);
-    //bool getSndSubInSpecFst(int pid, QList<int>& ids, QList<QString>& names);
-    //bool getFstToSnd(int fid, int sid, int& id);
-    //bool getOwnerSub(int oid, QHash<int,QString>& names);
-
-    //bool getFstSubs(QList<FirstSubject *> &subLst, int subCls = 0, bool enabled = true);
-
-    ////////////////////////////////////////////////////////////////////////////////
-
-    //操作一级科目列表的方法
-//    int fsCount(){return fstSubs.count();}
-//    QList<FirstSubject*> getAllFstSubs();
-//    QList<FirstSubject*> getSpecClassSubs(int clsId);
-//    bool getRangeSubs(FirstSubject* ssub,FirstSubject* esub, QList<FirstSubject*>& subs);
-//    FirstSubject* getFS(int index){if(index<0 || index>=fstSubs.count()) return 0;return fstSubs.at(index);}
-//    FirstSubject* getFSById(int id);
-//    FirstSubject* getFsByCode(QString code);
-
-    //名称条目相关方法
-//    void getAllNameClasses(QHash<int, QString> &nameCls);
-//    QList<SubjectNameItem*> getAllNameItems(){return nameItems;}
-//    bool nameItemIsUsing(SubjectNameItem* nItem);
-//    bool hasNameItem(SubjectNameItem* ni);
-//    QList<SubjectNameItem*> searchNameItem(QString keyWord);
-//    int niCount(){return nameItems.count();}
-//    SubjectNameItem* getNI(int index){if(index<0 || index>=nameItems.count()) return 0;return nameItems.at(index);}
-//    void addNameItem(SubjectNameItem* nItem){if(nItem) nameItems<<nItem;}
-//    SubjectNameItem* addNameItem(QString sname,QString lname, QString remCode, int nameCls);
-//    void removeNameItem(SubjectNameItem* nItem);
-//
-//
-
-    //QList<SubjectNameItem*> getSSinFS(FirstSubject* p);
-
-    //操作二级科目列表的方法
-    //SecondSubject* getSSById(int id);
-    //QList<SecondSubject*> getAllSndSubs(){return sndSubs.values();}
-    //int ssCount(){return sndSubs.count();}
-    //SecondSubject* getSS(int index){if(index<0 || index>=sndSubs.count()) return 0;return sndSubs.at(index);}
-
     //银行账户有关的方法
-    //bool getAllBankAccount(QHash<int,BankAccount*>& banks);
     BankAccount* getBankAccount(SecondSubject *ssub);
     Money* getSubMatchMt(SecondSubject* ssub);
     bool isBankSndSub(SecondSubject* ssub);
 
-    //获取要作特别处理的一级科目的方法
 
-    //FirstSubject* getCashSub(){return cashSub;}
-    //FirstSubject* getBankSub(){return bankSub;}
-    //FirstSubject* getYsSub(){return ysSub;}
-    //FirstSubject* getYfSub(){return yfSub;}
-    //bool isReqWbSub(FirstSubject* fsub){return wbSubs.contains(fsub);}
-    //FirstSubject* getGdzcSub(){return gdzcSub;}
-    //FirstSubject* getDtfySub(){return dtfySub;}
-    //FirstSubject* getLjzjSub(){return ljzjSub;}
-    //FirstSubject* getBnlrSub(){return bnlrSub;}
 
-    //特殊二级科目处理方法
-    //int getDefaultSndSubId(int fid){return defSndSubIds.value(fid);}//返回指定主目下的默认子目id
-    //int getMasterMtId(){return masterMtId;}
-    //int getMasterBankId(){return masterBankId;}
-    //bool isBankSndSub(SecondSubject* ssub){return bankSids.contains(ssub->getId());}//是否是银行存款下的子目
-
-    //待摊费用科目类
-    //void getDtfySubIds(QHash<int, int> &h);
-    //void getDtfySubNames();
-
-    //
-    //bool isUsing(SecondSubject* sub);//指定的二级科目是否已被使用
 
 
 private:
     bool init();
 
     //保存方法
-    bool saveFS(FirstSubject* fsub);
-    bool saveSS(SecondSubject* ssub);
-    bool saveNI(SubjectNameItem* ni);
+
 
     //科目对象恢复方法
     bool restoreFS(FirstSubject* sub);
@@ -498,15 +432,13 @@ private:
     DbUtil* dbUtil;
     int subSys;   //科目系统的类型
 
-    //QHash<int,QString> fstSubCls;           //一级科目类别名称表
-    QHash<SubjectClass,QString> fsClsNames; //一级科目类别名称表（这是程序内置的类别名称）
-    QList<FirstSubject*> fstSubs;           //所有的一级科目
-    QHash<int,FirstSubject*> fstSubHash;    //一级科目哈希表
-    QHash<int, SecondSubject*> sndSubs;     //所有二级科目（键为二级科目id）
+    QHash<SubjectClass,QString> fsClsNames;     //一级科目类别名称表（这是程序内置的类别名称）
+    QHash<int,FirstSubject*> fstSubHash;        //一级科目哈希表
+    QHash<int, SecondSubject*> sndSubs;         //所有二级科目（键为二级科目id）
 
-    static QHash<int,QStringList> nameItemCls;    //名称条目类别表
-    static QHash<int,SubjectNameItem*> nameItems; //所有名称条目（因为多个科目管理器对象要共享名称条目信息）
-    static QList<SubjectNameItem*> delNameItems;  //缓存被删除的名称条目
+    static QHash<int,QStringList> nameItemCls;      //名称条目类别表
+    static QHash<int,SubjectNameItem*> nameItems;   //所有名称条目（因为多个科目管理器对象要共享名称条目信息）
+    static QList<SubjectNameItem*> delNameItems;    //缓存被删除的名称条目
     static FirstSubject* FS_ALL;
     static FirstSubject* FS_NULL;
 
@@ -517,45 +449,7 @@ private:
     FirstSubject *gdzcSub,*dtfySub,*ljzjSub,*bnlrSub,*lrfpSub;//固定资产、待摊费用、累计折旧、本年利润和利润分配科目id
     FirstSubject *cwfySub;
 
-    //特种科目类别代码
-    //int sySubCls;   //损益类科目类别
     friend class DbUtil;
-    //////////////////////可能要废弃//////////////////////////////////////
-
-
-    //（注意：这3个列表的同一个索引是对应同一个一级科目，并且是以科目代码的顺序）
-    //QList<int> fstIds; //所有一级科目的id
-    //QList<QString> fstSubNames, fstSubCodes; //所有一级科目的名称和代码
-
-
-    //QStringList sndNames,sndLNames; //从SecSubjects表读取的所有二级科目名称和全称的列表
-    //QHash<int,int> secIdx;          //键为SecSubjects表id列，值为对应的sndNames或sndLNames列表的索引
-    //QHash<int,int> sndIdx;          //键为FSAgent表id列，值为对应的sndNames或sndLNames列表的索引
-    //QList<FsaMap> fsaMaps;          //保存FSAgent表的所有映射条目
-
-
-    //QHash<int,QList<int> > subBelongs; //所有一级科目属下的二级科目
-    //QHash<int,int> defSndSubIds;       //所有一级科目属下的默认二级科目id
-
-    //////////////////////可能要废弃//////////////////////////////////////
-
-    //QList<int> plIds;                  //损益类主科目id
-
-    //QList<int> bankSids;               //所有银行存款下的子目id
-    //QHash<int,BankAccount*> banks;     //键为银行子目id
-
-
-
-    //一些特别的一级科目id
-
-    //QList<FirstSubject*> wbSubs;     //所有需要使用外币的科目（如银行、应收和应付等）
-
-
-    //一些特别的二级级科目id
-    //int masterMtId;    //现金科目下与母币对应的子目id
-    //int masterBankId;  //银行存款下与基本户-母币账户对应的子目id
-
-
 };
 
 

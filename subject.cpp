@@ -241,6 +241,7 @@ SecondSubject *FirstSubject::addChildSub(SubjectNameItem *ni, QString Code, int 
  * @brief FirstSubject::restoreChildSub
  *  恢复被删除的子目对象（被删除的子目，如果为执行保存操作，则仍保留在删除队列中）
  * @param sub
+ * @param delInLib  是否彻底删除该科目（在数据库内删除，在应用退出前不会尝试恢复）
  * @return
  */
 SecondSubject *FirstSubject::restoreChildSub(SecondSubject *sub)
@@ -290,6 +291,25 @@ bool FirstSubject::removeChildSub(SecondSubject *sub)
     delSubs<<sub;
     sub->setDelete(true);
     witchEdited |= ES_FS_CHILD;
+    return true;
+}
+
+/**
+ * @brief 移除指定id的子目
+ * @param id    子目id
+ * @return
+ */
+bool FirstSubject::removeChildSubForId(int id)
+{
+    foreach(SecondSubject* sub, childSubs){
+        if(sub->getId() == id){
+            childSubs.removeOne(sub);
+            delSubs<<sub;
+            sub->setDelete(true);
+            witchEdited |= ES_FS_CHILD;
+            break;
+        }
+    }
     return true;
 }
 
@@ -733,6 +753,26 @@ bool SubjectManager::containNI(SubjectNameItem *ni)
 }
 
 /**
+ * @brief 判断名称条目对象是否已被某个二级科目使用了
+ * @param ni
+ * @return
+ */
+bool SubjectManager::nameItemIsUsed(SubjectNameItem *ni)
+{
+    //如果该名称条目是被银行的某个账户引用，则也作为名称条目被使用了对待
+    int bankNIClsId = AppConfig::getInstance()->getSpecNameItemCls(AppConfig::SNIC_BANK);
+    if(ni->clsId == bankNIClsId){
+        foreach(Bank* bank, account->getAllBank()){
+            foreach(BankAccount* ba, bank->bas){
+                if(ba->niObj == ni)
+                    return true;
+            }
+        }
+    }
+    return dbUtil->nameItemIsUsed(ni);
+}
+
+/**
  * @brief SubjectManager::getUseWbSubs
  *  获取所有使用外币的科目
  * @param
@@ -797,12 +837,57 @@ bool SubjectManager::loadAfterImport()
     return dbUtil->initSubjects(this,subSys);
 }
 
+/**
+ * @brief 保存科目系统内所有被修改的项目（包括一二级科目和名称条目）
+ *  此方法建议在进行凭证编辑操作时，当保存当前的一系列操作结果时调用（这些操作可能包含了新建二级科目或新建名称条目的操作）
+ * @return
+ */
 bool SubjectManager::save()
 {
-//    foreach(SubjectNameItem* ni, nameItems.values()){
-//        if(ni->getEditState() != ES_NI_INIT && !dbUtil->saveNameItem(ni))
-//            return false;
-//    }
+    //保存名称条目
+    foreach(SubjectNameItem* ni, nameItems.values()){
+        if(ni->getEditState() != ES_NI_INIT && !dbUtil->saveNameItem(ni))
+            return false;
+    }
+    //保存一二级科目
+    foreach(FirstSubject* fsub, fstSubHash.values()){
+        if(!dbUtil->savefstSubject(fsub))
+            return false;
+    }
+}
+
+/**
+ * @brief 保存一级科目对象
+ * @param fsub
+ * @return
+ */
+bool SubjectManager::saveFS(FirstSubject *fsub)
+{
+    if(!dbUtil->savefstSubject(fsub))
+        return false;
+    if(!fsub->delSubs.isEmpty())
+        return dbUtil->removeSndSubjects(fsub->delSubs);
+    return true;
+}
+
+/**
+ * @brief 保存二级科目对象
+ * @param ssub
+ * @return
+ */
+bool SubjectManager::saveSS(SecondSubject *ssub)
+{
+    return dbUtil->saveSndSubject(ssub);
+}
+
+/**
+ * @brief 保存名称条目对象
+ * @param ni
+ * @return
+ */
+bool SubjectManager::saveNI(SubjectNameItem *ni)
+{
+    return dbUtil->saveNameItem(ni);
 }
 
 /**
@@ -891,16 +976,23 @@ bool SubjectManager::removeNiCls(int code)
  * @brief SubjectManager::removeNameItem
  *  移除名称条目
  * @param nItem
+ * @param delInLib  是否从数据库中删除它
  */
-void SubjectManager::removeNameItem(SubjectNameItem *nItem)
+void SubjectManager::removeNameItem(SubjectNameItem *nItem, bool delInLib)
 {
     if(!nItem)
         return;
     if(!nameItems.contains(nItem->getId()))
         return;
-    delNameItems<<nItem;
-    nameItems.remove(nItem->getId());
-    nItem->setDelete(true);
+    if(!delInLib){
+        delNameItems<<nItem;
+        nItem->setDelete(true);
+    }
+    else{
+        dbUtil->removeNameItem(nItem);
+        delete nItem;
+    }
+    nameItems.remove(nItem->getId());    
 }
 
 /**
@@ -1021,13 +1113,22 @@ bool SubjectManager::isUsedSSub(SecondSubject *ssub)
 SubjectNameItem *SubjectManager::addNameItem(QString sname, QString lname, QString rcode, int clsId, QDateTime crtTime, User *creator)
 {
     SubjectNameItem* ni = new SubjectNameItem(0,clsId,sname,lname,rcode,crtTime,creator);
-//    if(!dbUtil->saveNameItem(ni)){
-//        delete ni;
-//        return NULL;
-//    }
+    if(!dbUtil->saveNameItem(ni)){
+        delete ni;
+        return NULL;
+    }
     SubjectManager::nameItems[ni->getId()] = ni;
     return ni;
 }
+
+void SubjectManager::addNameItem(SubjectNameItem *ni)
+{
+    if(ni->getId() == UNID)
+        dbUtil->saveNameItem(ni);
+    SubjectManager::nameItems[ni->getId()] = ni;
+}
+
+
 
 /**
  * @brief SubjectManager::addSndSubject

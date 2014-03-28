@@ -42,6 +42,7 @@
 #include "statements.h"
 #include "accountpropertyconfig.h"
 #include "suiteswitchpanel.h"
+#include "nabaseinfodialog.h"
 
 #include "completsubinfodialog.h"
 
@@ -958,9 +959,10 @@ void MainWindow::setActiveSubWindow(QWidget *window)
 /////////////////////////文件菜单处理槽部分/////////////////////////////////////////
 void MainWindow::newAccount()
 {
-//    dlgAcc = new CreateAccountDialog(this);
-//    connect(dlgAcc, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-//    dlgAcc->show();
+    NABaseInfoDialog dlg(this);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+
 }
 
 void MainWindow::openAccount()
@@ -1065,7 +1067,7 @@ void MainWindow::closeAccount()
         curSSPanel = NULL;
     }
 
-    if(curSuiteMgr->isPzSetOpened())
+    if(curSuiteMgr && curSuiteMgr->isPzSetOpened())
         curSuiteMgr->closePzSet();
 
     curAccount->setLastAccessTime(QDateTime::currentDateTime());
@@ -1080,6 +1082,45 @@ void MainWindow::closeAccount()
     curAccount = NULL;
     setWindowTitle(tr("会计凭证处理系统---无账户被打开"));
     rfMainAct();
+}
+
+/**
+ * @brief 移除账户
+ */
+void MainWindow::on_actDelAcc_triggered()
+{
+    //显示当前账户列表供用户选择,将选择的账户从账户缓存中删除
+    AppConfig* appCfg = AppConfig::getInstance();
+    QList<AccountCacheItem*> accItems = appCfg->getAllCachedAccounts();
+    QStringList items;
+    for(int i = 0; i < accItems.count(); ++i)
+        items<<accItems.at(i)->accName;
+    bool ok;
+    QString name = QInputDialog::getItem(this, tr("删除账户"),tr("请选择要删除的账户名"), items, 0, false, &ok);
+    if (ok && !name.isEmpty()){
+        int index = -1;
+        for(int i = 0; i < accItems.count(); ++i){
+            if(accItems.at(i)->accName == name){
+                index = i;
+                break;
+            }
+        }
+        if(index == -1)
+            return;
+        AccountCacheItem* accItem = accItems.at(index);
+        if(!appCfg->removeAccountCache(accItem)){
+            QMessageBox::critical(this,tr("出错信息"),tr("在删除该账户的缓存记录时发生错误！"));
+            return;
+        }
+        //将账户文件重命名后拷贝到备份目录中
+        BackupUtil backup;
+        if(!backup.backup(accItem->fileName,BackupUtil::BR_REMOVE))
+            QMessageBox::warning(this,"",tr("将账户转移至备份目录时发生错误！"));
+        QString sname = QString("%1%2").arg(DATABASE_PATH).arg(accItem->fileName);
+        QFile::remove(sname);
+
+    }
+
 }
 
 //退出应用
@@ -1703,8 +1744,9 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
                 w->setMonth(month);
             subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,NULL,winfo);
         }
-        editable = (curSuiteMgr->getState() != Ps_Jzed) &&
-                (curSuiteMgr->getCurPz()->getPzState() == Pzs_Recording);
+        PingZheng* curPz = curSuiteMgr->getCurPz();
+        editable = (curSuiteMgr->getState() != Ps_Jzed) && curPz &&
+                (curPz->getPzState() == Pzs_Recording);
         //undoView->setStack(curSuiteMgr->getUndoStack());
         //adjustEditMenus(UT_PZ,true);
         rfPzSetEditAct(true);
@@ -3110,6 +3152,88 @@ void MainWindow::adjustEditMenus(UndoType ut, bool restore)
     ui->tbrEdit->addActions(actions);
 }
 
+/**
+ * @brief 从当前账户中导出常用科目到基本库（这些信息用来在建立新账户时可以快速建立常用科目，立即使账户投入使用）
+ */
+bool MainWindow::exportCommonSubject()
+{
+    if(!curAccount)
+        return false;
+    QSqlDatabase bdb = AppConfig::getBaseDbConnect();
+    if(!bdb.transaction())
+        return false;
+
+    QSqlQuery q(bdb),q2(bdb);
+    //QSqlQuery qa(curAccount->getDbUtil()->getDb());
+    QString s = QString("update %1 set %2=''").arg(tbl_base_ni).arg(fld_base_ni_belongto);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=:codes where %3=:str").arg(tbl_base_ni)
+            .arg(fld_base_ni_belongto).arg(fld_base_ni_name);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:name,:lname,:remcode,:cls,:belongto)")
+            .arg(tbl_base_ni).arg(fld_base_ni_name).arg(fld_base_ni_lname)
+            .arg(fld_base_ni_remcode).arg(fld_base_ni_clsid).arg(fld_base_ni_belongto);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    SubjectManager* smg;
+    QHash<int,QSet<QString> > maps;  //键为名称条目id
+    foreach (SubSysNameItem* item, curAccount->getSupportSubSys()) {
+        if(!item->isImport)
+            continue;        
+        smg = curAccount->getSubjectManager(item->code);
+        FSubItrator* it = smg->getFstSubItrator();
+        while(it->hasNext()){
+            it->next();
+            foreach(SecondSubject* sub, it->value()->getChildSubs()){
+                int clsID = sub->getNameItem()->getClassId();
+                if(clsID == 2 || clsID == 3) //跳过金融机构和业务客户
+                    continue;
+                int niId = sub->getNameItem()->getId();
+
+                if(!maps.contains(niId))
+                    maps[niId] = QSet<QString>();
+                maps[niId].insert(QString("%1-%2").arg(item->code).arg(sub->getParent()->getCode()));
+            }
+        }        
+    }
+    QHashIterator<int,QSet<QString> > ie(maps);
+    while(ie.hasNext()){
+        ie.next();
+        QStringList codes;
+        QSetIterator<QString> is(ie.value());
+        while(is.hasNext()){
+            codes<<is.next();
+        }
+        SubjectNameItem* ni = smg->getNameItem(ie.key());
+        q.bindValue(":str",ni->getShortName());
+        q.bindValue(":codes",codes.isEmpty()?"":codes.join(","));
+        if(!q.exec())
+            return false;
+        if(q.numRowsAffected() == 0){
+            q2.bindValue(":name",ni->getShortName());
+            q2.bindValue(":lname",ni->getLongName());
+            q2.bindValue(":remcode",ni->getRemCode());
+            q2.bindValue(":cls",ni->getClassId());
+            q2.bindValue(":belongto",codes.join(","));
+            if(!q2.exec())
+                return false;
+        }
+    }
+    if(!bdb.commit()){
+        bdb.rollback();
+        return false;
+    }
+    return true;
+}
+
 //显示账户属性对话框
 void MainWindow::on_actAccProperty_triggered()
 {
@@ -3391,7 +3515,7 @@ bool MainWindow::impTestDatas()
     //bu.clear();
 
     //QHash<int,int> fMaps, sMaps;
-    QStringList errors;
+    //QStringList errors;
     //if(!curAccount->getSubSysJoinMaps(1,2,fMaps,sMaps))
     //    return false;
     //if(!curAccount->getDbUtil()->convertExtraInYear(2013,fMaps,sMaps,errors))
@@ -3424,10 +3548,33 @@ bool MainWindow::impTestDatas()
 //    dlg.resize(300,200);
 //    dlg.exec();
 
-    TestForm form(this);
-    form.exec();
+    //更新账户数据库表格创建语句（这段代码保留，以便将来使用）
+//    QSqlDatabase db = curAccount->getDbUtil()->getDb();
+//    QString s = QString("select name,sql from sqlite_master where name not like '%1%'")
+//            .arg(tbl_ssjc_pre);
+//    QSqlQuery q(db);
+//    if(!q.exec(s))
+//        return false;
+//    QStringList names,sqls;
+//    while(q.next()){
+//        names<<q.value(0).toString();
+//        sqls<<q.value(1).toString();
+//    }
+//    //剔除科目系统衔接配置表
+//    AppConfig::getInstance()->updateTableCreateStatment(names,sqls);
+
+    //导出常用科目到基本库
+    //bool r = exportCommonSubject();
+//    QString errors;
+//    QSqlQuery qb(AppConfig::getBaseDbConnect());
+//    QSqlQuery q(curAccount->getDbUtil()->getDb());
+//    QSqlQuery qa(curAccount->getDbUtil()->getDb());
+
+
     int i = 0;
 }
+
+
 
 
 

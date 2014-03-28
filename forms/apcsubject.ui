@@ -23,7 +23,7 @@
       <enum>QTabWidget::Triangular</enum>
      </property>
      <property name="currentIndex">
-      <number>1</number>
+      <number>2</number>
      </property>
      <property name="documentMode">
       <bool>false</bool>
@@ -391,12 +391,9 @@
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
-            <widget class="QPushButton" name="btnSSubMerge">
-             <property name="enabled">
-              <bool>false</bool>
-             </property>
+            <widget class="QPushButton" name="btnSSubAdd">
              <property name="text">
-              <string>合并</string>
+              <string>新建</string>
              </property>
             </widget>
            </item>
@@ -420,6 +417,16 @@
              </property>
              <property name="text">
               <string>移除</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnSSubMerge">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
+             <property name="text">
+              <string>合并</string>
              </property>
             </widget>
            </item>
@@ -1000,7 +1007,6 @@
   <tabstop>fsubCode</tabstop>
   <tabstop>lwSSub</tabstop>
   <tabstop>btnSSubEdit</tabstop>
-  <tabstop>btnSSubMerge</tabstop>
   <tabstop>ssubIsEnable</tabstop>
   <tabstop>ssubCreator</tabstop>
   <tabstop>ssubCrtTime</tabstop>

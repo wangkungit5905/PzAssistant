@@ -26,7 +26,7 @@ CompletSubInfoDialog::CompletSubInfoDialog(int fid,SubjectManager* smg,QWidget *
     if(fid == gid)
         nameCls = conf->getSpecNameItemCls(AppConfig::SNIC_GDZC);
     else
-        nameCls = conf->getSpecNameItemCls(AppConfig::SNIC_CLIENT);
+        nameCls = conf->getSpecNameItemCls(AppConfig::SNIC_COMMON_CLIENT);
     QHash<int,QStringList> nameClses = smg->getAllNICls();
     QList<int> codes;
     codes = nameClses.keys();

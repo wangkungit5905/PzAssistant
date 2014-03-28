@@ -83,7 +83,9 @@ public:
     };
 
 
-
+    static bool createNewAccount(QString fileName,QString code,QString name, QString lname, SubSysNameItem* subSys, int startYear, int startMonth, QString& error);
+    static bool createTableForNewAccount(QSqlDatabase db, QString &errors);
+    static bool importSubjectForNewAccount(int subSys, QSqlDatabase db, QString &errors);
 
     Account(QString fname, QObject* parent=0);
     ~Account();
@@ -112,6 +114,7 @@ public:
     void setWaiMts(QList<Money*> mts){accInfos.waiMts = mts;}
     void addWaiMt(Money *mt);
     void delWaiMt(Money *mt);
+    bool isUsedWb(){return (moneys.count() > 1);}
     QString getWaiMtStr();
     QDate getStartDate();/*{return QDate::fromString(accInfos.startDate,Qt::ISODate);}*/
     //void setStartTime(QDate date);/*{accInfos.startDate = date.toString(Qt::ISODate);}*/
@@ -133,8 +136,8 @@ public:
     void setSuiteName(int y, QString name);
     QList<int> getSuiteYears();
     QList<AccountSuiteRecord*> getAllSuiteRecords(){return suiteRecords;}
-    AccountSuiteRecord* getStartSuiteRecord(){return suiteRecords.first();}
-    AccountSuiteRecord* getEndSuiteRecord(){return suiteRecords.last();}
+    AccountSuiteRecord* getStartSuiteRecord(){return suiteRecords.isEmpty()?NULL:suiteRecords.first();}
+    AccountSuiteRecord* getEndSuiteRecord(){return suiteRecords.isEmpty()?NULL:suiteRecords.last();}
     AccountSuiteRecord* getCurSuiteRecord();
     AccountSuiteRecord* getSuiteRecord(int y);
     void setCurSuite(int y);
@@ -169,6 +172,8 @@ public:
     QList<BankAccount*> getAllBankAccount();
     QList<Bank*> getAllBank(){return banks;}
     bool saveBank(Bank* bank);
+    bool removeBank(Bank* bank);
+    bool addBank(Bank* bank);
     static void setDatabase(QSqlDatabase* db);
 
     bool getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
@@ -189,20 +194,14 @@ private:
     bool init();
 
 
-	static QSqlDatabase* db;
-    User* user;            //操作此账户的用户
+    static QSqlDatabase* db;
     int subType; //账户所用的科目类型（科目系统由帐套来定）
-    //ReportType reportType; //账户所用的报表类型
-
-    //QList<BankAccount*> bankAccounts;
     QList<Bank*> banks;
-    //AccountSuiteManager* pzSetMgr;      //凭证集对象
     QList<SubSysNameItem*> subSysLst; //账户支持的科目系统
     QHash<int,SubjectManager*> smgs;  //科目管理对象（键为科目系统代码）
     QHash<int,AccountSuiteManager*> suiteHash; //帐套管理对象表（键为帐套记录的id）
     QList<AccountSuiteRecord*> suiteRecords;         //帐套记录结构列表
     bool readOnly;         //是否只读模式
-
     DbUtil* dbUtil; //直接访问账户文件的数据库访问对象
     AccountInfo accInfos;   //账户信息
     QHash<int,Money*> moneys; //账户所使用的所有货币对象

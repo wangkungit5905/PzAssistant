@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QDir>
 
+
 #include "global.h"
 #include "config.h"
 #include "tables.h"
@@ -12,7 +13,8 @@
 #include "transfers.h"
 #include "globalVarNames.h"
 
-QSettings* AppConfig::appIni;
+
+QSettings* AppConfig::appIni=0;
 AppConfig* AppConfig::instance = 0;
 QSqlDatabase AppConfig::db;
 
@@ -23,6 +25,7 @@ AppConfig::AppConfig()
     _initMachines();
     _initAccountCaches();
     _initSpecSubCodes();
+    _initSpecNameItemClses();
 }
 
 AppConfig::~AppConfig()
@@ -398,6 +401,16 @@ bool AppConfig::refreshLocalAccount(int &count)
     return true;
 }
 
+bool AppConfig::addAccountCacheItem(AccountCacheItem *accItem)
+{
+    if(!accItem)
+        return false;
+    if(isExist(accItem->code))
+        return false;
+    accountCaches<<accItem;
+    return _saveAccountCacheItem(accItem);
+}
+
 bool AppConfig::saveAccountCacheItem(AccountCacheItem *accInfo)
 {
     if(!_isValidAccountCode(accInfo->code)){
@@ -427,6 +440,23 @@ bool AppConfig::saveAllAccountCaches()
             LOG_SQLERROR("Rollback transaction failed on save all cached account item!");
         LOG_SQLERROR("Commit transaction failed on save all cached account item!");
     }
+    return true;
+}
+
+/**
+ * @brief 移除账户缓存
+ * @param accInfo
+ * @return
+ */
+bool AppConfig::removeAccountCache(AccountCacheItem *accInfo)
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where id = %2").arg(tbl_localAccountCache).arg(accInfo->id);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    accountCaches.removeOne(accInfo);
     return true;
 }
 
@@ -577,6 +607,82 @@ bool AppConfig::getSupportMoneyType(QHash<int, Money*> &moneys)
 }
 
 /**
+ * @brief 更新账户数据库表格创建语句
+ * @param names 表格名
+ * @param sqls  创建表格的sql语句
+ */
+void AppConfig::updateTableCreateStatment(QStringList names, QStringList sqls)
+{
+    if(names.count() != sqls.count())
+        return;
+    if(names.isEmpty())
+        return;
+    QSqlQuery q(db);
+    QString s = QString("select count() from sqlite_master where name='%1'")
+            .arg(tbl_table_create_sqls);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return;
+    }
+    q.first();
+    if(q.value(0).toInt() == 0){
+        s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,name TEXT,sql TEXT)")
+                .arg(tbl_table_create_sqls);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return;
+        }
+    }
+    s = QString("delete from %1").arg(tbl_table_create_sqls);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return;
+    }
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on insert create table sql statment!");
+        return;
+    }
+    s = QString("insert into %1(name,sql) values(:name,:sql)").arg(tbl_table_create_sqls);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return;
+    }
+    for(int i = 0; i < names.count(); ++i){
+        q.bindValue(":name",names.at(i));
+        q.bindValue(":sql",sqls.at(i));
+        if(!q.exec()){
+            LOG_SQLERROR(s);
+            return;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on insert create table sql statment!");
+        return;
+    }
+}
+
+/**
+ * @brief 获取账户数据库表格创建语句
+ * @param names
+ * @param sqls
+ * @return
+ */
+bool AppConfig::getUpdateTableCreateStatment(QStringList& names, QStringList& sqls)
+{
+    QSqlQuery q(db);
+    QString s = QString("select name,sql from %1").arg(tbl_table_create_sqls);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        names<<q.value(0).toString();
+        sqls<<q.value(1).toString();
+    }
+    return true;
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  代码不符合规定，代码为空，代码重复冲突等都视为无效
@@ -625,8 +731,16 @@ bool AppConfig::_saveAccountCacheItem(AccountCacheItem *accInfo)
         LOG_SQLERROR(s);
         return false;
     }
-    if(isNew)
-        accountCaches<<accInfo;
+    if(isNew){
+        //accountCaches<<accInfo;
+        s = "select last_insert_rowid()";
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.first();
+        accInfo->id = q.value(0).toInt();
+    }
     return true;
 }
 
@@ -818,6 +932,84 @@ void AppConfig::_initSpecSubCodes()
 
 }
 
+/**
+ * @brief 初始化特定名称类别代码表
+ */
+void AppConfig::_initSpecNameItemClses()
+{
+    QSqlQuery q(db),q2(db);
+    QString common_client = QObject::tr("业务客户");
+    QString logistics_client = QObject::tr("物流企业");
+    QString bank_client = QObject::tr("金融机构");
+    QString gdzc_class = QObject::tr("固定资产类");
+    //先找出一个最大可用的类别代码
+    QString s = QString("select max(%1) from %2").arg(fld_base_nic_code).arg(tbl_base_nic);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return;
+    }
+    q.first();
+    int maxCode = q.value(0).toInt();
+
+    s = QString("select %1 from %2 where %3=:name")
+            .arg(fld_base_nic_code).arg(tbl_base_nic).arg(fld_base_nic_name);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return;
+    }
+    s = QString("insert into %1(%2,%3,%4) values(:code,:name,:explain)")
+            .arg(tbl_base_nic).arg(fld_base_nic_code).arg(fld_base_nic_name)
+            .arg(fld_base_nic_explain);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return;
+    }
+    q.bindValue(":name",common_client);
+    if(q.exec() && q.first())
+        specNICs[SNIC_COMMON_CLIENT] = q.value(0).toInt();
+    else{
+        q2.bindValue("code",++maxCode);
+        q2.bindValue(":name",common_client);
+        q2.bindValue(":explain",QObject::tr("没有物流能力的通用企业用户"));
+        if(!q2.exec())
+            return;
+        specNICs[SNIC_COMMON_CLIENT] = maxCode;
+    }
+    q.bindValue(":name",logistics_client);
+    if(q.exec() && q.first())
+        specNICs[SNIC_WL_CLIENT] = q.value(0).toInt();
+    else{
+        q2.bindValue(":code",++maxCode);
+        q2.bindValue(":name",logistics_client);
+        q2.bindValue(":explain",QObject::tr("本身有物流能力的物流企业用户"));
+        if(!q2.exec())
+            return;
+        specNICs[SNIC_WL_CLIENT] = maxCode;
+    }
+    q.bindValue(":name",bank_client);
+    if(q.exec() && q.first())
+        specNICs[SNIC_BANK] = q.value(0).toInt();
+    else{
+        q2.bindValue("code",++maxCode);
+        q2.bindValue(":name",bank_client);
+        q2.bindValue(":explain",QObject::tr("有资金划转能力的机构，通常指银行"));
+        if(!q2.exec())
+            return;
+        specNICs[SNIC_BANK] = maxCode;
+    }
+    q.bindValue(":name",gdzc_class);
+    if(q.exec() && q.first())
+        specNICs[SNIC_GDZC] = q.value(0).toInt();
+    else{
+        q2.bindValue("code",++maxCode);
+        q2.bindValue(":name",bank_client);
+        q2.bindValue(":explain",QObject::tr("可以作为固定资产的物品名称类"));
+        if(!q2.exec())
+            return;
+        specNICs[SNIC_GDZC] = maxCode;
+    }
+}
+
 bool AppConfig::_saveMachine(Machine *mac)
 {
     if(!mac)
@@ -888,14 +1080,17 @@ int AppConfig::addAccountInfo(QString code, QString aName, QString lName, QStrin
  */
 int AppConfig::getSpecNameItemCls(AppConfig::SpecNameItemClass witch)
 {
-    switch(witch){
-    case SNIC_CLIENT:
-        return 2;
-    case SNIC_GDZC:
-        return 6;
-    case SNIC_BANK:
-        return 3;
-    }
+    return specNICs.value(witch);
+//    switch(witch){
+//    case SNIC_COMMON_CLIENT:
+//        return 2;
+//    case SNIC_WL_CLIENT:
+//        return 29;
+//    case SNIC_GDZC:
+//        return 6;
+//    case SNIC_BANK:
+//        return 3;
+//    }
 }
 
 /**

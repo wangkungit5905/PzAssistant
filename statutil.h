@@ -29,6 +29,7 @@ public:
     bool save();
     void clear();
     Account* getAccount(){return account;}
+    SubjectManager* getSubjectManager(){return smg;}
     int year(){return y;}
     int month(){return m;}
     int count(){return pzs->count();}

@@ -81,6 +81,9 @@ public:
     bool initSubjects(SubjectManager* smg, int subSys);
     bool saveNameItemClass(int code, QString name, QString explain);
     bool saveNameItem(SubjectNameItem* ni);
+    bool removeNameItem(SubjectNameItem* ni);
+    bool removeNameItemCls(int code);
+    bool removeSndSubjects(QList<SecondSubject*> subs);
     bool saveSndSubject(SecondSubject* sub);
     bool saveSndSubjects(QList<SecondSubject*> subs);
     bool savefstSubject(FirstSubject* fsub);
@@ -205,7 +208,10 @@ private:
     //科目相关
     bool _saveFirstSubject(FirstSubject* sub);
     bool _saveSecondSubject(SecondSubject* sub);
+    bool _removeSecondSubject(SecondSubject* sub);
     bool _saveNameItem(SubjectNameItem* ni);
+    bool _removeNameItem(SubjectNameItem* ni);
+
 
     //凭证相关
     bool _savePingZheng(PingZheng* pz);

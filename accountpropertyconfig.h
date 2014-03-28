@@ -149,6 +149,7 @@ public:
 private slots:
     void windowShallClosed();
     void curBankChanged(int index);
+    void curBankAccountChanged(int currentRow, int currentColumn, int previousRow, int previousColumn);
     void crtNameBtnClicked();
     void bankDbClicked();
     void on_editBank_clicked();
@@ -255,6 +256,8 @@ private slots:
     void on_btnSSubCommit_clicked();
 
     void on_btnSSubDel_clicked();
+
+    void on_btnSSubAdd_clicked();
 
 private:
     //void subJoinConfig(int sCode, int dCode);

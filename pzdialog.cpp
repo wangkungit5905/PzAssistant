@@ -419,7 +419,7 @@ void PzDialog::setMonth(int month)
     ui->edtPzCount->setText(QString::number(pzMgr->getPzCount()));
     //显示本期汇率
     pzMgr->getRates(rates,month);
-    if(rates.isEmpty())
+    if(account->isUsedWb() && rates.isEmpty())
         QMessageBox::warning(this,msgTitle_warning,tr("本期汇率未设值"));
     QVariant v;
     foreach(Money* mt, account->getWaiMt()){

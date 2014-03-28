@@ -1,18 +1,12 @@
 #ifndef VERSION_H
 #define VERSION_H
 
-
 #include <QStringList>
 #include <QHash>
 #include <QSqlDatabase>
 #include <QDialog>
 
 class QSettings;
-
-const QString VM_BASIC = "vm_basic";
-const QString VM_ACCOUNT = "vm_account";
-const QString VM_ACC_BACKDIR = "backupAccount";
-const QString VM_ACC_BACKSUFFIX = ".BAK";
 
 namespace Ui {
 class VersionManager;
@@ -22,6 +16,12 @@ class VMAccount;
 class VMAppConfig;
 typedef bool (VMAccount::*UpgradeFun_Acc)();
 typedef bool (VMAppConfig::*UpgradeFun_Config)();
+
+
+const QString VM_BASIC = "vm_basic";
+const QString VM_ACCOUNT = "vm_account";
+const QString VM_ACC_BACKDIR = "backupAccount";
+const QString VM_ACC_BACKSUFFIX = ".BAK";
 
 /**
  * @brief The VersionUpgradeResult enum
@@ -75,6 +75,8 @@ class VMAccount : public VMBase
 {
     Q_OBJECT
 public:
+    static void getAppSupportVersion(int& mv, int& sv);
+
     VMAccount(QString filename);
     ~VMAccount();
     bool restoreConnect();

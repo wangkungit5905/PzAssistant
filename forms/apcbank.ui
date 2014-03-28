@@ -37,7 +37,7 @@
        <item row="0" column="0">
         <widget class="QPushButton" name="editBank">
          <property name="enabled">
-          <bool>true</bool>
+          <bool>false</bool>
          </property>
          <property name="text">
           <string>编辑</string>
@@ -167,7 +167,7 @@
          </column>
          <column>
           <property name="text">
-           <string>关联名称</string>
+           <string>关联科目</string>
           </property>
          </column>
         </widget>

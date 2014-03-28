@@ -289,6 +289,8 @@ private slots:
 
     void on_actCloseAllWindow_triggered();
 
+    void on_actDelAcc_triggered();
+
 private:
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
@@ -327,6 +329,8 @@ private:
     //void clearUndo();
     void adjustViewMenus(ToolViewType t, bool isRestore = false);
     void adjustEditMenus(UndoType ut=UT_PZ, bool restore = false);
+
+    bool exportCommonSubject();
 
     /////////////////////////////////////////////////////////////////
 

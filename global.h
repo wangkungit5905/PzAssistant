@@ -45,7 +45,7 @@ extern QString BASEDATA_PATH;   //基础数据库路径
 extern QString BACKUP_PATH;     //账户文件备份目录
                                 //文件命名规则：P1_P2_P3.bak
                                 //P1：账户文件原名（去除后缀）
-                                //P2：备份缘由（账户转入（TR）、账户升级（UP）、帐套升级（SUP））
+                                //P2：备份缘由（账户转入（TR）、账户升级（UP）、帐套升级（SUP）、账户删除（DEL））
                                 //P3：备份时间
 
 

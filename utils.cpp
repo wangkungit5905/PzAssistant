@@ -5502,9 +5502,8 @@ BackupUtil::BackupUtil(QString srcDir, QString bacDir)
 
 /**
  * @brief BackupUtil::backup
- * @param fileName      账户文件名（不包含路径）
+ * @param fileName      账户文件名（不包含路径，带后缀）
  * @param reason        备份缘由
- * @param backFileName  对应的备份文件名
  * @return
  */
 bool BackupUtil::backup(QString fileName, BackupUtil::BackupReason reason)
@@ -5644,10 +5643,14 @@ void BackupUtil::_loadBackupFiles()
  */
 QString BackupUtil::_getReasonTag(BackupUtil::BackupReason reason)
 {
-    if(reason == BR_UPGRADE)
+    switch(reason){
+    case BR_UPGRADE:
         return "UP";
-    else
+    case BR_TRANSFERIN:
         return "TR";
+    case BR_REMOVE:
+        return "DEL";
+    }
 }
 
 /**

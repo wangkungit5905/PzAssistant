@@ -33,22 +33,7 @@
 
 class PingZheng;
 class AccountSuiteManager;
-class BASummaryForm : public QWidget
-{
-    Q_OBJECT
 
-public:
-    explicit BASummaryForm(QWidget *parent = 0);    
-    ~BASummaryForm();
-    void setData(QString data);
-    QString getData();
-
-signals:
-    void dataEditCompleted(ActionEditItemDelegate2::ColumnIndex col);
-
-private:
-    Ui::BASummaryForm *ui;
-};
 
 //Q_DECLARE_METATYPE(BASummaryForm)
 

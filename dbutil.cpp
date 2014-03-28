@@ -805,7 +805,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
         //读取explain和usage的内容，目前暂不支持（将来这两个内容将保存在另一个表中）
         //s = QString("select * from ")
         fsub = new FirstSubject(smg,id,subCls,name,code,remCode,weight,isEnable,jdDir,isUseWb,explain,usage,subSys);
-        smg->fstSubs<<fsub;
+        //smg->fstSubs<<fsub;
         smg->fstSubHash[id]=fsub;
 
         //设置特定科目对象
@@ -899,47 +899,58 @@ bool DbUtil::saveNameItemClass(int code, QString name, QString explain)
 bool DbUtil::saveNameItem(SubjectNameItem *ni)
 {
     return _saveNameItem(ni);
+}
 
-//    QSqlQuery q(db);
-//    QString s;
-//    if(ni->getId() == UNID)
-//        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,'%9','%10','%11','%12',%13)")
-//                .arg(tbl_nameItem).arg(fld_ni_class).arg(fld_ni_name).arg(fld_ni_lname)
-//                .arg(fld_ni_remcode).arg(fld_ni_crtTime).arg(fld_ni_creator)
-//                .arg(ni->getClassId()).arg(ni->getShortName()).arg(ni->getLongName())
-//                .arg(ni->getRemCode()).arg(ni->getCreateTime().toString(Qt::ISODate))
-//                .arg(ni->getCreator()->getUserId());
-//    else{
-//        NameItemEditStates estate = ni->getEditState();
-//        if(estate == ES_NI_INIT)
-//            return true;
-//        s = QString("update %1 set ").arg(tbl_nameItem);
-//        if(estate.testFlag(ES_NI_CLASS))
-//            s.append(QString("%1=%2,").arg(fld_ni_class).arg(ni->getClassId()));
-//        if(estate.testFlag(ES_NI_SNAME))
-//            s.append(QString("%1='%2',").arg(fld_ni_name).arg(ni->getShortName()));
-//        if(estate.testFlag(ES_NI_LNAME))
-//            s.append(QString("%1='%2',").arg(fld_ni_lname).arg(ni->getLongName()));
-//        if(estate.testFlag(ES_NI_SYMBOL))
-//            s.append(QString("%1='%2',").arg(fld_ni_remcode).arg(ni->getRemCode()));
-//        if(s.endsWith(","))
-//            s.chop(1);
-//        s.append(QString(" where id=%1").arg(ni->getId()));
-//    }
-//    if(!q.exec(s)){
-//        LOG_SQLERROR(s);
-//        return false;
-//    }
-//    if(ni->getId() == UNID){
-//        s = "select last_insert_rowid()";
-//        if(!q.exec(s)){
-//            LOG_SQLERROR(s);
-//            return false;
-//        }
-//        q.first();
-//        ni->id = q.value(0).toInt();
-//    }
-//    return true;
+/**
+ * @brief DbUtil::removeNameItem
+ * @param ni
+ * @return
+ */
+bool DbUtil::removeNameItem(SubjectNameItem *ni)
+{
+    return _removeNameItem(ni);
+}
+
+/**
+ * @brief 从数据库中移除指定代码的名称条目类别
+ * @param code
+ * @return
+ */
+bool DbUtil::removeNameItemCls(int code)
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where %2=%3").arg(tbl_nameItemCls)
+            .arg(fld_nic_clscode).arg(code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 从数据库中移除二级科目
+ * @param subs
+ * @return
+ */
+bool DbUtil::removeSndSubjects(QList<SecondSubject *> subs)
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on banch delete second subject!");
+        return false;
+    }
+    foreach(SecondSubject* sub, subs){
+        if(!_removeSecondSubject(sub)){
+            if(!db.rollback())
+                LOG_SQLERROR("Rollback transaction failed on banch delete second subject!");
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on banch delete second subject!");
+        return false;
+    }
+    return true;
 }
 
 bool DbUtil::saveSndSubject(SecondSubject *sub)
@@ -1208,7 +1219,7 @@ bool DbUtil::initBanks(Account *account)
 /**
  * @brief DbUtil::moneyIsUsed
  *  指定货币对象是否已被账户使用
- *  检测依据定为（余额指针表、分录表是否有指定货币）
+ *  检测依据定为（余额指针表、分录表和银行账户是否有指定货币）
  * @param mt
  * @return
  */
@@ -1227,6 +1238,15 @@ bool DbUtil::moneyIsUsed(Money *mt, bool &used)
         return true;
     }
     s = QString("select id from %1 where %2=%3").arg(tbl_ba).arg(fld_ba_mt).arg(mt->code());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first()){
+        used = true;
+        return true;
+    }
+    s = QString("select id from %1 where %2=%3").arg(tbl_bankAcc).arg(fld_bankAcc_mt).arg(mt->code());
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -2623,6 +2643,8 @@ bool DbUtil::getRates(int y, int m, QHash<int, Double> &rates)
     }
 
     QList<int> mtcs = msHash.keys();
+    if(mtcs.isEmpty())  //账户没有设置外币，则汇率也无意义
+        return true;
     s = QString("select ");
     for(int i = 0; i<mtcs.count(); ++i){
         s.append(msHash.value(mtcs.at(i)));
@@ -3895,6 +3917,7 @@ bool DbUtil::_readAccountSuites(QList<AccountSuiteRecord *> &suites)
         as->endMonth = q.value(ACCS_ENDMONTH).toInt();
         suites<<as;
     }
+    //以是否存在该帐套对应的凭证集状态记录来判断该帐套是否已启用
     foreach(AccountSuiteRecord* as, suites){
         s = QString("select id from %1 where %2 like '%3%'")
                 .arg(tbl_pz).arg(fld_pz_date).arg(as->year);
@@ -4087,6 +4110,17 @@ bool DbUtil::_saveSecondSubject(SecondSubject *sub)
     return true;
 }
 
+bool DbUtil::_removeSecondSubject(SecondSubject *sub)
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where id=%2").arg(tbl_ssub).arg(sub->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
 /**
  * @brief DbUtil::_saveNameItem
  * @param ni
@@ -4130,6 +4164,19 @@ bool DbUtil::_saveNameItem(SubjectNameItem *ni)
         ni->id = q.value(0).toInt();
     }
     ni->resetEditState();
+    return true;
+}
+
+bool DbUtil::_removeNameItem(SubjectNameItem *ni)
+{
+    if(ni->getId() == UNID)
+        return true;
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where id=%2").arg(tbl_nameItem).arg(ni->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
     return true;
 }
 

@@ -184,31 +184,27 @@ bool DbUtil::setCfgVariable(QString name, QVariant value)
 }
 
 /**
- * @brief 从指定的数据库文件导入指定科目系统代码的一级科目及其类别到账户数据库中
+ * @brief 从基本库中导入指定科目系统到账户数据库中
  * @param subSys    科目系统代码
- * @param fname     保存待导入一级科目的数据库文件名
  * @return
  */
-bool DbUtil::importFstSubjects(int subSys, QString fname)
+bool DbUtil::importFstSubjects(int subSys)
 {
     QSqlQuery q(db);
     QString s;
-    QSqlDatabase ndb = QSqlDatabase::addDatabase("QSQLITE","importNewSub");
-    ndb.setDatabaseName(fname);
-    if(!ndb.open()){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("不能打开数据库文件“%1”！").arg(fname));
-        LOG_ERROR(QString("Don't open database file(%1)").arg(fname));
-        return false;
-    }
-    QSqlQuery qm(ndb);
-    s = QString("select * from FirstSubs where subCls=%1 order by subCode").arg(subSys);
+    QSqlQuery qm(AppConfig::getBaseDbConnect());
+    s = QString("select * from %1 where %2=%3 order by %4").arg(tbl_base_fsub)
+            .arg(fld_base_fsub_subsys).arg(subSys).arg(fld_base_fsub_subcode);
     if(!qm.exec(s)){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统的数据时出错"));
         LOG_SQLERROR(s);
         return false;
     }
-    s = "insert into FirSubjects(subSys,subCode,remCode,clsId,jdDir,isView,isUseWb,weight,subName) "
-            "values(2,:code,:remCode,:clsId,:jdDir,:isView,:isUseWb,:weight,:name)";
+    s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
+                "values(%11,:code,:remCode,:clsId,:jdDir,:isView,:isUseWb,:weight,:name)")
+            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
+            .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isview).arg(fld_fsub_isUseWb)
+            .arg(fld_fsub_weight).arg(fld_fsub_name).arg(subSys);
+
     if(!db.transaction()){
         LOG_ERROR("Start transaction failed on import first subject!");
         return false;
@@ -218,81 +214,47 @@ bool DbUtil::importFstSubjects(int subSys, QString fname)
         return false;
     }
     while(qm.next()){
-        q.bindValue(":code",qm.value(2).toString());
-        q.bindValue(":remCode",qm.value(3).toString());
-        q.bindValue(":clsId",qm.value(4).toInt());
-        q.bindValue(":jdDir",qm.value(5).toInt());
-        q.bindValue(":isView",qm.value(6).toInt());
-        q.bindValue(":isUseWb",qm.value(7).toInt());
-        q.bindValue(":weight",qm.value(8).toInt());
-        q.bindValue(":name",qm.value(9).toString());
-        q.exec();
+        q.bindValue(":code",qm.value(FI_BASE_FSUB_SUBCODE).toString());
+        q.bindValue(":remCode",qm.value(FI_BASE_FSUB_REMCODE).toString());
+        q.bindValue(":clsId",qm.value(FI_BASE_FSUB_CLS).toInt());
+        q.bindValue(":jdDir",qm.value(FI_BASE_FSUB_JDDIR).toInt());
+        q.bindValue(":isView",qm.value(FI_BASE_FSUB_ENABLE).toInt());
+        q.bindValue(":isUseWb",qm.value(FI_BASE_FSUB_USEDWB).toInt());
+        q.bindValue(":weight",qm.value(FI_BASE_FSUB_WEIGHT).toInt());
+        q.bindValue(":name",qm.value(FI_BASE_FSUB_SUBNAME).toString());
+        if(!q.exec()){
+            LOG_SQLERROR("on exec insert into first subject failed!");
+            return false;
+        }
     }
 
-    s = "select * from FirstSubCls where subCls=2 order by code";
+    s = QString("select * from %1 where %2=%3 order by %4")
+            .arg(tbl_base_fsub_cls).arg(fld_base_fsub_cls_subSys).arg(subSys)
+            .arg(fld_base_fsub_cls_clsCode);
     if(!qm.exec(s)){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在提取新科目系统科目类别的数据时出错"));
         LOG_SQLERROR(s);
         return false;
     }
-    s = "insert into FstSubClasses(subSys,code,name) values(2,:code,:name)";
-    //db.transaction();
+    s = QString("insert into %1(%2,%3,%4) values(%5,:code,:name)")
+            .arg(tbl_fsclass).arg(fld_fsc_subSys).arg(fld_fsc_code).arg(fld_fsc_name)
+            .arg(subSys);
     if(!q.prepare(s)){
         LOG_SQLERROR(s);
         return false;
     }
     while(qm.next()){
-        q.bindValue(":code",qm.value(2).toInt());
-        q.bindValue(":name",qm.value(3).toString());
-        q.exec();
+        q.bindValue(":code",qm.value(FI_BASE_FSUB_CLS_CODE).toInt());
+        q.bindValue(":name",qm.value(FI_BASE_FSUB_CLS_NAME).toString());
+        if(!q.exec()){
+            LOG_SQLERROR("On insert into first subject class failed!");
+            return false;
+        }
     }
 
     if(!db.commit()){
-        //QMessageBox::critical(0,QObject::tr("更新错误"),QObject::tr("在导入新科目时，提交事务失败！"));
         LOG_ERROR("commit transaction failed on import first subject!");
         return false;
     }
-
-    if(!AppConfig::getInstance()->isSpecSubCodeConfiged(subSys)){
-        QSqlDatabase bdb = AppConfig::getBaseDbConnect();
-        QSqlQuery qb(bdb);
-        if(!bdb.transaction()){
-            LOG_SQLERROR("Base Database start transaction failed on import special subject config item!");
-            return false;
-        }
-        s = QString("insert into %1(%2,%3,%4) values(%5,:subEnum,:code)")
-                .arg(tbl_sscc).arg(fld_sscc_subSys).arg(fld_sscc_enum)
-                .arg(fld_sscc_code).arg(subSys);
-        if(!qb.prepare(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-
-        s = QString("select * from %1 where %2=%3").arg(tbl_sscc).arg(fld_sscc_subSys)
-                .arg(subSys);
-        if(!qm.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        AppConfig::SpecSubCode subEnum;
-        QString code;
-        while(qm.next()){
-            subEnum = (AppConfig::SpecSubCode)qm.value(SSCC_ENUM).toInt();
-            code = qm.value(SSCC_CODE).toString();
-            qb.bindValue(":subEnum", subEnum);
-            qb.bindValue(":code", code);
-            if(!qb.exec()){
-                LOG_SQLERROR(qb.lastQuery());
-                return false;
-            }
-        }
-
-        if(!bdb.commit()){
-            LOG_SQLERROR("Base Database commit transaction failed on import special subject config item!");
-            return false;
-        }
-    }
-
     return true;
 }
 
@@ -1298,6 +1260,54 @@ bool DbUtil::saveMoneys(QList<Money *> moneys)
                 return false;
             }
         }
+    }
+    return true;
+}
+
+/**
+ * @brief 从货币表中移除指定货币
+ * @param mt
+ * @return
+ */
+bool DbUtil::removeMoney(Money *mt)
+{
+    if(!mt)
+        return false;
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where %2=%3").arg(tbl_moneyType)
+            .arg(fld_mt_code).arg(mt->code());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 加入指定货币到货币表
+ * @param mt
+ * @return
+ */
+bool DbUtil::addMoney(Money *mt)
+{
+    if(!mt)
+        return false;
+    QSqlQuery q(db);
+    QString s = QString("select count() from %1 where %2=%3").arg(tbl_moneyType)
+            .arg(fld_mt_code).arg(mt->code());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    q.first();
+    if(q.value(0).toInt() > 0)
+        return true;
+    s = QString("insert into %1(%2,%3,%4,%5) values(%6,'%7','%8',0)").arg(tbl_moneyType)
+            .arg(fld_mt_code).arg(fld_mt_sign).arg(fld_mt_name).arg(fld_mt_isMaster)
+            .arg(mt->code()).arg(mt->sign()).arg(mt->name());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
     }
     return true;
 }

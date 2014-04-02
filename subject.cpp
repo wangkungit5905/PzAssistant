@@ -984,6 +984,7 @@ void SubjectManager::removeNameItem(SubjectNameItem *nItem, bool delInLib)
         return;
     if(!nameItems.contains(nItem->getId()))
         return;
+    nameItems.remove(nItem->getId());
     if(!delInLib){
         delNameItems<<nItem;
         nItem->setDelete(true);
@@ -991,8 +992,7 @@ void SubjectManager::removeNameItem(SubjectNameItem *nItem, bool delInLib)
     else{
         dbUtil->removeNameItem(nItem);
         delete nItem;
-    }
-    nameItems.remove(nItem->getId());    
+    }     
 }
 
 /**

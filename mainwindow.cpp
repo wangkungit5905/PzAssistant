@@ -3570,7 +3570,23 @@ bool MainWindow::impTestDatas()
 //    QSqlQuery q(curAccount->getDbUtil()->getDb());
 //    QSqlQuery qa(curAccount->getDbUtil()->getDb());
 
+    //将默认科目系统中启用的一级科目配置信息写入到基本库中
+//    QStringList codes;
+//    FSubItrator* it = curAccount->getSubjectManager(1)->getFstSubItrator();
+//    while(it->hasNext()){
+//        it->next();
+//        if(it->value()->isEnabled()){
+//            codes<<it->value()->getCode();
+//        }
+//    }
 
+//    while(it->hasNext()){
+//        it->next();
+//        if(it->value()->getJdDir())
+//            codes<<it->value()->getCode();
+//    }
+    //bool r = AppConfig::getInstance()->setEnabledFstSubs(1,codes);
+//    bool r = AppConfig::getInstance()->setSubjectJdDirs(1,codes);
     int i = 0;
 }
 

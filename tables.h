@@ -138,13 +138,15 @@ const int FSUB_SUBNAME    =  9;
 //二级科目类别表
 //字段名
 const QString tbl_nameItemCls = "NameItemClass";
+const QString fld_nic_order   = "viewOrder";        //显示顺序
 const QString fld_nic_clscode = "clsCode";      //类别代码（INTEGER）
 const QString fld_nic_name    = "name";         //名称（TEXT）
 const QString fld_nic_explain = "explain";      //简要说明（TEXT）
 //字段索引
-const int NICLASS_CODE    = 1;
-const int NICLASS_NAME    = 2;
-const int NICLASS_EXPLAIN = 3;
+const int NICLASS_ORDER   = 1;
+const int NICLASS_CODE    = 2;
+const int NICLASS_NAME    = 3;
+const int NICLASS_EXPLAIN = 4;
 
 //*************************名称条目表*************************//
 //名称条目表
@@ -357,16 +359,7 @@ const int NSE_E_VALUE = 3;
 const int NSE_E_DIR   = 4;
 
 
-//特定科目代码配置表
-const QString tbl_sscc  = "specSubCodeConfig";
-//字段名
-const QString fld_sscc_subSys = "subSys";   //科目系统
-const QString fld_sscc_enum = "subEnum";    //特定科目枚举值
-const QString fld_sscc_code = "code";       //科目代码
-//字段索引
-const int SSCC_SUBSYS = 1;
-const int SSCC_ENUM   = 2;
-const int SSCC_CODE   = 3;
+
 
 //子窗口信息表（subWinInfos）
 //字段名
@@ -571,14 +564,29 @@ const int MACS_DESC       = 5;
 //账户数据库表格创建语句表（tableCrtSqls）
 const QString tbl_table_create_sqls = "tableCrtSqls";
 
+//一级科目类别表
 const QString tbl_base_fsub_cls = "FirstSubCls";
-const QString fld_base_fst_sub_cls_subSys = "subCls";
+const QString fld_base_fsub_cls_subSys = "subCls";
+const QString fld_base_fsub_cls_clsCode = "code";
+const QString fld_base_fsub_cls_name = "name";
 const int FI_BASE_FSUB_CLS_SUBSYS = 1;
 const int FI_BASE_FSUB_CLS_CODE   = 2;
 const int FI_BASE_FSUB_CLS_NAME   = 3;
 
-const QString tbl_base_fsub = "FirstSubs";
-const QString fld_base_fsub_subsys = "subCls";
+
+//一级科目表
+const QString tbl_base_fsub         = "FirstSubs";
+const QString fld_base_fsub_subsys  = "subCls";
+const QString fld_base_fsub_subcode = "subCode";
+const QString fld_base_fsub_remcode = "remCode";
+const QString fld_base_fsub_subcls  = "belongTo";
+const QString fld_base_fsub_jddir   = "jdDir";
+const QString fld_base_fsub_isenabled = "isView";
+const QString fld_base_fsub_isUseWb = "isReqDet";
+const QString fld_base_fsub_weight  = "weight";
+const QString fld_base_fsub_subname = "subName";
+const QString fld_base_fsub_desc    = "description";
+const QString fld_base_fsub_util    = "utils";
 const int FI_BASE_FSUB_SUBSYS = 1;
 const int FI_BASE_FSUB_SUBCODE= 2;
 const int FI_BASE_FSUB_REMCODE= 3;
@@ -588,28 +596,43 @@ const int FI_BASE_FSUB_ENABLE = 6;
 const int FI_BASE_FSUB_USEDWB = 7;
 const int FI_BASE_FSUB_WEIGHT = 8;
 const int FI_BASE_FSUB_SUBNAME=9;
+const int FI_BASE_FSUB_DESC   = 10;
+const int FI_BASE_FSUB_UTILS  = 11;
 
 //名称类别表
-const QString tbl_base_nic = "SecondSubCls";
-const QString fld_base_nic_code = "clsCode";
-const QString fld_base_nic_name = "name";
-const QString fld_base_nic_explain = "explain";
-const int FI_BASE_NIC_CODE = 2;
-const int FI_BASE_NIC_NAME = 3;
-const int FI_BASE_NIC_EXPLAIN = 4;
+const QString tbl_base_nic          = "SecondSubCls";
+const QString fld_base_nic_order    = "subCls";         //显示顺序
+const QString fld_base_nic_code     = "clsCode";
+const QString fld_base_nic_name     = "name";
+const QString fld_base_nic_explain  = "explain";
+const int FI_BASE_NIC_ORDER     = 1;
+const int FI_BASE_NIC_CODE      = 2;
+const int FI_BASE_NIC_NAME      = 3;
+const int FI_BASE_NIC_EXPLAIN   = 4;
 
 //名称表
-const QString tbl_base_ni = "SecondSubs";
-const QString fld_base_ni_name = "subName";
-const QString fld_base_ni_lname = "subLName";
-const QString fld_base_ni_remcode = "remCode";
-const QString fld_base_ni_clsid = "classID";
-const QString fld_base_ni_belongto = "belongTo";
-const int FI_BASE_NI_BELONGTO = 6;
-const int FI_BASE_NI_SNAME  = 2;
-const int FI_BASE_NI_LNAME  = 3;
-const int FI_BASE_NI_REMCODE= 4;
-const int FI_BASE_NI_CLASS  = 5;
-const int FI_BASE_NI_CODE   = 7;
+const QString tbl_base_ni           = "SecondSubs";
+const QString fld_base_ni_name      = "subName";
+const QString fld_base_ni_lname     = "subLName";
+const QString fld_base_ni_remcode   = "remCode";
+const QString fld_base_ni_clsid     = "classID";
+const QString fld_base_ni_belongto  = "belongTo";
+const int FI_BASE_NI_BELONGTO   = 6;
+const int FI_BASE_NI_SNAME      = 2;
+const int FI_BASE_NI_LNAME      = 3;
+const int FI_BASE_NI_REMCODE    = 4;
+const int FI_BASE_NI_CLASS      = 5;
+const int FI_BASE_NI_CODE       = 7;
+
+//特定科目代码配置表
+const QString tbl_base_sscc  = "specSubCodeConfig";
+//字段名
+const QString fld_base_sscc_subSys  = "subSys";   //科目系统
+const QString fld_base_sscc_enum    = "subEnum";    //特定科目枚举值
+const QString fld_base_sscc_code    = "code";       //科目代码
+//字段索引
+const int FI_BASE_SSCC_SUBSYS = 1;
+const int FI_BASE_SSCC_ENUM   = 2;
+const int FI_BASE_SSCC_CODE   = 3;
 
 #endif // TABLES_H

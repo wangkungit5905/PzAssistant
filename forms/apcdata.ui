@@ -73,6 +73,9 @@
        </item>
        <item>
         <widget class="QLineEdit" name="edtRate">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ActionsContextMenu</enum>
+         </property>
          <property name="readOnly">
           <bool>true</bool>
          </property>
@@ -188,6 +191,14 @@
     </layout>
    </item>
   </layout>
+  <action name="actSetRate">
+   <property name="text">
+    <string>更改汇率</string>
+   </property>
+   <property name="toolTip">
+    <string>更改期初汇率</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

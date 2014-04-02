@@ -114,6 +114,8 @@ public:
 
     void updateTableCreateStatment(QStringList names, QStringList sqls);
     bool getUpdateTableCreateStatment(QStringList &names, QStringList &sqls);
+    bool setEnabledFstSubs(int subSys, QStringList codes);
+    bool setSubjectJdDirs(int subSys, QStringList codes);
 
 private:
     bool _isValidAccountCode(QString code);

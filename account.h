@@ -158,7 +158,7 @@ public:
     SubjectManager* getSubjectManager(int subSys = 0);
     //SubjectManager* getSubjectManager();
     QList<SubSysNameItem*> getSupportSubSys();
-    bool importNewSubSys(int code, QString fname);
+    bool importNewSubSys(int code);
 
     bool getRates(int y, int m, QHash<int, Double> &rates);
     bool getRates(int y, int m, QHash<Money*, Double> &rates);

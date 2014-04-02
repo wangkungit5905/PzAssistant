@@ -683,6 +683,79 @@ bool AppConfig::getUpdateTableCreateStatment(QStringList& names, QStringList& sq
 }
 
 /**
+ * @brief 设置指定科目系统的启用的科目（这是一个临时性函数，用来一次性将在基本库中设置好启用的科目）
+ * @param subSys    科目系统代码
+ * @param codes     启用科目的科目代码列表
+ * @return
+ */
+bool AppConfig::setEnabledFstSubs(int subSys, QStringList codes)
+{
+    QSqlQuery q(db);
+    if(!db.transaction())
+        return false;
+    QString s = QString("update %1 set %2=0 where %3=%4").arg(tbl_base_fsub)
+            .arg(fld_base_fsub_isenabled).arg(fld_base_fsub_subsys).arg(subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=1 where %3=%4 and %5=:code").arg(tbl_base_fsub)
+            .arg(fld_base_fsub_isenabled).arg(fld_base_fsub_subsys).arg(subSys)
+            .arg(fld_base_fsub_subcode);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(QString code, codes){
+        q.bindValue(":code",code);
+        if(!q.exec())
+            return false;
+    }
+    if(!db.commit()){
+        db.rollback();
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 设置指定科目系统科目的记账方向
+ * @param subSys    科目系统代码
+ * @param codes     记账方向为正向的科目代码类别
+ * @return
+ */
+bool AppConfig::setSubjectJdDirs(int subSys, QStringList codes)
+{
+    if(!db.transaction())
+        return false;
+    QSqlQuery q(db);
+    QString s = QString("update %1 set %2=0 where %3=%4").arg(tbl_base_fsub)
+            .arg(fld_base_fsub_jddir).arg(fld_base_fsub_subsys).arg(subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=1 where %3=%4 and %5=:code").arg(tbl_base_fsub)
+            .arg(fld_base_fsub_jddir).arg(fld_base_fsub_subsys).arg(subSys)
+            .arg(fld_base_fsub_subcode);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(QString code, codes){
+        q.bindValue(":code",code);
+        if(!q.exec())
+            return false;
+    }
+
+    if(!db.commit()){
+        db.rollback();
+       return false;
+    }
+    return true;
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  代码不符合规定，代码为空，代码重复冲突等都视为无效
@@ -914,7 +987,7 @@ void AppConfig::_initMachines()
 void AppConfig::_initSpecSubCodes()
 {
     QSqlQuery q(db);
-    QString s = QString("select * from %1").arg(tbl_sscc);
+    QString s = QString("select * from %1").arg(tbl_base_sscc);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("无法读取特定科目配置代码表，请检查基本库相应表格是否有误！"));
@@ -924,9 +997,9 @@ void AppConfig::_initSpecSubCodes()
     SpecSubCode subEnum;
     QString code;
     while(q.next()){
-        subSys = q.value(SSCC_SUBSYS).toInt();
-        subEnum = (SpecSubCode)q.value(SSCC_ENUM).toInt();
-        code = q.value(SSCC_CODE).toString();
+        subSys = q.value(FI_BASE_SSCC_SUBSYS).toInt();
+        subEnum = (SpecSubCode)q.value(FI_BASE_SSCC_ENUM).toInt();
+        code = q.value(FI_BASE_SSCC_CODE).toString();
         specCodes[subSys][subEnum] = code;
     }
 
@@ -1102,7 +1175,7 @@ bool AppConfig::isSpecSubCodeConfiged(int subSys)
 {
     QSqlQuery q(db);
     QString s = QString("select count() from %1 where subSys = %2")
-            .arg(tbl_sscc).arg(subSys);
+            .arg(tbl_base_sscc).arg(subSys);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -1114,7 +1187,7 @@ bool AppConfig::isSpecSubCodeConfiged(int subSys)
     if(num == 0)
         return false;
     s = QString("delete from %1 where %2=%3")
-            .arg(tbl_sscc).arg(fld_sscc_subSys).arg(subSys);
+            .arg(tbl_base_sscc).arg(fld_base_sscc_subSys).arg(subSys);
     if(!q.exec(s))
         LOG_SQLERROR(s);
     return false;

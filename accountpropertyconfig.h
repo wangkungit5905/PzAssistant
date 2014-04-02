@@ -444,13 +444,15 @@ private slots:
 
     void on_save_clicked();
 
+    void on_actSetRate_triggered();
+
 private:
     bool viewRates();
     void collect();
     bool exist(int sid);
     void viewCollectData();
     void watchDataChanged(bool en=true);
-
+    void enAddBtn();
 
     Ui::ApcData *ui;
     Account *account;

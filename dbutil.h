@@ -58,7 +58,7 @@ public:
     bool setCfgVariable(QString name, QVariant value);
 
     //账户升级事务相关
-    bool importFstSubjects(int subSys, QString fname);
+    bool importFstSubjects(int subSys);
     bool getSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem*>& cfgs);
     bool setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs);
 
@@ -98,6 +98,8 @@ public:
     bool initBanks(Account* account);
     bool moneyIsUsed(Money* mt, bool &used);
     bool saveMoneys(QList<Money*> moneys);
+    bool removeMoney(Money* mt);
+    bool addMoney(Money* mt);
 
 
     //凭证数统计

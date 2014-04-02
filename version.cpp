@@ -294,12 +294,13 @@ void VMAccount::appendVersion(int mv, int sv, UpgradeFun_Acc upFun)
 /**
  * @brief VMAccount::updateTo1_3
  *  升级任务：
- *  1、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
- *  2、创建新版“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、创建者、禁用时间列
- *  3、修改FirSubjects表，添加科目系统（subSys）
- *  4、添加pzMemInfos表（保存凭证的备注信息）
- *  5、修改一级科目类别表结构，增加科目系统类型字段“subSys”
- *  6、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+ *  1、修改名称条目类别表“SndSubClass”，添加显示顺序列“order”，并重命名为“NameItemClass”
+ *  2、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
+ *  3、创建新版“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、创建者、禁用时间列
+ *  4、修改FirSubjects表，添加科目系统（subSys）
+ *  5、添加pzMemInfos表（保存凭证的备注信息）
+ *  6、修改一级科目类别表结构，增加科目系统类型字段“subSys”
+ *  7、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
  *
  * @return
  */
@@ -312,15 +313,81 @@ bool VMAccount::updateTo1_3()
 
     emit startUpgrade(verNum, tr("开始更新到版本“1.3”..."));
 
-    //1、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
-
-    emit upgradeStep(verNum,tr("第一步：创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者"),VUR_OK);
-    s = QString("alter table SndSubClass rename to %1").arg(tbl_nameItemCls);
+    //1、修改名称条目类别表“SndSubClass”，添加显示顺序列“order”，并重命名为“NameItemClass”
+    emit upgradeStep(verNum,tr("第一步：修改名称条目类别表“SndSubClass”，添加显示顺序列“order”，并重命名为“NameItemClass”"),VUR_OK);
+    s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 INTEGER, %4 TEXT, %5 TEXT)")
+            .arg(tbl_nameItemCls).arg(fld_nic_order).arg(fld_nic_clscode)
+            .arg(fld_nic_name).arg(fld_nic_explain);
     if(!q.exec(s)){
-        emit upgradeStep(verNum,tr("在将表“SndSubClass”改名为“%1”时发生错误！").arg(tbl_nameItemCls),VUR_ERROR);
+        emit upgradeStep(verNum,tr("在创建名称类别表“%1”时发生错误！").arg(tbl_nameItemCls),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4) select %2,%3,%4 from SndSubClass order by %2")
+            .arg(tbl_nameItemCls).arg(fld_nic_clscode).arg(fld_nic_name)
+            .arg(fld_nic_explain);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在转移名称类别表内容时发生错误！"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QSqlQuery qb(AppConfig::getBaseDbConnect());
+    s = QString("select * from %1 where %2<29").arg(tbl_base_nic).arg(fld_base_nic_code);
+    if(!qb.exec(s)){
+        emit upgradeStep(verNum,tr("从基本库中读取名称类别的显示顺序时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("update %1 set %2=:order where %3=:code").arg(tbl_nameItemCls)
+            .arg(fld_nic_order).arg(fld_nic_clscode);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("错误地执行插入语句“%1”").arg(s),VUR_ERROR);
+        return false;
+    }
+    while(qb.next()){
+        int code = qb.value(FI_BASE_NIC_CODE).toInt();
+        int order = qb.value(FI_BASE_NIC_ORDER).toInt();
+        q.bindValue(":order",order);
+        q.bindValue(":code",code);
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("在设置名称类别的显示顺序时发生错误！"),VUR_ERROR);
+            return false;
+        }
+    }
+    s = QString("select * from %1 where %2>28").arg(tbl_base_nic).arg(fld_base_nic_code);
+    if(!qb.exec(s)){
+        emit upgradeStep(verNum,tr("从基本库中读取名称类别的显示顺序时发生错误！"),VUR_ERROR);
         return false;
     }
 
+    s = QString("insert into %1(%2,%3,%4,%5) values(:order,:code,:name,:explain)")
+            .arg(tbl_nameItemCls).arg(fld_nic_order).arg(fld_nic_clscode)
+            .arg(fld_nic_name).arg(fld_nic_explain);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("错误地执行插入语句“%1”").arg(s),VUR_ERROR);
+        return false;
+    }
+    while(qb.next()){
+        int code = qb.value(FI_BASE_NIC_CODE).toInt();
+        int order = qb.value(FI_BASE_NIC_ORDER).toInt();
+        QString name = qb.value(FI_BASE_NIC_NAME).toString();
+        QString explain = qb.value(FI_BASE_NIC_EXPLAIN).toString();
+        q.bindValue(":order",order);
+        q.bindValue(":code",code);
+        q.bindValue(":name",name);
+        q.bindValue(":explain",explain);
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("在设置名称类别的显示顺序时发生错误！"),VUR_ERROR);
+            return false;
+        }
+    }
+    s = "drop table SndSubClass";
+    if(!q.exec(s))
+        emit upgradeStep(verNum,tr("在删除老的名称类别表时发生错误！"),VUR_ERROR);
+
+
+    //2、创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者
+
+    emit upgradeStep(verNum,tr("第二步：创建名称条目表“nameItems”替换“SecSubjects”表，添加创建时间列，创建者"),VUR_OK);
     s = "alter table SecSubjects rename to old_SecSubjects";
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在更改“SecSubjects”表名时发生错误！"),VUR_ERROR);
@@ -382,8 +449,8 @@ bool VMAccount::updateTo1_3()
     if(!q.exec(s))
         emit upgradeStep(verNum,tr("不能删除表“old_SecSubjects”"),VUR_WARNING);
 
-    //2、创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者
-    emit upgradeStep(verNum,tr("第二步：创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者"),VUR_OK);
+    //3、创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者
+    emit upgradeStep(verNum,tr("第三步：创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者"),VUR_OK);
     s = "alter table FSAgent rename to old_FSAgent";
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在更改“FSAgent”表名时发生错误！"),VUR_ERROR);
@@ -459,8 +526,8 @@ bool VMAccount::updateTo1_3()
 
 
 
-    //3、修改FirSubjects表，添加科目系统（subSys）字段
-    emit upgradeStep(verNum,tr("第三步：修改FirSubjects表，添加科目系统（subSys）字段"),VUR_OK);
+    //4、修改FirSubjects表，添加科目系统（subSys）字段
+    emit upgradeStep(verNum,tr("第四步：修改FirSubjects表，添加科目系统（subSys）字段"),VUR_OK);
     s = "alter table FirSubjects rename to old_FirSubjects";
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在更改“FirSubjects”表名时发生错误！"),VUR_ERROR);
@@ -556,8 +623,8 @@ bool VMAccount::updateTo1_3()
     if(!q.exec(s))
         emit upgradeStep(verNum,tr("在删除表“old_FirSubjects”表时发生错误"),VUR_WARNING);
 
-    //4、添加pzMemInfos表（保存凭证的备注信息）
-    emit upgradeStep(verNum,tr("第四步：创建凭证备注信息表！"),VUR_OK);
+    //5、添加pzMemInfos表（保存凭证的备注信息）
+    emit upgradeStep(verNum,tr("第五步：创建凭证备注信息表！"),VUR_OK);
     s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER NOT NULL, %3 TEXT)")
             .arg(tbl_pz_meminfos).arg(fld_pzmi_pid).arg(fld_pzmi_info);
     if(!q.exec(s)){
@@ -565,8 +632,8 @@ bool VMAccount::updateTo1_3()
         return false;
     }
 
-    //5、修改一级科目类别表结构，增加科目系统类型字段“subSys”
-    emit upgradeStep(verNum,tr("第五步：修改一级科目类别表结构，增加科目系统类型字段“subSys”"),VUR_OK);
+    //6、修改一级科目类别表结构，增加科目系统类型字段“subSys”
+    emit upgradeStep(verNum,tr("第六步：修改一级科目类别表结构，增加科目系统类型字段“subSys”"),VUR_OK);
     s = "alter table FstSubClasses rename to old_FstSubClasses";
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在重命名表“FstSubClasses”时发生错误!"),VUR_WARNING);
@@ -596,8 +663,8 @@ bool VMAccount::updateTo1_3()
         emit upgradeStep(verNum,tr("在删除表“old_FstSubClasses”表时发生错误!"),VUR_WARNING);
 
 
-    //6、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
-    emit upgradeStep(verNum,tr("第六步：创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化"),VUR_OK);
+    //7、创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化
+    emit upgradeStep(verNum,tr("第七步：创建帐套表accountSuites，从accountInfo表内读取有关帐套的数据进行初始化"),VUR_OK);
     s = QString("create table %1(id integer primary key, %2 integer, %3 integer, "
                 "%4 integer, %5 integer, %6 text, %7 integer, %8 integer, %9 integer)")
             .arg(tbl_accSuites).arg(fld_accs_year).arg(fld_accs_subSys)
@@ -1608,6 +1675,7 @@ VMAppConfig::VMAppConfig(QString fileName)
     appendVersion(1,3,&VMAppConfig::updateTo1_3);
     appendVersion(1,4,&VMAppConfig::updateTo1_4);
     appendVersion(1,5,&VMAppConfig::updateTo1_5);
+    appendVersion(1,6,&VMAppConfig::updateTo1_6);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1861,7 +1929,7 @@ bool VMAppConfig::updateTo1_4()
 
 /**
  * @brief VMAppConfig::updateTo1_5
- *
+ *  1、创建特定科目配置表（特定科目代码配置表），并初始化默认科目系统的特定科目配置
  * @return
  */
 bool VMAppConfig::updateTo1_5()
@@ -1869,9 +1937,9 @@ bool VMAppConfig::updateTo1_5()
     int verNum = 150;
     QSqlQuery q(db);
     QString s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER,%3 INTEGER,%4 TEXT)")
-            .arg(tbl_sscc).arg(fld_sscc_subSys).arg(fld_sscc_enum).arg(fld_sscc_code);
+            .arg(tbl_base_sscc).arg(fld_base_sscc_subSys).arg(fld_base_sscc_enum).arg(fld_base_sscc_code);
     if(!q.exec(s)){
-        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_sscc),VUR_ERROR);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_base_sscc),VUR_ERROR);
         return false;
     }
     if(!db.transaction()){
@@ -1879,7 +1947,7 @@ bool VMAppConfig::updateTo1_5()
         return false;
     }
     s = QString("insert into %1(%2,%3,%4) values(:subsys,:enum,:code)")
-            .arg(tbl_sscc).arg(fld_sscc_subSys).arg(fld_sscc_enum).arg(fld_sscc_code);
+            .arg(tbl_base_sscc).arg(fld_base_sscc_subSys).arg(fld_base_sscc_enum).arg(fld_base_sscc_code);
     if(!q.prepare(s)){
         emit upgradeStep(verNum,tr("错误执行SQL语句：“%1”！").arg(s),VUR_ERROR);
         return false;
@@ -1900,6 +1968,158 @@ bool VMAppConfig::updateTo1_5()
         db.rollback();
     }
     return setCurVersion(1,5);
+}
+
+/**
+ * @brief
+ * 1、移除本地缓存中科目系统2的所有科目，并从指定文件中更新科目系统2
+ * 2、设置老科目系统的记账方向配置信息
+ * @return
+ */
+bool VMAppConfig::updateTo1_6()
+{
+    QSqlQuery q(db);
+    int verNum = 106;
+    emit startUpgrade(verNum, tr("开始更新到版本“1.6”..."));
+
+    //1、移除原先的科目系统2的所有信息
+    QString s = QString("delete from %1 where %2=2").arg(tbl_base_fsub_cls)
+            .arg(fld_base_fsub_cls_subSys);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在从本地科目缓存中移除新科目系统类别时发生错误！"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    s = QString("delete from %1 where %2=2").arg(tbl_base_fsub)
+                .arg(fld_base_fsub_subsys);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在从本地科目缓存中移除新科目系统时发生错误！"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    s = QString("delete from %1 where %2=2").arg(tbl_base_sscc).arg(fld_base_sscc_subSys);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在从本地科目缓存中移除新科目系统的特定科目配置信息时发生错误！"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    //2、从数据库文件“firstSubjects_2.dat”中读取新科目系统2，并导入到本地缓存
+    QString connName = "importNewSub";
+    QSqlDatabase ndb = QSqlDatabase::addDatabase("QSQLITE",connName);
+    QString fileName = BASEDATA_PATH + "firstSubjects_2.dat";
+    ndb.setDatabaseName(fileName);
+    if(!ndb.open()){
+        emit upgradeStep(verNum,tr("无法打开包含新科目系统的数据库连接，文件名为“%1”！").arg(fileName),VUR_ERROR);
+        return false;
+    }
+
+    //（1）导入科目类别表
+    QSqlQuery qm(ndb);
+    s = QString("select * from FirstSubCls where subCls=2");
+    if(!qm.exec(s)){
+        upgradeStep(verNum,tr("在提取新科目系统的数据时出错"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    //s = "insert into FirSubjects(subSys,subCode,remCode,clsId,jdDir,isView,isUseWb,weight,subName) "
+    //        "values(2,:code,:remCode,:clsId,:jdDir,:isView,:isUseWb,:weight,:name)";
+
+    if(!db.transaction()){
+        upgradeStep(verNum,tr("启动事务出错"),VUR_ERROR);
+        return false;
+    }
+    s= QString("insert into %1(%2,%3,%4) values(2,:code,:name)").arg(tbl_base_fsub_cls)
+            .arg(fld_base_fsub_cls_subSys).arg(fld_base_fsub_cls_clsCode)
+            .arg(fld_base_fsub_cls_name);
+
+    if(!q.prepare(s)){
+        upgradeStep(verNum,tr("错误地执行Sql语句（%1）").arg(s),VUR_ERROR);
+        return false;
+    }
+    while(qm.next()){
+        q.bindValue(":code",qm.value(FI_BASE_FSUB_CLS_CODE).toInt());
+        q.bindValue(":name",qm.value(FI_BASE_FSUB_CLS_NAME).toString());
+        if(!q.exec()){
+            if(!qm.exec(s)){
+                upgradeStep(verNum,tr("在导入科目类别表时发生错误！"),VUR_ERROR);
+                return false;
+            }
+        }
+    }
+
+    //（2）导入一级科目表
+    s = QString("select * from FirstSubs where subCls=2 order by subCode");
+    if(!qm.exec(s)){
+        upgradeStep(verNum,tr("在读取一级科目表时发生错误！"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12) "
+                "values(2,:subCode,:remCode,:cls,:jddir,:isview,:isUseWb,:weight,:subname,:desc,:util)")
+            .arg(tbl_base_fsub).arg(fld_base_fsub_subsys).arg(fld_base_fsub_subcode)
+            .arg(fld_base_fsub_remcode).arg(fld_base_fsub_subcls).arg(fld_base_fsub_jddir)
+            .arg(fld_base_fsub_isenabled).arg(fld_base_fsub_isUseWb).arg(fld_base_fsub_weight)
+            .arg(fld_base_fsub_subname).arg(fld_base_fsub_desc).arg(fld_base_fsub_util);
+    if(!q.prepare(s)){
+        upgradeStep(verNum,tr("错误地执行Sql语句（%1）").arg(s),VUR_ERROR);
+        return false;
+    }
+
+    while(qm.next()){
+        q.bindValue(":subCode",qm.value(FI_BASE_FSUB_SUBCODE).toString());
+        q.bindValue(":remCode",qm.value(FI_BASE_FSUB_REMCODE).toString());
+        q.bindValue(":cls",qm.value(FI_BASE_FSUB_CLS).toInt());
+        q.bindValue(":jddir",qm.value(FI_BASE_FSUB_JDDIR).toInt());
+        q.bindValue(":isview",qm.value(FI_BASE_FSUB_ENABLE).toInt());
+        q.bindValue(":isUseWb",qm.value(FI_BASE_FSUB_USEDWB).toInt());
+        q.bindValue(":weight",qm.value(FI_BASE_FSUB_WEIGHT).toInt());
+        q.bindValue(":subname",qm.value(FI_BASE_FSUB_SUBNAME).toString());
+        q.bindValue(":desc",qm.value(FI_BASE_FSUB_DESC).toString());
+        q.bindValue(":util",qm.value(FI_BASE_FSUB_UTILS).toString());
+        if(!q.exec()){
+            upgradeStep(verNum,tr("在导入一级科目表时发生错误！"),VUR_ERROR);
+            return false;
+        }
+    }
+
+    //（3）导入特定科目配置信息
+    s = QString("select * from %1 where %2=2 order by %3")
+            .arg(tbl_base_sscc).arg(fld_base_sscc_subSys).arg(fld_base_sscc_enum);
+    if(!qm.exec(s)){
+        upgradeStep(verNum,tr("在读取特定科目配置表时发生错误！"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4) values(2,:subEnum,:code)")
+            .arg(tbl_base_sscc).arg(fld_base_sscc_subSys).arg(fld_base_sscc_enum)
+            .arg(fld_base_sscc_code);
+    if(!q.prepare(s)){
+        upgradeStep(verNum,tr("错误地执行Sql语句（%1）").arg(s),VUR_ERROR);
+        return false;
+    }
+    while(qm.next()){
+        AppConfig::SpecSubCode subEnum = (AppConfig::SpecSubCode)qm.value(FI_BASE_SSCC_ENUM).toInt();
+        QString code = qm.value(FI_BASE_SSCC_CODE).toString();
+        q.bindValue(":subEnum", subEnum);
+        q.bindValue(":code", code);
+        if(!q.exec()){
+            upgradeStep(verNum,tr("在导入特定科目配置表时发生错误！"),VUR_ERROR);
+            return false;
+        }
+    }
+
+    //2、设置老科目系统的记账方向配置信息
+
+    if(!db.commit()){
+        upgradeStep(verNum,tr("在导入新科目系统时在提交事务时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    endUpgrade(verNum,"",VUR_OK);
+    QSqlDatabase::removeDatabase(connName);
+    return setCurVersion(1,6);
 }
 
 /**

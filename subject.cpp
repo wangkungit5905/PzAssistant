@@ -178,7 +178,7 @@ void FirstSubject::addChildSub(SecondSubject *sub)
  * @param isInit
  * @return
  */
-SecondSubject *FirstSubject::addChildSub(SubjectNameItem *ni, QString Code, int subWeight, bool isEnable)
+SecondSubject *FirstSubject::addChildSub(SubjectNameItem *ni, QString Code, int subWeight, bool isEnable, QDateTime createTime, User *creator)
 {
     if(!ni)
         return NULL;
@@ -321,6 +321,25 @@ SecondSubject *FirstSubject::getChildSub(int index)
         return childSubs.at(index);
 }
 
+QList<SecondSubject *> FirstSubject::getChildSubs(SortByMode sortBy)
+{
+    QList<SecondSubject*> subs = childSubs;
+    switch (sortBy) {
+    case SORTMODE_NAME:
+        qSort(subs.begin(),subs.end(),bySubNameThan_ss);
+        break;
+    case SORTMODE_REMCODE:
+        qSort(subs.begin(),subs.end(),byRemCodeThan_ss);
+        break;
+    case SORTMODE_CRT_TIME:
+        qSort(subs.begin(),subs.end(),byCreateTimeThan_ss);
+        break;
+    default:
+        break;
+    }
+    return subs;
+}
+
 /**
  * @brief FirstSubject::getChildSubIds
  *  获取所有子科目的id列表
@@ -455,6 +474,8 @@ bool byRemCodeThan_ni(SubjectNameItem *ni1, SubjectNameItem *ni2)
 {return ni1->getRemCode() < ni2->getRemCode();}
 bool byNameThan_ni(SubjectNameItem *ni1, SubjectNameItem *ni2)
 {return ni1->getShortName() < ni2->getShortName();}
+bool byCreateTimeThan_ni(SubjectNameItem *ni1, SubjectNameItem *ni2)
+{return ni1->getCreateTime()<ni2->getCreateTime();}
 
 //针对二级科目的排序比较函数
 bool bySubCodeThan_ss(SecondSubject *ss1, SecondSubject *ss2)
@@ -463,6 +484,8 @@ bool byRemCodeThan_ss(SecondSubject *ss1, SecondSubject *ss2)
 {return ss1->getRemCode() < ss2->getRemCode();}
 bool bySubNameThan_ss(SecondSubject *ss1, SecondSubject *ss2)
 {return ss1->getName() < ss2->getName();}
+bool byCreateTimeThan_ss(SecondSubject *ss1, SecondSubject *ss2)
+{return ss1->getCreateTime()<ss2->getCreateTime();}
 
 
 
@@ -820,6 +843,21 @@ FirstSubject *SubjectManager::getFstSubject(QString code)
         return NULL;
 }
 
+/**
+ * @brief 返回所有使用指定名称条目的二级科目对象
+ * @param item
+ * @return
+ */
+QList<SecondSubject*> SubjectManager::getSubSubjectUseNI(SubjectNameItem* ni)
+{
+    QList<SecondSubject*> subjects;
+    foreach(SecondSubject* sub, sndSubs.values()){
+        if(sub->getNameItem() == ni)
+            subjects<<sub;
+    }
+    return subjects;
+}
+
 
 SubjectManager::SubjectManager(Account *account, int subSys):
     account(account),subSys(subSys)
@@ -969,6 +1007,25 @@ bool SubjectManager::removeNiCls(int code)
         return false;
     nameItemCls.remove(code);
     return true;
+}
+
+QList<SubjectNameItem *> SubjectManager::getAllNameItems(SortByMode sortBy)
+{
+    QList<SubjectNameItem*> items = nameItems.values();
+    switch (sortBy) {
+    case SORTMODE_NAME:
+        qSort(items.begin(),items.end(),byNameThan_ni);
+        break;
+    case SORTMODE_REMCODE:
+        qSort(items.begin(),items.end(),byRemCodeThan_ni);
+        break;
+    case SORTMODE_CRT_TIME:
+        qSort(items.begin(),items.end(),byCreateTimeThan_ni);
+        break;
+    default:
+        break;
+    }
+    return items;
 }
 
 
@@ -1133,6 +1190,7 @@ void SubjectManager::addNameItem(SubjectNameItem *ni)
 /**
  * @brief SubjectManager::addSndSubject
  *  使用指定名称条目对象在指定的一级科目下创建二级科目
+ *  并立即保存到数据库中
  * @param fsub      主目对象
  * @param ni        所用的名称对象
  * @param code      二级科目的代码
@@ -1206,6 +1264,11 @@ bool SubjectManager::isBankSndSub(SecondSubject *ssub)
     else
         return true;
 }
+
+
+
+
+
 
 
 

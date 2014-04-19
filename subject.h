@@ -108,7 +108,9 @@ public:
     //子科目操作方法
     void addChildSub(SecondSubject* sub);
     SecondSubject* addChildSub(SubjectNameItem* ni,QString Code="",
-                                   int subWeight=0,bool isEnable=true);
+                                   int subWeight=0,bool isEnable=true,
+                               QDateTime createTime=QDateTime::currentDateTime(),
+                               User* creator=curUser);
     int getChildCount(){return childSubs.count();}
 
     //SecondSubject* addChildSub(SecondSubject* ssub);
@@ -121,7 +123,7 @@ public:
     bool removeChildSubForId(int id);
 
     SecondSubject* getChildSub(int index);
-    QList<SecondSubject*>& getChildSubs(){return childSubs;}
+    QList<SecondSubject*> getChildSubs(SortByMode sortBy = SORTMODE_NONE);
     QList<int> getChildSubIds();
     bool getRangeChildSubs(SecondSubject* ssub,SecondSubject* esub, QList<SecondSubject*>& subs);
     bool containChildSub(SecondSubject* sndSub);
@@ -199,13 +201,13 @@ public:
     int getMd(){return md;}
     int getId(){return id;}
     int getClassId(){return clsId;}
-    inline void setClassId(int cid);
+    void setClassId(int cid);
     QString getShortName(){return sname;}
-    inline void setShortName(QString name);
+    void setShortName(QString name);
     QString getLongName(){return lname;}
-    inline void setLongName(QString name);
+    void setLongName(QString name);
     QString getRemCode(){return remCode;}
-    inline void setRemCode(QString code);
+    void setRemCode(QString code);
     QDateTime getCreateTime(){return crtTime;}
     User* getCreator(){return crtUser;}
     NameItemEditStates getEditState(){return witchEdit;}
@@ -235,6 +237,7 @@ Q_DECLARE_METATYPE(SubjectNameItem*)
 
 bool byRemCodeThan_ni(SubjectNameItem *ni1, SubjectNameItem *ni2);
 bool byNameThan_ni(SubjectNameItem *ni1, SubjectNameItem *ni2);
+bool byCreateTimeThan_ni(SubjectNameItem *ni1, SubjectNameItem *ni2);
 
 /**
  * @brief The SecondSubject class
@@ -284,6 +287,7 @@ public:
     void setParent(FirstSubject* p){if(p){parent=p;witchEdit |= ES_SS_FID;}}
     FirstSubject* getParent(){return parent;}
     SubjectNameItem* getNameItem(){return nItem;}
+    void setNameItem(SubjectNameItem* ni){nItem=ni; witchEdit |= ES_SS_NID;}
     QDateTime getCreateTime(){return crtTime;}
     void setCreateTime(QDateTime time){crtTime=time;witchEdit |= ES_SS_CTIME;}
     User* getCreator(){return creator;}
@@ -323,6 +327,7 @@ Q_DECLARE_METATYPE(SecondSubject*)
 bool bySubCodeThan_ss(SecondSubject *ss1, SecondSubject *ss2);
 bool byRemCodeThan_ss(SecondSubject *ss1, SecondSubject *ss2);
 bool bySubNameThan_ss(SecondSubject *ss1, SecondSubject *ss2);
+bool byCreateTimeThan_ss(SecondSubject *ss1, SecondSubject *ss2);
 
 
 ///////////////////////////SubjectManager/////////////////////////////////////
@@ -353,7 +358,7 @@ public:
     static bool modifyNiClass(int code, QString name, QString explain);
     static bool isUsedNiCls(int code);
     static bool removeNiCls(int code);
-    static QList<SubjectNameItem*> getAllNameItems(){return nameItems.values();}
+    static QList<SubjectNameItem*> getAllNameItems(SortByMode sortBy = SORTMODE_NONE);
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
     void removeNameItem(SubjectNameItem* nItem, bool delInLib = false);
@@ -377,6 +382,7 @@ public:
     FirstSubject* getFstSubject(QString code);
     QHash<int,FirstSubject*>& getAllFstSubHash(){return fstSubHash;}
     QHash<int,SecondSubject*>& getAllSndSubHash(){return sndSubs;}
+    QList<SecondSubject*> getSubSubjectUseNI(SubjectNameItem* ni);
 
     FSubItrator* getFstSubItrator(){return new FSubItrator(fstSubHash);}
 
@@ -415,6 +421,7 @@ public:
 
 
 
+private slots:
 
 
 private:

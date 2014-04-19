@@ -43,6 +43,8 @@
 #include "accountpropertyconfig.h"
 #include "suiteswitchpanel.h"
 #include "nabaseinfodialog.h"
+#include "commands.h"
+#include "importovaccdlg.h"
 
 #include "completsubinfodialog.h"
 
@@ -1123,6 +1125,208 @@ void MainWindow::on_actDelAcc_triggered()
 
 }
 
+/**
+ * @brief 从老版账户中导入指定年月的凭证
+ *  这主要是为了在新旧版本过渡期间验证新版与旧版在统计功能、自动创建凭证功能、余额计算功能上的准确性
+ */
+void MainWindow::on_actImpPzSet_triggered()
+{
+    if(!curAccount)
+        return;
+    ImportOVAccDlg dlg(curAccount,curSSPanel, ui->mdiArea);
+    dlg.exec();
+//    AccountSuiteRecord* asr = curAccount->getEndSuiteRecord();
+//    if(curAccount->getCurSuiteRecord() != asr){
+//        QMessageBox::warning(this,"",tr("请先切换到最后一个帐套！"));
+//        return;
+//    }
+//    //1、选择老版账户文件
+//    QString fname = QFileDialog::getOpenFileName(this,tr("请选择与当前账户等同的老版账户文件"));
+//    if(fname.isEmpty())
+//        return;
+
+//    //2、读取账户文件，判定是否是同一个账户
+//    QString connName = "ImportPzSetFromOlder";
+//    QSqlDatabase sdb = QSqlDatabase::addDatabase("QSQLITE",connName);
+//    sdb.setDatabaseName(fname);
+//    if(!sdb.open()){
+//        QMessageBox::warning(this,"",tr("所选文件不是一个有效的账户文件！"));
+//        return;
+//    }
+//    QString s = QString("select %1 from %2 where %3=%4").arg(fld_acci_value)
+//            .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ACODE);
+//    QSqlQuery qs(sdb),qs2(sdb);
+//    if(!qs.exec(s) || !qs.first()){
+//        LOG_SQLERROR(s);
+//        QMessageBox::warning(this,"",tr("所选文件不是一个有效的账户文件！"));
+//        return;
+//    }
+
+//    QString accCode = qs.value(0).toString();
+//    if(accCode != curAccount->getCode()){
+//        QMessageBox::warning(this,"",tr("必须选择与当前账户等同的账户文件！"));
+//        return;
+//    }
+
+//    //3、切换到最后帐套的最后一个月份
+//    if(curSuiteMgr->isPzSetOpened())
+//        curSuiteMgr->closePzSet();
+//    if(asr->year != curSuiteMgr->getSuiteRecord()->year){
+//        curSSPanel->switchToSuite(asr->year);
+//    }
+//    if(curSuiteMgr->getSubSysCode() == DEFAULT_SUBSYS_CODE){
+//        QMessageBox::warning(this,"",tr("当前账户的最后帐套所采用的科目系统未升级到新科目系统，不能导入！"));
+//        return;
+//    }
+//    if(curSuiteMgr->isPzSetOpened())
+//        curSuiteMgr->closePzSet();
+
+
+//    //4、获取导入凭证集的年月和起止凭证号，并判定是否可以导入到当前账户（必须是当前账户的最后一个帐套内的最后一个月份）
+//    s = QString("select %1 from %2 where %3=%4").arg(fld_acci_value)
+//                .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ETIME);
+//    QDateTime date;QString ds;
+//    if(!qs.exec(s) || !qs.first()){
+//        date = QDateTime::currentDateTime();
+//        ds = date.toString(Qt::ISODate);
+//    }
+//    else{
+//        ds = qs.value(0).toString();
+//        date = QDateTime::fromString(ds,Qt::ISODate);
+//    }
+//    ds.chop(3);
+//    s = QString("select count() from PingZhengs where date like '%1%'").arg(ds);
+//    if(!qs.exec(s)){
+//        LOG_SQLERROR(s);
+//        return;
+//    }
+//    qs.first();
+//    int pzCount = qs.value(0).toInt();
+//    if(pzCount == 0){
+//        QMessageBox::information(this,"",tr("所选月份没有包含任何凭证！"));
+//        return;
+//    }
+
+//    QDialog dlg(this);
+//    QLabel title(tr("请选择导入月份："),&dlg);
+//    QDateEdit de(&dlg);
+//    de.setReadOnly(true);
+//    de.setDisplayFormat("yyyy-M");
+//    de.setDateTime(date);
+//    QHBoxLayout lnumber;
+//    QLabel lblStart(tr("开始凭证号"),&dlg);
+//    QLabel lblEnd(tr("结束凭证号"),&dlg);
+//    QSpinBox spnStart(&dlg),spnEnd(&dlg);
+//    spnStart.setMinimum(1);
+//    spnStart.setMaximum(pzCount);
+//    spnStart.setValue(1);
+//    spnEnd.setMaximum(pzCount);
+//    spnEnd.setMinimum(1);
+//    spnEnd.setValue(pzCount);
+//    lnumber.addWidget(&lblStart);
+//    lnumber.addWidget(&spnStart);
+//    lnumber.addWidget(&lblEnd);
+//    lnumber.addWidget(&spnEnd);
+//    QVBoxLayout* l = new QVBoxLayout;
+//    l->addWidget(&title);
+//    l->addWidget(&de);
+//    l->addLayout(&lnumber);
+//    QPushButton btnOk(tr("确定"),&dlg);
+//    QPushButton btnCancel(tr("取消"),&dlg);
+//    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+//    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+//    QHBoxLayout lb;
+//    lb.addWidget(&btnOk);
+//    lb.addWidget(&btnCancel);
+//    l->addLayout(&lb);
+//    dlg.setLayout(l);
+//    if(QDialog::Rejected == dlg.exec())
+//        return;
+//    if(de.date().year() != asr->year || (de.date().month() != asr->endMonth)){
+//        QMessageBox::warning(this,"",tr("导入月份必须是当前账户最后帐套的最后一个月份！"));
+//        return;
+//    }
+//    curSuiteMgr->clearPzSetCaches();
+//    if(!curSuiteMgr->open(asr->endMonth)){
+//        QMessageBox::warning(this,"",tr("打开最后月份凭证集发生错误！"));
+//        return;
+//    }
+//    int startPzNum = spnStart.value();
+//    int endPzNum = spnEnd.value();
+//    int curPzNum = curSuiteMgr->getPzCount();
+//    if((startPzNum >= endPzNum) || (startPzNum-curPzNum != 1)){
+//        QMessageBox::warning(this,"",tr("凭证号范围设置不正确，可能的原因如下：\n1、起始凭证号大于结束凭证号\n2、起始凭证号与当前凭证号不连续"));
+//        return;
+//    }
+//    //5、从基本库中读取新旧科目系统之间的映射表
+//    SubjectManager* sm = curSuiteMgr->getSubjectManager();
+//    QHash<QString,QString> subCodeMaps; //新旧科目系统一级科目（代码）对应表
+//    if(!AppConfig::getInstance()->getSubSysMaps(DEFAULT_SUBSYS_CODE,sm->getSubSysCode(),subCodeMaps)){
+//        QMessageBox::critical(this,"",tr("无法获取新旧科目映射代码表！"));
+//        return;
+//    }
+//    //6、建立新旧一级科目id的映射表
+//    QHash<int,FirstSubject*> fsubIdMaps;  //新旧一级科目id映射表(键为旧一级科目id，值为对应的新一级科目对象)
+//    s = QString("select id from FirSubjects where subCode=:code");
+//    if(!qs.prepare(s)){
+//        LOG_SQLERROR(s);
+//        return;
+//    }
+//    QHashIterator<QString,QString> it(subCodeMaps);
+//    while(it.hasNext()){
+//        it.next();
+//        qs.bindValue(":code",it.key());
+//        if(!qs.exec())
+//            return;
+//        if(!qs.first())
+//            return;
+//        int old_id = qs.value(0).toInt();
+//        FirstSubject* fsub = sm->getFstSubject(it.value());
+//        if(!fsub){
+//            QMessageBox::warning(this,"",tr("无法找到与旧科目（%1）对应的新科目（%2）").arg(it.key()).arg(it.value()));
+//            return;
+//        }
+//        fsubIdMaps[old_id] = fsub;
+//    }
+//    //7、建立新旧二级科目映射表
+//    QHash<int,SecondSubject*> ssubIdMaps;
+//    s = QString("select FSAgent.id,SecSubjects.subName,SecSubjects.subLName,"
+//                "SecSubjects.remCode,SecSubjects.classId from FSAgent join SecSubjects on "
+//                "FSAgent.sid = SecSubjects.id where FSAgent.fid=:fid");
+//    if(!qs.prepare(s)){
+//        LOG_SQLERROR(s);
+//        return;
+//    }
+//    foreach(int fid, fsubIdMaps.keys()){
+//        qs.bindValue(":fid",fid);
+//        if(!qs.exec())
+//            return;
+//        FirstSubject* fsub = fsubIdMaps.value(fid);
+//        while(qs.next()){
+//            int old_id = qs.value(0).toInt();
+//            QString name = qs.value(1).toString();
+//            SubjectNameItem* ni = sm->getNameItem(name);
+//            if(!ni){
+//                //创建名称条目
+//                QString lname = qs.value(2).toString();
+//                QString remCode = qs.value(3).toString();
+//                int clsId = qs.value(4).toInt();
+//                CrtNameItemCmd* cmd = new CrtNameItemCmd(name,lname,remCode,clsId,QDateTime::currentDateTime(),curUser,sm);
+//                curSuiteMgr->getUndoStack()->push(cmd);
+//            }
+//            SecondSubject* ssub = fsub->getChildSub(ni);
+//            if(!ssub){
+//                //创建二级科目
+//                CrtSndSubUseNICmd* cmd = new CrtSndSubUseNICmd(sm,fsub,ni,1,QDateTime::currentDateTime(),curUser);
+//                curSuiteMgr->getUndoStack()->push(cmd);
+//            }
+//            ssubIdMaps[old_id] = ssub;
+//        }
+//    }
+
+}
+
+
 //退出应用
 void MainWindow::closeEvent(QCloseEvent *event)
 {
@@ -2022,6 +2226,8 @@ void MainWindow::on_actDelPz_triggered()
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->removePz();
+        if(!curSuiteMgr->getCurPz())
+            ui->actDelPz->setEnabled(false);
         //isExtraVolid = false; //删除包含有会计分录（且金额非零）的凭证将导致余额的失效。这里不做过于细致的检测
         refreshShowPzsState();
         //refreshActEnanble();
@@ -3589,6 +3795,7 @@ bool MainWindow::impTestDatas()
 //    bool r = AppConfig::getInstance()->setSubjectJdDirs(1,codes);
     int i = 0;
 }
+
 
 
 

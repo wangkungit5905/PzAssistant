@@ -32,13 +32,17 @@ public:
     explicit SuiteSwitchPanel(Account* account, QWidget *parent = 0);
     ~SuiteSwitchPanel();
     void setJzState(AccountSuiteManager* sm, int month, bool jzed = true);
+
     
+public slots:
+    void switchToSuite(int y);
 private slots:
     void curSuiteChanged(QListWidgetItem * current, QListWidgetItem * previous);
     //void swichBtnClicked();
     void viewBtnClicked();
     void openBtnClicked(bool checked);
     void newPzSet();
+
 signals:
     void selectedSuiteChanged(AccountSuiteManager* previous, AccountSuiteManager* current);
     void viewPzSet(AccountSuiteManager* accSmg, int month);

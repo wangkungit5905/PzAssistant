@@ -8,6 +8,7 @@
 #include "widgets/bawidgets.h"
 #include "version.h"
 #include "newsndsubdialog.h"
+#include "PzSet.h"
 
 
 #include <QListWidget>
@@ -18,6 +19,7 @@
 #include <QInputDialog>
 #include <QKeyEvent>
 #include <QTextStream>
+#include <QTreeWidget>
 
 ApcBase::ApcBase(Account *account, QWidget *parent) :
     QWidget(parent),ui(new Ui::ApcBase),account(account)
@@ -1025,6 +1027,8 @@ ApcSubject::ApcSubject(Account *account, QWidget *parent) :
     curNiCls = 0;
     curSubMgr = NULL;
     subSysNames = account->getSupportSubSys();    
+    color_enabledSub.setColor(Qt::black);
+    color_disabledSub.setColor(Qt::darkGray);
 }
 
 ApcSubject::~ApcSubject()
@@ -1222,6 +1226,16 @@ void ApcSubject::curSSubChanged(int row)
     viewSSub();
 }
 
+/**
+ * @brief 当选择的子目改变时（用来执行子目的合并）
+ */
+void ApcSubject::SelectedSSubChanged()
+{
+    if(editAction != APCEA_EDIT_FSUB)
+        return;
+    ui->btnSSubMerge->setEnabled(ui->lwSSub->selectedItems().count() > 1);
+}
+
 void ApcSubject::ssubDBClicked(QListWidgetItem *item)
 {
     on_btnSSubEdit_clicked();
@@ -1314,6 +1328,17 @@ void ApcSubject::currentNiRowChanged(int curRow)
 }
 
 /**
+ * @brief 选择的名称条目改变（用来进行名称条目的合并）
+ */
+void ApcSubject::selectedNIChanged()
+{
+    if(!account->isReadOnly() && ui->lwNI->selectedItems().count() > 1)
+        ui->btnNIMerge->setEnabled(true);
+    else
+        ui->btnNIMerge->setEnabled(false);
+}
+
+/**
  * @brief 双击对名称条目进行编辑
  * @param item
  */
@@ -1402,6 +1427,7 @@ void ApcSubject::init_NameItems()
     if(!account->isReadOnly()){
         connect(ui->lwNI,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niDoubleClicked(QListWidgetItem*)));
         connect(ui->lwNiCls,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niClsDoubleClicked(QListWidgetItem*)));
+        connect(ui->lwNI,SIGNAL(itemSelectionChanged()),SLOT(selectedNIChanged()));
     }
     curSubMgr = account->getSubjectManager();
 }
@@ -1438,6 +1464,7 @@ void ApcSubject::init_subs()
     }
     connect(ui->lwSSub,SIGNAL(currentRowChanged(int)),SLOT(curSSubChanged(int)));    
     connect(ui->cmbFSubCls,SIGNAL(currentIndexChanged(int)),this,SLOT(curFSubClsChanged(int)));    
+    connect(ui->lwSSub,SIGNAL(itemSelectionChanged()),this,SLOT(SelectedSSubChanged()));
 }
 
 /**
@@ -1468,6 +1495,8 @@ void ApcSubject::loadFSub(int subSys)
         fsub = it->value();
         v.setValue<FirstSubject*>(fsub);
         item = new QListWidgetItem(fsub->getName());
+        if(!fsub->isEnabled())
+            item->setForeground(color_disabledSub);
         item->setData(Qt::UserRole,v);
         ui->lwFSub->addItem(item);
     }
@@ -1476,19 +1505,53 @@ void ApcSubject::loadFSub(int subSys)
 /**
  * @brief 装载当前选择的一级科目的所有二级科目
  */
-void ApcSubject::loadSSub()
+void ApcSubject::loadSSub(SortByMode sortBy)
 {
     ui->lwSSub->clear();
     if(!curFSub)
         return;
     QVariant v;
     QListWidgetItem* item;
-    foreach(SecondSubject* ssub, curFSub->getChildSubs()){
+    QList<int> usedNiIds;
+    SubjectNameItem* ni = NULL;
+//    bool fonded = false;    //是否找到第一个冲突科目
+    QList<SecondSubject*> childs = curFSub->getChildSubs();
+    if(sortBy == SORTMODE_CRT_TIME)
+        qSort(childs.begin(),childs.end(),byCreateTimeThan_ss);
+    else
+        qSort(childs.begin(),childs.end(),bySubNameThan_ss);
+    foreach(SecondSubject* ssub, childs){
+//        if(!fonded){
+//            int nid = ssub->getNameItem()->getId();
+//            if(!usedNiIds.contains(nid))
+//                usedNiIds<<nid;
+//            else{
+//                fonded = true;
+//                ni = ssub->getNameItem();
+//            }
+//        }
         v.setValue<SecondSubject*>(ssub);
         item = new QListWidgetItem(ssub->getName());
         item->setData(Qt::UserRole,v);
+        if(!ssub->isEnabled())
+            item->setForeground(color_disabledSub);
         ui->lwSSub->addItem(item);
     }
+//    if(ni){
+//        QList<QListWidgetItem*> items = ui->lwSSub->findItems(ni->getShortName(),Qt::MatchExactly);
+//        QList<SecondSubject*> subjects;
+//        foreach(QListWidgetItem* item, items){
+//            item->setSelected(true);
+//            SecondSubject* ssub = item->data(Qt::UserRole).value<SecondSubject*>();
+//            subjects<<ssub;
+//        }
+//        ui->lwSSub->scrollToItem(items.first());
+//        QMessageBox::warning(this,tr("二级科目名称冲突")
+//                             ,tr("发现%1处使用名称“%2”的二级科目").arg(items.count()).arg(ni->getShortName()));
+//        if(!account->isReadOnly())
+//            ui->btnSSubMerge->setEnabled(true);
+//    }
+
 }
 
 /**
@@ -1510,7 +1573,7 @@ void ApcSubject::viewFSub()
         ui->isUseWb->setChecked(curFSub->isUseForeignMoney());
         ui->jdDir_P->setChecked(curFSub->getJdDir());
         //ui->jdDir_N->setChecked(!curFSub->getJdDir());
-        loadSSub();
+
     }
     else{
         ui->fsubID->clear();
@@ -1524,6 +1587,7 @@ void ApcSubject::viewFSub()
         ui->jdDir_P->setChecked(false);
         ui->jdDir_N->setChecked(false);
     }
+    loadSSub();
 }
 
 /**
@@ -1684,7 +1748,8 @@ void ApcSubject::loadNameItems()
     ui->lwNI->clear();
     int curCls = ui->niClsView->itemData(ui->niClsView->currentIndex()).toInt();
     QVariant v; QListWidgetItem* item;
-    foreach(SubjectNameItem* ni, SubjectManager::getAllNameItems()){
+    QList<SubjectNameItem*> nis = SubjectManager::getAllNameItems(SORTMODE_NAME);
+    foreach(SubjectNameItem* ni, nis){
         if((curCls != 0) && (curCls != ni->getClassId()))
             continue;
         item = new QListWidgetItem(ni->getShortName());
@@ -1916,6 +1981,8 @@ void ApcSubject::on_btnFSubEdit_clicked()
         editAction = APCEA_EDIT_FSUB;
         enFSubWidget(true);
         ui->fsubCode->setFocus();
+        if(ui->lwSSub->selectedItems().count() > 1)
+            ui->btnSSubMerge->setEnabled(true);
     }
     else if(editAction == APCEA_EDIT_FSUB){  //取消编辑
         ui->fsubRemCode->setText(stack_strs.pop());
@@ -1937,6 +2004,8 @@ void ApcSubject::on_btnFSubEdit_clicked()
         loadSSub();
         editAction = APCEA_NONE;
         enFSubWidget(false);
+        if(ui->btnSSubMerge->isEnabled())
+            ui->btnSSubMerge->setEnabled(false);
     }
 }
 
@@ -1952,8 +2021,16 @@ void ApcSubject::on_btnFSubCommit_clicked()
     curFSub->setName(ui->fsubName->text());
     curFSub->setRemCode(ui->fsubRemCode->text());
     curFSub->setCode(ui->fsubCode->text());
+    bool enableChanged = (curFSub->isEnabled() && !ui->fsubIsEnable->isChecked()) ||
+            (!curFSub->isEnabled() && ui->fsubIsEnable->isChecked());
     curFSub->setEnabled(ui->fsubIsEnable->isChecked());
-    curFSub->setIsUseForeignMoney(ui->isUseWb->isChecked());
+    if(curFSub->isUseForeignMoney() && !ui->isUseWb->isChecked() &&
+            account->getDbUtil()->lastWbExtraIsZeroForFSub(curFSub)){
+        QMessageBox::warning(this,"",tr("科目“%1”的存在外币余额且不为0，不能改变该科目是否使用外币的属性！").arg(curFSub->getName()));
+        ui->isUseWb->setChecked(true);
+    }
+    else
+        curFSub->setIsUseForeignMoney(ui->isUseWb->isChecked());
     curFSub->setJdDir(ui->jdDir_P->isChecked());
     curFSub->setWeight(ui->fsubWeight->text().toInt());
     if(stack_strs.at(1) != curFSub->getName())
@@ -1976,6 +2053,12 @@ void ApcSubject::on_btnFSubCommit_clicked()
     if(!curSubMgr->saveFS(curFSub))
         QMessageBox::critical(this,tr("出错信息"),tr("在保存一级科目时发生错误！"));
     editAction = APCEA_NONE;
+    if(enableChanged){
+        if(curFSub->isEnabled())
+            ui->lwFSub->currentItem()->setForeground(color_enabledSub);
+        else
+            ui->lwFSub->currentItem()->setForeground(color_disabledSub);
+    }
     enFSubWidget(false);
 }
 
@@ -2011,6 +2094,8 @@ void ApcSubject::on_btnSSubCommit_clicked()
     if(editAction != APCEA_EDIT_SSUB)
         return;
     curSSub->setCode(ui->ssubCode->text());
+    bool enableChanged = (curSSub->isEnabled() && !ui->ssubIsEnable->isChecked()) ||
+            (!curSSub->isEnabled() && ui->ssubIsEnable->isChecked());
     curSSub->setEnabled(ui->ssubIsEnable->isChecked());
     curSSub->setWeight(ui->ssubWeight->text().toInt());
     //如果用户将本不是默认的科目设置为默认了
@@ -2019,9 +2104,15 @@ void ApcSubject::on_btnSSubCommit_clicked()
         if(!curSubMgr->saveFS(curFSub))
             QMessageBox::critical(this,tr("出错信息"),tr("在将当前二级科目保存为当前一级科目的默认科目时出错！"));
     }
-    if(curSubMgr->saveSS(curSSub))
+    if(!curSubMgr->saveSS(curSSub))
         QMessageBox::critical(this,tr("出错信息"),tr("在将二级科目保存到账户数据库中时出错！"));
     editAction = APCEA_NONE;
+    if(enableChanged){
+        if(curSSub->isEnabled())
+            ui->lwSSub->currentItem()->setForeground(color_enabledSub);
+        else
+            ui->lwSSub->currentItem()->setForeground(color_disabledSub);
+    }
     enSSubWidget(false);
 }
 
@@ -2060,7 +2151,311 @@ void ApcSubject::on_btnSSubAdd_clicked()
 
 }
 
+/**
+ * @brief 检测名称条目是否有重复性的冲突
+ */
+void ApcSubject::on_btnInspectNameConflit_clicked()
+{
+    QList<SubjectNameItem*> nis,allNis;
+    QList<QString> names;
+    allNis = SubjectManager::getAllNameItems();
+    for(int i = 0; i < allNis.count(); ++i){
+        SubjectNameItem* ni = allNis.at(i);
+        if(names.contains(ni->getShortName())){
+            QList<QListWidgetItem*> items = ui->lwNI->findItems(ni->getShortName(),Qt::MatchExactly);
+            if(!items.isEmpty()){
+                foreach(QListWidgetItem* item, items)
+                    item->setSelected(true);
+                QMessageBox::warning(this,tr("名称冲突"),tr("名称条目“%1”有重复！").arg(ni->getShortName()));
+                if(!account->isReadOnly())
+                    ui->btnNIMerge->setEnabled(true);
+                else
+                    ui->btnNIMerge->setEnabled(false);
+                ui->lwNI->scrollToItem(items.first());
+            }
+            return;
+        }
+        else{
+            nis<<ni;
+            names<<ni->getShortName();
+        }
+    }
+    ui->btnNIMerge->setEnabled(false);
+}
 
+/**
+ * @brief 合并选定的名称条目
+ */
+void ApcSubject::on_btnNIMerge_clicked()
+{
+    QList<QListWidgetItem*> items = ui->lwNI->selectedItems();
+    if(items.count() < 2)
+        return;
+    QList<SubjectNameItem*> nameItems;
+    foreach(QListWidgetItem* item, items){
+        SubjectNameItem* ni = item->data(Qt::UserRole).value<SubjectNameItem*>();
+        if(ni)
+            nameItems<<ni;
+    }
+    //选择保留的名称条目
+    QDialog dlg(this);
+    QTreeWidget tv(&dlg);
+    tv.setColumnCount(3);
+    QVariant v;
+    foreach(SubjectNameItem* ni, nameItems){
+        QStringList sl;
+        sl.append(QString::number(ni->getId()));
+        sl.append(ni->getShortName());
+        sl.append(ni->getCreateTime().toString(Qt::ISODate));
+        QTreeWidgetItem* item = new QTreeWidgetItem(sl);
+        v.setValue<SubjectNameItem*>(ni);
+        item->setData(0,Qt::UserRole,v);
+        tv.addTopLevelItem(item);
+    }
+    QPushButton btnOk(tr("确定"), &dlg);
+    QPushButton btnCancel(tr("取消"), &dlg);
+    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+    QHBoxLayout lb;
+    lb.addWidget(&btnOk);
+    lb.addWidget(&btnCancel);
+    QLabel title(tr("请选择一个保留的名称条目："),&dlg);
+    QVBoxLayout* l = new QVBoxLayout;
+    l->addWidget(&title);
+    l->addWidget(&tv);
+    l->addLayout(&lb);
+    dlg.setLayout(l);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    if(!tv.currentItem())
+        return;
+    SubjectNameItem* preNI = tv.currentItem()->data(0,Qt::UserRole).value<SubjectNameItem*>();
+    nameItems.removeOne(preNI);
+    if(!mergeNameItem(preNI,nameItems))
+        QMessageBox::critical(this,"",tr("合并过程发生错误，请查看日志！"));
+    foreach(QListWidgetItem* item, items)
+        delete ui->lwNI->takeItem(ui->lwNI->row(item));
+}
+
+/**
+ * @brief 按指定的排序方式重新装载当前一级科目下的二级科目
+ * @param checked
+ */
+void ApcSubject::on_rdoSortbyName_toggled(bool checked)
+{
+    if(checked)
+        loadSSub();
+    else
+        loadSSub(SORTMODE_CRT_TIME);
+}
+
+/**
+ * @brief 合并选定的二级科目
+ */
+void ApcSubject::on_btnSSubMerge_clicked()
+{
+    QList<QListWidgetItem*> items = ui->lwSSub->selectedItems();
+    if(items.count() < 2)
+        return;
+    QList<SecondSubject*> subjects;
+    foreach(QListWidgetItem* item, items){
+        SecondSubject* ssub = item->data(Qt::UserRole).value<SecondSubject*>();
+        subjects<<ssub;
+    }
+    int preSubIndex = -1;
+    if(!mergeSndSubject(subjects,preSubIndex))
+        QMessageBox::critical(this,"",tr("合并科目过程出错！"));
+    QListWidgetItem* preItem = items.at(preSubIndex);
+    foreach(QListWidgetItem* item, items){
+        if(item == preItem)
+            continue;
+        delete ui->lwSSub->takeItem(ui->lwSSub->row(item));
+    }
+}
+
+/**
+ * @brief 检查当前一级科目下使用同一个名称条目的重复子目
+ */
+void ApcSubject::on_btnInspectDup_clicked()
+{
+    bool fonded = false;    //是否找到第一个冲突科目
+    QList<int> usedNiIds;
+    //QList<SecondSubject*> subs;
+    SubjectNameItem* ni=NULL;
+    for(int i = 0; i < ui->lwSSub->count(); ++i){
+        SecondSubject* ssub = ui->lwSSub->item(i)->data(Qt::UserRole).value<SecondSubject*>();
+        //subs<<ssub;
+        if(!fonded){
+            int nid = ssub->getNameItem()->getId();
+            if(!usedNiIds.contains(nid))
+                usedNiIds<<nid;
+            else{
+                fonded = true;
+                ni = ssub->getNameItem();
+            }
+        }
+    }
+    if(ni){
+        ui->lwSSub->setCurrentRow(-1,QItemSelectionModel::Clear);
+        QList<QListWidgetItem*> items = ui->lwSSub->findItems(ni->getShortName(),Qt::MatchExactly);
+        QList<SecondSubject*> subjects;
+        foreach(QListWidgetItem* item, items){
+            item->setSelected(true);
+            SecondSubject* ssub = item->data(Qt::UserRole).value<SecondSubject*>();
+            subjects<<ssub;
+        }
+        ui->lwSSub->scrollToItem(items.first());
+        QMessageBox::warning(this,tr("二级科目名称冲突")
+                             ,tr("发现%1处使用名称“%2”的二级科目").arg(items.count()).arg(ni->getShortName()));
+        if(!account->isReadOnly() && editAction == APCEA_EDIT_FSUB)
+            ui->btnSSubMerge->setEnabled(true);
+    }
+}
+
+
+/**
+ * @brief 合并列表内的名称条目
+ * @param preNI     保留的名称条目
+ * @param nameItems 待合并的名称条目
+ * @return
+ */
+bool ApcSubject::mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem *> nameItems)
+{
+    if(!preNI || nameItems.isEmpty())
+        return true;
+    foreach(SubjectNameItem* ni, nameItems){
+        if(curSubMgr->nameItemIsUsed(ni)){
+            for(int i = 0; i < subSysNames.count(); ++i){
+                SubSysNameItem* ssni = subSysNames.at(i);
+                SubjectManager* sm = account->getSubjectManager(ssni->code);
+                QList<SecondSubject*> subjects = sm->getSubSubjectUseNI(ni);
+                if(subjects.isEmpty())
+                    continue;
+                foreach(SecondSubject* sub, subjects){
+                    sub->setNameItem(preNI);
+                    if(!sm->saveSS(sub))
+                        return false;
+                }
+            }
+        }
+        curSubMgr->removeNameItem(ni,true);
+        nameItems.removeOne(ni);
+    }
+
+    return true;
+}
+
+/**
+ * @brief 合并列表内的二级科目（这些二级科目都属于同一个一级科目）
+ * @param subjects
+ * @return
+ */
+bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubIndex)
+{
+    if(subjects.count() < 2)
+        return true;
+    //1、确定保留的二级科目，应提示用户选择，默认选择id最小的
+    SecondSubject* preserveSub = subjects.first();
+    for(int i = 1; i < subjects.count(); ++i){
+        if(subjects.at(i)->getId() < preserveSub->getId())
+            preserveSub = subjects.at(i);
+    }
+    preSubIndex = subjects.indexOf(preserveSub);
+    if(preSubIndex != 0)
+        subjects.swap(0,preSubIndex);
+    QDialog dlg(this);
+    QListWidget lw(&dlg);
+    QVariant v;
+    SecondSubject* ssub;
+    for(int i = 0; i < subjects.count(); ++i){
+        ssub = subjects.at(i);
+        QListWidgetItem* item = new QListWidgetItem(ssub->getName());
+        v.setValue<SecondSubject*>(ssub);
+        item->setData(Qt::UserRole,v);
+        lw.addItem(item);
+    }
+    lw.setCurrentRow(0);
+    QLabel title(tr("请选择保留的二级科目："),&dlg);
+    QPushButton btnOk(tr("确定"),&dlg);
+    QPushButton btnCancel(tr("取消"),&dlg);
+    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+    QHBoxLayout lh;
+    lh.addWidget(&btnOk);
+    lh.addWidget(&btnCancel);;
+    QVBoxLayout* lv = new QVBoxLayout(&dlg);
+    lv->addWidget(&title);
+    lv->addWidget(&lw);
+    lv->addLayout(&lh);
+    dlg.setLayout(lv);
+    if(dlg.exec() == QDialog::Rejected)
+        return true;
+    preserveSub = lw.currentItem()->data(Qt::UserRole).value<SecondSubject*>();
+    subjects.removeOne(preserveSub);
+    SubjectManager* sm = preserveSub->getParent()->parent();
+    QList<SecondSubject*> replaceSubs;
+    //如果是新科目系统，则还要在科目衔接映射表中将所有待合并子目的id替换为保留科目
+    //这样在跨年度读取期初余额时才能映射到正确的保留科目上
+    if(sm->getSubSysCode() != DEFAULT_SUBSYS_CODE){
+        replaceSubs = subjects;
+    }
+    QList<SecondSubject *> canRemovedSubs; //可以直接移除的科目（就是那些还没有被引用的科目）
+    foreach(SecondSubject* sub, subjects){
+        if(!sm->isUsedSSub(sub)){
+            canRemovedSubs<<sub;
+            subjects.removeOne(sub);
+        }
+    }
+    //所有科目都未被引用，可以直接移除
+    if(subjects.isEmpty()){
+        FirstSubject* fsub = preserveSub->getParent();
+        foreach(SecondSubject* sub, canRemovedSubs)
+            fsub->removeChildSub(sub);
+        if(!sm->saveFS(fsub))
+            return false;
+        if(!replaceSubs.isEmpty() && !account->getDbUtil()->replaceMapSidWithReserved(preserveSub,replaceSubs))
+            return false;
+        return true;
+    }
+
+    //2、确定要处理的时间范围
+    int subSysCode = sm->getSubSysCode();
+    int startYear=0,startMonth=0,endYear=0,endMonth=0;
+    QList<AccountSuiteRecord*> suites = account->getAllSuiteRecords();
+    for(int i = 0; i < suites.count(); ++i){        
+        AccountSuiteRecord* asr = suites.at(i);
+        if(asr->subSys != subSysCode)
+            continue;
+        if(startYear == 0){
+            startYear = asr->year;
+            startMonth = asr->startMonth;
+        }
+        endYear = asr->year;
+        endMonth = asr->endMonth;
+    }
+    if(startYear == 0 || endYear == 0){
+        QMessageBox::warning(this,"",tr("无法界定时间范围！"));
+        return false;
+    }
+    if(!account->getDbUtil()->mergeSecondSubject(startYear,startMonth,endYear,endMonth,preserveSub,subjects)){
+        QMessageBox::critical(this,"",tr("合并过程发生错误，请查看日志！"));
+        return false;
+    }
+    if(!replaceSubs.isEmpty() &&
+            !account->getDbUtil()->replaceMapSidWithReserved(preserveSub,replaceSubs)){
+        QMessageBox::critical(this,"",tr("合并过程发生中在科目衔接配置表中替换科目id时错误，请查看日志！"));
+        return false;
+    }
+
+    //6、将多个重复科目合并为一个（科目管理器对象内部和数据库内部）
+    FirstSubject* fsub = preserveSub->getParent();
+    foreach(SecondSubject* sub, subjects){
+        fsub->removeChildSub(sub);
+    }
+    if(!sm->saveFS(fsub))
+        return false;
+    return true;
+}
 
 bool ApcSubject::notCommitWarning()
 {
@@ -2665,7 +3060,7 @@ void ApcData::curFSubChanged(int index)
     ui->ssubs->clear();
     QVariant v;
     QListWidgetItem* item;    
-    foreach(SecondSubject* ssub, curFSub->getChildSubs()){
+    foreach(SecondSubject* ssub, curFSub->getChildSubs(SORTMODE_NAME)){
         v.setValue<SecondSubject*>(ssub);
         item = new QListWidgetItem(ssub->getName());
         item->setData(Qt::UserRole,v);
@@ -2823,6 +3218,7 @@ void ApcData::dataChanged(QTableWidgetItem *item)
 void ApcData::monthChanged(int m)
 {
     this->m = m;
+    viewRates();
     if(ui->fsubs->currentRow() != -1)
         curFSubChanged(ui->fsubs->currentRow());
 }
@@ -3314,6 +3710,12 @@ void AccountPropertyConfig::createIcons()
     connect(contentsWidget,SIGNAL(currentRowChanged(int)),
          this, SLOT(pageChanged(int)));
 }
+
+
+
+
+
+
 
 
 

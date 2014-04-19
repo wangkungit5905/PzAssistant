@@ -10,7 +10,7 @@ SubjectSelectorComboBox::SubjectSelectorComboBox(QWidget *parent):QComboBox(pare
     fsub = NULL;
     ssub = NULL;
     which = SC_FST;
-    sortBy = SM_CODE;
+    sortBy = SORTMODE_CODE;
     init();
 }
 
@@ -20,9 +20,9 @@ SubjectSelectorComboBox::SubjectSelectorComboBox(SubjectManager* subMgr, FirstSu
 {
     ssub = NULL;
     if(which == SC_FST)
-        sortBy = SM_CODE;
+        sortBy = SORTMODE_CODE;
     else
-        sortBy = SM_REMCODE;
+        sortBy = SORTMODE_REMCODE;
     tv.setWindowFlags(Qt::ToolTip);
 
     if(!subMgr || !fsub)
@@ -46,7 +46,7 @@ void SubjectSelectorComboBox::setSubjectManager(SubjectManager *smg)
     subMgr = smg;
     fsub = NULL;
     ssub = NULL;
-    sortBy = SM_CODE;
+    sortBy = SORTMODE_CODE;
 }
 
 void SubjectSelectorComboBox::setSubjectClass(SubjectSelectorComboBox::SUBJECTCATALOG subClass)
@@ -73,10 +73,10 @@ void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
     int key = event->key();
     if(tv.isHidden()){
         if(key >= Qt::Key_0 && key <= Qt::Key_9){
-            sortBy = SM_CODE;
+            sortBy = SORTMODE_CODE;
         }
         else if(key >= Qt::Key_A && key <= Qt::Key_Z){
-            sortBy = SM_REMCODE;
+            sortBy = SORTMODE_REMCODE;
         }
         else{
             QComboBox::keyPressEvent(event);
@@ -89,16 +89,16 @@ void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
     }
     else{
         if(key >= Qt::Key_0 && key <= Qt::Key_9){
-            if(sortBy != SM_CODE){
-                sortBy = SM_CODE;
+            if(sortBy != SORTMODE_CODE){
+                sortBy = SORTMODE_CODE;
                 keys.clear();
             }
             keys.append(event->text());
             refreshModel();
         }
         else if(key >= Qt::Key_A && key <= Qt::Key_Z){
-            if(sortBy != SM_REMCODE){
-                sortBy = SM_REMCODE;
+            if(sortBy != SORTMODE_REMCODE){
+                sortBy = SORTMODE_REMCODE;
                 keys.clear();
             }
             keys.append(event->text());
@@ -131,7 +131,7 @@ void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
             else{
                 keys.chop(1);
             }
-            if(sortBy == SM_NAME)
+            if(sortBy == SORTMODE_NAME)
                 QComboBox::keyPressEvent(event);
             else
                 refreshModel();
@@ -173,8 +173,8 @@ void SubjectSelectorComboBox::nameChanged(const QString &text)
 {
     if(!lineEdit()->isModified()) //也可以用是否具有输入焦点来判断
         return;
-    if(sortBy != SM_NAME){
-        sortBy = SM_NAME;
+    if(sortBy != SORTMODE_NAME){
+        sortBy = SORTMODE_NAME;
     }
     keys = text;
     if(tv.isHidden())
@@ -203,14 +203,14 @@ void SubjectSelectorComboBox::switchModel(bool on)
         tv.header()->setStretchLastSection(false);
         tv.header()->setSectionResizeMode(0, QHeaderView::Stretch);
         if(which == SC_FST){
-            tv.showColumn(SM_CODE-1);
-            tv.hideColumn(SM_REMCODE-1);
-            tv.setColumnWidth(SM_CODE-1,50);
+            tv.showColumn(SORTMODE_CODE-1);
+            tv.hideColumn(SORTMODE_REMCODE-1);
+            tv.setColumnWidth(SORTMODE_CODE-1,50);
         }
         else{
-            tv.showColumn(SM_REMCODE-1);
-            tv.hideColumn(SM_CODE-1);
-            tv.setColumnWidth(SM_REMCODE-1,50);
+            tv.showColumn(SORTMODE_REMCODE-1);
+            tv.hideColumn(SORTMODE_CODE-1);
+            tv.setColumnWidth(SORTMODE_REMCODE-1,50);
         }
     }
     else{
@@ -271,7 +271,7 @@ void SubjectSelectorComboBox::loadSndSubs()
     QStandardItem* item;
     QList<QStandardItem*> items;
     QVariant v;
-    foreach (SecondSubject* sub, fsub->getChildSubs()) {
+    foreach (SecondSubject* sub, fsub->getChildSubs(SORTMODE_NAME)) {
         item = new QStandardItem(sub->getName());
         v.setValue<SecondSubject*>(sub);
         item->setData(v,Qt::UserRole);

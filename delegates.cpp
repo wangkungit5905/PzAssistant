@@ -217,7 +217,7 @@ void SummaryEdit::keyPressEvent(QKeyEvent *event)
 SndSubComboBox::SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectManager *subMgr,
                                int row,int col,QWidget *parent):
     QWidget(parent),subMgr(subMgr),ssub(ssub),fsub(fsub),row(row),col(col),
-    sortBy(SM_NAME),textChangeReson(true)/*,editFinished(false)*/
+    sortBy(SORTMODE_NAME),textChangeReson(true)/*,editFinished(false)*/
 {
     com = new QComboBox(this);
     com->setEditable(true);       //使其可以输入新的名称条目
@@ -325,7 +325,7 @@ void SndSubComboBox::keyPressEvent(QKeyEvent *e)
         isDigit = false;
         if(keys->size() == 1){ //接收到第一个字符，需要重新按科目助记符排序，并装载到列表框
             isDigit = false;
-            sortBy = SM_REMCODE;
+            sortBy = SORTMODE_REMCODE;
             qSort(allNIs.begin(),allNIs.end(),byRemCodeThan_ni);
             lw->clear();
             QVariant v;
@@ -344,7 +344,7 @@ void SndSubComboBox::keyPressEvent(QKeyEvent *e)
         keys->append(keyCode);
         if(keys->size() == 1){
             isDigit = true;
-            sortBy = SM_CODE;
+            sortBy = SORTMODE_CODE;
             hideList(false);
             //...
         }
@@ -485,7 +485,7 @@ void SndSubComboBox::nameTextChanged(const QString &text)
     //这种方式是用户手动输入科目文本，则智能提示列表框按名称条目的字符顺序来显示
     //LOG_INFO(QString("enter nameItemTextChanged()! Changed text %1").arg(text));
 
-    if(sortBy != SM_NAME)
+    if(sortBy != SORTMODE_NAME)
         return;
     filterListItem();
     hideList(false);
@@ -569,7 +569,7 @@ void SndSubComboBox::subSelectChanged(const int index)
 void SndSubComboBox::filterListItem()
 {
     //隐藏所有助记符不是以指定字符串开始的名称条目
-    if(sortBy == SM_NAME){
+    if(sortBy == SORTMODE_NAME){
         QString namePre = com->lineEdit()->text().trimmed();
         for(int i = 0; i < allNIs.count(); ++i){
             if(allNIs.at(i)->getShortName().startsWith(namePre,Qt::CaseInsensitive))
@@ -578,7 +578,7 @@ void SndSubComboBox::filterListItem()
                 lw->item(i)->setHidden(true);
         }
     }
-    else if(sortBy == SM_REMCODE){
+    else if(sortBy == SORTMODE_REMCODE){
         for(int i = 0; i < allNIs.count(); ++i){
             if(allNIs.at(i)->getRemCode().startsWith(*keys,Qt::CaseInsensitive))
                 lw->item(i)->setHidden(false);

@@ -44,6 +44,7 @@ public:
     void closePzSet();
     void rollback();
     int newPzSet();
+    void clearPzSetCaches();
     //StatUtil &getStatObj();
     StatUtil* getStatUtil(){return statUtil;}
     QUndoStack* getUndoStack(){return undoStack;}

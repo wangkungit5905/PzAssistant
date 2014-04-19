@@ -3,7 +3,7 @@
 FstSubEditComboBox::FstSubEditComboBox(SubjectManager *subMgr, QWidget *parent):
     QComboBox(parent),subMgr(subMgr)
 {
-    sortBy = SM_CODE;
+    sortBy = SORTMODE_CODE;
     tv.setWindowFlags(Qt::ToolTip);
     loadSubs();
     setEditable(true);
@@ -40,10 +40,10 @@ void FstSubEditComboBox::keyPressEvent(QKeyEvent *event)
     int key = event->key();
     if(tv.isHidden()){
         if(key >= Qt::Key_0 && key <= Qt::Key_9){
-            sortBy = SM_CODE;
+            sortBy = SORTMODE_CODE;
         }
         else if(key >= Qt::Key_A && key <= Qt::Key_Z){
-            sortBy = SM_REMCODE;
+            sortBy = SORTMODE_REMCODE;
         }
         else{
             QComboBox::keyPressEvent(event);
@@ -56,16 +56,16 @@ void FstSubEditComboBox::keyPressEvent(QKeyEvent *event)
     }
     else{
         if(key >= Qt::Key_0 && key <= Qt::Key_9){
-            if(sortBy != SM_CODE){
-                sortBy = SM_CODE;
+            if(sortBy != SORTMODE_CODE){
+                sortBy = SORTMODE_CODE;
                 keys.clear();
             }
             keys.append(event->text());
             refreshModel();
         }
         else if(key >= Qt::Key_A && key <= Qt::Key_Z){
-            if(sortBy != SM_REMCODE){
-                sortBy = SM_REMCODE;
+            if(sortBy != SORTMODE_REMCODE){
+                sortBy = SORTMODE_REMCODE;
                 keys.clear();
             }
             keys.append(event->text());
@@ -98,7 +98,7 @@ void FstSubEditComboBox::keyPressEvent(QKeyEvent *event)
             else{
                 keys.chop(1);
             }
-            if(sortBy == SM_NAME)
+            if(sortBy == SORTMODE_NAME)
                 QComboBox::keyPressEvent(event);
             else
                 refreshModel();
@@ -135,8 +135,8 @@ void FstSubEditComboBox::nameChanged(QString text)
 {
     if(!lineEdit()->isModified()) //也可以用是否具有输入焦点来判断
         return;
-    if(sortBy != SM_NAME){
-        sortBy = SM_NAME;
+    if(sortBy != SORTMODE_NAME){
+        sortBy = SORTMODE_NAME;
     }
     keys = text;
     if(tv.isHidden())
@@ -187,9 +187,9 @@ void FstSubEditComboBox::switchModel(bool on)
         tv.setModel(&model);
         tv.header()->setStretchLastSection(false);
         tv.header()->setSectionResizeMode(0, QHeaderView::Stretch);
-        tv.showColumn(SM_CODE-1);
-        tv.hideColumn(SM_REMCODE-1);
-        tv.setColumnWidth(SM_CODE-1,50);
+        tv.showColumn(SORTMODE_CODE-1);
+        tv.hideColumn(SORTMODE_REMCODE-1);
+        tv.setColumnWidth(SORTMODE_CODE-1,50);
     }
     else{
         tv.setModel(0);

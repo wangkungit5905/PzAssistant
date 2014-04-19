@@ -756,6 +756,31 @@ bool AppConfig::setSubjectJdDirs(int subSys, QStringList codes)
 }
 
 /**
+ * @brief 获取指定科目系统之间的科目对应表
+ * @param scode     旧科目系统代码
+ * @param dcode     新科目系统代码
+ * @param codeMaps  科目代码映射表
+ * @return
+ */
+bool AppConfig::getSubSysMaps(int scode, int dcode, QHash<QString, QString> &codeMaps)
+{
+    QSqlQuery q(db);
+    QString tname = QString("FSubCodeMaps_%1_%2").arg(scode).arg(dcode);
+    QString s = QString("select * from %1").arg(tname);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QString sc,dc;
+    while(q.next()){
+        sc = q.value(1).toString();
+        dc = q.value(2).toString();
+        codeMaps[sc] = dc;
+    }
+    return true;
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  代码不符合规定，代码为空，代码重复冲突等都视为无效

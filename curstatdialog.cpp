@@ -750,10 +750,13 @@ void CurStatDialog::genDatas()
                     QList<int> sids;
                     if(!ssub){
                         QHash<int,QString> ssNames; //子目id到名称的映射
-                        foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs())
+                        FirstSubject* fsub = smg->getFstSubject(ids.at(i));
+                        foreach(SecondSubject* ssub,fsub->getChildSubs(SORTMODE_NAME)){
                             ssNames[ssub->getId()] = ssub->getName();
-                        sids = ssNames.keys();
-                        qSort(sids.begin(),sids.end());
+                            sids<<ssub->getId();
+                        }
+                        //sids = ssNames.keys();
+                        //qSort(sids.begin(),sids.end());
                     }
                     else
                         sids<<ssub->getId();
@@ -836,10 +839,15 @@ void CurStatDialog::genDatas()
                     QList<int> sids;
                     if(!ssub){
                         QHash<int,QString> ssNames; //子目id到名称的映射
-                        foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs())
+                        FirstSubject* fsub = smg->getFstSubject(ids.at(i));
+                        foreach(SecondSubject* ssub,fsub->getChildSubs(SORTMODE_NAME)){
                             ssNames[ssub->getId()] = ssub->getName();
-                        sids = ssNames.keys();
-                        qSort(sids.begin(),sids.end());
+                            sids<<ssub->getId();
+                        }
+//                        foreach(SecondSubject* ssub,smg->getFstSubject(ids.at(i))->getChildSubs())
+//                            ssNames[ssub->getId()] = ssub->getName();
+//                        sids = ssNames.keys();
+//                        qSort(sids.begin(),sids.end());
                     }
                     else
                         sids<<ssub->getId();

@@ -167,6 +167,7 @@
      <property name="title">
       <string>管理员工具</string>
      </property>
+     <addaction name="actImpPzSet"/>
      <addaction name="actSetPzCls"/>
      <addaction name="actForceDelPz"/>
     </widget>
@@ -1150,6 +1151,14 @@
    </property>
    <property name="toolTip">
     <string>切换帐套</string>
+   </property>
+  </action>
+  <action name="actImpPzSet">
+   <property name="text">
+    <string>导入老版凭证集</string>
+   </property>
+   <property name="toolTip">
+    <string>从老版账户中导入指定年月的凭证集</string>
    </property>
   </action>
  </widget>

@@ -30,6 +30,10 @@ bool StatUtil::stat()
         QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在未打开凭证集时不能进行本期统计！"));
         return false;
     }
+    if(sm->isDirty()){
+        QMessageBox::warning(0,"",QObject::tr("请先保存，再统计！"));
+        return false;
+    }
     y = sm->year();
     m = sm->month();
     account->getRates(y,m,rates);
@@ -48,6 +52,10 @@ bool StatUtil::stat()
     //计算各币种合计后各个科目的余额合计及其方向
     _calSumValue(true);
     _calSumValue(true,false);
+//    if(sumPreSV.contains(888)){
+//        Double v = sumPreSV.value(888);
+//        int i = 0;
+//    }
     _calSumValue(false);
     _calSumValue(false,false);
     _calCurSumValue(true);
@@ -208,7 +216,10 @@ bool StatUtil::_baIsValid(BusiAction *ba)
 {
     if(!ba)
         return false;
-    if(!ba->getFirstSubject() || !ba->getSecondSubject() || !ba->getMt() || ba->getValue() == 0.0 || ba->getDir() == MDIR_P)
+    SecondSubject* ssub = ba->getSecondSubject();
+    if(!ba->getFirstSubject() || !ssub || !ba->getMt() || ba->getValue() == 0.0 || ba->getDir() == MDIR_P)
+        return false;    
+    if(ssub->getId() == UNID && !dbUtil->saveSndSubject(ssub))
         return false;
     return true;
 }
@@ -780,8 +791,10 @@ void StatUtil::_calSumValue(bool isPre, bool isfst)
     int mmt = masterMt->code();
     Double v;
     while(it->hasNext()){
-        it->next();
+        it->next();        
         sid = it->key()/10;
+        if(sid == 0)
+            continue;
         mt = it->key()%10;
         if(mt == mmt)
             v = it->value();

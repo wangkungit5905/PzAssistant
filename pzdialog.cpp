@@ -1331,7 +1331,7 @@ void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, Sub
                              QMessageBox::Yes|QMessageBox::No) == QMessageBox::No)
         return;
     isInteracting = false;
-    ModifyBaSndSubNMMmd* cmd = new ModifyBaSndSubNMMmd(pzMgr,curPz,curBa,subMgr,fsub,ni);
+    ModifyBaSndSubNMMmd* cmd = new ModifyBaSndSubNMMmd(pzMgr,curPz,curBa,subMgr,fsub,ni,1,QDateTime::currentDateTime(),curUser);
     pzMgr->getUndoStack()->push(cmd);
     ssub = cmd->getSecondSubject();
     BaUpdateColumns updateCols;
@@ -1359,7 +1359,8 @@ void PzDialog::creatNewSndSubject(int row, int col, FirstSubject* fsub, SecondSu
         ModifyBaSndSubNSMmd* cmd =
             new ModifyBaSndSubNSMmd(pzMgr,curPz,curBa,subMgr,fsub,
                                     dlg->getSName(),dlg->getLName(),
-                                    dlg->getRemCode(),dlg->getSubCalss());
+                                    dlg->getRemCode(),dlg->getSubCalss(),
+                                    QDateTime::currentDateTime(),curUser);
         pzMgr->getUndoStack()->push(cmd);
         ssub = cmd->getSecondSubject();
         BaUpdateColumns updateCols;

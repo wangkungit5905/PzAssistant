@@ -67,7 +67,8 @@ SOURCES += main.cpp\
     testform.cpp \
     widgets/fstsubeditcombobox.cpp \
     nabaseinfodialog.cpp \
-    newsndsubdialog.cpp
+    newsndsubdialog.cpp \
+    importovaccdlg.cpp
 
 HEADERS  += \
     connection.h \
@@ -132,7 +133,8 @@ HEADERS  += \
     globalVarNames.h \
     widgets/fstsubeditcombobox.h \
     nabaseinfodialog.h \
-    newsndsubdialog.h
+    newsndsubdialog.h \
+    importovaccdlg.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -187,7 +189,8 @@ FORMS    += \
     forms/transferindialog.ui \
     forms/testform.ui \
     forms/nabaseinfodialog.ui \
-    forms/newsndsubdialog.ui
+    forms/newsndsubdialog.ui \
+    forms/importovaccdlg.ui
 
 RESOURCES += \
     imgers.qrc \

@@ -82,5 +82,6 @@
         <file>images/accProperty/accProperty.png</file>
         <file>images/accountRefresh.png</file>
         <file>images/pzs_lookup.png</file>
+        <file>images/password.png</file>
     </qresource>
 </RCC>

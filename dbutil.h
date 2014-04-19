@@ -90,9 +90,11 @@ public:
     int getBankSubMatchMoney(SecondSubject* sub);
     bool nameItemIsUsed(SubjectNameItem* ni);
     bool ssubIsUsed(SecondSubject* ssub);
+    bool ssubIsUsedInExtraTable(SecondSubject* ssub);
     //bool isSubSysImported(int subSys);
     //bool isSubSysJoinConfiged(int source, int destinate);
-
+    bool mergeSecondSubject(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
+    bool replaceMapSidWithReserved(SecondSubject *preSub, QList<SecondSubject *> mergedSubs);
     //货币相关
     bool initMoneys(Account* account);
     bool initBanks(Account* account);
@@ -135,6 +137,7 @@ public:
 
     bool convertExtraInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps, QStringList& errors);
     bool convertPzInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps, QStringList& errors);
+    bool lastWbExtraIsZeroForFSub(FirstSubject* ssub);
 
     //日记账
     bool getDetViewFilters(int suiteId, QList<DVFilterRecord*>& rs);
@@ -213,7 +216,11 @@ private:
     bool _removeSecondSubject(SecondSubject* sub);
     bool _saveNameItem(SubjectNameItem* ni);
     bool _removeNameItem(SubjectNameItem* ni);
-
+    bool _mergeExtraWithinRange(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
+    bool _mergeExtraWithinMonth(int year, int month, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
+    bool _mergeExtra(int point, SecondSubject* preSub, QList<SecondSubject*> mergedSubs,bool isPrimary = true);
+    bool _replaceSidWithResorved(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
+    bool _replaceSidWithResorved2(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
 
     //凭证相关
     bool _savePingZheng(PingZheng* pz);

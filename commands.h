@@ -529,7 +529,7 @@ private:
 class CrtNameItemCmd : public QUndoCommand
 {
 public:
-    CrtNameItemCmd(QString sname, QString lname, QString remCode, int nameCls, SubjectManager* subMgr, QUndoCommand* parent = 0);
+    CrtNameItemCmd(QString sname, QString lname, QString remCode, int nameCls, QDateTime crtTime, User* user, SubjectManager* subMgr, QUndoCommand* parent = 0);
     void undo();
     void redo();
     SubjectNameItem* getNI(){return ni;}
@@ -537,6 +537,8 @@ private:
     SubjectManager* subMgr;
     SubjectNameItem* ni;
     QString sname,lname,remCode;
+    QDateTime createTime;
+    User* creator;
     int nameCls;
 };
 
@@ -547,7 +549,7 @@ private:
 class CrtSndSubUseNICmd : public QUndoCommand
 {
 public:
-    CrtSndSubUseNICmd(SubjectManager* subMgr, FirstSubject* fsub, SubjectNameItem* ni, QUndoCommand* parent = 0);
+    CrtSndSubUseNICmd(SubjectManager* subMgr, FirstSubject* fsub, SubjectNameItem* ni, int weight, QDateTime crtTime, User* user, QUndoCommand* parent = 0);
     //int	id() const{return ;}
     //bool mergeWith(const QUndoCommand* command);
     void setNI(SubjectNameItem* ni){this->ni=ni;}
@@ -559,6 +561,9 @@ private:
     FirstSubject* fsub;
     SubjectNameItem* ni;
     SecondSubject* ssub;
+    int weight;
+    QDateTime createTime;
+    User* creator;
 };
 
 /**
@@ -590,7 +595,7 @@ private:
 class ModifyBaSndSubNMMmd : public QUndoCommand
 {
 public:
-    ModifyBaSndSubNMMmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, SubjectNameItem* ni, QUndoCommand* parent = 0);
+    ModifyBaSndSubNMMmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, SubjectNameItem* ni, int weight, QDateTime crtTime, User* user, QUndoCommand* parent = 0);
     void undo();
     void redo();
     SecondSubject* getSecondSubject(){return ssub;}
@@ -602,6 +607,9 @@ private:
     AccountSuiteManager* pm;
     PingZheng* pz;
     BusiAction* ba;
+    int weight;
+    QDateTime createTime;
+    User* creator;
 };
 
 /**
@@ -612,7 +620,7 @@ private:
 class ModifyBaSndSubNSMmd : public QUndoCommand
 {
 public:
-    ModifyBaSndSubNSMmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, QString sname, QString lname, QString remCode, int nameCls, QUndoCommand* parent = 0);
+    ModifyBaSndSubNSMmd(AccountSuiteManager* pm, PingZheng* pz, BusiAction* ba, SubjectManager* subMgr, FirstSubject* fsub, QString sname, QString lname, QString remCode, int nameCls, QDateTime crtTime, User* user, QUndoCommand* parent = 0);
     void undo();
     void redo();
     SecondSubject* getSecondSubject(){return ssub;}
@@ -626,6 +634,8 @@ private:
     BusiAction* ba;
     QString sname,lname,remCode;
     int nameCls;
+    QDateTime createTime;
+    User* creator;
 };
 
 /**

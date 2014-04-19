@@ -371,12 +371,16 @@ void ShowDZDialog::onSelFstSub(int index)
     if(curFSub){
         if(curFSub->getChildCount() > 1)
             ui->cmbSsub->addItem(tr("所有"));
-        SecondSubject* ssub;
-        for(int i = 0; i < curFSub->getChildCount(); ++i){
-            ssub = curFSub->getChildSub(i);
+        foreach(SecondSubject* ssub, curFSub->getChildSubs(SORTMODE_NAME)){
             v.setValue<SecondSubject*>(ssub);
             ui->cmbSsub->addItem(ssub->getName(),v);
         }
+//        SecondSubject* ssub;
+//        for(int i = 0; i < curFSub->getChildCount(); ++i){
+//            ssub = curFSub->getChildSub(i);
+//            v.setValue<SecondSubject*>(ssub);
+//            ui->cmbSsub->addItem(ssub->getName(),v);
+//        }
     }
     else
         ui->cmbSsub->addItem(tr("所有"));

@@ -291,6 +291,8 @@ private slots:
 
     void on_actDelAcc_triggered();
 
+    void on_actImpPzSet_triggered();
+
 private:
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);

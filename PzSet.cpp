@@ -53,6 +53,7 @@ bool AccountSuiteManager::open(int m)
     if(isPzSetOpened())    //同时只能打开一个凭证集用以编辑
         closePzSet();    
     if(!pzSetHash.contains(m)){
+        //pzSetHash[m] = QList<PingZheng*>();
         if(!dbUtil->loadPzSet(suiteRecord->year,m,pzSetHash[m],this))
             return false;
         if(!dbUtil->getPzsState(suiteRecord->year,m,states[m]))
@@ -182,6 +183,22 @@ int AccountSuiteManager::newPzSet()
     suiteRecord->endMonth++;
     account->saveSuite(suiteRecord);
     return suiteRecord->endMonth;
+}
+
+/**
+ * @brief AccountSuiteManager::clearPzSetCaches
+ */
+void AccountSuiteManager::clearPzSetCaches()
+{
+    if(isPzSetOpened())
+        closePzSet();
+    QHashIterator<int,QList<PingZheng*> > it(pzSetHash);
+    while(it.hasNext()){
+        it.next();
+        qDeleteAll(it.value());
+        pzSetHash[it.key()].clear();
+        pzSetHash.remove(it.key());
+    }
 }
 
 /**
@@ -399,10 +416,12 @@ bool AccountSuiteManager::contains(int pid, int y, int m)
  */
 PingZheng *AccountSuiteManager::readPz(int pid, bool& in)
 {
-    foreach(PingZheng* pz, *pzs){
-        if(pz->id() == pid){
-            in = true;
-            return pz;
+    if(pzs){
+        foreach(PingZheng* pz, *pzs){
+            if(pz->id() == pid){
+                in = true;
+                return pz;
+            }
         }
     }
 

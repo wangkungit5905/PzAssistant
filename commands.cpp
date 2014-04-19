@@ -793,8 +793,8 @@ void ModifyBaDelCmd::redo()
 }
 
 /////////////////////////////////////CrtSndSubUseNICmd//////////////////////////////////
-CrtSndSubUseNICmd::CrtSndSubUseNICmd(SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, QUndoCommand *parent)
-    :QUndoCommand(parent),subMgr(subMgr),fsub(fsub),ni(ni)
+CrtSndSubUseNICmd::CrtSndSubUseNICmd(SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, int weight, QDateTime crtTime, User* user, QUndoCommand *parent)
+    :QUndoCommand(parent),subMgr(subMgr),fsub(fsub),ni(ni),weight(weight),createTime(crtTime),creator(user)
 {
     setText(QObject::tr("创建二级科目“%1”（NF-%2）")
             .arg(ni?ni->getShortName():"").arg(fsub?fsub->getName():""));
@@ -817,13 +817,13 @@ void CrtSndSubUseNICmd::redo()
 }
 
 /////////////////////////////ModifyBaSndSubNMMmd//////////////////////////
-ModifyBaSndSubNMMmd::ModifyBaSndSubNMMmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, QUndoCommand *parent)
-    :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),ni(ni),ssub(0)
+ModifyBaSndSubNMMmd::ModifyBaSndSubNMMmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, SubjectNameItem *ni, int weight, QDateTime crtTime, User* user, QUndoCommand *parent)
+    :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),ni(ni),ssub(0),weight(weight),createTime(crtTime),creator(user)
 {
     //注意：这里的“S”表示用已有的名称条目创建的二级科目
     setText(QObject::tr("设置二级科目为“%1”（P%2B%3-S）").arg(ni->getShortName()
                        .arg(pz->number()).arg(ba->getNumber())));
-    CrtSndSubUseNICmd* cmd1 = new CrtSndSubUseNICmd(subMgr,fsub,ni,this);
+    CrtSndSubUseNICmd* cmd1 = new CrtSndSubUseNICmd(subMgr,fsub,ni,weight,crtTime,user,this);
     ModifyBaSSubCmd* cmd2 = new ModifyBaSSubCmd(pm,pz,ba,ssub,this);
 }
 
@@ -857,8 +857,8 @@ void ModifyBaSndSubNMMmd::redo()
 
 
 //////////////////////////////CrtNameItemCmd/////////////////////////
-CrtNameItemCmd::CrtNameItemCmd(QString sname, QString lname, QString remCode, int nameCls, SubjectManager *subMgr, QUndoCommand *parent)
-    :QUndoCommand(parent),sname(sname),lname(lname),remCode(remCode),nameCls(nameCls),subMgr(subMgr)
+CrtNameItemCmd::CrtNameItemCmd(QString sname, QString lname, QString remCode, int nameCls, QDateTime crtTime, User* user, SubjectManager *subMgr, QUndoCommand *parent)
+    :QUndoCommand(parent),sname(sname),lname(lname),remCode(remCode),nameCls(nameCls),subMgr(subMgr),createTime(crtTime),creator(user)
 {
     setText(QObject::tr("创建名称条目“%1”").arg(sname));
 }
@@ -872,19 +872,19 @@ void CrtNameItemCmd::redo()
 {
     ni = subMgr->restoreNI(sname,lname,remCode,nameCls);
     if(!ni)
-        ni = subMgr->addNameItem(sname,lname,remCode,nameCls);
+        ni = subMgr->addNameItem(sname,lname,remCode,nameCls,createTime,creator);
 
 }
 
 ///////////////////////////////ModifyBaSndSubNSMmd////////////////////////
-ModifyBaSndSubNSMmd::ModifyBaSndSubNSMmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, QString sname, QString lname, QString remCode, int nameCls, QUndoCommand *parent)
-    :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),sname(sname),lname(lname),remCode(remCode),nameCls(nameCls),ni(0),ssub(0)
+ModifyBaSndSubNSMmd::ModifyBaSndSubNSMmd(AccountSuiteManager *pm, PingZheng *pz, BusiAction *ba, SubjectManager *subMgr, FirstSubject *fsub, QString sname, QString lname, QString remCode, int nameCls, QDateTime crtTime, User* user, QUndoCommand *parent)
+    :QUndoCommand(parent),pm(pm),pz(pz),ba(ba),subMgr(subMgr),fsub(fsub),sname(sname),lname(lname),remCode(remCode),nameCls(nameCls),ni(0),ssub(0),createTime(crtTime),creator(user)
 {
     //注意：这里的“SN”表示用新建的名称条目在一级科目下创建的二级科目
     setText(QObject::tr("设置二级科目为“%1”（P%2B%3-SN）").arg(sname).arg(pz->number())
             .arg(ba->getNumber()));
-    CrtNameItemCmd* cmd1 = new CrtNameItemCmd(sname,lname,remCode,nameCls,subMgr,this);
-    CrtSndSubUseNICmd* cmd2 = new CrtSndSubUseNICmd(subMgr,fsub,ni,this);
+    CrtNameItemCmd* cmd1 = new CrtNameItemCmd(sname,lname,remCode,nameCls,createTime,creator,subMgr,this);
+    CrtSndSubUseNICmd* cmd2 = new CrtSndSubUseNICmd(subMgr,fsub,ni,1,crtTime,user,this);
     ModifyBaSSubCmd* cmd3 = new ModifyBaSSubCmd(pm,pz,ba,ssub,this);
 }
 

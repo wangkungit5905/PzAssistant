@@ -35,9 +35,11 @@ enum ClipboardOperate{
 
 //智能提示列表框项目的排序模式
 enum SortByMode{
-    SM_NAME   = 1,     //按名称字符
-    SM_CODE   = 2,     //按科目代码
-    SM_REMCODE = 3      //按助记符
+    SORTMODE_NONE       = 0,     //自然顺序（通常是记录的id或随机顺序）
+    SORTMODE_NAME       = 1,     //按名称字符
+    SORTMODE_CODE       = 2,     //按科目代码
+    SORTMODE_REMCODE    = 3,     //按助记符
+    SORTMODE_CRT_TIME   = 4      //创建时间
 };
 
 //应用错误级别名称

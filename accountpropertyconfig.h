@@ -220,6 +220,7 @@ private slots:
     void fsubDBClicked(QListWidgetItem* item);
     void curFSubChanged(int row);
     void curSSubChanged(int row);
+    void SelectedSSubChanged();
     void ssubDBClicked(QListWidgetItem* item);
     void defSubCfgChanged(bool checked);
     //名称条目配置相关
@@ -227,6 +228,7 @@ private slots:
     void currentNiClsRowChanged(int curRow);
     void niClsDoubleClicked(QListWidgetItem * item);
     void currentNiRowChanged(int curRow);
+    void selectedNIChanged();
     void niDoubleClicked(QListWidgetItem * item);
     void loadNameItems();
     void on_btnNiEdit_clicked();
@@ -259,16 +261,27 @@ private slots:
 
     void on_btnSSubAdd_clicked();
 
+    void on_btnInspectNameConflit_clicked();
+
+    void on_btnNIMerge_clicked();
+
+    void on_rdoSortbyName_toggled(bool checked);
+
+    void on_btnSSubMerge_clicked();
+
+    void on_btnInspectDup_clicked();
+
 private:
-    //void subJoinConfig(int sCode, int dCode);
+
+    bool mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem*> nameItems);
+    bool mergeSndSubject(QList<SecondSubject*> subjects, int &preSubIndex);
     bool notCommitWarning();
-    //bool testCommited();
     void init_subsys();
     void init_NameItems();
     void init_subs();
 
     void loadFSub(int subSys);
-    void loadSSub();
+    void loadSSub(SortByMode sortBy = SORTMODE_NAME);
 
     void viewFSub();
     void viewSSub();
@@ -304,6 +317,8 @@ private:
     SecondSubject* curSSub;
     SubjectNameItem* curNI;            //当前选中的名称条目
     int curNiCls;                      //当前选中的名称条目类别
+
+    QBrush color_enabledSub,color_disabledSub;//启用和禁用科目的颜色
 };
 
 /**

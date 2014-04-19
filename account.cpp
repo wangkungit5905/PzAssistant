@@ -573,7 +573,7 @@ void Account::setSuiteName(int y, QString name)
     }
 }
 
-//考虑移除（制作打开凭证集对话框类和老的账户属性配置中被使用）
+//考虑移除（只作为打开凭证集对话框类和老的账户属性配置中被使用）
 QList<int> Account::getSuiteYears()
 {
     QList<int> ys;
@@ -1137,6 +1137,8 @@ bool Account::isConvertExtra(int year)
 /**
  * @brief Account::convertExtra
  *  用指定的科目映射表转换余额
+ *  在执行过科目合并后，可能存在这样一种情况：即被合并科目在转换前如果存在余额，在合并后，要考虑将这些
+ *  转换前的合并科目汇总到一个保留科目上（不能简单地替换，这样会导致余额覆盖）
  * @param sums  余额
  * @param maps  科目映射表
  * @return
@@ -1152,14 +1154,43 @@ bool Account::convertExtra(QHash<int, Double> &sums, QHash<int,MoneyDirection>& 
         v = it.value();
         d = dirs.value(it.key());
         id = it.key()/10;
-        mt = it.key()%10;        
+        mt = it.key()%10;
+//        if(id == 361 || id == 363 || id == 369 || id == 446){
+//            int mapId = maps.value(id);
+//            int i = 0;
+//        }
         if(!maps.contains(id))
             return false;
         key = maps.value(id) * 10 + mt;
         sums.remove(it.key());
         dirs.remove(it.key());
-        sums[key] = v;
-        dirs[key] = d;
+        if(!sums.contains(key)){
+            sums[key] = v;
+            dirs[key] = d;
+        }
+        else{
+            if(dirs.value(key) == d)
+                sums[key] += v;
+            else{
+                Double v1 = sums.value(key);
+                v.changeSign();
+                v1 += v;
+                if(v1==0){
+                    sums.remove(key);
+                    dirs.remove(key);
+                }
+                else if(v1 > 0){
+                    sums[key] = v1;
+                    dirs[key] = MDIR_J;
+                }
+                else{
+                    v1.changeSign();
+                    sums[key] = v1;
+                    dirs[key] = MDIR_D;
+                }
+            }
+        }
+
     }
     return true;
 }

@@ -41,6 +41,26 @@ void SuiteSwitchPanel::setJzState(AccountSuiteManager *sm, int month, bool jzed)
     }
 }
 
+/**
+ * @brief 切换到指定年份的帐套
+ * @param y
+ */
+void SuiteSwitchPanel::switchToSuite(int y)
+{
+    int suiteId = ui->lstSuite->currentItem()->data(ROLE_CUR_SUITE).toInt();
+    if(!suiteRecords.contains(suiteId))
+        return;
+    if(suiteRecords.value(suiteId)->year == y)
+        return;
+    for(int i = 0; i < ui->lstSuite->count(); ++i){
+        suiteId = ui->lstSuite->item(i)->data(ROLE_CUR_SUITE).toInt();
+        if(y == suiteRecords.value(suiteId)->year){
+            ui->lstSuite->setCurrentRow(i);
+            return;
+        }
+    }
+}
+
 void SuiteSwitchPanel::curSuiteChanged(QListWidgetItem *current, QListWidgetItem *previous)
 {
     AccountSuiteManager* preSuite=NULL;

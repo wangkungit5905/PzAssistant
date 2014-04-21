@@ -211,9 +211,9 @@ OTHER_FILES += \
     bugs.txt \
     修改日志.txt
 
-#win32{
-#    RC_FILE = exeico.rc
-#}
+win32{
+    RC_FILE = exeico.rc
+}
 
 
 

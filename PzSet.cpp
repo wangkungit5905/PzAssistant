@@ -17,8 +17,6 @@ AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *accoun
     undoStack->setUndoLimit(MAXUNDOSTACK);
     statUtil = NULL;
     c_recording=0;c_verify=0;c_instat=0;c_repeal=0;
-    //isReStat = false;
-    //isReSave = false;
     maxPzNum = 0;
     maxZbNum = 0;
     curPz=NULL;
@@ -53,7 +51,6 @@ bool AccountSuiteManager::open(int m)
     if(isPzSetOpened())    //同时只能打开一个凭证集用以编辑
         closePzSet();    
     if(!pzSetHash.contains(m)){
-        //pzSetHash[m] = QList<PingZheng*>();
         if(!dbUtil->loadPzSet(suiteRecord->year,m,pzSetHash[m],this))
             return false;
         if(!dbUtil->getPzsState(suiteRecord->year,m,states[m]))
@@ -103,7 +100,6 @@ bool AccountSuiteManager::open(int m)
  */
 bool AccountSuiteManager::isPzSetOpened()
 {
-    //return (curY!=0 && curM!=0);
     return curM != 0;
 }
 
@@ -200,16 +196,6 @@ void AccountSuiteManager::clearPzSetCaches()
         pzSetHash.remove(it.key());
     }
 }
-
-/**
- * @brief PzSetMgr::getStatObj
- *  获取当前打开凭证集的本期统计对象的引用
- * @return
- */
-//StatUtil &AccountSuiteManager::getStatObj()
-//{
-//    return *statUtil;
-//}
 
 //获取凭证总数（也即已用的最大凭证号）
 int AccountSuiteManager::getPzCount()
@@ -657,49 +643,49 @@ bool AccountSuiteManager::inspectPzError(QList<PingZhengError*>& errors)
 }
 
 //保存当期余额
-bool AccountSuiteManager::AccountSuiteManager::saveExtra()
-{
-    if(!isPzSetOpened())
-        return false;
-    if(getExtraState())
-        return true;
-    if(!statUtil->save())
-        return false;
-    //setExtraState(true);
-    //if(!dbUtil->setExtraState(curY,curM,true))
-    //    return false;
-    return true;
-}
+//bool AccountSuiteManager::AccountSuiteManager::saveExtra()
+//{
+//    if(!isPzSetOpened())
+//        return false;
+//    if(getExtraState())
+//        return true;
+//    if(!statUtil->save())
+//        return false;
+//    //setExtraState(true);
+//    //if(!dbUtil->setExtraState(curY,curM,true))
+//    //    return false;
+//    return true;
+//}
 
 //读取当期余额（读取的是最近一次保存到余额表中的数据）
-bool AccountSuiteManager::readExtra()
-{
-    endExtra.clear();
-    endDetExtra.clear();
-    endDir.clear();
-    endDetDir.clear();
+//bool AccountSuiteManager::readExtra()
+//{
+//    endExtra.clear();
+//    endDetExtra.clear();
+//    endDir.clear();
+//    endDetDir.clear();
 
-    //if(!BusiUtil::readExtraByMonth(y,m,endExtra,endDir,endDetExtra,endDetDir))
-    //    return false;
+//    //if(!BusiUtil::readExtraByMonth(y,m,endExtra,endDir,endDetExtra,endDetDir))
+//    //    return false;
 
-}
+//}
 
 //读取期初（前期）余额
-bool AccountSuiteManager::readPreExtra()
-{
-    preExtra.clear();
-    preDetExtra.clear();
-    int yy,mm;
-    if(curM == 1){
-        yy = suiteRecord->year - 1;
-        mm = 12;
-    }
-    else{
-        yy = suiteRecord->year;
-        mm = curM - 1;
-    }
-    return dbUtil->readExtraForPm(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
-}
+//bool AccountSuiteManager::readPreExtra()
+//{
+//    preExtra.clear();
+//    preDetExtra.clear();
+//    int yy,mm;
+//    if(curM == 1){
+//        yy = suiteRecord->year - 1;
+//        mm = 12;
+//    }
+//    else{
+//        yy = suiteRecord->year;
+//        mm = curM - 1;
+//    }
+//    return dbUtil->readExtraForPm(yy,mm,preExtra,preDir,preDetExtra,preDetDir);
+//}
 
 /**
  * @brief PzSetMgr::getRates
@@ -1106,12 +1092,14 @@ bool AccountSuiteManager::insert(int index, PingZheng *pz)
  */
 void AccountSuiteManager::watchPz(PingZheng *pz, bool en)
 {
+    bool isRuntimeUpdateExtra;
+    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_RuntimeUpdateExtra,isRuntimeUpdateExtra);
     if(en){
         connect(pz,SIGNAL(mustRestat()),this,SLOT(needRestat()));
         connect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
         connect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
 
-        if(rt_update_extra){
+        if(isRuntimeUpdateExtra){
             connect(pz,SIGNAL(addOrDelBa(BusiAction*,bool)),statUtil,SLOT(addOrDelBa(BusiAction*,bool)));
             //connect(pz,SIGNAL(dirChangedOnBa(BusiAction*,MoneyDirection)),statUtil,SLOT(dirChangedOnBa(BusiAction*,MoneyDirection)));
             //connect(pz,SIGNAL(mtChangedOnBa(BusiAction*,Money*)),statUtil,SLOT(mtChangedOnBa(BusiAction*,Money*)));
@@ -1126,7 +1114,7 @@ void AccountSuiteManager::watchPz(PingZheng *pz, bool en)
         disconnect(pz,SIGNAL(pzContentChanged(PingZheng*)),this,SLOT(pzChangedInSet(PingZheng*)));
         disconnect(pz,SIGNAL(pzStateChanged(PzState,PzState)),this,SLOT(pzStateChanged(PzState,PzState)));
 
-        if(rt_update_extra){
+        if(isRuntimeUpdateExtra){
             disconnect(pz,SIGNAL(addOrDelBa(BusiAction*,bool)),statUtil,SLOT(addOrDelBa(BusiAction*,bool)));
             //disconnect(pz,SIGNAL(dirChangedOnBa(BusiAction*,MoneyDirection)),statUtil,SLOT(dirChangedOnBa(BusiAction*,MoneyDirection)));
             //disconnect(pz,SIGNAL(mtChangedOnBa(BusiAction*,Money*)),statUtil,SLOT(mtChangedOnBa(BusiAction*,Money*)));

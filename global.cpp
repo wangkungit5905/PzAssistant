@@ -20,7 +20,7 @@ int screenWidth;
 int screenHeight;
 
 User* curUser = NULL;
-int recentUserId = 1;
+//int recentUserId = 1;
 
 QSqlDatabase adb;
 QSqlDatabase bdb;
@@ -48,24 +48,16 @@ QHash<PzsState,QString> pzsStates;
 QHash<PzsState,QString> pzsStateDescs;
 QHash<PzClass,QString> pzClasses;
 
-int subCashId = 0;
+//int subCashId = 0;
 int subBankId = 0;
 int subYsId = 0;
 int subYfId = 0;
-int subCashRmbId = 0;
+//int subCashRmbId = 0;
 
-bool isByMt;
-bool isCollapseJz;
-int  autoSaveInterval;
-bool jzlrByYear;
-int  timeoutOfTemInfo = 10000;
-bool viewHideColInDailyAcc1;
-bool viewHideColInDailyAcc2;
+
 ClipboardOperate copyOrCut;
 QList<BusiActionData2*> clbBaList;
 QList<BusiAction*> clb_Bas;
-double czRate;
-bool rt_update_extra;
 
 /**
  * @brief appInit
@@ -129,7 +121,7 @@ int appInit()
 
     bdb = appCfg->getBaseDbConnect();
     initSecurity();    
-    appCfg->initGlobalVar();
+    //appCfg->initGlobalVar();
 
     appCfg->readPzSetStates(pzsStates,pzsStateDescs);
     appCfg->readPingzhenClass(pzClasses);

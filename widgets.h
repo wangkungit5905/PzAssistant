@@ -243,7 +243,7 @@ class SubjectComplete  : public QCompleter
 {
     Q_OBJECT
 public:
-    SubjectComplete(SujectLevel witch = FstSubject, QObject *parent = 0);
+    SubjectComplete(int subSys, SujectLevel witch = FstSubject, QObject *parent = 0);
     ~SubjectComplete();
     void setPid(int pid);
 
@@ -265,6 +265,7 @@ private:
     QString keyBuf;     //键入字符缓存
     QString filter;     //过滤子句（针对FirSubjects表）
     DbUtil* dbUtil;
+    int subSys;
 };
 
 //支持二行表格标题行的表格类（通常是第一行的某些列需要跨越多个原始的表格列）

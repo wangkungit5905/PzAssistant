@@ -1997,11 +1997,12 @@ ShowTZDialog::ShowTZDialog(int y, int m, QByteArray* sinfo, QWidget *parent) : Q
     hv = NULL;
 
     //初始化一级科目组合框
-    q.exec(QString("select id,%1 from %2 where %3=1")
-           .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_isview));
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(DEFAULT_SUBSYS_CODE);
+    q.exec(QString("select %1,%2 from %3 where %4=1").arg(fld_fsub_fid)
+           .arg(fld_fsub_name).arg(tname).arg(fld_fsub_isEnalbed));
     while(q.next())
         ui->cmbSub->addItem(q.value(1).toString(),q.value(0).toInt());
-    fcom = new SubjectComplete;
+    fcom = new SubjectComplete(DEFAULT_SUBSYS_CODE);
     ui->cmbSub->setCompleter(fcom);
 
     //初始化开始和结束月份

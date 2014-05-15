@@ -69,24 +69,9 @@ public:
     int instatAll(User* user);
     bool inspectPzError(QList<PingZhengError *> &errors);
 
-    //这些保存或读取指定年月余额的方法，内部会自动处理由于科目系统的变更而自动替换正确的科目id
-//    bool readExtraPmForYM(int y,int m, QHash<int,Double>& fsums,
-//                                         QHash<int,MoneyDirection>& fdirs,
-//                                         QHash<int,Double>& ssums,
-//                                         QHash<int,MoneyDirection>& sdirs);
-//    bool readExtraMmForYM(int y,int m, QHash<int,Double>& fsums,
-//                                     QHash<int,Double>& ssums);
-//    bool saveExtraPmForYM(int y, int m, const QHash<int, Double>& fsums,
-//                                      const QHash<int, MoneyDirection>& fdirs,
-//                                      const QHash<int, Double>& ssums,
-//                                      const QHash<int, MoneyDirection>& sdirs);
-//    bool saveExtraMmForYM(int y, int m, const QHash<int, Double>& fsums,
-//                                      const QHash<int, Double>& ssums);
-    bool _replaceSubId();
-
-    bool saveExtra();
-    bool readExtra();
-    bool readPreExtra();
+    //bool saveExtra();
+    //bool readExtra();
+    //bool readPreExtra();
     bool getRates(QHash<int, Double> &rates, int m=0);
     bool setRates(QHash<int,Double> rates, int m=0);
 
@@ -147,7 +132,6 @@ public:
     static bool find(int y, int sm, int em);
 
     QList<PingZheng *> getHistoryPzSet(int m);
-    //const int *getMMM();
 
 
 private slots:
@@ -170,7 +154,6 @@ private:
     void _determineCurPzChanged(PingZheng* oldPz);
     bool _inspectDirEngageError(FirstSubject* fsud, MoneyDirection dir, PzClass pzc, QString& eStr);
 
-    //int genKey(int y, int m);
     void pzsNotOpenWarning();
 
 private:
@@ -181,8 +164,6 @@ private:
     QHash<int,Double> curHpJ,curHpD;        //当期借方和贷方发生额
     QHash<int,Double> endExtra,endDetExtra; //期末主目和子目余额
     QHash<int,MoneyDirection>    endDir,endDetDir;     //期末主目和子目余额方向
-    //bool isReStat;                          //是否需要重新进行统计标志
-    //bool isReSave;                          //是否需要保存余额
 
 
     QHash<int,QList<PingZheng*> > pzSetHash;  //保存所有已经装载的凭证集（键为月份）
@@ -196,7 +177,6 @@ private:
     int curM;                     //当前以编辑方式打开的凭证集所属月份
     PingZheng* curPz;             //当前显示在凭证编辑窗口内的凭证对象
     int curIndex;                 //当前凭证索引
-    //PzsState state;                         //凭证集状态
     int maxPzNum;                           //最大可用凭证号
     int maxZbNum;                           //最大可用自编号
     int c_recording,c_verify,c_instat,c_repeal;      //录入态、审核态、入账态和作废的凭证数

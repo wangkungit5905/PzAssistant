@@ -381,10 +381,11 @@ void ApcSuite::on_btnCommit_clicked()
 }
 
 /**
- * @brief 升级科目系统
+ * @brief 升级帐套所采用的科目系统
  */
 void ApcSuite::on_btnUpgrade_clicked()
 {
+    QMessageBox::warning(this,"",tr("实现要做调整，暂不支持！"));
     if(QMessageBox::No == QMessageBox::information(this,tr("提示信息"),
                                                    tr("确定要升级科目系统吗？\n升级后将无法逆转！"),
                                                    QMessageBox::Yes|QMessageBox::No))
@@ -420,42 +421,57 @@ void ApcSuite::on_btnUpgrade_clicked()
 
     int sc = as->subSys;
     int dc = items.at(index)->code;
+
+//    if(!account->getSubSysJoinMaps(sc,dc,fMaps,sMaps)){
+//        QMessageBox::critical(this,tr("错误提示"),tr("在升级科目系统前，获取科目映射条目时出错"));
+//        return;
+//    }
+    QList<MixedJoinCfg*> cfgs;
+    if(!account->getDbUtil()->getMixJoinInfo(sc,dc,cfgs)){
+        QMessageBox::critical(this,tr("错误提示"),tr("在升级科目系统前，获取混合科目对接条目时出错"));
+    }
     QHash<int,int> fMaps,sMaps;
-    if(!account->getSubSysJoinMaps(sc,dc,fMaps,sMaps)){
-        QMessageBox::critical(this,tr("错误提示"),tr("在升级科目系统前，获取科目映射条目时出错"));
-        return;
+    int fid = 0;
+    foreach(MixedJoinCfg* item, cfgs){
+        if(fid != item->s_fsubId){
+            fid = item->s_fsubId;
+            fMaps[fid] = item->d_fsubId;
+        }
+        sMaps[item->s_ssubId] = item->d_ssubId;
     }
 
-    QStringList errors;
-    errors.append(tr("开始转换余额"));
-    if(!account->getDbUtil()->convertExtraInYear(as->year,fMaps,sMaps,errors)){
-        QMessageBox::critical(this,tr("错误提示"),tr("在转换帐套（%1年）内的余额表项时出错").arg(as->year));
+    if(!account->getDbUtil()->convertExtraInYear(as->year,fMaps)){
+        QMessageBox::critical(this,tr("错误提示"),tr("在转换帐套（%1年）内的一级科目余额表项时出错").arg(as->year));
         return;
     }
-    errors.append(tr("开始转换会计分录"));
-    if(!account->getDbUtil()->convertPzInYear(as->year,fMaps,sMaps,errors)){
+    if(!account->getDbUtil()->convertExtraInYear(as->year,sMaps,false)){
+        QMessageBox::critical(this,tr("错误提示"),tr("在转换帐套（%1年）内的二级科目余额表项时出错").arg(as->year));
+        return;
+    }
+    if(!account->getDbUtil()->convertPzInYear(as->year,fMaps,sMaps)){
         QMessageBox::critical(this,tr("错误提示"),tr("在转换帐套（%1年）内的会计分录时出错").arg(as->year));
         return;
     }
+
     as->subSys = dc;
     if(!account->saveSuite(as))
         QMessageBox::critical(this,tr("错误提示"),tr("在保存升级后的帐套时发生错误"));
     ui->lblSubSys->setText(subSystems.value(dc)->name);
     ui->btnUpgrade->setEnabled(false);
 
-    if(errors.count() > 2){
-        QFile logFile(LOGS_PATH + "subSysUpgrade.log");
-        if(!logFile.open(QIODevice::WriteOnly)){
-            QMessageBox::critical(this,tr("错误提示"),tr("无法将升级日志写入到日志文件"));
-            return;
-        }
-        QTextStream ds(&logFile);
-        foreach (QString s, errors){
-            ds<<s<<"\n";
-        }
-        ds.flush();
-        QMessageBox::warning(this,tr("警告信息"),tr("在转换当前帐套内的余额项或会计分录时，遇到系统无法处理的条目，具体请查看升级日志文件"));
-    }
+//    if(errors.count() > 2){
+//        QFile logFile(LOGS_PATH + "subSysUpgrade.log");
+//        if(!logFile.open(QIODevice::WriteOnly)){
+//            QMessageBox::critical(this,tr("错误提示"),tr("无法将升级日志写入到日志文件"));
+//            return;
+//        }
+//        QTextStream ds(&logFile);
+//        foreach (QString s, errors){
+//            ds<<s<<"\n";
+//        }
+//        ds.flush();
+//        QMessageBox::warning(this,tr("警告信息"),tr("在转换当前帐套内的余额项或会计分录时，遇到系统无法处理的条目，具体请查看升级日志文件"));
+//    }
 }
 
 void ApcSuite::enWidget(bool en)
@@ -1096,10 +1112,7 @@ void ApcSubject::importBtnClicked()
             continue;
         if(btn == w){
             int subSys = subSysNames.at(i)->code;
-            //QString fname = QFileDialog::getOpenFileName(this,tr("打开文件"),"./datas/basicdatas/","Sqlite (*.dat)");
-            //if(fname.isEmpty())
-            //    return;
-            if(!account->importNewSubSys(subSys/*,fname*/)){
+            if(!account->importNewSubSys(subSys)){
                 QMessageBox::critical(this,tr("出错信息"),tr("在导入新科目系统到当前账户时发生错误"));
                 return;
             }
@@ -1111,7 +1124,7 @@ void ApcSubject::importBtnClicked()
 }
 
 /**
- * @brief 科目系统表的配置按钮被单击
+ * @brief 科目系统表的配置按钮被单击（好像已经不需要配置了，这个方法可以废弃）
  */
 void ApcSubject::subSysCfgBtnClicked()
 {
@@ -1122,11 +1135,8 @@ void ApcSubject::subSysCfgBtnClicked()
             continue;
         if(btn == w){
             SubSysJoinCfgForm* form = new SubSysJoinCfgForm(subSysNames.at(i-1)->code,subSysNames.at(i)->code,account);
-            if(form->exec() == QDialog::Accepted){
+            if(form->exec() == QDialog::Accepted)
                 form->save();
-                ui->tv_subsys->setCellWidget(i,4,NULL);
-                ui->tv_subsys->setItem(i,4,new QTableWidgetItem(tr("配置完成")));
-            }
             return;
         }
     }
@@ -1368,27 +1378,16 @@ void ApcSubject::init_subsys()
         }
         else{
             QPushButton* btn = new QPushButton(tr("导入"),this);
-            ui->tv_subsys->setCellWidget(i,3,btn);
-            if(!account->isReadOnly())
+            ui->tv_subsys->setCellWidget(i,3,btn);            
+            if(!account->isReadOnly() && account->isSubSysConfiged(si->code))
                 connect(btn,SIGNAL(clicked()),this,SLOT(importBtnClicked()));
             else
                 btn->setEnabled(false);
         }
-
         if(i > 0){
-            if(si->isConfiged){
-                item = new QTableWidgetItem(tr("配置完成"));
-                ui->tv_subsys->setItem(i,4,item);
-            }
-            else{
-                QPushButton* btn = new QPushButton(tr("配置"),this);
-                ui->tv_subsys->setCellWidget(i,4,btn);
-                if(!account->isReadOnly())
-                    connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
-                else
-                    btn->setEnabled(false);
-            }
-
+            QPushButton* btn = new QPushButton(tr("查看对接配置"),this);
+            ui->tv_subsys->setCellWidget(i,4,btn);
+            connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
         }
     }
     iniTag_subsys = true;
@@ -2254,6 +2253,9 @@ void ApcSubject::on_rdoSortbyName_toggled(bool checked)
  */
 void ApcSubject::on_btnSSubMerge_clicked()
 {
+    QMessageBox::warning(this,"",tr("科目合并功能实现还欠考虑，待完善后执行！"));
+    return;
+
     QList<QListWidgetItem*> items = ui->lwSSub->selectedItems();
     if(items.count() < 2)
         return;
@@ -2352,6 +2354,8 @@ bool ApcSubject::mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem *> 
  */
 bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubIndex)
 {
+
+
     if(subjects.count() < 2)
         return true;
     //1、确定保留的二级科目，应提示用户选择，默认选择id最小的
@@ -2483,11 +2487,10 @@ bool ApcSubject::notCommitWarning()
 
 //////////////////////////SubSysJoinCfgForm////////////////////////////////////////
 SubSysJoinCfgForm::SubSysJoinCfgForm(int src, int des, Account* account, QWidget *parent)
-    :QDialog(parent),ui(new Ui::SubSysJoinCfgForm),account(account)
+    :QDialog(parent),ui(new Ui::SubSysJoinCfgForm),account(account),subSys(des)
 {
     ui->setupUi(this);
     sSmg = account->getSubjectManager(src);
-    dSmg = account->getSubjectManager(des);
     init();
 }
 
@@ -2503,150 +2506,94 @@ SubSysJoinCfgForm::~SubSysJoinCfgForm()
 bool SubSysJoinCfgForm::save()
 {
     //如果用户已经完成配置，则请求用户确定是否终结配置，并进行二级科目的对应克隆
-    if(!isCompleted && determineAllComplete()){
-        QDialog* dlg = new QDialog;
-        QLabel* title = new QLabel(tr("如果确定所有科目都已配置完成，则单击终结配置按钮！"),dlg);
-        QCheckBox* chk1 = new QCheckBox(tr("克隆二级科目"),dlg);
-        chk1->setEnabled(false);
-        chk1->setChecked(true);
-        QVBoxLayout* lm = new QVBoxLayout;
-        lm->addWidget(title);
-        lm->addWidget(chk1);
-        QPushButton* btnOk = new QPushButton(tr("终结配置"),dlg);
-        QPushButton* btnCancel = new QPushButton(tr("稍后配置"),dlg);
-        connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
-        connect(btnCancel,SIGNAL(clicked()),dlg,SLOT(reject()));
-        QHBoxLayout* lb = new QHBoxLayout;
-        lb->addStretch();
-        lb->addWidget(btnOk);
-        lb->addWidget(btnCancel);
-        lm->addLayout(lb);
-        dlg->setLayout(lm);
-        if(dlg->exec() == QDialog::Accepted){
-            cloneSndSubject();
-            account->setCompleteSubSysCfg(sSmg->getSubSysCode(),dSmg->getSubSysCode(),true);
+    if(!isCompleted){
+        QList<SubSysJoinItem2*> editedItems;
+        for(int i = 0; i < editTags.count(); ++i){
+            if(!editTags.at(i))
+                continue;
+            editedItems<<ssjs.at(i);
         }
-        delete dlg;
-    }
-
-    QList<SubSysJoinItem*> editedItems;
-    for(int i = 0; i < editTags.count(); ++i){
-        if(!editTags.at(i))
-            continue;
-        editedItems<<ssjs.at(i);
-    }
-    if(!account->saveSubSysJoinCfgInfo(sSmg->getSubSysCode(),dSmg->getSubSysCode(),editedItems))
-        QMessageBox::critical(this,tr("出错信息"),tr("在保存科目系统衔接配置信息时出错！"));
-}
-
-/**
- * @brief 建立或取消映射
- */
-void SubSysJoinCfgForm::mapBtnClicked()
-{
-    //首先定位是哪一行的按钮被单击了
-    for(int i = 0; i < ui->tview->rowCount(); ++i){
-        QPushButton* btn = qobject_cast<QPushButton*>(ui->tview->cellWidget(i,COL_INDEX_SUBJOIN));
-        if(btn == qobject_cast<QPushButton*>(sender())){
-            editTags[i] = true;
-            ssjs.at(i)->isMap = btn->isChecked();
-            if(btn->isChecked())
-                btn->setText("==>");
-            else
-                btn->setText(tr("映射到"));
-            //determineAllComplete();
-            return;
+        if(!account->saveSubSysJoinCfgInfo(sSmg->getSubSysCode(),subSys,editedItems))
+            QMessageBox::critical(this,tr("出错信息"),tr("在保存科目系统衔接配置信息时出错！"));
+        if(determineAllComplete() && (QMessageBox::Yes ==
+                QMessageBox::warning(this,"",
+                                     tr("如果确定所有科目都已正确对接，则单击是"),
+                                     QMessageBox::Yes|QMessageBox::No))){
+            if(!AppConfig::getInstance()->setSubSysMapConfiged(sSmg->getSubSysCode(),subSys))
+                return false;
         }
     }
 }
 
 /**
- * @brief 映射的目标科目的选择改变了
+ * @brief 对接的目标科目改变了
  * @param item
  */
 void SubSysJoinCfgForm::destinationSubChanged(QTableWidgetItem *item)
 {
-    if(item->column() != COL_INDEX_NEWSUBNAME)
-        return;
-    SubSysJoinItem* si = ssjs.at(item->row());
-    if(!si->isMap)
-        ui->tview->cellWidget(item->row(),COL_INDEX_SUBJOIN)->setEnabled(true);
-    FirstSubject* fsub = item->data(Qt::EditRole).value<FirstSubject*>();
-    ui->tview->item(item->row(),COL_INDEX_NEWSUBCODE)->setText(fsub->getCode());
-    si->dFSub = fsub;
-    editTags[item->row()] = true;
+    int col = item->column();
+    if(col == COL_INDEX_NEWSUBNAME){
+        SubSysJoinItem2* si = ssjs.at(item->row());
+        QString code = ui->tview->item(item->row(),COL_INDEX_NEWSUBCODE)->text();
+        if(code != si->dcode){
+            si->dcode = code;
+            editTags[item->row()] = true;
+        }
+    }
+    else if(col == COL_INDEX_SUBJOIN){
+        SubSysJoinItem2* si = ssjs.at(item->row());
+        bool v = item->text() == defJoinStr;
+        if((v && !si->isDef) || (!v && si->isDef)){
+            si->isDef = v;
+            editTags[item->row()] = true;
+        }
+    }
 }
 
 
 void SubSysJoinCfgForm::init()
 {
-    isCompleted = false;
-    //isCloned = false;
+    defJoinStr = "===>";
+    mixedJoinStr = "----->";
     QHash<int,QString> names;
     foreach(SubSysNameItem* item, account->getSupportSubSys())
         names[item->code] = item->name;
     ui->sSubSys->setText(names.value(sSmg->getSubSysCode()));
-    ui->dSubSys->setText(names.value(dSmg->getSubSysCode()));
-
-    if(!account->isCompleteSubSysCfg(sSmg->getSubSysCode(),dSmg->getSubSysCode(),isCompleted)){
-        QMessageBox::critical(this,tr("出错信息"),tr("在读取配置变量时发生错误"));
-        ui->btnOk->setEnabled(false);
-        return;
-    }
-    //ui->chkComplete->setEnabled(!isCompleted);
-    //ui->chkComplete->setChecked(isCompleted);
-    ui->tview->setColumnHidden(0,true);
-    if(!account->getSubSysJoinCfgInfo(sSmg->getSubSysCode(),dSmg->getSubSysCode(),ssjs)){
+    ui->dSubSys->setText(names.value(subSys));
+    if(!account->getSubSysJoinCfgInfo(sSmg->getSubSysCode(),subSys,ssjs)){
         QMessageBox::critical(this,tr("出错信息"),tr("在读取科目系统衔接配置信息时出错！"));
         return;
     }
-    //判断用户是否是第一次执行配置，如果是，则设置预配置科目
-    bool initCfg = true;
-    foreach(SubSysJoinItem* item,ssjs){
-        if(item->dFSub){
-            initCfg = false;
-            break;
-        }
+    if(!AppConfig::getInstance()->getSubCodeToNameHash(subSys,subNames)){
+        QMessageBox::critical(this,tr("出错信息"),tr("在读取对接的科目系统的科目时发生错误！"));
+        return;
     }
     for(int i = 0; i < ssjs.count(); ++i)
-        editTags<<false;
-    if(initCfg)
-        preConfig();
+        editTags<<false;    
     ui->tview->setRowCount(ssjs.count());
-    SubSysJoinItem* item;
+    SubSysJoinItem2* item;
     QTableWidgetItem* ti;
-    QPushButton* btn;
-    //bool allCfgComplete = true;  //是否所有必要的科目都配置完成
+    FirstSubject* fsub;
     for(int i = 0; i < ssjs.count(); ++i){
         item = ssjs.at(i);
-        ti = new QTableWidgetItem(item->sFSub->getCode());
+        ti = new QTableWidgetItem(item->scode);
         ui->tview->setItem(i,COL_INDEX_SUBCODE,ti);
-        ti = new QTableWidgetItem(item->sFSub->getName());
+        fsub = sSmg->getFstSubject(item->scode);
+        ti = new QTableWidgetItem(fsub?fsub->getName():"");
         ui->tview->setItem(i,COL_INDEX_SUBNAME,ti);
-        btn = new QPushButton;
-        btn->setCheckable(true);
-        connect(btn,SIGNAL(clicked()),this,SLOT(mapBtnClicked()));
-        ui->tview->setCellWidget(i,COL_INDEX_SUBJOIN,btn);
-        if(isCompleted/* || !item->dFSub*/){
-            //allCfgComplete = false;
-            btn->setEnabled(false);
-        }
-        if(item->isMap){
-            btn->setChecked(true);
-            btn->setText("==>");
-        }
-        else{
-            btn->setChecked(false);
-            btn->setText(tr("映射到"));
-        }
-        ti = new QTableWidgetItem(item->dFSub?item->dFSub->getCode():"");
+        ti = new QTableWidgetItem(item->isDef?defJoinStr:mixedJoinStr);
+        ti->setData(Qt::TextAlignmentRole,Qt::AlignCenter);
+        ui->tview->setItem(i,COL_INDEX_SUBJOIN,ti);
+        ti = new QTableWidgetItem(item->dcode);
         ui->tview->setItem(i,COL_INDEX_NEWSUBCODE,ti);
-        ti = new BAFstSubItem2(item->dFSub);
+        ti = new QTableWidgetItem(subNames.value(item->dcode));
         ui->tview->setItem(i,COL_INDEX_NEWSUBNAME,ti);
     }
-    //if(!isCompleted)
-    //    ui->chkComplete->setEnabled(!allCfgComplete);
-    SubSysJoinCfgItemDelegate* delegate = new SubSysJoinCfgItemDelegate(dSmg);
+    QStringList slSigns,slDisplays;
+    slSigns<<defJoinStr<<mixedJoinStr;
+    slDisplays<<tr("默认对接")<<tr("混合对接");
+    SubSysJoinCfgItemDelegate* delegate = new SubSysJoinCfgItemDelegate(subNames,slDisplays,slSigns);
+    isCompleted = account->isSubSysConfiged(subSys);
     delegate->setReadOnly(isCompleted);
     ui->tview->setItemDelegate(delegate);
     connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(destinationSubChanged(QTableWidgetItem*)));
@@ -2658,64 +2605,12 @@ void SubSysJoinCfgForm::init()
  */
 bool SubSysJoinCfgForm::determineAllComplete()
 {
-    foreach(SubSysJoinItem* item, ssjs){
-        if(!item->isMap)
+    for(int i = 0; i < ui->tview->rowCount(); ++i){
+        QString code = ui->tview->item(i,COL_INDEX_NEWSUBCODE)->text();
+        if(code.isEmpty())
             return false;
     }
     return true;
-}
-
-/**
- * @brief 将配置项中源一级科目下的二级科目克隆到目的一级科目下
- */
-void SubSysJoinCfgForm::cloneSndSubject()
-{
-    QList<SecondSubject*> ssubs;
-    foreach(SubSysJoinItem* item, ssjs){
-        for(int i = 0; i < item->sFSub->getChildSubs().count(); ++i){
-            SecondSubject* sub = new SecondSubject(*(item->sFSub->getChildSub(i)));
-            sub->setCreateTime(QDateTime::currentDateTime());
-            sub->setCreator(curUser);
-            item->dFSub->addChildSub(sub);
-            ssubs<<sub;
-        }
-    }
-    if(!account->getDbUtil()->saveSndSubjects(ssubs))
-        QMessageBox::critical(this,tr("出错信息"),tr("在将克隆的二级科目保存到账户数据库中时发生错误！"));
-    //建立子目的映射列表
-    int j = 0;
-    foreach(SubSysJoinItem* item, ssjs){
-        for(int i = 0; i < item->sFSub->getChildSubs().count(); ++i){
-            item->ssubMaps<<item->sFSub->getChildSub(i)->getId()
-                          <<item->dFSub->getChildSub(i)->getId();
-        }
-        editTags[j++] = true;
-    }
-
-}
-
-/**
- * @brief 为了加快用户的配置速度，预先配置好一些已知科目系统迁徙的科目衔接
- *  当前的实现仅支持在从科目系统1到科目系统2的迁徙时，做出一些预先配置
- */
-void SubSysJoinCfgForm::preConfig()
-{
-    if((sSmg->getSubSysCode()==1) && (dSmg->getSubSysCode()==2)){
-        QStringList sCodes,dCodes;
-        sCodes<<"1001"<<"1002"<<"1131"<<"1133"<<"1151"<<"1301"<<"1501"<<"1502"<<"1801"<<"2121"<<"2131"<<"2151"<<"2171"<<"2176"<<"2181"<<"3101"<<"3131"<<"3141"<<"5101"<<"5301"<<"5401"<<"5402"<<"5501"<<"5502"<<"5503"<<"5601"<<"5701";
-        dCodes<<"1001"<<"1002"<<"1122"<<"1221"<<"1123"<<"1123"<<"1601"<<"1602"<<"1701"<<"2202"<<"2203"<<"2211"<<"2221"<<"2241"<<"2241"<<"4001"<<"4103"<<"4104"<<"6001"<<"6301"<<"6401"<<"6403"<<"6601"<<"6602"<<"6603"<<"6711"<<"6801";
-        QHash<int,FirstSubject*> subMaps;
-        for(int i = 0; i < sCodes.count(); ++i)
-            subMaps[sSmg->getFstSubject(sCodes.at(i))->getId()] = dSmg->getFstSubject(dCodes.at(i));
-
-        int i = 0;
-        foreach(SubSysJoinItem* item,ssjs){
-            item->dFSub = subMaps.value(item->sFSub->getId());
-            item->isMap = true;
-            editTags[i++] = true;
-        }
-    }
-
 }
 
 /////////////////////////////DirView////////////////////////////////////////////////

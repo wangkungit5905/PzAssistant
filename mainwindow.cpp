@@ -125,6 +125,8 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     colors[AE_WARNING] = "color: rgb(255, 0, 127)";
     colors[AE_CRITICAL] = "color: rgb(85, 0, 0)";
     colors[AE_ERROR] = "color: rgb(255, 0, 0)";
+
+    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_TimeoutOfTemInfo,_timeout);
 }
 
 PaStatusBar::~PaStatusBar()
@@ -199,7 +201,7 @@ void PaStatusBar::showRuntimeMessage(QString info, AppErrorLevel level)
     if(!timer){
         timer = new QTimer(this);
         timer->setSingleShot(true);
-        timer->setInterval(timeoutOfTemInfo);
+        timer->setInterval(_timeout);
         connect(timer,SIGNAL(timeout()),this,SLOT(timeout()));
     }
     lblRuntime->setStyleSheet(colors.value(level));
@@ -969,7 +971,7 @@ void MainWindow::newAccount()
 
 void MainWindow::openAccount()
 {
-    OpenAccountDialog* dlg = new OpenAccountDialog;
+    OpenAccountDialog* dlg = new OpenAccountDialog(this);
     if(dlg->exec() != QDialog::Accepted)
         return;
 
@@ -1137,6 +1139,47 @@ void MainWindow::on_actImpPzSet_triggered()
     dlg.exec();
 
 }
+
+/**
+ * @brief 更新账户数据库表格创建Sql语句
+ */
+void MainWindow::on_actUpdateSql_triggered()
+{
+    QSqlDatabase db = curAccount->getDbUtil()->getDb();
+    QString s = QString("select name,sql from sqlite_master");
+    QSqlQuery q(db);
+    if(!q.exec(s))
+        return;
+    QStringList names,sqls;
+    while(q.next()){
+        QString name = q.value(0).toString();
+        QString sql = q.value(1).toString();
+        if(name == "sqlite_sequence")   //这个是用来记录表格自增类型主键的
+            continue;
+        if(name.indexOf(tbl_sndsub_join_pre) != -1) //二级科目对接表
+            continue;
+        if(name.indexOf(tbl_fsub_prefix) != -1){    //一级科目表只记录一次
+            QString tem = name;
+            name.chop(1);
+            if(names.contains(name))
+                continue;
+            sql.replace(tem,name);
+        }
+        names<< name;
+        sqls<< sql;
+    }
+    AppConfig::getInstance()->updateTableCreateStatment(names,sqls);
+}
+
+/**
+ * @brief MainWindow::on_actExtComSndSub_triggered
+ */
+void MainWindow::on_actExtComSndSub_triggered()
+{
+    if(!exportCommonSubject())
+        QMessageBox::warning(this,"",tr("导出过程出错，请查看日志！"));
+}
+
 
 
 //退出应用
@@ -1407,7 +1450,9 @@ void MainWindow::toCrtAccNextStep(int curStep, int nextStep)
 
 void MainWindow::showTemInfo(QString info)
 {
-    ui->statusbar->showMessage(info, timeoutOfTemInfo);
+    int timeout;
+    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_TimeoutOfTemInfo,timeout);
+    ui->statusbar->showMessage(info, timeout);
 }
 
 /**
@@ -2369,6 +2414,8 @@ void MainWindow::on_actCurStatNew_triggered()
 //登录
 void MainWindow::on_actLogin_triggered()
 {
+    int recentUserId;
+    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_ResentLoginUser,recentUserId);
     LoginDialog* dlg = new LoginDialog;
     if(dlg->exec() == QDialog::Accepted){
         curUser = dlg->getLoginUser();
@@ -3171,7 +3218,10 @@ void MainWindow::adjustEditMenus(UndoType ut, bool restore)
 }
 
 /**
- * @brief 从当前账户中导出常用科目到基本库（这些信息用来在建立新账户时可以快速建立常用科目，立即使账户投入使用）
+ * @brief 从当前账户中导出常用科目到基本库
+ * （这些信息用来在建立新账户时可以快速建立常用科目，立即使账户投入使用）
+ * 信息将被保存在基本库的表SecondSubs的BelongTo字段内，用逗号分割，
+ * 每个项用科目系统代码前导后跟科目一级代码，中间用连字符“-”连接。
  */
 bool MainWindow::exportCommonSubject()
 {
@@ -3182,7 +3232,6 @@ bool MainWindow::exportCommonSubject()
         return false;
 
     QSqlQuery q(bdb),q2(bdb);
-    //QSqlQuery qa(curAccount->getDbUtil()->getDb());
     QString s = QString("update %1 set %2=''").arg(tbl_base_ni).arg(fld_base_ni_belongto);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -3215,7 +3264,6 @@ bool MainWindow::exportCommonSubject()
                 if(clsID == 2 || clsID == 3) //跳过金融机构和业务客户
                     continue;
                 int niId = sub->getNameItem()->getId();
-
                 if(!maps.contains(niId))
                     maps[niId] = QSet<QString>();
                 maps[niId].insert(QString("%1-%2").arg(item->code).arg(sub->getParent()->getCode()));
@@ -3273,51 +3321,51 @@ void MainWindow::on_actAccProperty_triggered()
  * @brief MainWindow::on_actSetPzCls_triggered
  *  设置凭证类别
  */
-void MainWindow::on_actSetPzCls_triggered()
-{
-    if(!curSuiteMgr->getCurPz())
-        return;
-    if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
-        return;
-    int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
-        return;
-    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
-    if(!w)
-        return;
+//void MainWindow::on_actSetPzCls_triggered()
+//{
+//    if(!curSuiteMgr->getCurPz())
+//        return;
+//    if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
+//        return;
+//    int key = curSuiteMgr->getSuiteRecord()->id;
+//    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
+//        return;
+//    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
+//    if(!w)
+//        return;
 
-    QDialog* dlg = new QDialog;
-    QLabel* lbl = new QLabel(tr("凭证类别"),dlg);
-    QComboBox* cmb = new QComboBox(dlg);
-    QList<PzClass> codes = pzClasses.keys();
-    qSort(codes.begin(),codes.end());
-    foreach(PzClass c, codes)
-        cmb->addItem(pzClasses.value(c),(int)c);
-    int index = cmb->findData(curSuiteMgr->getCurPz()->getPzClass());
-    cmb->setCurrentIndex(index);
-    QHBoxLayout* lh = new QHBoxLayout;
-    lh->addWidget(lbl);
-    lh->addWidget(cmb);
-    QPushButton* btnOk = new QPushButton(tr("确定"));
-    QPushButton* btnCancel = new QPushButton(tr("取消"));
-    QHBoxLayout* lb = new QHBoxLayout;
-    lb->addWidget(btnOk);
-    lb->addWidget(btnCancel);
-    QVBoxLayout* lm = new QVBoxLayout;
-    lm->addLayout(lh);
-    lm->addLayout(lb);
-    dlg->setLayout(lm);
-    dlg->resize(200,300);
-    connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
-    connect(btnCancel,SIGNAL(clicked()),dlg,SLOT(reject()));
-    if(dlg->exec() == QDialog::Rejected){
-        delete dlg;
-        return;
-    }
-    PzClass c = (PzClass)cmb->itemData(cmb->currentIndex()).toInt();
-    curSuiteMgr->getCurPz()->setPzClass(c);  //这里避开了undo框架，这是个缺陷
-    delete dlg;
-}
+//    QDialog* dlg = new QDialog;
+//    QLabel* lbl = new QLabel(tr("凭证类别"),dlg);
+//    QComboBox* cmb = new QComboBox(dlg);
+//    QList<PzClass> codes = pzClasses.keys();
+//    qSort(codes.begin(),codes.end());
+//    foreach(PzClass c, codes)
+//        cmb->addItem(pzClasses.value(c),(int)c);
+//    int index = cmb->findData(curSuiteMgr->getCurPz()->getPzClass());
+//    cmb->setCurrentIndex(index);
+//    QHBoxLayout* lh = new QHBoxLayout;
+//    lh->addWidget(lbl);
+//    lh->addWidget(cmb);
+//    QPushButton* btnOk = new QPushButton(tr("确定"));
+//    QPushButton* btnCancel = new QPushButton(tr("取消"));
+//    QHBoxLayout* lb = new QHBoxLayout;
+//    lb->addWidget(btnOk);
+//    lb->addWidget(btnCancel);
+//    QVBoxLayout* lm = new QVBoxLayout;
+//    lm->addLayout(lh);
+//    lm->addLayout(lb);
+//    dlg->setLayout(lm);
+//    dlg->resize(200,300);
+//    connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
+//    connect(btnCancel,SIGNAL(clicked()),dlg,SLOT(reject()));
+//    if(dlg->exec() == QDialog::Rejected){
+//        delete dlg;
+//        return;
+//    }
+//    PzClass c = (PzClass)cmb->itemData(cmb->currentIndex()).toInt();
+//    curSuiteMgr->getCurPz()->setPzClass(c);  //这里避开了undo框架，这是个缺陷
+//    delete dlg;
+//}
 
 /**
  * @brief MainWindow::on_actPzErrorInspect_triggered
@@ -3350,109 +3398,108 @@ void MainWindow::on_actPzErrorInspect_triggered()
 //实现中，在删除后未考虑对凭证号进行重置。
 void MainWindow::on_actForceDelPz_triggered()
 {
-    if(!curSuiteMgr->isPzSetOpened()){
-        pzsWarning();
-        return;
-    }
-    QDialog* dlg = new QDialog(this);
-    QLabel* ly = new QLabel(tr("凭证所属年月"),dlg);
-    QDateEdit* date = new QDateEdit(dlg);
-    date->setDate(QDate(curSuiteMgr->year(),curSuiteMgr->month(),1));
-    date->setDisplayFormat("yyyy-M");
-    date->setReadOnly(false);
-    QLabel* ln = new QLabel(tr("凭证号"),dlg);
-    QLineEdit* edtPzNums = new QLineEdit(dlg);
-    QPushButton* btnOk = new QPushButton(tr("确定"));
-    QPushButton* btnCancel = new QPushButton(tr("取消"));
-    QHBoxLayout* ld = new QHBoxLayout;
-    QHBoxLayout* lb = new QHBoxLayout;
-    QHBoxLayout* ls = new QHBoxLayout;
-    QVBoxLayout* lm = new QVBoxLayout;
-    ld->addWidget(ly);
-    ld->addWidget(date);
-    ls->addWidget(ln);
-    ls->addWidget(edtPzNums);
-    lb->addWidget(btnOk);
-    lb->addWidget(btnCancel);
-    lm->addLayout(ld);
-    lm->addLayout(ls);
-    lm->addLayout(lb);
-    dlg->setLayout(lm);
-    connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
-    connect(btnCancel, SIGNAL(clicked()),dlg, SLOT(reject()));
-    if(QDialog::Accepted != dlg->exec())
-        return;
-    QString ds = date->date().toString(Qt::ISODate);
-    ds.chop(3);
-    QStringList pzs = edtPzNums->text().split(",");
-    if(pzs.empty())
-        return;
+//    if(!curSuiteMgr->isPzSetOpened()){
+//        pzsWarning();
+//        return;
+//    }
+//    QDialog* dlg = new QDialog(this);
+//    QLabel* ly = new QLabel(tr("凭证所属年月"),dlg);
+//    QDateEdit* date = new QDateEdit(dlg);
+//    date->setDate(QDate(curSuiteMgr->year(),curSuiteMgr->month(),1));
+//    date->setDisplayFormat("yyyy-M");
+//    date->setReadOnly(false);
+//    QLabel* ln = new QLabel(tr("凭证号"),dlg);
+//    QLineEdit* edtPzNums = new QLineEdit(dlg);
+//    QPushButton* btnOk = new QPushButton(tr("确定"));
+//    QPushButton* btnCancel = new QPushButton(tr("取消"));
+//    QHBoxLayout* ld = new QHBoxLayout;
+//    QHBoxLayout* lb = new QHBoxLayout;
+//    QHBoxLayout* ls = new QHBoxLayout;
+//    QVBoxLayout* lm = new QVBoxLayout;
+//    ld->addWidget(ly);
+//    ld->addWidget(date);
+//    ls->addWidget(ln);
+//    ls->addWidget(edtPzNums);
+//    lb->addWidget(btnOk);
+//    lb->addWidget(btnCancel);
+//    lm->addLayout(ld);
+//    lm->addLayout(ls);
+//    lm->addLayout(lb);
+//    dlg->setLayout(lm);
+//    connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
+//    connect(btnCancel, SIGNAL(clicked()),dlg, SLOT(reject()));
+//    if(QDialog::Accepted != dlg->exec())
+//        return;
+//    QString ds = date->date().toString(Qt::ISODate);
+//    ds.chop(3);
+//    QStringList pzs = edtPzNums->text().split(",");
+//    if(pzs.empty())
+//        return;
 
-    QList<int> pzNums;
-    bool ok = false;
-    int numStart,numEnd;
-    foreach(QString s, pzs){
-        s =  s.trimmed();
-        numStart = s.toInt(&ok);
-        if(ok)
-            pzNums << numStart;
-        else{
-            int index = s.indexOf("-");
-            if(index != -1){
-                numStart = s.left(index).toInt(&ok);
-                if(!ok){
-                    qDebug()<<QString("String '%1' transform to number failed!").arg(s.left(index+1));
-                    return;
-                }
-                numEnd = s.right(s.size()-index-1).toInt(&ok);
-                if(!ok){
-                    qDebug()<<QString("String '%1' transform to number failed!").arg(s.right(s.size()-index-1));
-                    return;
-                }
-                for(int i = numStart; i <= numEnd; ++i)
-                    pzNums<<i;
-            }
-        }
-    }
+//    QList<int> pzNums;
+//    bool ok = false;
+//    int numStart,numEnd;
+//    foreach(QString s, pzs){
+//        s =  s.trimmed();
+//        numStart = s.toInt(&ok);
+//        if(ok)
+//            pzNums << numStart;
+//        else{
+//            int index = s.indexOf("-");
+//            if(index != -1){
+//                numStart = s.left(index).toInt(&ok);
+//                if(!ok){
+//                    qDebug()<<QString("String '%1' transform to number failed!").arg(s.left(index+1));
+//                    return;
+//                }
+//                numEnd = s.right(s.size()-index-1).toInt(&ok);
+//                if(!ok){
+//                    qDebug()<<QString("String '%1' transform to number failed!").arg(s.right(s.size()-index-1));
+//                    return;
+//                }
+//                for(int i = numStart; i <= numEnd; ++i)
+//                    pzNums<<i;
+//            }
+//        }
+//    }
 
 
-    delete dlg;
+//    delete dlg;
 
-    QString pzNumStr;
-    foreach(int n,pzNums)
-        pzNumStr.append(QString::number(n)).append(",");
-    pzNumStr.chop(1);
-    if(QMessageBox::No == QMessageBox::warning(this,
-           tr("警告信息"),tr("确定要删除 %1 %2号凭证吗？").arg(ds).arg(pzNumStr),
-           QMessageBox::Yes|QMessageBox::No))
-        return;
+//    QString pzNumStr;
+//    foreach(int n,pzNums)
+//        pzNumStr.append(QString::number(n)).append(",");
+//    pzNumStr.chop(1);
+//    if(QMessageBox::No == QMessageBox::warning(this,
+//           tr("警告信息"),tr("确定要删除 %1 %2号凭证吗？").arg(ds).arg(pzNumStr),
+//           QMessageBox::Yes|QMessageBox::No))
+//        return;
 
-    QSqlQuery qp,qb;
-    QString sp,sb;
-    foreach(int pzNum,pzNums){
-        sp = QString("select id from PingZhengs where date like '%1%' and number = %2")
-                .arg(ds).arg(pzNum);
-        if(!qp.exec(sp)){
-            qDebug()<<QString("Excute stationment '%1' failed!").arg(sp);
-            return;
-        }
-        int pid;
-        while(qp.next()){
-            pid = qp.value(0).toInt();
-            sb = QString("delete from BusiActions where pid = %1").arg(pid);
-            if(!qb.exec(sb)){
-                qDebug()<<QString("Excute stationment '%1' failed!").arg(sb);
-                return;
-            }
-            sb = QString("delete from PingZhengs where id = %1").arg(pid);
-            if(!qb.exec(sb)){
-                qDebug()<<QString("Excute stationment '%1' failed!").arg(sb);
-                return;
-            }
-        }
-    }
-    //isExtraVolid = false;
-    QMessageBox::information(0,tr("提示信息"),tr("成功删除凭证！"));
+//    QSqlQuery qp,qb;
+//    QString sp,sb;
+//    foreach(int pzNum,pzNums){
+//        sp = QString("select id from PingZhengs where date like '%1%' and number = %2")
+//                .arg(ds).arg(pzNum);
+//        if(!qp.exec(sp)){
+//            qDebug()<<QString("Excute stationment '%1' failed!").arg(sp);
+//            return;
+//        }
+//        int pid;
+//        while(qp.next()){
+//            pid = qp.value(0).toInt();
+//            sb = QString("delete from BusiActions where pid = %1").arg(pid);
+//            if(!qb.exec(sb)){
+//                qDebug()<<QString("Excute stationment '%1' failed!").arg(sb);
+//                return;
+//            }
+//            sb = QString("delete from PingZhengs where id = %1").arg(pid);
+//            if(!qb.exec(sb)){
+//                qDebug()<<QString("Excute stationment '%1' failed!").arg(sb);
+//                return;
+//            }
+//        }
+//    }
+//    QMessageBox::information(0,tr("提示信息"),tr("成功删除凭证！"));
 }
 
 /**
@@ -3566,20 +3613,7 @@ bool MainWindow::impTestDatas()
 //    dlg.resize(300,200);
 //    dlg.exec();
 
-    //更新账户数据库表格创建语句（这段代码保留，以便将来使用）
-//    QSqlDatabase db = curAccount->getDbUtil()->getDb();
-//    QString s = QString("select name,sql from sqlite_master where name not like '%1%'")
-//            .arg(tbl_ssjc_pre);
-//    QSqlQuery q(db);
-//    if(!q.exec(s))
-//        return false;
-//    QStringList names,sqls;
-//    while(q.next()){
-//        names<<q.value(0).toString();
-//        sqls<<q.value(1).toString();
-//    }
-//    //剔除科目系统衔接配置表
-//    AppConfig::getInstance()->updateTableCreateStatment(names,sqls);
+
 
     //导出常用科目到基本库
     //bool r = exportCommonSubject();
@@ -3605,8 +3639,19 @@ bool MainWindow::impTestDatas()
 //    }
     //bool r = AppConfig::getInstance()->setEnabledFstSubs(1,codes);
 //    bool r = AppConfig::getInstance()->setSubjectJdDirs(1,codes);
+
+//    QHash<QString, QString> codeMaps,maps;
+//    AppConfig::getInstance()->getSubSysMaps2(1,2,codeMaps,maps);
+//    QList<QString> codes = maps.values("1123");
+
+//    SubjectManager* sm = curAccount->getSubjectManager(1);
+//    FirstSubject* fsub = sm->getFstSubject("1151");
+//    bool b = curAccount->getDbUtil()->verifyExtraForFsub(2013,12,fsub);
     int i = 0;
 }
+
+
+
 
 
 

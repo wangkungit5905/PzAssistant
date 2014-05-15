@@ -5,13 +5,13 @@
 #include <QFileInfo>
 #include <QDir>
 
-
 #include "global.h"
 #include "config.h"
 #include "tables.h"
 #include "version.h"
 #include "transfers.h"
 #include "globalVarNames.h"
+#include "subject.h"
 
 
 QSettings* AppConfig::appIni=0;
@@ -21,11 +21,16 @@ QSqlDatabase AppConfig::db;
 //////////////////////////////////AppConfig//////////////////////////////////////
 AppConfig::AppConfig()
 {
-    //appIni->setIniCodec(QTextCodec::codecForTr());
-    _initMachines();
-    _initAccountCaches();
-    _initSpecSubCodes();
-    _initSpecNameItemClses();
+
+    bool b = true;
+    b &= _initCfgVars();
+    b &= _initMachines();
+    b &= _initAccountCaches();
+    b &= _initSubSysNames();
+    b &=_initSpecSubCodes();
+    b &=_initSpecNameItemClses();
+    if(!b)
+        QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("应用配置对象初始化期间发生错误！"));
 }
 
 AppConfig::~AppConfig()
@@ -165,188 +170,184 @@ bool AppConfig::readPzSetStates(QHash<PzsState, QString> &snames, QHash<PzsState
     return true;
 }
 
-bool AppConfig::getConfigVar(QString name, int type)
-{
-    QSqlQuery q(db);
-    QString s = QString("select value from configs where (name = '%1') and (type = %2)")
-            .arg(name).arg(type);
-    if(q.exec(s) && q.first()){
-        switch(type){
-        case BOOL:
-            bv = q.value(0).toBool();
-        case INT:
-            iv = q.value(0).toInt();
-            break;
-        case DOUBLE:
-            dv = q.value(0).toDouble();
-            break;
-        case STRING:
-            sv = q.value(0).toString();
-            break;
-        }
-        return true;
-    }
-    else
-        return false;
-}
+
 
 //初始化全局配置变量
-bool AppConfig::initGlobalVar()
+bool AppConfig::_initCfgVars()
 {
-    if(!getConVar(GVN_RECENT_LOGIN_USER, recentUserId))
-        recentUserId = 1;
-    if(!getConVar(GVN_IS_COLLAPSE_JZ,isCollapseJz))
-        isCollapseJz = true;
-    if(!getConVar(GVN_IS_BY_MT_FOR_OPPO_BA, isByMt))
-        isByMt = false;
-    if(!getConVar(GVN_AUTOSAVE_INTERVAL,autoSaveInterval))
-        autoSaveInterval = 600000;
-    if(!getConVar(GVN_JZLR_BY_YEAR, jzlrByYear))
-        jzlrByYear = true;
-    if(!getConVar(GVN_VIEWORHIDE_COL_IN_DAILY_1, viewHideColInDailyAcc1))
-        viewHideColInDailyAcc1 = false;
-    if(!getConVar(GVN_VIEWORHIDE_COL_IN_DAILY_2, viewHideColInDailyAcc2))
-        viewHideColInDailyAcc2 = false;
-    if(!getConVar(GVN_GDZC_CZ_RATE, czRate))
-        czRate = 0;
-    if(!getConVar(GVN_IS_RUNTIMNE_UPDATE_EXTRA, rt_update_extra))
-        rt_update_extra = true;
+    _initCfgVarDefs();
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_base_Cfg);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        CfgValueCode code = (CfgValueCode)q.value(BCONF_ENUM).toInt();
+        VarType type = (VarType)q.value(BCONF_TYPE).toInt();
+
+        switch(type){
+        case BOOL:
+            if(code >= CFGV_BOOL_NUM){
+                LOG_ERROR(QString("Global config variable value is error! (type=%1,code=%2)")
+                          .arg(type).arg(code));
+                continue;
+            }
+            boolCfgs[code] = q.value(BCONF_VALUE).toBool();
+            break;
+        case INT:
+            if(code >= CFGV_INT_NUM){
+                LOG_ERROR(QString("Global config variable value is error! (type=%1,code=%2)")
+                          .arg(type).arg(code));
+                continue;
+            }
+            intCfgs[code] = q.value(BCONF_VALUE).toInt();
+            break;
+        case DOUBLE:
+            if(code >= CFGV_DOUBLE_NUM){
+                LOG_ERROR(QString("Global config variable value is error! (type=%1,code=%2)")
+                          .arg(type).arg(code));
+                continue;
+            }
+            doubleCfgs[code] = Double(q.value(BCONF_VALUE).toDouble());
+            break;
+        }
+    }
+    return true;
 }
 
 //保存全局配置变量到基础库
 bool AppConfig::saveGlobalVar()
 {
-    bool r;
-    setConVar(GVN_RECENT_LOGIN_USER, recentUserId);
-    r = setConVar(GVN_IS_COLLAPSE_JZ, isCollapseJz);
-    r = setConVar(GVN_IS_BY_MT_FOR_OPPO_BA, isByMt);
-    r = setConVar(GVN_AUTOSAVE_INTERVAL, autoSaveInterval);
-    r = setConVar(GVN_JZLR_BY_YEAR, autoSaveInterval);
-    r = setConVar(GVN_VIEWORHIDE_COL_IN_DAILY_1, viewHideColInDailyAcc1);
-    r = setConVar(GVN_VIEWORHIDE_COL_IN_DAILY_2, viewHideColInDailyAcc2);
-    r = setConVar(GVN_IS_RUNTIMNE_UPDATE_EXTRA, rt_update_extra);
-    return r;
-}
-
-bool AppConfig::getConVar(QString name, bool& v)
-{
-    if(getConfigVar(name,BOOL)){
-        v = bv;
-        return true;
-    }
-    else
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save global config variable!");
         return false;
-}
-
-//获取或设置配置变量的值
-bool AppConfig::getConVar(QString name, int& v)
-{
-   if(getConfigVar(name,INT)){
-       v = iv;
-       return true;
-   }
-   else
-       return false;
-}
-
-
-
-bool AppConfig::getConVar(QString name, double& v)
-{
-    if(getConfigVar(name,DOUBLE)){
-        v = dv;
-        return true;
     }
-    else
+    QSqlQuery q1(db),q2(db);
+    QString s = QString("update %1 set %2=:value where %3=:code and %4=:type")
+            .arg(tbl_base_Cfg).arg(fld_bconf_value).arg(fld_bconf_enum)
+            .arg(fld_bconf_type);
+    if(!q1.prepare(s)){
+        LOG_SQLERROR(s);
         return false;
-}
-
-bool AppConfig::getConVar(QString name, QString& v)
-{
-    if(getConfigVar(name,STRING)){
-        v = sv;
-        return true;
     }
-    else
+    s = QString("insert into %1(%2,%3,%4) values(:type,:code,:value)")
+            .arg(tbl_base_Cfg).arg(fld_bconf_type).arg(fld_bconf_enum)
+            .arg(fld_bconf_value);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
         return false;
-}
-
-bool AppConfig::setConfigVar(QString name,int type)
-{
-    QSqlQuery q(db);
-    QString s = QString("select id from configs where (name='%1') and (type=%2)")
-            .arg(name).arg(type);
-    if(q.exec(s) && q.first()){
-        int id = q.value(0).toInt();
-        switch(type){
-        case BOOL:
-            if(bv)
-                s = QString("update configs set value = 1 where id=%2").arg(id);
-            else
-                s = QString("update configs set value = 0 where id=%2").arg(id);
-            break;
-        case INT:
-            s = QString("update configs set value = %1 where id=%2").arg(iv).arg(id);
-            break;
-        case DOUBLE:
-            s = QString("update configs set value = %1 where id=%2").arg(dv).arg(id);
-            break;
-        case STRING:
-            s = QString("update configs set value = '%1' where id=%2").arg(sv).arg(id);
-            break;
+    }
+    //保存布尔类型配置变量
+    for(int i = 0; i < CFGV_BOOL_NUM; ++i){
+        q1.bindValue(":value",boolCfgs[i]?1:0);
+        q1.bindValue(":code",i);
+        q1.bindValue(":type",BOOL);
+        if(!q1.exec()){
+            LOG_SQLERROR(q1.lastQuery());
+            return false;
+        }
+        int nums = q1.numRowsAffected();
+        if(nums == 0){
+            q2.bindValue(":type",BOOL);
+            q2.bindValue(":code",i);
+            q2.bindValue(":value",boolCfgs[i]?1:0);
+            if(!q2.exec()){
+                LOG_SQLERROR(q2.lastQuery());
+                return false;
+            }
         }
     }
-    else{
-        switch(type){
-        case BOOL:
-            if(bv)
-                s = QString("insert into configs(name,type,value) values('%1',%2,1)")
-                        .arg(name).arg(type);
-            else
-                s = QString("insert into configs(name,type,value) values('%1',%2,0)")
-                        .arg(name).arg(type);
-        case INT:
-            s = QString("insert into configs(name,type,value) values('%1',%2,%3)")
-                    .arg(name).arg(type).arg(iv);
-            break;
-        case DOUBLE:
-            s = QString("insert into configs(name,type,value) values('%1',%2,%3)")
-                    .arg(name).arg(type).arg(dv);
-            break;
-        case STRING:
-            s = QString("insert into configs(name,type,value) values('%1',%2,'%3')")
-                    .arg(name).arg(type).arg(sv);
-            break;
+    //保存整形配置变量
+    for(int i = 0; i < CFGV_INT_NUM; ++i){
+        q1.bindValue(":value",intCfgs[i]);
+        q1.bindValue(":code",i);
+        q1.bindValue(":type",INT);
+        if(!q1.exec()){
+            LOG_SQLERROR(q1.lastQuery());
+            return false;
+        }
+        int nums = q1.numRowsAffected();
+        if(nums == 0){
+            q2.bindValue(":type",INT);
+            q2.bindValue(":code",i);
+            q2.bindValue(":value",intCfgs[i]);
+            if(!q2.exec()){
+                LOG_SQLERROR(q2.lastQuery());
+                return false;
+            }
         }
     }
-    return q.exec(s);
+    //保存双精度型配置变量
+    for(int i = 0; i < CFGV_DOUBLE_NUM; ++i){
+        q1.bindValue(":value",doubleCfgs[i].toString2());
+        q1.bindValue(":code",i);
+        q1.bindValue(":type",DOUBLE);
+        if(!q1.exec()){
+            LOG_SQLERROR(q1.lastQuery());
+            return false;
+        }
+        int nums = q1.numRowsAffected();
+        if(nums == 0){
+            q2.bindValue(":type",DOUBLE);
+            q2.bindValue(":code",i);
+            q2.bindValue(":value",doubleCfgs[i].toString2());
+            if(!q2.exec()){
+                LOG_SQLERROR(q2.lastQuery());
+                return false;
+            }
+        }
+    }
+
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save global config variable!");
+        db.rollback();
+        return false;
+    }
+    return true;
 }
 
-bool AppConfig::setConVar(QString name, bool value)
+void AppConfig::getCfgVar(AppConfig::CfgValueCode varCode, Double &v)
 {
-    bv = value;
-    return setConfigVar(name,BOOL);
+    if(varCode >= CFGV_DOUBLE_NUM)
+        return;
+    v = doubleCfgs[varCode];
 }
 
-bool AppConfig::setConVar(QString name, int value)
+void AppConfig::setCfgVar(AppConfig::CfgValueCode varCode, bool v)
 {
-    iv = value;
-    return setConfigVar(name,INT);
+    if(varCode >= CFGV_BOOL_NUM)
+        return;
+    boolCfgs[varCode] = v;
 }
 
-bool AppConfig::setConVar(QString name, double value)
+void AppConfig::setCfgVar(AppConfig::CfgValueCode varCode, int v)
 {
-    dv = value;
-    return setConfigVar(name,DOUBLE);
+    if(varCode >= CFGV_INT_NUM)
+        return;
+    intCfgs[varCode] = v;
 }
 
-bool AppConfig::setConVar(QString name, QString value)
+void AppConfig::setCfgVar(AppConfig::CfgValueCode varCode, double v)
 {
-    sv = value;
-    return setConfigVar(name,STRING);
+    if(varCode >= CFGV_DOUBLE_NUM)
+        return;
+    doubleCfgs[varCode] = v;
 }
 
+void AppConfig::getCfgVar(CfgValueCode varCode, int &v)
+{
+    if(varCode >= CFGV_INT_NUM)
+        return;
+    v = intCfgs[varCode];
+}
 
+void AppConfig::getCfgVar(CfgValueCode varCode, bool &v)
+{
+    if(varCode >= CFGV_BOOL_NUM)
+        return;
+    v = boolCfgs[varCode];
+}
 
 /**
  * @brief 清除账户缓存
@@ -558,24 +559,22 @@ QHash<AccountTransferState, QString> AppConfig::getAccTranStates()
  * @param items
  * @return
  */
-bool AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
+void AppConfig::getSubSysItems(QList<SubSysNameItem *>& items)
 {
-    QSqlQuery q(db);
-    QString s = QString("select * from %1 order by %2").arg(tbl_subSys).arg(fld_ss_code);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    while(q.next()){
-        SubSysNameItem* si = new SubSysNameItem;
-        si->code = q.value(SS_CODE).toInt();
-        si->name = q.value(SS_NAME).toString();
-        si->explain = q.value(SS_EXPLAIN).toString();
-        si->isImport = false;
-        si->isConfiged = false;
-        items<<si;
-    }
-    return true;
+    QList<int> codes = subSysNames.keys();
+    qSort(codes.begin(),codes.end());
+    for(int i = 0;i<codes.count();++i)
+        items<<subSysNames.value(codes.at(i));
+}
+
+/**
+ * @brief 返回指定科目系统名称项目
+ * @param subSysCode    科目系统代码
+ * @return
+ */
+SubSysNameItem *AppConfig::getSpecSubSysItem(int subSysCode)
+{
+    return subSysNames.value(subSysCode);
 }
 
 /**
@@ -648,6 +647,9 @@ void AppConfig::updateTableCreateStatment(QStringList names, QStringList sqls)
         return;
     }
     for(int i = 0; i < names.count(); ++i){
+        QString name = names.at(i);
+        if(name.indexOf(tbl_sndsub_join_pre) > -1)
+            continue;
         q.bindValue(":name",names.at(i));
         q.bindValue(":sql",sqls.at(i));
         if(!q.exec()){
@@ -755,17 +757,20 @@ bool AppConfig::setSubjectJdDirs(int subSys, QStringList codes)
     return true;
 }
 
+
+
 /**
- * @brief 获取指定科目系统之间的科目对应表
- * @param scode     旧科目系统代码
- * @param dcode     新科目系统代码
- * @param codeMaps  科目代码映射表
+ * @brief AppConfig::getSubSysMaps2
+ * @param scode     源科目系统代码
+ * @param dcode     目的科目系统代码
+ * @param defMaps   所有默认的对接科目配置项
+ * @param multiMaps 存在多个对接科目的配置项（键为目的科目代码，值是源科目系统代码列表，它是多值哈希表）
  * @return
  */
-bool AppConfig::getSubSysMaps(int scode, int dcode, QHash<QString, QString> &codeMaps)
+bool AppConfig::getSubSysMaps2(int scode, int dcode, QHash<QString, QString> &defMaps, QHash<QString, QString> &multiMaps)
 {
     QSqlQuery q(db);
-    QString tname = QString("FSubCodeMaps_%1_%2").arg(scode).arg(dcode);
+    QString tname = QString("%1_%2_%3").arg(tbl_base_subsysjion_pre).arg(scode).arg(dcode);
     QString s = QString("select * from %1").arg(tname);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -773,9 +778,228 @@ bool AppConfig::getSubSysMaps(int scode, int dcode, QHash<QString, QString> &cod
     }
     QString sc,dc;
     while(q.next()){
-        sc = q.value(1).toString();
-        dc = q.value(2).toString();
+        sc = q.value(FI_BASE_SSJC_SCODE).toString();
+        dc = q.value(FI_BASE_SSJC_DCODE).toString();
+        bool isDef = q.value(FI_BASE_SSJC_ISDEF).toBool();
+        if(isDef)
+            defMaps[sc] = dc;
+        else
+            multiMaps.insertMulti(dc,sc);
+    }
+    if(!multiMaps.isEmpty()){
+        foreach(QString d, multiMaps.keys()){
+            QHashIterator<QString, QString> it(defMaps);
+            bool fonded = false;
+            while(it.hasNext()){
+                it.next();
+                if(it.value() == d){
+                    fonded = true;
+                    multiMaps.insertMulti(d,it.key());
+                }
+            }
+            if(!fonded){
+                LOG_ERROR(QObject::tr("科目对接配置错误，目的科目（%1）的默认对接不存在！").arg(d));
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 获取指定科目系统之间的科目对接配置信息
+ * @param scode     旧科目系统代码
+ * @param dcode     新科目系统代码
+ * @param scodes    源科目代码列表
+ * @param dcodes    对接科目代码列表
+ * @param isDefs    是默认对接还是混合（并入）对接
+ * @return
+ */
+bool AppConfig::getSubSysMaps(int scode, int dcode, QList<SubSysJoinItem2*>& cfgs)
+{
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_base_subsysjion_pre).arg(scode).arg(dcode);
+    QString s = QString("select * from %1 where %2 != '0000' order by %2")
+            .arg(tname).arg(fld_base_ssjc_scode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        SubSysJoinItem2* item = new SubSysJoinItem2;
+        item->id = q.value(0).toInt();
+        item->scode=q.value(FI_BASE_SSJC_SCODE).toString();
+        item->dcode=q.value(FI_BASE_SSJC_DCODE).toString();
+        item->isDef=q.value(FI_BASE_SSJC_ISDEF).toBool();
+        cfgs<<item;
+    }
+    return true;
+}
+
+/**
+ * @brief AppConfig::saveSubSysMaps
+ * @param scode
+ * @param dcode
+ * @param codeMaps
+ * @return
+ */
+bool AppConfig::saveSubSysMaps(int scode, int dcode, QList<SubSysJoinItem2 *> cfgs)
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transform failed in AppConfig::saveSubSysMaps()");
+        return false;
+    }
+    QString tname = QString("%1_%2_%3").arg(tbl_base_subsysjion_pre).arg(scode).arg(dcode);
+    QString s;
+    QSqlQuery q1(db),q2(db);
+    s = QString("insert into %1(%2,%3,%4) values(:scode,:dcode,:isDef)").arg(tname)
+            .arg(fld_base_ssjc_scode).arg(fld_base_ssjc_dcode).arg(fld_base_ssjc_isDef);
+    if(!q1.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=:scode,%3=:dcode,%4=:isDef where id=:id").arg(tname)
+            .arg(fld_base_ssjc_scode).arg(fld_base_ssjc_dcode).arg(fld_base_ssjc_isDef);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    for(int i=0; i<cfgs.count(); ++i){
+        SubSysJoinItem2* item = cfgs.at(i);
+        if(item->id==0){
+            q1.bindValue(":scode",item->scode);
+            q1.bindValue(":dcode",item->dcode);
+            q1.bindValue(":isDef",item->isDef?1:0);
+            if(!q1.exec()){
+                LOG_SQLERROR(q1.lastQuery());
+                return false;
+            }
+        }
+        else{
+            q2.bindValue(":id",item->id);
+            q2.bindValue(":scode",item->scode);
+            q2.bindValue(":dcode",item->dcode);
+            q2.bindValue(":isDef",item->isDef?1:0);
+            if(!q2.exec()){
+                LOG_SQLERROR(q2.lastQuery());
+                return false;
+            }
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transform failed in AppConfig::saveSubSysMaps()");
+        if(!db.rollback())
+            LOG_SQLERROR("Rollback transform failed in AppConfig::saveSubSysMaps()");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 获取所有非默认（混合）对接科目的对接配置
+ * @param scode
+ * @param dcode
+ * @param codeMaps  键为源一级科目代码，值为混合对接一级科目代码
+ * @return
+ */
+bool AppConfig::getNotDefSubSysMaps(int scode, int dcode, QHash<QString, QString> &codeMaps)
+{
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_base_subsysjion_pre).arg(scode).arg(dcode);
+    QString s = QString("select * from %1 where %2=0").arg(tname).arg(fld_base_ssjc_isDef);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QString sc,dc;
+    QSet<QString> sets;
+    while(q.next()){
+        sc = q.value(FI_BASE_SSJC_SCODE).toString();
+        dc = q.value(FI_BASE_SSJC_DCODE).toString();
         codeMaps[sc] = dc;
+    }
+    return true;
+}
+
+/**
+ * @brief 获取科目系统对接配置是否完成
+ * @param scode
+ * @param dcode
+ * @param ok
+ * @return
+ */
+bool AppConfig::getSubSysMapConfiged(int scode, int dcode, bool &ok)
+{
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_base_subsysjion_pre).arg(scode).arg(dcode);
+    QString specCode = "0000";
+    QString s = QString("select %1 from %2 where %3='%4' and %5='%4'").arg(fld_base_ssjc_isDef)
+            .arg(tname).arg(fld_base_ssjc_scode).arg(specCode).arg(fld_base_ssjc_dcode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first()){
+        ok = false;
+        return true;
+    }
+    ok = q.value(0).toBool();
+    return true;
+}
+
+/**
+ * @brief 设置科目系统对接配置是否完成
+ * @param scode
+ * @param dcode
+ * @param ok
+ * @return
+ */
+bool AppConfig::setSubSysMapConfiged(int scode, int dcode, bool ok)
+{
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_base_subsysjion_pre).arg(scode).arg(dcode);
+    QString specCode = "0000";
+    QString s = QString("update %1 set %2=%3 where %4='%6' and %5='%6'")
+            .arg(tname).arg(fld_base_ssjc_isDef).arg(ok?1:0)
+            .arg(fld_base_ssjc_scode).arg(fld_base_ssjc_dcode).arg(specCode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int num = q.numRowsAffected();
+    if(num != 1){
+        s = QString("insert into %1(%2,%3,%4) values('%5','%5','%6')")
+                .arg(tname).arg(fld_base_ssjc_scode).arg(fld_base_ssjc_dcode)
+                .arg(fld_base_ssjc_isDef).arg(specCode).arg(ok?1:0);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 获取指定科目系统的科目代码到科目名称的哈希表
+ * 这个主要是为了在导入新科目系统前查看或配置与老科目系统的对接配置信息
+ * @param subSys
+ * @param subNames
+ * @return
+ */
+bool AppConfig::getSubCodeToNameHash(int subSys, QHash<QString, QString> &subNames)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1,%2 from %3 where %4=%5")
+            .arg(fld_base_fsub_subcode).arg(fld_base_fsub_subname)
+            .arg(tbl_base_fsub).arg(fld_base_fsub_subsys).arg(subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        QString code = q.value(0).toString();
+        QString name = q.value(1).toString();
+        subNames[code]=name;
     }
     return true;
 }
@@ -946,6 +1170,25 @@ bool AppConfig::_searchAccount()
 }
 
 /**
+ * @brief 初始化应用程序配置变量的默认值
+ */
+void AppConfig::_initCfgVarDefs()
+{
+    boolCfgs[CVC_RuntimeUpdateExtra]=true;
+    boolCfgs[CVC_ExtraUnityInspectAfterRead] = true;
+    boolCfgs[CVC_ExtraUnityInspectBeforeSave] = true;
+    boolCfgs[CVC_ViewHideColInDailyAcc1] = false;
+    boolCfgs[CVC_ViewHideColInDailyAcc2] = false;
+    boolCfgs[CVC_IsByMtForOppoBa] = false;
+    boolCfgs[CVC_IsCollapseJz] = true;
+    boolCfgs[CVC_JzlrByYear] = true;
+    intCfgs[CVC_ResentLoginUser] = 1;
+    intCfgs[CVC_AutoSaveInterval] = 600000;
+    intCfgs[CVC_TimeoutOfTemInfo] = 10000;
+    doubleCfgs[CVC_GdzcCzRate] = 0;
+}
+
+/**
  * @brief AppConfig::_initAccountCaches
  *  读取本地账户缓存表，并初始化accountCaches列表
  * @return
@@ -975,20 +1218,21 @@ bool AppConfig::_initAccountCaches()
         accountCaches<<item;
     }
     init_accCache = true;
+    return true;
 }
 
 /**
  * @brief AppConfig::_initMachines
  *  读取主机条目，并初始化machines表
  */
-void AppConfig::_initMachines()
+bool AppConfig::_initMachines()
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_machines);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("无法读取机器信息，请检查账户数据库相应表格是否有误！"));
-        return;
+        return false;
     }
     int id,mid;
     QString name,desc;
@@ -1004,19 +1248,54 @@ void AppConfig::_initMachines()
         Machine* m = new Machine(id,mtype,mid,isLocal,name,desc);
         machines[m->getMID()] = m;
     }
+    return true;
+}
+
+/**
+ * @brief 初始化科目系统哈希表
+ */
+bool AppConfig::_initSubSysNames()
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 order by %2").arg(tbl_subSys).arg(fld_ss_code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QList<int> codes;
+    while(q.next()){
+        SubSysNameItem* si = new SubSysNameItem;
+        si->code = q.value(SS_CODE).toInt();
+        codes<<si->code;
+        si->name = q.value(SS_NAME).toString();
+        si->startTime = q.value(SS_TIME).toDate();
+        si->explain = q.value(SS_EXPLAIN).toString();
+        si->isImport = false;
+        si->isConfiged = false;
+        subSysNames[si->code] = si;
+    }
+    if(codes.count()>1){
+        for(int i = 1; i< codes.count(); ++i){
+            SubSysNameItem *preItem, *curItem;
+            preItem = subSysNames.value(codes.at(i-1));
+            curItem = subSysNames.value(codes.at(i));
+            getSubSysMapConfiged(preItem->code,curItem->code,curItem->isConfiged);
+        }
+    }
+    return true;
 }
 
 /**
  * @brief 初始化特定科目代码表
  */
-void AppConfig::_initSpecSubCodes()
+bool AppConfig::_initSpecSubCodes()
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_base_sscc);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("无法读取特定科目配置代码表，请检查基本库相应表格是否有误！"));
-        return;
+        return false;
     }
     int subSys;
     SpecSubCode subEnum;
@@ -1027,13 +1306,13 @@ void AppConfig::_initSpecSubCodes()
         code = q.value(FI_BASE_SSCC_CODE).toString();
         specCodes[subSys][subEnum] = code;
     }
-
+    return true;
 }
 
 /**
  * @brief 初始化特定名称类别代码表
  */
-void AppConfig::_initSpecNameItemClses()
+bool AppConfig::_initSpecNameItemClses()
 {
     QSqlQuery q(db),q2(db);
     QString common_client = QObject::tr("业务客户");
@@ -1044,7 +1323,7 @@ void AppConfig::_initSpecNameItemClses()
     QString s = QString("select max(%1) from %2").arg(fld_base_nic_code).arg(tbl_base_nic);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
-        return;
+        return false;
     }
     q.first();
     int maxCode = q.value(0).toInt();
@@ -1053,14 +1332,14 @@ void AppConfig::_initSpecNameItemClses()
             .arg(fld_base_nic_code).arg(tbl_base_nic).arg(fld_base_nic_name);
     if(!q.prepare(s)){
         LOG_SQLERROR(s);
-        return;
+        return false;
     }
     s = QString("insert into %1(%2,%3,%4) values(:code,:name,:explain)")
             .arg(tbl_base_nic).arg(fld_base_nic_code).arg(fld_base_nic_name)
             .arg(fld_base_nic_explain);
     if(!q2.prepare(s)){
         LOG_SQLERROR(s);
-        return;
+        return false;
     }
     q.bindValue(":name",common_client);
     if(q.exec() && q.first())
@@ -1070,7 +1349,7 @@ void AppConfig::_initSpecNameItemClses()
         q2.bindValue(":name",common_client);
         q2.bindValue(":explain",QObject::tr("没有物流能力的通用企业用户"));
         if(!q2.exec())
-            return;
+            return false;
         specNICs[SNIC_COMMON_CLIENT] = maxCode;
     }
     q.bindValue(":name",logistics_client);
@@ -1081,7 +1360,7 @@ void AppConfig::_initSpecNameItemClses()
         q2.bindValue(":name",logistics_client);
         q2.bindValue(":explain",QObject::tr("本身有物流能力的物流企业用户"));
         if(!q2.exec())
-            return;
+            return false;
         specNICs[SNIC_WL_CLIENT] = maxCode;
     }
     q.bindValue(":name",bank_client);
@@ -1092,7 +1371,7 @@ void AppConfig::_initSpecNameItemClses()
         q2.bindValue(":name",bank_client);
         q2.bindValue(":explain",QObject::tr("有资金划转能力的机构，通常指银行"));
         if(!q2.exec())
-            return;
+            return false;
         specNICs[SNIC_BANK] = maxCode;
     }
     q.bindValue(":name",gdzc_class);
@@ -1103,9 +1382,10 @@ void AppConfig::_initSpecNameItemClses()
         q2.bindValue(":name",bank_client);
         q2.bindValue(":explain",QObject::tr("可以作为固定资产的物品名称类"));
         if(!q2.exec())
-            return;
+            return false;
         specNICs[SNIC_GDZC] = maxCode;
     }
+    return true;
 }
 
 bool AppConfig::_saveMachine(Machine *mac)

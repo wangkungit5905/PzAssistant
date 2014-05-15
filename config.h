@@ -47,7 +47,26 @@ public:
         SNIC_BANK          = 4     //金融机构（常指银行）
     };
 
-
+    /**
+     * @brief 配置变量对应的枚举代码
+     * 并作为存放变量值的数组索引
+     */
+    enum CfgValueCode{
+        CVC_RuntimeUpdateExtra = 0,     //是否实时更新余额
+        CVC_ExtraUnityInspectAfterRead=1, //是否在读取余额后进行一致性检测
+        CVC_ExtraUnityInspectBeforeSave=2, //是否在保存余额前进行一致性检测
+        CVC_ViewHideColInDailyAcc1 = 3, //是否在日记账表格中显示隐藏列（包括对方科目、结算号等）
+        CVC_ViewHideColInDailyAcc2 = 4, //是否在日记账表格中显示隐藏列（包括凭证id、会计分录id等）
+        CVC_IsByMtForOppoBa = 5,        //在按下等号键建立新的合计对冲业务活动时，是否按币种分开建立
+        CVC_IsCollapseJz = 6,           //是否展开结转凭证中的业务活动表项的明细，默认展开。
+        CVC_JzlrByYear = 7,             //是否每年年底执行一次本年利润的结转
+        //整形
+        CVC_ResentLoginUser = 0,        //最近登录用户id
+        CVC_AutoSaveInterval = 1,       //凭证自动保存的时间间隔
+        CVC_TimeoutOfTemInfo = 2,       //在状态条上显示临时信息的超时时间（以毫秒计）
+        //双精度型
+        CVC_GdzcCzRate = 0,            //固定资产折旧残值率
+    };
 
 
     ~AppConfig();
@@ -82,16 +101,14 @@ public:
     bool readPzEwTableState(QList<int> &infos);
 
     //获取或设置配置变量的值
-    bool initGlobalVar();
+
     bool saveGlobalVar();
-    bool getConVar(QString name, bool& v);
-    bool getConVar(QString name, int& v);
-    bool getConVar(QString name, double& v);
-    bool getConVar(QString name, QString& v);
-    bool setConVar(QString name, bool value);
-    bool setConVar(QString name, int value);
-    bool setConVar(QString name, double value);
-    bool setConVar(QString name, QString value);
+    void getCfgVar(CfgValueCode varCode, bool& v);
+    void getCfgVar(CfgValueCode varCode, int& v);
+    void getCfgVar(CfgValueCode varCode, Double &v);
+    void setCfgVar(CfgValueCode varCode, bool v);
+    void setCfgVar(CfgValueCode varCode, int v);
+    void setCfgVar(CfgValueCode varCode, double v);
 
     //保存或读取本地账户缓存信息
     bool clearAccountCache();
@@ -108,46 +125,61 @@ public:
     void clearRecentOpenAccount();
     QHash<AccountTransferState,QString> getAccTranStates();
 
-    bool getSubSysItems(QList<SubSysNameItem *> &items);
+    void getSubSysItems(QList<SubSysNameItem *> &items);
+    SubSysNameItem* getSpecSubSysItem(int subSysCode);
 
     bool getSupportMoneyType(QHash<int, Money *> &moneys);
 
     void updateTableCreateStatment(QStringList names, QStringList sqls);
     bool getUpdateTableCreateStatment(QStringList &names, QStringList &sqls);
     bool setEnabledFstSubs(int subSys, QStringList codes);
-    bool setSubjectJdDirs(int subSys, QStringList codes);
-    bool getSubSysMaps(int scode, int dcode, QHash<QString,QString>& codeMaps);
+    bool setSubjectJdDirs(int subSys, QStringList codes);    
+    bool getSubSysMaps2(int scode, int dcode, QHash<QString,QString> &defMaps, QHash<QString, QString> &multiMaps);
+    bool getSubSysMaps(int scode, int dcode, QList<SubSysJoinItem2*>& cfgs);
+    bool saveSubSysMaps(int scode, int dcode, QList<SubSysJoinItem2*> cfgs);
+    bool getNotDefSubSysMaps(int scode, int dcode, QHash<QString,QString>& codeMaps);
+    bool getSubSysMapConfiged(int scode,int dcode, bool &ok);
+    bool setSubSysMapConfiged(int scode,int dcode, bool ok = true);
+    bool getSubCodeToNameHash(int subSys, QHash<QString,QString>& subNames);
 
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);
     bool _searchAccount();
+    bool _initCfgVars();
+    void _initCfgVarDefs();
     bool _initAccountCaches();
-    void _initMachines();
-    void _initSpecSubCodes();
-    void _initSpecNameItemClses();
+    bool _initMachines();
+    bool _initSubSysNames();
+    bool _initSpecSubCodes();
+    bool _initSpecNameItemClses();
     bool _saveMachine(Machine* mac);
     AppConfig();
-    bool getConfigVar(QString name, int type);
-    bool setConfigVar(QString name,int type);
 
     QHash<int, Money*> moneyTypes;
     QHash<int, Machine*> machines;
+    QHash<int, SubSysNameItem*> subSysNames;
     QList<AccountCacheItem*> accountCaches;
     QHash<int, QHash<SpecSubCode,QString> > specCodes; //特定科目代码表
     bool init_accCache; //本地账户缓存条目是否已从缓存表中读取的标志
-    bool bv;       //分别用来保存4种类型的变量值
-    int iv;
-    double dv;
-    QString sv;
 
     //特定名称类别的代码
     QHash<SpecNameItemClass,int> specNICs;
+
+    //应用行为配置变量
+    static const int CFGV_BOOL_NUM = 8;     //布尔型配置变量个数
+    static const int CFGV_INT_NUM = 3;      //整形配置变量个数
+    static const int CFGV_DOUBLE_NUM = 1;   //双精度型配置变量个数
+    bool boolCfgs[CFGV_BOOL_NUM];
+    int intCfgs[CFGV_INT_NUM];
+    Double doubleCfgs[CFGV_DOUBLE_NUM];
 
     static AppConfig* instance;
     static QSqlDatabase db;
     static QSettings *appIni;
     static const int SPEC_SUBJECT_NUMS = 8; //特定科目数目
+
+
 };
 
 

@@ -161,15 +161,14 @@
      <addaction name="actImpTestDatas"/>
      <addaction name="actViewLog"/>
      <addaction name="actSqlTool"/>
-     <addaction name="actBasicDB"/>
+     <addaction name="actUpdateSql"/>
+     <addaction name="actExtComSndSub"/>
     </widget>
     <widget class="QMenu" name="menu_4">
      <property name="title">
       <string>管理员工具</string>
      </property>
      <addaction name="actImpPzSet"/>
-     <addaction name="actSetPzCls"/>
-     <addaction name="actForceDelPz"/>
     </widget>
     <addaction name="actGdzcAdmin"/>
     <addaction name="actDtfyAdmin"/>
@@ -607,17 +606,6 @@
     <string>结转损益类各子科目的本期发生额到本年利润</string>
    </property>
   </action>
-  <action name="actCurStat">
-   <property name="enabled">
-    <bool>true</bool>
-   </property>
-   <property name="text">
-    <string>本期统计</string>
-   </property>
-   <property name="toolTip">
-    <string>统计本月发生额及科目余额</string>
-   </property>
-  </action>
   <action name="actLogin">
    <property name="text">
     <string>登录</string>
@@ -946,14 +934,6 @@
     <string>取消由其他模块引入的凭证</string>
    </property>
   </action>
-  <action name="actBasicDB">
-   <property name="text">
-    <string>访问基本库</string>
-   </property>
-   <property name="toolTip">
-    <string>访问基本数据库</string>
-   </property>
-  </action>
   <action name="actGdzcAdmin">
    <property name="text">
     <string>固定资产管理</string>
@@ -976,14 +956,6 @@
    </property>
    <property name="toolTip">
     <string>查看总账</string>
-   </property>
-  </action>
-  <action name="actShowDetail">
-   <property name="text">
-    <string>查看明细账</string>
-   </property>
-   <property name="toolTip">
-    <string>查看明细账</string>
    </property>
   </action>
   <action name="actAccProperty">
@@ -1009,20 +981,12 @@
     <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; color:#008000;&quot;&gt;批量删除，凭证号之间用英文逗号隔开，连续的凭证号可以用连字符“-”连接，比如“2-4,7,8”，表示删除2，3，4，7，8号凭证&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
    </property>
   </action>
-  <action name="actForcePzsState">
+  <action name="actUpdateSql">
    <property name="text">
-    <string>强制凭证集状态</string>
+    <string>更新表格创建语句</string>
    </property>
    <property name="toolTip">
-    <string>强制将凭证集设置到指定状态</string>
-   </property>
-  </action>
-  <action name="actSetPzCls">
-   <property name="text">
-    <string>设置凭证类别</string>
-   </property>
-   <property name="toolTip">
-    <string>设置凭证到指定类别-凭证的类别决定了统计阶段的参与度</string>
+    <string>以当前账户为模板，更新新账户数据库所使用的表格创建语句</string>
    </property>
   </action>
   <action name="actPzErrorInspect">
@@ -1159,6 +1123,14 @@
    </property>
    <property name="toolTip">
     <string>从老版账户中导入指定年月的凭证集</string>
+   </property>
+  </action>
+  <action name="actExtComSndSub">
+   <property name="text">
+    <string>导出常用二级科目</string>
+   </property>
+   <property name="toolTip">
+    <string>将常用名称条目与一级科目的所属情况到基本库中，以便新建账户时采用</string>
    </property>
   </action>
  </widget>

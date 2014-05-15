@@ -72,6 +72,17 @@ bool StatUtil::stat()
  */
 bool StatUtil::save()
 {
+    bool isVerify = false;
+    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_ExtraUnityInspectBeforeSave,isVerify);
+    if(isVerify){
+        QStringList errors;
+        if(!_verifyExtraUnity(errors,false)){
+            QString s = tr("如下科目余额出现不一致：\n");
+            foreach(QString e, errors)
+                s.append(e).append("\n");
+            QMessageBox::warning(0,tr("余额不一致警告"),s);
+        }
+    }
     if(!dbUtil->saveExtraForPm(y,m,endFExa,endFDir,endSExa,endSDir))
         return false;
     if(!dbUtil->saveExtraForMm(y,m,endFExaM,endSExaM))
@@ -389,7 +400,6 @@ bool StatUtil::_readPreExtra()
         yy = y-1;
         mm = 12;
         isConvert = account->isConvertExtra(y);
-
     }
     else{
         yy = y;
@@ -398,24 +408,22 @@ bool StatUtil::_readPreExtra()
 
     if(!dbUtil->readExtraForPm(yy,mm,preFExa,preFDir,preSExa,preSDir))
         return false;
+    bool isVerify = false;
+    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_ExtraUnityInspectAfterRead,isVerify);
+    if(isVerify){
+        QStringList errors;
+        if(!_verifyExtraUnity(errors)){
+            QString s = tr("如下科目余额出现不一致：\n");
+            foreach(QString e, errors)
+                s.append(e).append("\n");
+            QMessageBox::warning(0,tr("余额不一致警告"),s);
+        }
+    }
+
     if(!dbUtil->readExtraForMm(yy,mm,preFExaM,preSExaM))
         return false;
-    if(isConvert){
-        QHash<int,int> fMaps,sMaps;
-        int sc = account->getSuiteRecord(yy)->subSys;
-        int dc = account->getSuiteRecord(y)->subSys;
-        if(!account->getSubSysJoinMaps(sc,dc,fMaps,sMaps))
-            return false;
-        if(!account->convertExtra(preFExa,preFDir,fMaps))
-            return false;
-        QHash<int,MoneyDirection> dirs;
-        if(!account->convertExtra(preFExaM,dirs,fMaps))
-            return false;
-        if(!account->convertExtra(preSExaM,dirs,sMaps))
-            return false;
-        if(!account->convertExtra(preSExa,preSDir,sMaps))
-            return false;
-    }
+    if(isConvert && !account->convertExtra2(y-1,preFExa,preFDir,preSExa,preSDir))
+        return false;
     return true;
 }
 
@@ -707,7 +715,7 @@ void StatUtil::_calEndExtraForSingleSub(SubjectBase *sub, Money* mt, bool isFst)
 /**
  * @brief StatUtil::_inspectExtraException
  *  重新计算指定科目的余额，并检测其余额是否异常
- *  移除的余额：正向记账科目，余额方向为贷，反向记账科目，余额方向为借
+ *  异常的余额：正向记账科目，余额方向为贷，反向记账科目，余额方向为借
  * @param fsub
  * @param ssub
  * @param mt
@@ -920,6 +928,80 @@ void StatUtil::_removeExtraItem(int key_f, int key_s)
     endSDir.remove(key_s);
     endSExa.remove(key_s);
     endSExaM.remove(key_s);
+}
+
+/**
+ * @brief 验证主目余额与子目汇总后的余额是否一致
+ * @param isPre     true：验证期初余额，false：验证期末余额
+ * @return
+ */
+bool StatUtil::_verifyExtraUnity(QStringList& errors, bool isPre)
+{
+    QHash<int,Double> *f_pvs,*f_mvs,*s_pvs,*s_mvs;
+    QHash<int,MoneyDirection> *f_dirs,*s_dirs;
+    if(isPre){
+        f_pvs = &preFExa; f_dirs = &preFDir; f_mvs = &preFExaM;
+        s_pvs = &preSExa; s_dirs = &preSDir; s_mvs = &preSExaM;
+    }
+    else{
+        f_pvs = &endFExa; f_dirs = &endFDir; f_mvs = &endFExaM;
+        s_pvs = &endSExa; s_dirs = &endSDir; s_mvs = &endSExaM;
+    }
+    //1、验证原币余额
+    QHashIterator<int,Double> it(*f_pvs);
+    while(it.hasNext()){
+        it.next();
+        int fid = it.key()/10;
+        FirstSubject* fsub = smg->getFstSubject(fid);
+        int mt = it.key()%10;
+        Double sum; MoneyDirection s_dir,f_dir;
+        f_dir = f_dirs->value(it.key(),MDIR_P);
+        _collectSumForFSubMt(fsub,mt,sum,s_dir,*s_pvs,*s_dirs);
+        if(s_dir == MDIR_P && f_dir == MDIR_P)
+            continue;
+        if(((int)s_dir + (int)f_dir) == 0)
+            sum.changeSign();
+        if(sum != it.value())
+            errors<<QString(tr("%1原币余额不一致")).arg(fsub->getName());
+    }
+    //2、验证本币余额
+    if(!errors.isEmpty())
+        return false;
+    return true;
+}
+
+/**
+ * @brief 汇总某个指定主目下的所有子目的余额
+ * @param fsub
+ * @param mt
+ * @param v
+ * @param dir
+ * @param vs
+ * @param dirs
+ */
+void StatUtil::_collectSumForFSubMt(FirstSubject* fsub, int mt, Double &sum, MoneyDirection &dir, QHash<int, Double> vs, QHash<int, MoneyDirection> dirs)
+{
+    QList<int> ids;
+    foreach(SecondSubject* ssub, fsub->getChildSubs())
+        ids<<ssub->getId();
+    foreach(int id, ids){
+        int key = id*10+mt;
+        if(!vs.contains(key))
+            continue;
+        Double v = vs.value(key);
+        if(dirs.value(key) == MDIR_D)
+            v.changeSign();
+        sum += v;
+    }
+    if(sum == 0){
+        dir = MDIR_P;
+    }
+    else if(sum < 0){
+        dir = MDIR_D;
+        sum.changeSign();
+    }
+    else
+        dir = MDIR_J;
 }
 
 /**

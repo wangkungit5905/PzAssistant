@@ -30,6 +30,7 @@ struct AccontTranferInfo{
 };
 
 
+
 class Account : public QObject
 {
 public:
@@ -154,7 +155,6 @@ public:
     void getVersion(int &mv,int &sv);
 
     AccountSuiteManager* getSuiteMgr(int suiteId = 0);
-    void colsePzSet();
     SubjectManager* getSubjectManager(int subSys = 0);
     //SubjectManager* getSubjectManager();
     QList<SubSysNameItem*> getSupportSubSys();
@@ -176,19 +176,14 @@ public:
     bool addBank(Bank* bank);
     static void setDatabase(QSqlDatabase* db);
 
-    bool getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
-    bool saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem*>& cfgs);
-    bool getSubSysJoinMaps(int src, int des, QHash<int,int>& fmaps, QHash<int,int>& smaps);
-    bool isCompleteSubSysCfg(int src, int des, bool &completed);
-    bool setCompleteSubSysCfg(int src, int des, bool completed);
-    bool isCompletedExtraJoin(int src, int des, bool &completed);
+    bool getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem2*>& cfgs);
+    bool saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem2*> cfgs);
     bool isImportSubSys(int code);
-    bool setImportSubSys(int code, bool ok);
+    bool isSubSysConfiged(int code);
 
     bool isConvertExtra(int year);
     bool convertExtra(QHash<int,Double>& sums, QHash<int,MoneyDirection>& dirs, const QHash<int, int> maps);
-    //bool convertExtra(int year, QHash<int,Double>& fsums, QHash<int,MoneyDirection>& fdirs,
-    //                  QHash<int,Double>& ssums,QHash<int,MoneyDirection>& sdirs,);
+    bool convertExtra2(int year, QHash<int,Double>& fsums, QHash<int,MoneyDirection>& fdirs, QHash<int, Double> &dsums, QHash<int, MoneyDirection> &ddirs);
 
 private:
     bool init();

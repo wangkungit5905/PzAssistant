@@ -17,4 +17,6 @@ static QString GVN_VIEWORHIDE_COL_IN_DAILY_2 = "viewHideColInDailyAcc2";//在明
 static QString GVN_IS_RUNTIMNE_UPDATE_EXTRA = "rt_update_extra";//是否实时更新余额
 static QString GVN_GDZC_CZ_RATE = "canZhiRate";             //固定资产折旧残值率
 
+
+
 #endif // GLOBALVARNAMES_H

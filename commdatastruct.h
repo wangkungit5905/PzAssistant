@@ -511,17 +511,27 @@ struct AccountCacheItem{
 struct SubSysNameItem{
     int code;               //科目系统代码
     QString name,explain;   //科目系统名称及其解释
+    QDate startTime;        //科目系统的启用时间
     bool isImport;          //是否已导入给科目系统的科目
     bool isConfiged;        //是否已终结科目系统的衔接配置
 };
 
 /**
- * @brief 科目系统衔接配置条目结构
+ * @brief 科目系统对接配置条目结构
  */
 struct SubSysJoinItem{
+    int id;                      //记录id
     FirstSubject *sFSub, *dFSub; //源一级科目，目的一级科目
-    bool isMap;                 //是否建立衔接映射
-    QList<int> ssubMaps;        //子目映射列表（每两个元素为一组，前一个是源子目id，后一个是目的子目id）
+    bool isDef;                  //true：默认对接，false：混合（并入）对接
+};
+
+/**
+ * @brief 科目系统对接配置条目结构
+ */
+struct SubSysJoinItem2{
+    int id;                     //记录id
+    QString scode,dcode;        //源一级科目代码，目的一级科目代码
+    bool isDef;                 //true：默认对接，false：混合（并入）对接
 };
 
 /**
@@ -588,6 +598,13 @@ enum PrintActionClass{
     PAC_TOPRINTER   = 1,    //输出到打印机
     PAC_PREVIEW     = 2,    //打印预览
     PAC_TOPDF       = 3     //输出到pdf文件
+};
+
+struct MixedJoinCfg{
+    int s_fsubId;   //源一级科目id
+    int s_ssubId;   //源二级科目id
+    int d_fsubId;   //对接一级科目id
+    int d_ssubId;   //对接二级科目id
 };
 
 //enum MachineType{

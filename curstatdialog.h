@@ -25,7 +25,6 @@ class FirstSubject;
 class SecondSubject;
 class Money;
 class Double;
-class SubjectComplete;
 class SubjectManager;
 
 

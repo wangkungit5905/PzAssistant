@@ -537,8 +537,8 @@ void CustomSpinBox::keyPressEvent(QKeyEvent * event)
 
 
 ////////////////////////////SubjectComplete2//////////////////////////////////////////
-SubjectComplete::SubjectComplete(SujectLevel witch, QObject *parent)
-    : QCompleter(parent),witch(witch)
+SubjectComplete::SubjectComplete(int subSys, SujectLevel witch, QObject *parent)
+    : QCompleter(parent),witch(witch),subSys(subSys)
 {
     dbUtil = curAccount->getDbUtil();
     q = dbUtil->getQuery();
@@ -591,8 +591,10 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
             if(keyBuf.count() == 0){
                 keyBuf.append(key);
                 if(witch == 1){
-                    QString s = QString("select %1,%2,id from %3 where (%4=1) ")
-                            .arg(fld_fsub_name).arg(fld_fsub_subcode).arg(tbl_fsub).arg(fld_fsub_isview);
+                    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+                    QString s = QString("select %1,%2,%3 from %4 where (%5=1) ")
+                            .arg(fld_fsub_name).arg(fld_fsub_subcode).arg(fld_fsub_fid)
+                            .arg(tname).arg(fld_fsub_isEnalbed);
                     if(!filter.isEmpty())
                         s.append(" and ").append(filter);
                     s.append(QString(" order by %1").arg(fld_fsub_subcode));
@@ -617,9 +619,10 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
                 QString s;
                 keyBuf.append(key);
                 if(witch == 1){
-                    s = QString("select %1,%2,id,%3 from %4 where (%5=1)")
-                            .arg(fld_fsub_name).arg(fld_fsub_remcode).arg(fld_fsub_subcode)
-                            .arg(tbl_fsub).arg(fld_fsub_isview);
+                    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+                    s = QString("select %1,%2,%3,%4 from %5 where (%6=1)")
+                            .arg(fld_fsub_name).arg(fld_fsub_remcode).arg(fld_fsub_fid)
+                            .arg(fld_fsub_subcode).arg(tname).arg(fld_fsub_isEnalbed);
                     if(!filter.isEmpty())
                         s.append(" and ").append(filter);
                     s.append(QString(" order by %1").arg(fld_fsub_remcode));

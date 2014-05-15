@@ -234,6 +234,8 @@ void LoginDialog::init()
 {    
     QHashIterator<int,User*> it(allUsers);
     int ruIndex = 0, index = 0;
+    int recentUserId;
+    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_ResentLoginUser,recentUserId);
     while(it.hasNext()){
         it.next();
         if(it.value()->getUserId() == recentUserId)

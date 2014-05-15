@@ -16,7 +16,14 @@ DatabaseAccessForm::DatabaseAccessForm(Account *account, AppConfig *config, QWid
     QWidget(parent),ui(new Ui::DatabaseAccessForm),account(account),appCfg(config)
 {
     ui->setupUi(this);
-    adb = account->getDbUtil()->getDb();
+    if(account){
+        adb = account->getDbUtil()->getDb();
+        ui->rdo_acc->setChecked(true);
+    }
+    else{
+        ui->rdo_acc->setEnabled(false);
+        ui->rdo_base->setChecked(true);
+    }
     bdb = config->getBaseDbConnect();
     init();
 }
@@ -41,8 +48,6 @@ void DatabaseAccessForm::init()
     enWidget(false);
     ui->btnExec->setEnabled(false);
     ui->btnClear->setEnabled(false);
-    //connect(ui->tw->selectionModel(), SIGNAL(currentRowChanged(QModelIndex,QModelIndex)),
-    //            this, SLOT(currentChanged()));
     ui->tw->addAction(ui->insertRowAction);
     ui->tw->addAction(ui->deleteRowAction);
 }
@@ -66,7 +71,6 @@ void DatabaseAccessForm::loadTable(bool isAccount)
     }
     tModel = new QSqlTableModel(this,db);
     tModel->setEditStrategy(QSqlTableModel::OnManualSubmit);
-    //ui->tw->setModel(tModel);
     connect(tModel,SIGNAL(dataChanged(QModelIndex,QModelIndex)),this,SLOT(dataChanged(QModelIndex,QModelIndex)));
 
     QSqlQuery q(db);
@@ -155,14 +159,6 @@ void DatabaseAccessForm::clear(bool isAccount)
  */
 void DatabaseAccessForm::curTableChanged(int index)
 {
-//    if(index == -1){
-//        if(tModel){
-//            disconnect(tModel,SIGNAL(dataChanged(QModelIndex,QModelIndex)),this,SLOT(dataChanged(QModelIndex,QModelIndex)));
-//            delete tModel;
-//            tModel = NULL;
-//            ui->tw->setModel(tModel);
-//        }
-//    }
     QString tableName = ui->rdo_acc->isChecked()?tableNames_acc.at(index):tableNames_base.at(index);
     tModel->setTable(tableName);
     tModel->select();
@@ -323,7 +319,6 @@ void DatabaseAccessForm::on_deleteRowAction_triggered()
     }
 
     model->submitAll();
-    //ui->btnCommit->setEnabled(false);
     enWidget(false);
     updateActions();
 }

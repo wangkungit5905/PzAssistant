@@ -51,7 +51,7 @@ private:
     AccountSuiteManager *curSuite;
     SubjectManager* sm;
     QHash<int,FirstSubject*> fsubIdMaps;  //新旧一级科目映射表(键为旧一级科目id，值为对应的新一级科目对象)
-    QHash<int,SecondSubject*> ssubIdMaps; //新旧二级科目映射表（键为旧二级科目id，值为新二级科目对象）
+    //QHash<int,SecondSubject*> ssubIdMaps; //新旧二级科目映射表（键为旧二级科目id，值为新二级科目对象）
 };
 
 #endif // IMPORTOVACCDLG_H

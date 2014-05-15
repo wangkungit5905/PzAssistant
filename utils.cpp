@@ -298,16 +298,17 @@ bool BusiUtil::init(QSqlDatabase& db)
     //所有者权益类：（正：贷，负：借）
     //损益类-收入（正：贷，负：借）
     //损益类-费用（正：借，负：贷）
-    QString s = QString("select id from %1 where %2=1 and %3=1")
-            .arg(tbl_fsub).arg(fld_fsub_jddir).arg(fld_fsub_isview);
-    if(!q.exec(s))
-        return false;
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(DEFAULT_SUBSYS_CODE);
+    QString s = QString("select %1 from %2 where %3=1 and %4=1").arg(fld_fsub_fid)
+            .arg(tname).arg(fld_fsub_jddir).arg(fld_fsub_isEnalbed);
+    if(!q.exec(s))      //如果账户一开始就使用了新科目系统，则此类无用
+        return true;
     pset.clear();
     while(q.next())
         pset.insert(q.value(0).toInt());
 
-    s = QString("select id from %1 where %2=0 and %3=1")
-            .arg(tbl_fsub).arg(fld_fsub_jddir).arg(fld_fsub_isview);
+    s = QString("select %1 from %2 where %3=0 and %4=1").arg(fld_fsub_fid)
+            .arg(tname).arg(fld_fsub_jddir).arg(fld_fsub_isEnalbed);
     if(!q.exec(s))
         return false;
     nset.clear();
@@ -356,7 +357,8 @@ bool BusiUtil::init(QSqlDatabase& db)
     otherPzCls.insert(Pzc_Jzlr);
 
     //初始化需要按币种分别核算的科目的集合
-    s = QString("select id from %1 where %2=1").arg(tbl_fsub).arg(fld_fsub_isUseWb);
+    s = QString("select %1 from %2 where %3=1").arg(fld_fsub_fid)
+            .arg(tname).arg(fld_fsub_isUseWb);
     if(!q.exec(s))
         return false;
     accToMt.clear();
@@ -364,8 +366,8 @@ bool BusiUtil::init(QSqlDatabase& db)
         accToMt.insert(q.value(0).toInt());
 
     //初始化损益类科目中收入类和费用类科目id集合
-    s = QString("select id,%1 from %2 where %3=5 and %4=1")
-            .arg(fld_fsub_jddir).arg(tbl_fsub).arg(fld_fsub_class).arg(fld_fsub_isview);
+    s = QString("select %1,%2 from %3 where %4=5 and %5=1").arg(fld_fsub_fid)
+            .arg(fld_fsub_jddir).arg(tname).arg(fld_fsub_class).arg(fld_fsub_isEnalbed);
     if(!q.exec(s))
         return false;
     int dir,sid;
@@ -588,9 +590,9 @@ bool BusiUtil::getMTName(QHash<int, QString> &names)
 bool BusiUtil::getIdByCode(int &id, QString code, int subSys)
 {
     QSqlQuery q(db);
-    QString s = QString("select id from %1 where %2 = %3 and %4 = '%5'")
-            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys)
-            .arg(fld_fsub_subcode).arg(code);
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+    QString s = QString("select %1 from %2 where %3 = '%4'").arg(fld_fsub_fid)
+            .arg(tname).arg(fld_fsub_subcode).arg(code);
     if(!q.exec(s))
         return false;
     if(!q.first()){
@@ -2759,8 +2761,9 @@ bool BusiUtil::readExtraForSub2(int y, int m, int fid, QHash<int, Double> &v,
     QSqlQuery q(db);
 
     //获取总账科目余额对应的字段名称
-    QString s = QString("select %1 from %2 where id = %3")
-            .arg(fld_fsub_subcode).arg(tbl_fsub).arg(fid);
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(DEFAULT_SUBSYS_CODE);
+    QString s = QString("select %1 from %2 where %3 = %4")
+            .arg(fld_fsub_subcode).arg(tname).arg(fld_fsub_fid).arg(fid);
     if(!q.exec(s))
         return false;
     if(!q.first()){
@@ -4663,7 +4666,9 @@ bool BusiUtil::getExtraState(int y, int m)
 bool BusiUtil::getFidToFldName(QHash<int, QString> &names)
 {
     QSqlQuery q(db);
-    QString s = QString("select id,%1 from %2").arg(fld_fsub_subcode).arg(tbl_fsub);
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(DEFAULT_SUBSYS_CODE);
+    QString s = QString("select %1,%2 from %3").arg(fld_fsub_fid)
+            .arg(fld_fsub_subcode).arg(tname);
     char c;
     if(!q.exec(s)){
         QMessageBox::information(0, QObject::tr("提示信息"),
@@ -4676,6 +4681,7 @@ bool BusiUtil::getFidToFldName(QHash<int, QString> &names)
         c = 'A' + code.left(1).toInt() -1;
         names[id] = QString(c).append(code);
     }
+    return true;
 }
 
 //获取凭证集内最大的可用凭证号

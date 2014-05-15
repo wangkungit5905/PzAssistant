@@ -60,6 +60,7 @@ private:
     int num_rec,num_ver,num_ins,num_rep;    //录入、审核、入账、作废凭证数
     QHash<AppErrorLevel,QString> colors;     //运行时信息各级别所使用的颜色在样式表中的表示串
     QTimer* timer;
+    int _timeout; //消息显示的超时时间
 };
 
 
@@ -253,7 +254,7 @@ private slots:
 
     void on_actDtfyAdmin_triggered();
 
-    void on_actSetPzCls_triggered();
+    //void on_actSetPzCls_triggered();
 
     void on_actShowTotal_triggered();
 
@@ -292,6 +293,10 @@ private slots:
     void on_actDelAcc_triggered();
 
     void on_actImpPzSet_triggered();
+
+    void on_actUpdateSql_triggered();
+
+    void on_actExtComSndSub_triggered();
 
 private:
     bool isOnlyCommonSubWin(subWindowType winType);

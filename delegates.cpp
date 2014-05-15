@@ -1381,84 +1381,142 @@ void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
 //}
 
 ///////////////////////////////FSubSelectCmb/////////////////////////////////////////////////////////
-FSubSelectCmb::FSubSelectCmb(SubjectManager *smg, QWidget *parent):QComboBox(parent)
+FSubSelectCmb::FSubSelectCmb(QHash<QString, QString> subNames, QWidget *parent):QComboBox(parent)
 {
-    FirstSubject* fsub;
-    fsub = smg->getNullFSub();
-    QVariant v;
-    v.setValue<FirstSubject*>(fsub);
-    addItem(fsub->getName(),v);
-    FSubItrator* it = smg->getFstSubItrator();
-    while(it->hasNext()){
-        it->next();
-        fsub = it->value();
-        if(fsub->isEnabled()){
-            v.setValue<FirstSubject*>(fsub);
-            addItem(fsub->getName(),v);
-        }
+    QList<QString> codes = subNames.keys();
+    qSort(codes.begin(),codes.end());
+    foreach(QString code, codes){
+        addItem(subNames.value(code),code);
     }
 }
 
-void FSubSelectCmb::setSubject(FirstSubject *fsub)
+void FSubSelectCmb::setSubCode(QString code)
 {
-    QVariant v;
-    v.setValue<FirstSubject*>(fsub);
-    setCurrentIndex(findData(v));
+    int index = findData(code);
+    setCurrentIndex(index);
 }
 
-FirstSubject *FSubSelectCmb::getSubject()
+QString FSubSelectCmb::getSubCode()
 {
     if(currentIndex() == -1)
-        return NULL;
-    return itemData(currentIndex()).value<FirstSubject*>();
+        return "";
+    return itemData(currentIndex()).toString();
 }
 
 
+////////////////////////////BooleanSelectCmb////////////////////////////////
+BooleanSelectCmb::BooleanSelectCmb(QStringList signs, QStringList displays, QWidget *parent):
+    QComboBox(parent)
+{
+    if(signs.count() != 2 || displays.count() != 2){
+        this->displays.clear();
+        this->signs.clear();
+        this->displays<<"true"<<"false";
+        this->signs<<"+"<<"-";
+    }
+    else{
+        this->displays = displays;
+        this->signs = signs;
+    }
+    for(int i=0; i < 2; ++i)
+        addItem(displays.at(i));
+}
+
+bool BooleanSelectCmb::getValue()
+{
+    if(currentIndex() == 0)
+        return true;
+    else
+        return false;
+}
+
+QString BooleanSelectCmb::getDisplay()
+{
+    return displays.at(currentIndex());
+}
+
+QString BooleanSelectCmb::getSign()
+{
+    return signs.at(currentIndex());
+}
+
+void BooleanSelectCmb::setValue(bool v)
+{
+    if(v)
+        setCurrentIndex(0);
+    else
+        setCurrentIndex(1);
+}
+
 ////////////////////////////////SubSysJoinCfgItemDelegate/////////////////////////////////////////
-SubSysJoinCfgItemDelegate::SubSysJoinCfgItemDelegate(SubjectManager *subMgr, QObject *parent)
-    :QItemDelegate(parent),subMgr(subMgr),readOnly(false)
+SubSysJoinCfgItemDelegate::SubSysJoinCfgItemDelegate(QHash<QString, QString> subNames, QStringList dispStrs, QStringList signStrs, QObject *parent)
+    :QItemDelegate(parent),subNames(subNames),readOnly(false),slSigns(signStrs),slDisps(dispStrs)
 {
 }
 
 QWidget *SubSysJoinCfgItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     //只为目标科目系统的科目名称列创建编辑器
-    if(readOnly || index.column() != 5)
+    int col = index.column();
+    if(readOnly || col != 2 && col != 4)
         return NULL;
-    FSubSelectCmb* cmb = new FSubSelectCmb(subMgr,parent);
-    return cmb;
+    if(col == 4){
+        FSubSelectCmb* cmb = new FSubSelectCmb(subNames,parent);
+        return cmb;
+    }
+    else{
+        BooleanSelectCmb* cmb = new BooleanSelectCmb(slSigns,slDisps,parent);
+        return cmb;
+    }
 }
 
 void SubSysJoinCfgItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
 {
-    FSubSelectCmb* cmb = qobject_cast<FSubSelectCmb*>(editor);
-    if(!cmb)
-        return;
-    FirstSubject* fsub = index.model()->data(index,Qt::EditRole).value<FirstSubject*>();
-    if(!fsub)
-        return;
-    cmb->setSubject(fsub);
-//    QVariant v;
-//    v.setValue<FirstSubject*>(fsub);
-//    int idx = cmb->findData(v);
-//    cmb->setCurrentIndex(idx);
+    int col = index.column();
+    if(col == 4){
+        FSubSelectCmb* cmb = qobject_cast<FSubSelectCmb*>(editor);
+        if(!cmb)
+            return;
+        QString code = index.model()->data(index.model()->index(index.row(),index.column()-1),Qt::EditRole).toString();
+        cmb->setSubCode(code);
+    }
+    else if(col == 2){
+        BooleanSelectCmb* cmb = qobject_cast<BooleanSelectCmb*>(editor);
+        if(!cmb)
+            return;
+        QString t = index.model()->data(index).toString();
+        int idx = slSigns.indexOf(t);
+        cmb->setValue(idx == 0);
+    }
 }
 
 void SubSysJoinCfgItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
 {
-    FSubSelectCmb* cmb = qobject_cast<FSubSelectCmb*>(editor);
-    if(!cmb)
-        return;
-    QVariant v;
-    FirstSubject* fsub = cmb->getSubject();
-    v.setValue<FirstSubject*>(fsub);
-    model->setData(index,v);
+    int col = index.column();
+    if(col == 4){
+        FSubSelectCmb* cmb = qobject_cast<FSubSelectCmb*>(editor);
+        if(!cmb)
+            return;
+        QString code = cmb->getSubCode();
+        model->setData(model->index(index.row(),index.column()-1),code);
+        model->setData(index,subNames.value(code));
+    }
+    else if(col == 2){
+        BooleanSelectCmb* cmb = qobject_cast<BooleanSelectCmb*>(editor);
+        if(!cmb)
+            return;
+        bool v = cmb->getValue();
+        model->setData(index,v?slSigns.at(0):slSigns.at(1));
+    }
 }
 
 void SubSysJoinCfgItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
     editor->setGeometry(option.rect);
 }
+
+
+
 
 
 

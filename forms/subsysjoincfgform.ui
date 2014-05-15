@@ -58,11 +58,6 @@
      </property>
      <column>
       <property name="text">
-       <string>科目对象列</string>
-      </property>
-     </column>
-     <column>
-      <property name="text">
        <string>科目代码</string>
       </property>
      </column>
@@ -73,7 +68,7 @@
      </column>
      <column>
       <property name="text">
-       <string>衔接到</string>
+       <string>对接到</string>
       </property>
      </column>
      <column>

@@ -32,7 +32,7 @@ extern int screenHeight;       //屏幕高度
 extern Account* curAccount;
 
 extern User* curUser;           //当前用户
-extern int recentUserId;        //最近登录用户ID
+//extern int recentUserId;        //最近登录用户ID
 
 extern QSqlDatabase adb;        //账户数据库连接
 extern QSqlDatabase bdb;        //基本数据库连接
@@ -68,27 +68,16 @@ extern QHash<PzsState,QString> pzsStates; //凭证集状态名表
 extern QHash<PzsState,QString> pzsStateDescs; //凭证集状态解释表
 
 //需要作特别处理的科目ID
-extern int subCashId;   //现金科目
+//extern int subCashId;   //现金科目
 extern int subBankId;   //银行存款
 extern int subYsId;     //应收账款
 extern int subYfId;     //应付账款
-extern int subCashRmbId;//现金科目下的人民币子目
+//extern int subCashRmbId;//现金科目下的人民币子目
 
-
-//应用的行为控制配置变量
-extern bool isByMt;  //在按下等号键建立新的合计对冲业务活动时，是否按币种分开建立
-extern bool isCollapseJz; //是否展开结转凭证中的业务活动表项的明细，默认展开。
-extern int  autoSaveInterval; //自动保存到时间间隔
-extern bool jzlrByYear;       //是否每年年底执行一次本年利润的结转
-extern int  timeoutOfTemInfo; //在状态条上显示临时信息的超时时间（以毫秒计）
-extern bool viewHideColInDailyAcc1; //是否在日记账表格中显示隐藏列（包括对方科目、结算号等）
-extern bool viewHideColInDailyAcc2; //是否在日记账表格中显示隐藏列（包括凭证id、会计分录id等）
-extern double czRate;               //固定资产折旧残值率
-extern bool rt_update_extra;        //是否实时更新余额
 
 //应用程序剪贴板功能有关的全局标量
-extern ClipboardOperate copyOrCut;                       //剪贴板存放到业务活动是复制还是剪切到（true：复制）
-extern QList<BusiActionData2*> clbBaList;     //存放要粘贴的业务活动数据
+extern ClipboardOperate copyOrCut;        //剪贴板存放到业务活动是复制还是剪切到（true：复制）
+extern QList<BusiActionData2*> clbBaList; //存放要粘贴的业务活动数据
 extern QList<BusiAction*> clb_Bas;       //存放要粘贴的会计分录对象（新的凭证编辑窗口使用）
 
 //账户状态变量

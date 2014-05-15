@@ -75,26 +75,6 @@ bool DbUtil::init()
         LOG_WARNING(QObject::tr("Don't set master money type"));
 
     }
-
-    //初始化余额指针索引表 （基于这样一个事实，通常不会读取多个年、月份的余额值，因此既然是缓存表，则有使用需求的才被缓存）
-//    s = QString("select * from %1").arg(tbl_nse_point);
-//    if(!q.exec(s)){
-//        LOG_SQLERROR(s);
-//        return false;
-//    }
-//    int id,y,m,mt,key;
-//    while(q.next()){
-//        id = q.value(0).toInt();
-//        y = q.value(NSE_POINT_YEAR).toInt();
-//        m = q.value(NSE_POINT_MONTH).toInt();
-//        mt = q.value(NSE_POINT_MT).toInt();
-//    }
-//    key = _genKeyForExtraPoint(y,m,mt);
-//    if(key == 0){
-//        LOG_ERROR("extra point value have error!");
-//        return false;
-//    }
-//    extraPoints[key] = id;
     return true;
 }
 
@@ -192,6 +172,8 @@ bool DbUtil::importFstSubjects(int subSys)
 {
     QSqlQuery q(db);
     QString s;
+
+    //1、导入一级科目
     QSqlQuery qm(AppConfig::getBaseDbConnect());
     s = QString("select * from %1 where %2=%3 order by %4").arg(tbl_base_fsub)
             .arg(fld_base_fsub_subsys).arg(subSys).arg(fld_base_fsub_subcode);
@@ -199,11 +181,24 @@ bool DbUtil::importFstSubjects(int subSys)
         LOG_SQLERROR(s);
         return false;
     }
-    s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
-                "values(%11,:code,:remCode,:clsId,:jdDir,:isView,:isUseWb,:weight,:name)")
-            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
-            .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isview).arg(fld_fsub_isUseWb)
-            .arg(fld_fsub_weight).arg(fld_fsub_name).arg(subSys);
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+    if(!tableExist(tname)){
+        s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 varchar(4),"
+                    "%4 varchar(10), %5 integer, %6 integer, %7 integer, %8 INTEGER, "
+                    "%9 integer, %10 varchar(10))")
+                .arg(tname).arg(fld_fsub_fid).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
+                .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isEnalbed)
+                .arg(fld_fsub_isUseWb).arg(fld_fsub_weight).arg(fld_fsub_name);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9) "
+                "values(:code,:remCode,:clsId,:jdDir,:isView,:isUseWb,:weight,:name)")
+            .arg(tname).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
+            .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isEnalbed).arg(fld_fsub_isUseWb)
+            .arg(fld_fsub_weight).arg(fld_fsub_name);
 
     if(!db.transaction()){
         LOG_ERROR("Start transaction failed on import first subject!");
@@ -228,6 +223,7 @@ bool DbUtil::importFstSubjects(int subSys)
         }
     }
 
+    //2、导入新科目系统类别
     s = QString("select * from %1 where %2=%3 order by %4")
             .arg(tbl_base_fsub_cls).arg(fld_base_fsub_cls_subSys).arg(subSys)
             .arg(fld_base_fsub_cls_clsCode);
@@ -251,6 +247,145 @@ bool DbUtil::importFstSubjects(int subSys)
         }
     }
 
+    //3、对接新老一级科目
+    QHash<QString,QString> codeMaps;
+    QHash<QString,QString> maps;
+    if(!AppConfig::getInstance()->getSubSysMaps2(DEFAULT_SUBSYS_CODE,subSys,codeMaps,maps)){
+        LOG_ERROR("Don't get subject system subject join items!");
+        return false;
+    }
+    QString sTable = QString("%1%2").arg(tbl_fsub_prefix).arg(DEFAULT_SUBSYS_CODE);
+    QString dTable = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+    QSqlQuery q1(db),q2(db);
+    s = QString("select %1 from %2 where %3=:scode").arg(fld_fsub_fid).arg(sTable)
+            .arg(fld_fsub_subcode);
+    if(!q1.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=:fid where %3=:dcode").arg(dTable).arg(fld_fsub_fid)
+            .arg(fld_fsub_subcode);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    QHashIterator<QString,QString> it(codeMaps);
+    int fid = 0;
+    while(it.hasNext()){
+        it.next();
+        q1.bindValue(":scode",it.key());
+        if(!q1.exec())
+            return false;
+        if(!q1.first()){
+            s = QString("insert into FstSubIDs default values");
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            s = "select last_insert_rowid()";
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            q.first();
+            fid = q.value(0).toInt();
+        }
+        else
+            fid = q1.value(0).toInt();
+        q2.bindValue(":fid",fid);
+        q2.bindValue(":dcode",it.value());
+        if(!q2.exec()){
+            LOG_SQLERROR(q2.lastQuery());
+            return false;
+        }
+    }
+
+    //4、对接需混合并入的二级科目
+    tname = QString("%1_%2_%3").arg(tbl_sndsub_join_pre).arg(DEFAULT_SUBSYS_CODE).arg(subSys);
+    if(!tableExist(tname)){
+        s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 INTEGER,"
+                    " %4 INTEGER, %5 INTEGER)").arg(tname).arg(fld_ssj_s_fsub)
+                .arg(fld_ssj_s_ssub).arg(fld_ssj_d_fsub).arg(fld_ssj_d_ssub);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+
+    codeMaps.clear();
+    if(!AppConfig::getInstance()->getNotDefSubSysMaps(DEFAULT_SUBSYS_CODE,subSys,codeMaps)){
+        return false;
+    }
+    QHashIterator<QString,QString> im(codeMaps);
+    int s_fid,s_sid,s_nid,d_fid,d_sid;
+    while(im.hasNext()){
+        im.next();
+        s = QString("select %1 from %2 where %3='%4'").arg(fld_fsub_fid).arg(sTable)
+                .arg(fld_fsub_subcode).arg(im.key());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        if(!q.first()){
+            LOG_ERROR(QObject::tr("导入新科目系统期间，无法找到源科目（%1）").arg(im.key()));
+            return false;
+        }
+        s_fid = q.value(0).toInt();
+        s = QString("select %1 from %2 where %3='%4'").arg(fld_fsub_fid).arg(dTable)
+                .arg(fld_fsub_subcode).arg(im.value());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        if(!q.first()){
+            LOG_ERROR(QObject::tr("导入新科目系统期间，无法找到对接科目（%1）").arg(im.value()));
+            return false;
+        }
+        d_fid = q.value(0).toInt();
+        s = QString("select id,%1 from %2 where %3=%4").arg(fld_ssub_nid).arg(tbl_ssub)
+                .arg(fld_ssub_fid).arg(s_fid);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q.next()){
+            s_sid = q.value(0).toInt();
+            s_nid = q.value(1).toInt();
+            s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_ssub)
+                    .arg(fld_ssub_fid).arg(d_fid).arg(fld_ssub_nid).arg(s_nid);
+            if(!q1.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            if(!q1.first()){
+                QString ds = AppConfig::getInstance()->getSpecSubSysItem(subSys)->startTime.toString(Qt::ISODate);
+                s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,%9,1,1,'%10',%11)")
+                            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_weight)
+                        .arg(fld_ssub_enable).arg(fld_ssub_crtTime).arg(fld_ssub_creator)
+                        .arg(d_fid).arg(s_nid).arg(ds).arg(curUser->getUserId());
+                if(!q1.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+                s = "select last_insert_rowid()";
+                if(!q1.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+                q1.first();
+            }
+            d_sid = q1.value(0).toInt();
+            s = QString("insert into %1(%2,%3,%4,%5) values(%6,%7,%8,%9)").arg(tname)
+                    .arg(fld_ssj_s_fsub).arg(fld_ssj_s_ssub).arg(fld_ssj_d_fsub)
+                    .arg(fld_ssj_d_ssub).arg(s_fid).arg(s_sid).arg(d_fid).arg(d_sid);
+            if(!q1.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+    }
+
     if(!db.commit()){
         LOG_ERROR("commit transaction failed on import first subject!");
         return false;
@@ -268,66 +403,62 @@ bool DbUtil::importFstSubjects(int subSys)
 bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QList<SubSysJoinItem *> &cfgs)
 {
     //注意：衔接映射表的命名规则：subSysJoin_n1_n2，其中n1用源科目系统代码表示，n2用目的科目系统代码表示
-    QSqlQuery q(db);
-    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getSubSysCode()).arg(des->getSubSysCode());
-    QString s = QString("select name from sqlite_master where type='table' and name='%1'").arg(tname);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    if(!q.first()){
-        if(!db.transaction()){
-            LOG_SQLERROR("start transaction failed on read subject system join config infomation!");
-            return false;
-        }
-        s = QString("create table %1(id integer primary key, %2 integer, %3 integer, %4 integer, %5 text)")
-                .arg(tname).arg(fld_ssjc_sSub).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps);
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        //将源科目系统中配置为启用的一级科目导入到配置表中
-        s = QString("insert into %1(%2,%3,%4,%5) values(:ssub,0,0,'')").arg(tname)
-                .arg(fld_ssjc_sSub).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps);
-        if(!q.prepare(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        FSubItrator* it = src->getFstSubItrator();
-        while(it->hasNext()){
-            it->next();
-            FirstSubject* fsub = it->value();
-            if(fsub->isEnabled()){
-                q.bindValue(":ssub",fsub->getId());
-                if(!q.exec())
-                    return false;
-            }
-        }
-        if(!db.commit()){
-            LOG_SQLERROR("commit transaction failed on read subject system join config infomation!");
-            return false;
-        }
-    }
+//    QSqlQuery q(db);
+//    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getSubSysCode()).arg(des->getSubSysCode());
+//    QString s;
+//    if(!_tableExist(tname)){
+//        if(!db.transaction()){
+//            LOG_SQLERROR("start transaction failed on read subject system join config infomation!");
+//            return false;
+//        }
+//        s = QString("create table %1(id integer primary key, %2 integer, %3 integer, %4 integer, %5 text)")
+//                .arg(tname).arg(fld_ssjc_sSub).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps);
+//        if(!q.exec(s)){
+//            LOG_SQLERROR(s);
+//            return false;
+//        }
+//        //将源科目系统中配置为启用的一级科目导入到配置表中
+//        s = QString("insert into %1(%2,%3,%4,%5) values(:ssub,0,0,'')").arg(tname)
+//                .arg(fld_ssjc_sSub).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps);
+//        if(!q.prepare(s)){
+//            LOG_SQLERROR(s);
+//            return false;
+//        }
+//        FSubItrator* it = src->getFstSubItrator();
+//        while(it->hasNext()){
+//            it->next();
+//            FirstSubject* fsub = it->value();
+//            if(fsub->isEnabled()){
+//                q.bindValue(":ssub",fsub->getId());
+//                if(!q.exec())
+//                    return false;
+//            }
+//        }
+//        if(!db.commit()){
+//            LOG_SQLERROR("commit transaction failed on read subject system join config infomation!");
+//            return false;
+//        }
+//    }
 
-    s = QString("select * from %1").arg(tname);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    QStringList sl;
-    while(q.next()){
-        sl.clear();
-        SubSysJoinItem* item = new SubSysJoinItem;
-        item->sFSub = src->getFstSubject(q.value(SSJC_SSUB).toInt());
-        item->dFSub = des->getFstSubject(q.value(SSJC_DSUB).toInt());
-        item->isMap = q.value(SSJC_ISMAP).toBool();
-        sl = q.value(SSJC_SSUBMaps).toString().split(",",QString::SkipEmptyParts);
-        if(!sl.isEmpty()){
-            for(int i = 0; i < sl.count(); ++i)
-                item->ssubMaps<<sl.at(i).toInt();
-        }
-        cfgs<<item;
-    }
+//    s = QString("select * from %1").arg(tname);
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    QStringList sl;
+//    while(q.next()){
+//        sl.clear();
+//        SubSysJoinItem* item = new SubSysJoinItem;
+//        item->sFSub = src->getFstSubject(q.value(SSJC_SSUB).toInt());
+//        item->dFSub = des->getFstSubject(q.value(SSJC_DSUB).toInt());
+//        item->isMap = q.value(SSJC_ISMAP).toBool();
+//        sl = q.value(SSJC_SSUBMaps).toString().split(",",QString::SkipEmptyParts);
+//        if(!sl.isEmpty()){
+//            for(int i = 0; i < sl.count(); ++i)
+//                item->ssubMaps<<sl.at(i).toInt();
+//        }
+//        cfgs<<item;
+//    }
     return true;
 }
 
@@ -338,43 +469,59 @@ bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QLis
  * @param cfgs
  * @return
  */
-bool DbUtil::setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs)
+//bool DbUtil::setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs)
+//{
+//    QSqlQuery q(db);
+//    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getSubSysCode()).arg(des->getSubSysCode());
+//    QString s = QString("update %1 set %2=:dSub,%3=:isMap,%4=:ssubMaps where %5=:sSub")
+//            .arg(tname).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps).arg(fld_ssjc_sSub);
+//    if(!db.transaction()){
+//        LOG_SQLERROR("start transaction failed on save subject system join config infomation!");
+//        return false;
+//    }
+//    if(!q.prepare(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    foreach(SubSysJoinItem* item,cfgs){
+//        q.bindValue(":dSub",item->dFSub->getId());
+//        q.bindValue(":isMap", item->isMap?1:0);
+//        q.bindValue(":sSub",item->sFSub->getId());
+//        if(item->ssubMaps.isEmpty())
+//            q.bindValue(":ssubMaps","");
+//        else{
+//            QString sl;
+//            for(int i = 0; i < item->ssubMaps.count(); ++i)
+//                sl.append(QString("%1,").arg(item->ssubMaps.at(i)));
+//            sl.chop(1);
+//            q.bindValue(":ssubMaps",sl);
+//        }
+//        if(!q.exec()){
+//            LOG_SQLERROR("exec prepare sql failed on save subject system join config infomation!");
+//            return false;
+//        }
+//    }
+//    if(!db.commit()){
+//        LOG_SQLERROR("commit transaction failed on save subject system join config infomation!");
+//        return false;
+//    }
+//    return true;
+//}
+
+/**
+ * @brief 指定名称的表格是否存在
+ * @param tableName
+ * @return
+ */
+bool DbUtil::tableExist(QString tableName)
 {
     QSqlQuery q(db);
-    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getSubSysCode()).arg(des->getSubSysCode());
-    QString s = QString("update %1 set %2=:dSub,%3=:isMap,%4=:ssubMaps where %5=:sSub")
-            .arg(tname).arg(fld_ssjc_dSub).arg(fld_ssjc_isMap).arg(fld_ssjc_ssubMaps).arg(fld_ssjc_sSub);
-    if(!db.transaction()){
-        LOG_SQLERROR("start transaction failed on save subject system join config infomation!");
-        return false;
-    }
-    if(!q.prepare(s)){
+    QString s = QString("select name from sqlite_master where type='table' and tbl_name='%1'").arg(tableName);
+    if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    foreach(SubSysJoinItem* item,cfgs){
-        q.bindValue(":dSub",item->dFSub->getId());
-        q.bindValue(":isMap", item->isMap?1:0);
-        q.bindValue(":sSub",item->sFSub->getId());
-        if(item->ssubMaps.isEmpty())
-            q.bindValue(":ssubMaps","");
-        else{
-            QString sl;
-            for(int i = 0; i < item->ssubMaps.count(); ++i)
-                sl.append(QString("%1,").arg(item->ssubMaps.at(i)));
-            sl.chop(1);
-            q.bindValue(":ssubMaps",sl);
-        }
-        if(!q.exec()){
-            LOG_SQLERROR("exec prepare sql failed on save subject system join config infomation!");
-            return false;
-        }
-    }
-    if(!db.commit()){
-        LOG_SQLERROR("commit transaction failed on save subject system join config infomation!");
-        return false;
-    }
-    return true;
+    return q.first();
 }
 
 /**
@@ -698,7 +845,7 @@ bool DbUtil::initNameItems()
     }
 
 
-    //4、装载所有二级科目名称条目
+    //4、装载所有名称条目
     s = QString("select * from %1").arg(tbl_nameItem);
     if(!q.exec(s))
         return false;
@@ -730,6 +877,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     QSqlQuery q(db);
     QString s;
 
+    int preSubSys = (subSys<=2)?DEFAULT_SUBSYS_CODE:(subSys-1);    //前一个科目系统的代码
     //1、装载一级科目类别
     s = QString("select %1,%2 from %3 where %4=%5").arg(fld_fsc_code)
             .arg(fld_fsc_name).arg(tbl_fsclass).arg(fld_fsc_subSys).arg(subSys);
@@ -743,8 +891,9 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     }
 
     //2、装载所有一级科目
-    s = QString("select * from %1 where %2=%3 order by %4")
-            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_subcode);
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+    s = QString("select * from %1 order by %2")
+            .arg(tname).arg(fld_fsub_subcode);
     if(!q.exec(s))
         return false;
 
@@ -755,7 +904,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     FirstSubject* fsub;
 
     while(q.next()){
-        id = q.value(0).toInt();
+        id = q.value(FSUB_FID).toInt();
         subCls = subClsMaps.value(q.value(FSUB_CLASS).toInt());
         name = q.value(FSUB_SUBNAME).toString();
         code = q.value(FSUB_SUBCODE).toString();
@@ -791,13 +940,33 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     }
 
     //3、装载所有二级科目
-    s = QString("select * from %1 where %2=%3").arg(tbl_ssub)
-            .arg(fld_ssub_subsys).arg(subSys);
+    //首先要判定是否存在有采用比当前科目系统还要新的帐套，如果有则记录该帐套的时间点
+    //这个主要是用来判定读取到的二级科目是否属于当前科目系统
+    s = QString("select %1,%2 from %3 where %4>%5").arg(fld_accs_year)
+            .arg(fld_accs_startMonth).arg(tbl_accSuites).arg(fld_accs_subSys)
+            .arg(subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    bool exist = q.first();
+    QDate startDate;
+    if(exist){
+        int y = q.value(0).toInt();
+        int m = q.value(1).toInt();
+        startDate.setDate(y,m,1);
+    }
+
+    s = QString("select * from %1 join %2 on %1.%3=%2.%4").arg(tbl_ssub).arg(tname)
+            .arg(fld_ssub_fid).arg(fld_fsub_fid);
     if(!q.exec(s))
         return false;
 
     SecondSubject* ssub;
     while(q.next()){
+        QDateTime crtTime = q.value(SSUB_CREATETIME).toDateTime();
+        if(exist && crtTime.date() >= startDate)
+            continue;
         int id = q.value(0).toInt();
         int fid = q.value(SSUB_FID).toInt();
         fsub = smg->fstSubHash.value(fid);
@@ -814,7 +983,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
         code = q.value(SSUB_SUBCODE).toString();
         weight = q.value(SSUB_WEIGHT).toInt();
         bool isEnable = q.value(SSUB_ENABLED).toBool();
-        QDateTime crtTime = QDateTime::fromString(q.value(SSUB_CREATETIME).toString(),Qt::ISODate);
+
         QDateTime disTime = QDateTime::fromString(q.value(SSUB_DISABLETIME).toString(),Qt::ISODate);
         int uid = q.value(SSUB_CREATOR).toInt();
         ssub = new SecondSubject(fsub,id,smg->nameItems.value(sid),code,weight,isEnable,crtTime,disTime,allUsers.value(uid));
@@ -823,9 +992,57 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
         if(ssub->getWeight() == DEFALUT_SUB_WEIGHT)
             fsub->setDefaultSubject(ssub);
     }
-    //初始化银行账户信息
-    //if(!getAllBankAccount(banks))
-    //    return false;
+    //如果是新科目系统，则有些一级科目可能有多个老的一级科目对接到它，因此要把这些二级科目移植到新科目
+    //比如，老科目系统的预付账款和待摊费用都对接到新科目系统的预付账款，这样就必须把待摊费用下的二级科目
+    //移植到预付账款
+
+//    if(subSys != preSubSys){
+//        QHash<QString,QString> maps;
+//        if(!AppConfig::getInstance()->getNotDefSubSysMaps(preSubSys,subSys,maps))
+//            return false;
+//        if(maps.isEmpty())
+//            return true;
+//        QString sTable = QString("%1%2").arg(tbl_fsub_prefix).arg(preSubSys);
+//        QHashIterator<QString,QString> it(maps);
+//        while(it.hasNext()){
+//            it.next();
+//            s = QString("select %1 from %2 where %3='%4'").arg(fld_fsub_fid)
+//                    .arg(sTable).arg(fld_fsub_subcode).arg(it.key());
+//            if(!q.exec(s)){
+//                LOG_SQLERROR(s);
+//                return false;
+//            }
+//            if(!q.first()){
+//                LOG_ERROR(QObject::tr("未找到非默认的对接源科目（%1）").arg(it.key()));
+//                return false;
+//            }
+//            int fid = q.value(0).toInt();
+//            s = QString("select * from %1 where %2=%3").arg(tbl_ssub)
+//                    .arg(fld_ssub_fid).arg(fid);
+//            if(!q.exec(s)){
+//                LOG_SQLERROR(s);
+//                return false;
+//            }
+//            FirstSubject* fsub = smg->getFstSubject(it.value());
+//            if(!fsub){
+//                LOG_ERROR(QObject::tr("未找到非默认的对接目标科目（%1）").arg(it.value()));
+//                return false;
+//            }
+//            while(q.next()){
+//                int id = q.value(0).toInt();
+//                int nid = q.value(SSUB_NID).toInt();
+//                code = q.value(SSUB_SUBCODE).toString();
+//                weight = q.value(SSUB_WEIGHT).toInt();
+//                bool isEnable = q.value(SSUB_ENABLED).toBool();
+//                QDateTime crtTime = QDateTime::fromString(q.value(SSUB_CREATETIME).toString(),Qt::ISODate);
+//                QDateTime disTime = QDateTime::fromString(q.value(SSUB_DISABLETIME).toString(),Qt::ISODate);
+//                int uid = q.value(SSUB_CREATOR).toInt();
+//                ssub = new SecondSubject(fsub,id,smg->nameItems.value(nid),code,weight,isEnable,crtTime,disTime,allUsers.value(uid));
+//                smg->sndSubs[id] = ssub;
+//                fsub->addChildSub(ssub);
+//            }
+//        }
+//    }
     return true;
 }
 
@@ -1637,8 +1854,6 @@ bool DbUtil::readExtraForSSub(int y, int m, int sid, QHash<int, Double> &v, QHas
 bool DbUtil::readExtraForPm(int y, int m, QHash<int, Double> &fsums, QHash<int, MoneyDirection> &fdirs,
                             QHash<int, Double> &ssums, QHash<int, MoneyDirection> &sdirs)
 {
-    //if(!isNewExtraAccess())
-    //    BusiUtil::readExtraByMonth2(y,m,fsums,fdirs,ssums,sdirs);
     fsums.clear();fdirs.clear();ssums.clear();sdirs.clear();
     if(!_readExtraForPm(y,m,fsums,fdirs))
         return false;
@@ -1712,9 +1927,6 @@ bool DbUtil::readExtraForMm(int y, int m, QHash<int, Double> &fsums, QHash<int, 
  */
 bool DbUtil::saveExtraForPm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, MoneyDirection> &fdirs, const QHash<int, Double> &ssums, const QHash<int, MoneyDirection> &sdirs)
 {
-    //if(isNewExtraAccess())
-    //    return BusiUtil::savePeriodBeginValues2(y,m,fsums,fdirs,ssums,sdirs,false);
-
     if(!db.transaction()){
         warn_transaction(Transaction_open,QObject::tr("When save extra for primary money, open database transaction failed!"));
         return false;
@@ -1743,9 +1955,6 @@ bool DbUtil::saveExtraForPm(int y, int m, const QHash<int, Double> &fsums, const
  */
 bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const QHash<int, Double> &ssums)
 {
-    //if(!isNewExtraAccess())
-    //    return BusiUtil::savePeriodEndValues(y,m,fsums,ssums);
-
     if(!db.transaction()){
         warn_transaction(Transaction_open,QObject::tr("When save extra for master money, open database transaction failed!"));
         return false;
@@ -1761,6 +1970,64 @@ bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const
         return false;
     }
     return true;
+}
+
+/**
+ * @brief 验证子目的汇总余额是否和主目的余额一致
+ * @param y
+ * @param m
+ * @param fsub
+ * @return
+ */
+bool DbUtil::verifyExtraForFsub(int y, int m, FirstSubject *fsub)
+{
+    QHash<int,Double> pvs,mvs;
+    QHash<int,MoneyDirection> dirs;
+    readExtraForAllSSubInFSub(y,m,fsub,pvs,dirs,mvs);
+    QHashIterator<int,Double> it(pvs);
+    Double sum,v;
+    MoneyDirection dir=MDIR_P;
+    while(it.hasNext()){
+        it.next();
+        v = it.value();
+        if(dirs.value(it.key()) == DIR_D)
+            v.changeSign();
+        sum += v;
+    }
+
+
+    QSqlQuery q(db);
+    int pid;
+    _readExtraPoint(y,m,1,pid);
+    QString s = QString("select %1,%2 from %3 where %4=%5 and %6=%7")
+            .arg(fld_nse_value).arg(fld_nse_dir).arg(tbl_nse_p_f)
+            .arg(fld_nse_pid).arg(pid).arg(fld_nse_sid).arg(fsub->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    MoneyDirection dir2 = MDIR_P;
+    Double sum2;
+    if(q.first()){
+        dir2 = (MoneyDirection)q.value(1).toInt();
+        sum2 = Double(q.value(0).toDouble());
+    }
+    if(sum == 0){
+        dir = MDIR_P;
+        if(dir2 == MDIR_P)
+            return true;
+    }
+    else if(dir == dir2 && sum == sum2){
+        return true;
+    }
+    else if((int)dir + (int)dir2 == 0){
+        sum.changeSign();
+        if(sum == sum2)
+            return true;
+        else
+            return false;
+    }
+    return false;
 }
 
 /**
@@ -1917,15 +2184,14 @@ bool DbUtil::saveExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub,
  * @brief DbUtil::convertExtraInYear
  *  转换指定年份内的余额（用正确的科目id替换）
  * @param year
- * @param fMaps 主科目映射表
- * @param sMaps 子科目映射表
+ * @param maps 科目映射表
+ * @param isFst true：主目，false：子目
  * @return
  */
-bool DbUtil::convertExtraInYear(int year, const QHash<int, int> fMaps,
-                                const QHash<int, int> sMaps, QStringList& errors)
+bool DbUtil::convertExtraInYear(int year, const QHash<int, int> maps,bool isFst)
 {
-    QSqlQuery q1(db),q2(db);
-    QString s1, s2;
+    QSqlQuery q1(db),q2(db),q3(db);
+    QString s;
     QList<int> ePoints;
     if(!db.transaction()){
         LOG_SQLERROR(QString("Start transaction failed on convert extra in %1 year!").arg(year));
@@ -1934,122 +2200,89 @@ bool DbUtil::convertExtraInYear(int year, const QHash<int, int> fMaps,
 
     if(!_readExtraPointInYear(year,ePoints))
         return false;
-    int id,sid;
-
+    QString tname = isFst?tbl_nse_p_f:tbl_nse_p_s;
     foreach (int p, ePoints) {
-        //主目原币
-        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_p_f)
-                .arg(fld_nse_pid).arg(p);
-
-        s2 = QString("update %1 set %2=:nid where id=:id")
-                .arg(tbl_nse_p_f).arg(fld_nse_sid);
-        if(!q2.prepare(s2)){
-            LOG_SQLERROR(s1);
+        //1、查找待对接科目的余额是否存在，如果不存在，则不处理，否则，读取此余额以及对接科目的余额，
+        //将两者汇总后保存，并移除待对接科目余额项
+        QHashIterator<int,int> it(maps);
+        s = QString("select id,%1,%2 from %4 where %5=%6 and %7=:sid")
+                .arg(fld_nse_value).arg(fld_nse_dir).arg(tname)
+                .arg(fld_nse_pid).arg(p).arg(fld_nse_sid);
+        if(q1.prepare(s)){
+            LOG_SQLERROR(s);
             return false;
         }
-        if(!q1.exec(s1)){
-            LOG_SQLERROR(s1);
+        s = QString("update %1 set %2=:value,%3=:dir where %4=%5 and %6=:sid")
+                .arg(tname).arg(fld_nse_value).arg(fld_nse_dir).arg(fld_nse_pid)
+                .arg(p).arg(fld_nse_sid);
+        if(!q2.prepare(s)){
+            LOG_SQLERROR(s);
             return false;
         }
-        while(q1.next()){
-            id = q1.value(0).toInt();
-            sid = q1.value(1).toInt();
-            if(!fMaps.contains(sid)){
-                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
-                        .arg(tbl_nse_p_f).arg(sid);
-                errors.append(e);
-                continue;
+        s = QString("delete from %1 where id=:id").arg(tname);
+        if(!q3.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(it.hasNext()){
+            it.next();
+            q1.bindValue(":sid",it.key());
+            if(!q1.exec()){
+               LOG_SQLERROR(q1.lastQuery());
+               return false;
             }
-            q2.bindValue(":id", id);
-            q2.bindValue(":nid", fMaps.value(sid));
-            if(!q2.exec())
-                return false;
-        }
-
-        //主目本币
-        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_m_f)
-                .arg(fld_nse_pid).arg(p);
-        if(!q1.exec(s1)){
-            LOG_SQLERROR(s1);
-            return false;
-        }
-        s2 = QString("update %1 set %2=:nid where id=:id")
-                .arg(tbl_nse_m_f).arg(fld_nse_sid);
-        if(!q2.prepare(s2)){
-            LOG_SQLERROR(s1);
-            return false;
-        }
-        while(q1.next()){
-            id = q1.value(0).toInt();
-            sid = q1.value(1).toInt();
-            if(!fMaps.contains(sid)){
-                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
-                        .arg(tbl_nse_p_f).arg(sid);
-                errors.append(e);
+            if(!q1.first())
                 continue;
+            int id1 = q1.value(0).toInt();
+            Double v = Double(q1.value(1).toDouble());
+            MoneyDirection dir = (MoneyDirection)q1.value(2).toInt();
+            if(dir == MDIR_D)
+                v.changeSign();
+            q1.bindValue(":sid",it.value());
+            if(!q1.exec()){
+               LOG_SQLERROR(q1.lastQuery());
+               return false;
             }
-            q2.bindValue(":id", id);
-            q2.bindValue(":nid", fMaps.value(sid));
-            if(!q2.exec())
-                return false;
-        }
-
-        //子目原币
-        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_p_s)
-                .arg(fld_nse_pid).arg(p);
-
-        s2 = QString("update %1 set %2=:nid where id=:id")
-                .arg(tbl_nse_p_s).arg(fld_nse_sid);
-        if(!q2.prepare(s2)){
-            LOG_SQLERROR(s1);
-            return false;
-        }
-        if(!q1.exec(s1)){
-            LOG_SQLERROR(s1);
-            return false;
-        }
-        while(q1.next()){
-            id = q1.value(0).toInt();
-            sid = q1.value(1).toInt();
-            if(!sMaps.contains(sid)){
-                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
-                        .arg(tbl_nse_p_f).arg(sid);
-                errors.append(e);
-                continue;
+            Double sum;
+            MoneyDirection d = MDIR_P;
+            int id2 = 0;
+            if(q1.first()){
+                id2 = q1.value(0).toInt();
+                sum = Double(q1.value(1).toDouble());
+                d = (MoneyDirection)q1.value(2).toInt();
+                if(d == MDIR_D)
+                    sum.changeSign();
             }
-            q2.bindValue(":id", id);
-            q2.bindValue(":nid", sMaps.value(sid));
-            if(!q2.exec())
-                return false;
-        }
-
-        //子目本币
-        s1 = QString("select id,%1 from %2 where %3 = %4").arg(fld_nse_sid).arg(tbl_nse_m_s)
-                .arg(fld_nse_pid).arg(p);
-
-        s2 = QString("update %1 set %2=:nid where id=:id")
-                .arg(tbl_nse_m_s).arg(fld_nse_sid);
-        if(!q2.prepare(s2)){
-            LOG_SQLERROR(s1);
-            return false;
-        }
-        if(!q1.exec(s1)){
-            LOG_SQLERROR(s1);
-            return false;
-        }
-        while(q1.next()){
-            id = q1.value(0).toInt();
-            sid = q1.value(1).toInt();
-            if(!sMaps.contains(sid)){
-                QString e = QString("在表 %1 中存在无映射的科目（sid=%2）")
-                        .arg(tbl_nse_p_f).arg(sid);
-                errors.append(e);
-                continue;
+            sum += v;
+            if(sum == 0 ){
+                if(id2 != 0){
+                    q3.bindValue(":id",id2);
+                    if(!q3.exec()){
+                        LOG_SQLERROR(q3.lastQuery());
+                        return false;
+                    }
+                }
+                else
+                    continue;
             }
-            q2.bindValue(":id", id);
-            q2.bindValue(":nid", sMaps.value(sid));
-            if(!q2.exec())
+            else if(sum < 0){
+                d = MDIR_D;
+                sum.changeSign();
+            }
+            else
+                d = MDIR_J;
+            q2.bindValue(":sid",it.value());
+            q2.bindValue(":value",sum.toString2());
+            q2.bindValue(":dir",d);
+            if(!q2.exec()){
+                LOG_SQLERROR(q2.lastQuery());
+                return  false;
+            }
+            q3.bindValue(":id",id1);
+            if(!q3.exec()){
+                LOG_SQLERROR(q3.lastQuery());
                 return false;
+            }
         }
     }
 
@@ -2071,7 +2304,7 @@ bool DbUtil::convertExtraInYear(int year, const QHash<int, int> fMaps,
  * @return
  */
 bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
-                             const QHash<int, int> sMaps, QStringList& errors)
+                             const QHash<int, int> sMaps)
 {
     QSqlQuery q1(db),q2(db);
     QString s1, s2;
@@ -2102,18 +2335,18 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
     int id,fid,sid;
     int nums;
     while(q1.next()){
-        id = q1.value(0).toInt();
         fid = q1.value(1).toInt();
-        sid = q1.value(2).toInt();
+        if(!fMaps.contains(fid))
+            continue;
+        id = q1.value(0).toInt();        
+        sid = q1.value(2).toInt();        
         date = q1.value(3).toString();
         pzNum = q1.value(4).toInt();
         baNum = q1.value(5).toInt();
-        if(!fMaps.contains(fid) || !sMaps.contains(sid)){
-            //要生成一个错误列表，供用户进行转换出错后的分析与解决
-            QString error = QString("在%1，%2#凭证的第%3条分录（id=%4，）包含无效的科目（fid=%5，sid=%6）")
-                    .arg(date).arg(pzNum).arg(baNum).arg(id).arg(fid).arg(sid);
-            errors.append(error);
-            continue;
+        if(!sMaps.contains(sid)){
+            LOG_ERROR(QObject::tr("在升级科目系统期间，发现一个未配置的二级科目，在%1，%2#凭证的第%3条分录（id=%4，）包含无效的科目（fid=%5，sid=%6）")
+                                          .arg(date).arg(pzNum).arg(baNum).arg(id).arg(fid).arg(sid));
+            return false;
         }
         q2.bindValue(":fid", fMaps.value(fid));
         q2.bindValue(":sid", sMaps.value(sid));
@@ -2121,7 +2354,6 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
         if(!q2.exec())
             return false;
         nums = q2.numRowsAffected();
-        int i = 0;
     }
 
     if(!db.commit()){
@@ -2144,6 +2376,33 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
  */
 bool DbUtil::lastWbExtraIsZeroForFSub(FirstSubject *ssub)
 {
+    return true;
+}
+
+/**
+ * @brief 获取混合对接科目配置信息
+ * @param sc
+ * @param dc
+ * @param cfgInfos
+ * @return
+ */
+bool DbUtil::getMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *>& cfgInfos)
+{
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_sndsub_join_pre).arg(sc).arg(dc);
+    QString s = QString("select * from %1 order by %2").arg(tname).arg(fld_ssj_s_fsub);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        MixedJoinCfg* item = new MixedJoinCfg;
+        item->s_fsubId = q.value(SSJ_SF_SUB).toInt();
+        item->s_ssubId = q.value(SSJ_SS_SUB).toInt();
+        item->d_fsubId = q.value(SSJ_DF_SUB).toInt();
+        item->d_ssubId = q.value(SSJ_DS_SUB).toInt();
+        cfgInfos<<item;
+    }
     return true;
 }
 
@@ -2603,13 +2862,13 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
 bool DbUtil::getFS_Id_name(QList<int> &ids, QList<QString> &names, int subSys)
 {
     QSqlQuery q(db);
-    QString s = QString("select id,%1 from %2 where %3=%4")
-            .arg(fld_fsub_name).arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys);
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+    QString s = QString("select %1,%2 from %3").arg(fld_fsub_fid)
+            .arg(fld_fsub_name).arg(tname);
     if(q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    int id; QString name;
     while(q.next()){
         ids<<q.value(0).toInt();
         names<<q.value(1).toString();
@@ -2658,8 +2917,8 @@ bool DbUtil::getPzsState(int y, int m, PzsState &state)
  */
 bool DbUtil::setPzsState(int y, int m, PzsState state)
 {
-    if(!isNewExtraAccess())
-        return BusiUtil::setPzsState(y,m,state);
+    //if(!isNewExtraAccess())
+    //    return BusiUtil::setPzsState(y,m,state);
 
     QSqlQuery q(db);
     //首先检测是否存在对应记录
@@ -2729,8 +2988,8 @@ bool DbUtil::setExtraState(int y, int m, bool isVolid)
  */
 bool DbUtil::getExtraState(int y, int m)
 {
-    if(!isNewExtraAccess())
-        return BusiUtil::getExtraState(y,m);
+    //if(!isNewExtraAccess())
+    //    return BusiUtil::getExtraState(y,m);
 
     QSqlQuery q(db);
     QString s = QString("select %1 from %2 where %3=%4 and %5=%6 and %7=%8")
@@ -3048,7 +3307,6 @@ bool DbUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
     QString s;
     QString ds = QDate(y,m,1).toString(Qt::ISODate);
     ds.chop(3);
-    int pzCount;
     //1、结转汇兑损益凭证，要根据凭证集的需要使用外币的科目的余额状况来定
     if(pzCls == Pzd_Jzhd){
         //1、获取所指年份使用的科目系统代码
@@ -3065,9 +3323,10 @@ bool DbUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
         }
         int subSys = q.value(0).toInt();
         //2、获取需要使用外币的科目
+        QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
         QList<int> subIds;
-        s = QString("select id from %1 where %2=%3 and %4=1")
-                .arg(tbl_fsub).arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_isUseWb);
+        s = QString("select %1 from %2 where %3=1").arg(fld_fsub_fid)
+                .arg(tname).arg(fld_fsub_isUseWb);
         if(!q.exec(s)){
             LOG_SQLERROR(s);
             return false;
@@ -3102,36 +3361,6 @@ bool DbUtil::inspectJzPzExist(int y, int m, PzdClass pzCls, int &count)
         q.first();
         count -= q.value(0).toInt();
     }
-    return true;
-
-
-
-//    QList<PzClass> pzClses;
-//    if(pzCls == Pzd_Jzhd)
-//        pzClses<<Pzc_Jzhd_Bank<<Pzc_Jzhd_Ys<<Pzc_Jzhd_Yf;
-//    else if(pzCls == Pzd_Jzsy)
-//        pzClses<<Pzc_JzsyIn<<Pzc_JzsyFei;
-//    else if(pzCls == Pzd_Jzlr)
-//        pzClses<<Pzc_Jzlr;
-//    count = pzClses.count();
-//    QString ds = QDate(y,m,1).toString(Qt::ISODate);
-//    ds.chop(3);
-//    QString s = QString("select %1 from %2 where %3 like '%4%'")
-//            .arg(fld_pz_class).arg(tbl_pz).arg(fld_pz_date).arg(ds)/*.arg(fld_pz_number)*/;
-//    if(!q.exec(s)){
-//        LOG_SQLERROR(s);
-//        return false;
-//    }
-//    PzClass cls;
-//    while(q.next()){
-//        cls = (PzClass)q.value(0).toInt();
-//        if(pzClses.contains(cls)){
-//            pzClses.removeOne(cls);
-//            count--;
-//        }
-//        if(count==0)
-//            break;
-//    }
     return true;
 }
 
@@ -4113,13 +4342,15 @@ bool DbUtil::_saveFirstSubject(FirstSubject *sub)
 {
     QSqlQuery q(db);
     QString s;
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(sub->parent()->getSubSysCode());
     if(sub->getId() == UNID){
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%,10) values(%11,'%12','%13',%14,%15,%16,%17,%18,'%19')")
-                .arg(tbl_fsub).arg(fld_fsub_subSys).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
-                .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isview).arg(fld_fsub_isUseWb)
-                .arg(fld_fsub_weight).arg(fld_fsub_name).arg(sub->parent()->getSubSysCode())
-                .arg(sub->getCode()).arg(sub->getRemCode()).arg(sub->getSubClass())
-                .arg(sub->getJdDir()?1:0).arg(sub->isEnabled()?1:0).arg(sub->isUseForeignMoney()?1:0)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9) values('%12','%13',%14,%15,%16,%17,%18,'%19')")
+                .arg(tname).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
+                .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isEnalbed).arg(fld_fsub_isUseWb)
+                .arg(fld_fsub_weight).arg(fld_fsub_name).arg(sub->getCode()).
+                arg(sub->getRemCode()).arg(sub->getSubClass())
+                .arg(sub->getJdDir()?1:0).arg(sub->isEnabled()?1:0)
+                .arg(sub->isUseForeignMoney()?1:0)
                 .arg(sub->getWeight()).arg(sub->getName());
         if(!q.exec(s)){
             LOG_SQLERROR(s);
@@ -4135,7 +4366,7 @@ bool DbUtil::_saveFirstSubject(FirstSubject *sub)
         FirstSubjectEditStates estate = sub->getEditState();
         if(estate == ES_FS_INIT)
             return true;
-        s = QString("update %1 set ").arg(tbl_fsub);
+        s = QString("update %1 set ").arg(tname);
         if(estate.testFlag(ES_FS_CLASS))
             s.append(QString("%1=%2,").arg(fld_fsub_class).arg(sub->getSubClass()));
         if(estate.testFlag(ES_FS_CODE))
@@ -4143,7 +4374,7 @@ bool DbUtil::_saveFirstSubject(FirstSubject *sub)
         if(estate.testFlag(ES_FS_JDDIR))
             s.append(QString("%1=%2,").arg(fld_fsub_jddir).arg(sub->getJdDir()?1:0));
         if(estate.testFlag(ES_FS_ISENABLED))
-            s.append(QString("%1=%2,").arg(fld_fsub_isview).arg(sub->isEnabled()?1:0));
+            s.append(QString("%1=%2,").arg(fld_fsub_isEnalbed).arg(sub->isEnabled()?1:0));
         if(estate.testFlag(ES_FS_ISUSEWB))
             s.append(QString("%1=%2,").arg(fld_fsub_isUseWb).arg(sub->isUseForeignMoney()?1:0));
         if(estate.testFlag(ES_FS_WEIGHT))
@@ -4195,13 +4426,13 @@ bool DbUtil::_saveSecondSubject(SecondSubject *sub)
         return false;
 
     if(sub->getId() == UNID)
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9) "
-                    "values(%10,%11,%12,'%13',%14,%15,'%16',%17)").arg(tbl_ssub)
-                .arg(fld_ssub_subsys).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) "
+                    "values(%9,%10,'%11',%12,%13,'%14',%15)").arg(tbl_ssub)
+                .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
                 .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_crtTime)
-                .arg(fld_ssub_creator).arg(sub->getParent()->parent()->getSubSysCode())
-                .arg(sub->getParent()->getId()).arg(sub->getNameItem()->getId())
-                .arg(sub->getCode()).arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
+                .arg(fld_ssub_creator).arg(sub->getParent()->getId())
+                .arg(sub->getNameItem()->getId()).arg(sub->getCode())
+                .arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
                 .arg(sub->getCreateTime().toString(Qt::ISODate)).arg(sub->getCreator()->getUserId());
     else{
         SecondSubjectEditStates state = sub->getEditState();
@@ -4878,7 +5109,7 @@ bool DbUtil::_delPingZheng(PingZheng *pz)
 
 /**
  * @brief DbUtil::_readExtraPointInYear
- *  读取指定年份内的所有余额指针
+ *  读取指定年份内的所有本币余额指针
  * @param y
  * @param points
  * @return
@@ -4886,8 +5117,8 @@ bool DbUtil::_delPingZheng(PingZheng *pz)
 bool DbUtil::_readExtraPointInYear(int y, QList<int>& points)
 {
     QSqlQuery q(db);
-    QString s = QString("select id from %1 where %2=%3").arg(tbl_nse_point)
-            .arg(fld_nse_year).arg(y);
+    QString s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_nse_point)
+            .arg(fld_nse_year).arg(y).arg(fld_nse_month).arg(masterMt);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -5136,8 +5367,8 @@ bool DbUtil::_saveExtrasForPm(int y, int m, const QHash<int, Double> &sums, cons
 {
     //操作思路
     //1、先读取保存在表中的余额
-    //2、在新余额表上进行进行迭代操作：
-    //（1）如果新值项方向为平，则先跳过（如果老值表中存在对应值项，在迭代结束后会从标志删除）
+    //2、在新余额表上进行迭代操作：
+    //（1）如果新值项方向为平，则先跳过（如果老值表中存在对应值项，在迭代结束后会从表中删除）
     //（2）如果新值在老值表中不存在，则执行插入操作（在插入操作前，可能还要执行余额指针的创建）
     //（3）如果新老值方向不同，则更新方向
     //（4）如果新老值不同，则更新值
@@ -5767,6 +5998,57 @@ bool DbUtil::_transformExtra(QHash<int,int> maps, QHash<int,Double>& ExtrasP, QH
     return true;
 }
 
+/**
+ * @brief 检测指定一级科目某币种的余额与其子目的汇总余额是否一致
+ * @param fid       主目id
+ * @param mt        币种代码
+ * @param sum       主目余额
+ * @param dir       主目方向
+ * @param values    子目余额表（键为子目id*10+币种代码）
+ * @param dirs      子目余额方向表
+ * @param ok        true：一致，false：不一致
+ * @return
+ */
+bool DbUtil::_extraUnityInspectForFSub(int fid, int mt, Double sum, MoneyDirection dir, QHash<int, Double> values, QHash<int,MoneyDirection> dirs, bool& ok)
+{
+
+    //将子目余额进行汇总，汇总的余额方向归并到主目的余额方向
+    //1、读取主目下的子目id，因为在这里无法辨别科目所属的科目系统，因此可能会读取到不属于当前主目的子目，
+    //但因为这样的子目余额项不会出现在值表中，因此无碍。
+    if(sum == 0 || dir == MDIR_P){
+        ok = true;
+        return true;
+    }
+
+    QList<int> sids;
+    QSqlQuery q(db);
+    QString s = QString("select id from %1 where %2=%3").arg(tbl_ssub)
+            .arg(fld_ssub_fid).arg(fid);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next())
+        sids<<q.value(0).toInt();
+    int key;
+    Double v,sv;
+    MoneyDirection d;
+    foreach(int sid, sids){
+        key = sid*10 + mt;
+        if(!values.contains(key))
+            continue;
+        d = dirs.value(key);
+        if(d == MDIR_P)
+            continue;
+        v = values.value(key);
+        if(d != dir)
+            v.changeSign();
+        sv += v;
+    }
+    ok = (sum == sv);
+    return true;
+}
+
 void DbUtil::crtGdzcTable()
 {
     QSqlQuery q1(db);
@@ -5786,6 +6068,8 @@ void DbUtil::crtGdzcTable()
         "bid INTEGER,date TEXT,price DOUBLE)";
     r = q1.exec(s);
 }
+
+
 
 void DbUtil::warn_transaction(ErrorCode witch, QString context)
 {

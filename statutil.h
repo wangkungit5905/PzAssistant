@@ -90,6 +90,8 @@ private:
     void _calSumValue(bool isPre, bool isfst=true);    
     void _calCurSumValue(bool isJ, bool isFst=true);
     void _removeExtraItem(int key_f, int key_s);
+    bool _verifyExtraUnity(QStringList &errors, bool isPre = true);
+    void _collectSumForFSubMt(FirstSubject* fsub, int mt, Double& sum, MoneyDirection& dir,QHash<int,Double> vs, QHash<int,MoneyDirection>dirs);
 
     Account* account;
     DbUtil* dbUtil;

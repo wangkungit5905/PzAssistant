@@ -139,18 +139,29 @@ bool ImportOVAccDlg::compareRate()
 
 
 /**
- * @brief 建立新旧科目之间的映射表
+ * @brief 建立新旧科目之间的对接表
  * @return
  */
 bool ImportOVAccDlg::createMaps()
 {
     QSqlQuery q(sdb);
-    //1、从基本库中读取新旧科目系统之间的映射表
+    //1、从基本库中读取新旧科目系统之间的非默认对接项
     sm = curSuite->getSubjectManager();
     QHash<QString,QString> subCodeMaps; //新旧科目系统一级科目（代码）对应表
-    if(!AppConfig::getInstance()->getSubSysMaps(DEFAULT_SUBSYS_CODE,sm->getSubSysCode(),subCodeMaps)){
+    QHash<QString,QString> multiMaps;
+    if(!AppConfig::getInstance()->getSubSysMaps2(DEFAULT_SUBSYS_CODE,sm->getSubSysCode(),subCodeMaps,multiMaps)){
         LOG_ERROR(tr("无法获取新旧科目映射代码表！"));
         return false;
+    }
+    //将非默认对接科目中的默认对接项去除
+    QHash<QString,QString> maps;
+    foreach(QString dc, multiMaps.keys()){
+        QList<QString> codes = multiMaps.values(dc);
+        foreach(QString c, codes){
+            if(subCodeMaps.contains(c))
+                continue;
+            maps[c] = dc;
+        }
     }
     //6、建立新旧一级科目id的映射表
     QString s = QString("select id from FirSubjects where subCode=:code");
@@ -158,7 +169,7 @@ bool ImportOVAccDlg::createMaps()
         LOG_SQLERROR(s);
         return false;
     }
-    QHashIterator<QString,QString> it(subCodeMaps);
+    QHashIterator<QString,QString> it(maps);
     while(it.hasNext()){
         it.next();
         q.bindValue(":code",it.key());
@@ -175,43 +186,43 @@ bool ImportOVAccDlg::createMaps()
         fsubIdMaps[old_id] = fsub;
     }
     //7、建立新旧二级科目映射表
-    s = QString("select FSAgent.id,SecSubjects.subName,SecSubjects.subLName,"
-                "SecSubjects.remCode,SecSubjects.classId from FSAgent join SecSubjects on "
-                "FSAgent.sid = SecSubjects.id where FSAgent.fid=:fid");
-    if(!q.prepare(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    foreach(int fid, fsubIdMaps.keys()){
-        q.bindValue(":fid",fid);
-        if(!q.exec())
-            return false;
-        FirstSubject* fsub = fsubIdMaps.value(fid);
-        while(q.next()){
-            int old_id = q.value(0).toInt();
-            QString name = q.value(1).toString();
-            SubjectNameItem* ni = sm->getNameItem(name);
-            if(!ni){
-                //创建名称条目
-                QString lname = q.value(2).toString();
-                QString remCode = q.value(3).toString();
-                int clsId = q.value(4).toInt();
-                CrtNameItemCmd* cmd = new CrtNameItemCmd(name,lname,remCode,clsId,QDateTime::currentDateTime(),curUser,sm);
-                curSuite->getUndoStack()->push(cmd);
-                ni = sm->getNameItem(name);
-                LOG_INFO(tr("创建了名称条目：%1").arg(name));
-            }
-            SecondSubject* ssub = fsub->getChildSub(ni);
-            if(!ssub){
-                //创建二级科目
-                CrtSndSubUseNICmd* cmd = new CrtSndSubUseNICmd(sm,fsub,ni,1,QDateTime::currentDateTime(),curUser);
-                curSuite->getUndoStack()->push(cmd);
-                LOG_INFO(tr("创建了二级科目：%1--%2").arg(fsub->getName()).arg(ni->getShortName()));
-                ssub = fsub->getChildSub(ni);
-            }
-            ssubIdMaps[old_id] = ssub;
-        }
-    }
+//    s = QString("select FSAgent.id,SecSubjects.subName,SecSubjects.subLName,"
+//                "SecSubjects.remCode,SecSubjects.classId from FSAgent join SecSubjects on "
+//                "FSAgent.sid = SecSubjects.id where FSAgent.fid=:fid");
+//    if(!q.prepare(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    foreach(int fid, fsubIdMaps.keys()){
+//        q.bindValue(":fid",fid);
+//        if(!q.exec())
+//            return false;
+//        FirstSubject* fsub = fsubIdMaps.value(fid);
+//        while(q.next()){
+//            int old_id = q.value(0).toInt();
+//            QString name = q.value(1).toString();
+//            SubjectNameItem* ni = sm->getNameItem(name);
+//            if(!ni){
+//                //创建名称条目
+//                QString lname = q.value(2).toString();
+//                QString remCode = q.value(3).toString();
+//                int clsId = q.value(4).toInt();
+//                CrtNameItemCmd* cmd = new CrtNameItemCmd(name,lname,remCode,clsId,QDateTime::currentDateTime(),curUser,sm);
+//                curSuite->getUndoStack()->push(cmd);
+//                ni = sm->getNameItem(name);
+//                LOG_INFO(tr("创建了名称条目：%1").arg(name));
+//            }
+//            SecondSubject* ssub = fsub->getChildSub(ni);
+//            if(!ssub){
+//                //创建二级科目
+//                CrtSndSubUseNICmd* cmd = new CrtSndSubUseNICmd(sm,fsub,ni,1,QDateTime::currentDateTime(),curUser);
+//                curSuite->getUndoStack()->push(cmd);
+//                LOG_INFO(tr("创建了二级科目：%1--%2").arg(fsub->getName()).arg(ni->getShortName()));
+//                ssub = fsub->getChildSub(ni);
+//            }
+//            ssubIdMaps[old_id] = ssub;
+//        }
+//    }
     return true;
 }
 
@@ -276,8 +287,12 @@ bool ImportOVAccDlg::importPzSet()
                 v = q2.value(7).toDouble();
             }
             //这里要检测是否存在科目？
-            FirstSubject* fsub = fsubIdMaps.value(fid);
-            SecondSubject* ssub = ssubIdMaps.value(sid);
+            FirstSubject* fsub;
+            if(fsubIdMaps.contains(fid))
+                fsub = fsubIdMaps.value(fid);
+            else
+                fsub = sm->getFstSubject(fid);
+            SecondSubject* ssub = sm->getSndSubject(sid);
             BusiAction* ba = new BusiAction(0,pz,summary,fsub,ssub,mt,d,v,baNum);
             pz->append(ba,false);
         }

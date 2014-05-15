@@ -48,9 +48,9 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
     hv->setSectionsClickable(true);
     ui->tview->setHorizontalHeader(hv);
 
-    fcom = new SubjectComplete;
+    fcom = new SubjectComplete(curSuite->subSys);
     ui->cmbFsub->setCompleter(fcom);
-    scom = new SubjectComplete(SndSubject);
+    scom = new SubjectComplete(curSuite->subSys, SndSubject);
     ui->cmbSsub->setCompleter(scom);
 
     QDate sd = QDate(curSuite->year,curSuite->startMonth,1);
@@ -66,9 +66,6 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
     mts.removeOne(account->getMasterMt()->code());
     qSort(mts.begin(),mts.end());
 
-//    ui->btnPrint->addAction(ui->actPrint);
-//    ui->btnPrint->addAction(ui->actPreview);
-//    ui->btnPrint->addAction(ui->actToPdf);
 
     setState(sinfo);
     readFilters();
@@ -542,43 +539,47 @@ void ShowDZDialog::refreshTalbe()
     //刷新视图的表格内容
     otf = tf; //保存原先的表格格式
     //先将原先隐藏的列显示（主要是为了能够正确地绘制表头，否则将会丢失某些列）
+    bool isViewColInDailyAcc1,isViewColInDailyAcc2;
+    AppConfig* cfg = AppConfig::getInstance();
+    cfg->getCfgVar(AppConfig::CVC_ViewHideColInDailyAcc1,isViewColInDailyAcc1);
+    cfg->getCfgVar(AppConfig::CVC_ViewHideColInDailyAcc2,isViewColInDailyAcc2);
     switch(otf){
     case CASHDAILY:
-        if(!viewHideColInDailyAcc1)
+        if(!isViewColInDailyAcc1)
             ui->tview->showColumn(5);
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->showColumn(10);
             ui->tview->showColumn(11);
         }
         break;
     case BANKRMB:
-        if(!viewHideColInDailyAcc1){
+        if(!isViewColInDailyAcc1){
             ui->tview->showColumn(5);
             ui->tview->showColumn(6);
         }
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->showColumn(11);
             ui->tview->showColumn(12);
         }
         break;
     case BANKWB:
-        if(!viewHideColInDailyAcc1){
+        if(!isViewColInDailyAcc1){
             ui->tview->showColumn(5);
             ui->tview->showColumn(6);
         }
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->showColumn(12 + mts.count()*3);
             ui->tview->showColumn(13 + mts.count()*3);
         }
         break;
     case COMMON:
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->showColumn(9);
             ui->tview->showColumn(10);
         }
         break;
     case THREERAIL:
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->showColumn(10+mts.count()*3);
             ui->tview->showColumn(11+mts.count()*3);
         }
@@ -647,45 +648,46 @@ void ShowDZDialog::refreshTalbe()
 
     dataModel->setHorizontalHeaderModel(headerModel);
     ui->tview->setModel(dataModel);
-
+    //bool isViewColInDailyAcc1 = AppConfig.getInstance()->getCfgVar(AppConfig::CVC_ViewHideColInDailyAcc1);
+    //bool isViewColInDailyAcc2 = AppConfig.getInstance()->getCfgVar(AppConfig::CVC_ViewHideColInDailyAcc1);
     //隐藏列
     switch(tf){
     case CASHDAILY:
-        if(!viewHideColInDailyAcc1)
+        if(!isViewColInDailyAcc1)
             ui->tview->hideColumn(5);
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->hideColumn(10);
             ui->tview->hideColumn(11);
         }
         break;
     case BANKRMB:
-        if(!viewHideColInDailyAcc1){
+        if(!isViewColInDailyAcc1){
             ui->tview->hideColumn(5);
             ui->tview->hideColumn(6);
         }
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->hideColumn(11);
             ui->tview->hideColumn(12);
         }
         break;
     case BANKWB:
-        if(!viewHideColInDailyAcc1){
+        if(!isViewColInDailyAcc1){
             ui->tview->hideColumn(5);
             ui->tview->hideColumn(6);
         }
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->hideColumn(12 + mts.count()*3);
             ui->tview->hideColumn(13 + mts.count()*3);
         }
         break;
     case COMMON:
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->hideColumn(9);
             ui->tview->hideColumn(10);
         }
         break;
     case THREERAIL:
-        if(!viewHideColInDailyAcc2){
+        if(!isViewColInDailyAcc2){
             ui->tview->hideColumn(10+mts.count()*3);
             ui->tview->hideColumn(11+mts.count()*3);
         }

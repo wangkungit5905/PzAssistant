@@ -260,11 +260,26 @@ class FSubSelectCmb : public QComboBox
 {
     Q_OBJECT
 public:
-    FSubSelectCmb(SubjectManager* smg, QWidget* parent = 0);
-    void setSubject(FirstSubject* fsub);
-    FirstSubject* getSubject();
+    FSubSelectCmb(QHash<QString,QString>subNames, QWidget* parent = 0);
+    void setSubCode(QString code);
+    QString getSubCode();
+};
+
+/**
+ * @brief 二选一选择框，它有两组字符串列表，一组用人可理解的文本，一组是用符号图形表示的文本
+ *        每组的第一个元素对应“true”，第二个元素对应“false”
+ */
+class BooleanSelectCmb : public QComboBox{
+    Q_OBJECT
+public:
+    BooleanSelectCmb(QStringList signs, QStringList displays, QWidget* parent = 0);
+    bool getValue();
+    QString getDisplay();
+    QString getSign();
+    void setValue(bool v);
 private:
-    //FirstSubject* fsub;
+    QStringList signs;
+    QStringList displays;
 };
 
 /**
@@ -275,7 +290,7 @@ class SubSysJoinCfgItemDelegate : public QItemDelegate
     Q_OBJECT
 
 public:
-    SubSysJoinCfgItemDelegate(SubjectManager* subMgr, QObject *parent = 0);
+    SubSysJoinCfgItemDelegate(QHash<QString,QString> subNames, QStringList dispStrs, QStringList signStrs, QObject *parent = 0);
     QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
                           const QModelIndex &index) const;
     void setEditorData(QWidget *editor, const QModelIndex &index) const;
@@ -285,7 +300,8 @@ public:
                               const QModelIndex& index) const;
     void setReadOnly(bool isReadonly){readOnly = isReadonly;}
 private:
-    SubjectManager* subMgr;
+    QHash<QString,QString> subNames;
+    QStringList slSigns,slDisps;
     bool readOnly;
 };
 

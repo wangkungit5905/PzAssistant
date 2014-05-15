@@ -46,7 +46,6 @@ bool Account::createNewAccount(QString fileName, QString code, QString name, QSt
     //3、创建所有必要的表
     if(!Account::createTableForNewAccount(db,error)){
         error = tr("创建表格失败！\n\n") + error;
-        //db.rollback();
         return false;
     }
     //4、填写基本属性（编码、名称、全称、科目系统、-报表类型、-最后访问时间、-文件名、版本号）
@@ -82,13 +81,6 @@ bool Account::createNewAccount(QString fileName, QString code, QString name, QSt
         error = tr("设置账户全称出错！");
         return false;
     }
-//    q.bindValue(":code", SUBTYPE);
-//    q.bindValue(":name",ACCINFO_VNAME_SUBSYS);
-//    q.bindValue(":value",subSys->code);
-//    if(!q.exec()){
-//        error = tr("设置账户采用的科目系统代码出错！");
-//        return false;
-//    }
     q.bindValue(":code", DBVERSION);
     q.bindValue(":name",ACCINFO_VNAME_DBVERSION);
     int mv = 0,sv = 0;
@@ -196,19 +188,19 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         errors = tr("无法读取一级科目类别表！");
         return false;
     }
-    QSqlQuery qa(db),q(db);
+    QSqlQuery qa1(db),qa2(db),q(db);
     s = QString("insert into %1(%2,%3,%4) values(%5,:code,:name)").arg(tbl_fsclass)
             .arg(fld_fsc_subSys).arg(fld_fsc_code).arg(fld_fsc_name).arg(subSys);
-    if(!qa.prepare(s)){
+    if(!qa1.prepare(s)){
         errors = tr("错误执行sql语句（%1）").arg(s);
         return false;
     }
     while(qb.next()){
          int code = qb.value(FI_BASE_FSUB_CLS_CODE).toInt();
          QString name  = qb.value(FI_BASE_FSUB_CLS_NAME).toString();
-         qa.bindValue(":code",code);
-         qa.bindValue(":name",name);
-         if(!qa.exec()){
+         qa1.bindValue(":code",code);
+         qa1.bindValue(":name",name);
+         if(!qa1.exec()){
              errors = tr("插入一级科目类别时发生错误！");
              return false;
          }
@@ -219,13 +211,20 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         errors = tr("无法读取一级科目！");
         return false;
     }
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
+    //因为新建的一级科目表表名还没有添加后缀，因此，在实际使用前要改名为与账户所使用的科目系统对应的
+    s = QString("alter table %1 rename to %2").arg(tbl_fsub_prefix).arg(tname);
+    if(!qa2.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QString s2 = QString("insert into %1 default values").arg(tbl_fsub_ids);
     s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) "
-                "values(%11,:subcode,:remcode,:subCls,:jddir,:isview,:isusedwb,:weight,:name)")
-            .arg(tbl_fsub).arg(fld_fsub_subSys).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
-            .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isview)
-            .arg(fld_fsub_isUseWb).arg(fld_fsub_weight).arg(fld_fsub_name)
-            .arg(subSys);
-    if(!qa.prepare(s)){
+                "values(:fid,:subcode,:remcode,:subCls,:jddir,:isview,:isusedwb,:weight,:name)")
+            .arg(tname).arg(fld_fsub_fid).arg(fld_fsub_subcode).arg(fld_fsub_remcode)
+            .arg(fld_fsub_class).arg(fld_fsub_jddir).arg(fld_fsub_isEnalbed)
+            .arg(fld_fsub_isUseWb).arg(fld_fsub_weight).arg(fld_fsub_name);
+    if(!qa1.prepare(s)){
         errors = tr("错误执行sql语句（%1）").arg(s);
         return false;
     }
@@ -238,15 +237,23 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         int isUsedWb = qb.value(FI_BASE_FSUB_USEDWB).toInt();
         int weight = qb.value(FI_BASE_FSUB_WEIGHT).toInt();
         QString name = qb.value(FI_BASE_FSUB_SUBNAME).toString();
-        qa.bindValue(":subcode",code);
-        qa.bindValue(":remcode",remcode);
-        qa.bindValue(":subCls",cls);
-        qa.bindValue(":jddir",jddir);
-        qa.bindValue(":isview",isview);
-        qa.bindValue(":isusedwb",isUsedWb);
-        qa.bindValue(":weight",weight);
-        qa.bindValue(":name",name);
-        if(!qa.exec()){
+        if(!qa2.exec(s2)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        qa2.exec("select last_insert_rowid()");
+        qa2.first();
+        int fid = qa2.value(0).toInt();
+        qa1.bindValue(":fid",fid);
+        qa1.bindValue(":subcode",code);
+        qa1.bindValue(":remcode",remcode);
+        qa1.bindValue(":subCls",cls);
+        qa1.bindValue(":jddir",jddir);
+        qa1.bindValue(":isview",isview);
+        qa1.bindValue(":isusedwb",isUsedWb);
+        qa1.bindValue(":weight",weight);
+        qa1.bindValue(":name",name);
+        if(!qa1.exec()){
             errors = tr("插入一级科目时发生错误！");
             return false;
         }
@@ -260,7 +267,7 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
     s = QString("insert into %1(%2,%3,%4,%5) values(:order,:code,:name,:explain)")
             .arg(tbl_nameItemCls).arg(fld_nic_order).arg(fld_nic_clscode)
             .arg(fld_nic_name).arg(fld_nic_explain);
-    if(!qa.prepare(s)){
+    if(!qa1.prepare(s)){
         errors = tr("错误执行sql语句（%1）").arg(s);
         return false;
     }
@@ -269,11 +276,11 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         int code = qb.value(FI_BASE_NIC_CODE).toInt();
         QString name = qb.value(FI_BASE_NIC_NAME).toString();
         QString explain = qb.value(FI_BASE_NIC_EXPLAIN).toString();
-        qa.bindValue(":order",order);
-        qa.bindValue(":code",code);
-        qa.bindValue(":name",name);
-        qa.bindValue(":explain",explain);
-        if(!qa.exec()){
+        qa1.bindValue(":order",order);
+        qa1.bindValue(":code",code);
+        qa1.bindValue(":name",name);
+        qa1.bindValue(":explain",explain);
+        if(!qa1.exec()){
             errors = tr("插入名称条目类别时发生错误！");
             return false;
         }
@@ -286,7 +293,7 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
     s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(:sname,:lname,:remcode,:cls,:ctime,:creator)")
             .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname).arg(fld_ni_remcode)
             .arg(fld_ni_class).arg(fld_ni_crtTime).arg(fld_ni_creator);
-    if(!qa.prepare(s)){
+    if(!qa1.prepare(s)){
         errors = tr("错误执行sql语句（%1）").arg(s);
         return false;
     }
@@ -297,13 +304,13 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         int cls = qb.value(FI_BASE_NI_CLASS).toInt();
         QString ctime = QDateTime::currentDateTime().toString(Qt::ISODate);
         int userId = curUser->getUserId();
-        qa.bindValue(":sname",sname);
-        qa.bindValue(":lname",lname);
-        qa.bindValue(":remcode",remCode);
-        qa.bindValue(":cls",cls);
-        qa.bindValue(":ctime",ctime);
-        qa.bindValue(":creator",userId);
-        if(!qa.exec()){
+        qa1.bindValue(":sname",sname);
+        qa1.bindValue(":lname",lname);
+        qa1.bindValue(":remcode",remCode);
+        qa1.bindValue(":cls",cls);
+        qa1.bindValue(":ctime",ctime);
+        qa1.bindValue(":creator",userId);
+        if(!qa1.exec()){
             errors = tr("插入名称条目时发生错误！");
             return false;
         }
@@ -314,7 +321,7 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
     s = QString("insert into %1(%2,%3,%4,%5) values(:code,:name,:sign,0)")
             .arg(tbl_moneyType).arg(fld_mt_code).arg(fld_mt_name).arg(fld_mt_sign)
             .arg(fld_mt_isMaster);
-    if(!qa.prepare(s)){
+    if(!qa1.prepare(s)){
         errors = tr("在设置可用货币时发送错误！");
         return false;
     }
@@ -328,10 +335,10 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         QString mtName = qb.value(fld_base_mt_name).toString();
         QString mtSign = qb.value(fld_base_mt_sign).toString();
         int mtCode = qb.value(fld_base_mt_code).toInt();
-        qa.bindValue(":code",mtCode);
-        qa.bindValue(":name",mtName);
-        qa.bindValue(":sign",mtSign);
-        if(!qa.exec()){
+        qa1.bindValue(":code",mtCode);
+        qa1.bindValue(":name",mtName);
+        qa1.bindValue(":sign",mtSign);
+        if(!qa1.exec()){
             errors = tr("在设置可用货币时发送错误！");
             return false;
         }
@@ -339,7 +346,7 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
     //设置本币
     s = QString("update %1 set %2=1 where %3=%4").arg(tbl_moneyType)
             .arg(fld_mt_isMaster).arg(fld_mt_code).arg(RMB);
-    if(!qa.exec(s)){
+    if(!qa1.exec(s)){
         errors = tr("无法设置本币（人民币）！");
         return false;
     }
@@ -347,13 +354,13 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
 
 
     //4、设置科目系统已导入配置变量值
-    QString vname = QString("%1_%2").arg(CFG_SUBSYS_IMPORT_PRE).arg(subSys);
-    s = QString("insert into %1(%2,%3) values('%4',1)").arg(tbl_cfgVariable)
-            .arg(fld_cfgv_name).arg(fld_cfgv_value).arg(vname);
-    if(!q.exec(s)){
-        errors = tr("在设置科目系统已导入配置变量时发生错误！");
-        return false;
-    }
+//    QString vname = QString("%1_%2").arg(CFG_SUBSYS_IMPORT_PRE).arg(subSys);
+//    s = QString("insert into %1(%2,%3) values('%4',1)").arg(tbl_cfgVariable)
+//            .arg(fld_cfgv_name).arg(fld_cfgv_value).arg(vname);
+//    if(!q.exec(s)){
+//        errors = tr("在设置科目系统已导入配置变量时发生错误！");
+//        return false;
+//    }
 
     //5、建立常用二级科目
     s = QString("select %1,%2 from %3").arg(fld_base_ni_name).arg(fld_base_ni_belongto)
@@ -379,14 +386,15 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         int niId = q.value(0).toInt();
         maps[niId] = codes;
     }
-    s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,:fid,:nid,1,:time,:user)")
-            .arg(tbl_ssub).arg(fld_ssub_subsys).arg(fld_ssub_fid).arg(fld_ssub_nid)
-            .arg(fld_ssub_enable).arg(fld_ssub_crtTime).arg(fld_ssub_creator).arg(subSys);
-    if(!qa.prepare(s)){
+    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:fid,:nid,1,:time,:user)")
+            .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_enable)
+            .arg(fld_ssub_crtTime).arg(fld_ssub_creator);
+    if(!qa1.prepare(s)){
         errors = tr("错误执行sql语句（%1）").arg(s);
         return false;
     }
 
+    //QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
     QHashIterator<int,QStringList> it(maps);
     while(it.hasNext()){
         it.next();
@@ -394,8 +402,8 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
             if(str.left(1).toInt() != subSys)
                 continue;
             QString code = str.right(4);
-            s = QString("select id from %1 where %2=%3 and %4='%5'").arg(tbl_fsub)
-                    .arg(fld_fsub_subSys).arg(subSys).arg(fld_fsub_subcode).arg(code);
+            s = QString("select %1 from %2 where %3='%4'").arg(fld_fsub_fid).arg(tname)
+                    .arg(fld_fsub_subcode).arg(code);
             if(!q.exec(s)){
                 errors = tr("错误执行sql语句（%1）").arg(s);
                 return false;
@@ -403,11 +411,11 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
             if(!q.first())
                 continue;
             int fid = q.value(0).toInt();
-            qa.bindValue(":fid",fid);
-            qa.bindValue(":nid",it.key());
-            qa.bindValue(":time",QDateTime::currentDateTime().toString(Qt::ISODate));
-            qa.bindValue(":user",curUser->getUserId());
-            if(!qa.exec()){
+            qa1.bindValue(":fid",fid);
+            qa1.bindValue(":nid",it.key());
+            qa1.bindValue(":time",QDateTime::currentDateTime().toString(Qt::ISODate));
+            qa1.bindValue(":user",curUser->getUserId());
+            if(!qa1.exec()){
                 errors = tr("在插入常用科目时出错！");
                 return false;
             }
@@ -426,8 +434,7 @@ Account::Account(QString fname, QObject *parent):QObject(parent)
     readOnly = false;
     accInfos.fileName = fname;
     if(!init())
-        QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("账户在初始化时发生错误！"));
-    //pzSetMgr = new PzSetMgr(this,curUser);
+        QMessageBox::critical(0,QObject::tr("错误信息"),QObject::tr("账户在初始化时发生错误！"));    
 }
 
 Account::~Account()
@@ -812,24 +819,6 @@ AccountSuiteManager *Account::getSuiteMgr(int suiteId)
     return suiteHash.value(key);
 }
 
-
-//获取凭证集对象
-//PzSetMgr* Account::getPzSet()
-//{
-    //if(accInfos.suiteLastMonths.value(accInfos.curSuite) == 0)
-    //    return NULL;
-    //if(!curPzSet)
-    //    curPzSet = new PzSetMgr(accInfos.curSuite,accInfos.suiteLastMonths.value(accInfos.curSuite),user,*db);
-    //return curPzSet;
-//}
-
-//关闭凭证集
-void Account::colsePzSet()
-{
-    //pzSetMgr->close();
-    //pzSetMgr = NULL;
-}
-
 /**
  * @brief Account::getSubjectManager
  *  返回指定科目系统的科目管理器对象，如果未指定科目系统代码，
@@ -844,7 +833,6 @@ SubjectManager *Account::getSubjectManager(int subSys)
         if(suiteRecords.isEmpty())
             ssCode = subSysLst.last()->code;
         else
-            //ssCode = getCurSuiteRecord()->subSys;
             ssCode = suiteRecords.last()->subSys;
     }
     else
@@ -873,14 +861,6 @@ QList<SubSysNameItem *> Account::getSupportSubSys()
             if(item->isImport)
                 fonded = true;
             subSysLst<<item;
-            int curIndex = subSysLst.count() - 1;
-            if(curIndex > 0){
-                bool configed;
-                if(isCompleteSubSysCfg(items.at(curIndex-1)->code,
-                                       item->code,configed)){
-                    item->isConfiged = configed;
-                }
-            }
         }
     }
     return subSysLst;
@@ -899,7 +879,7 @@ bool Account::importNewSubSys(int code)
         return false;
     if(!getSubjectManager(code)->loadAfterImport())
         return false;
-    return setImportSubSys(code,true);
+    return true;
 }
 
 bool Account::getRates(int y, int m, QHash<int, Double> &rates)
@@ -958,117 +938,23 @@ void Account::setDatabase(QSqlDatabase *db)
 {Account::db=db;}
 
 /**
- * @brief 获取账户的科目系统衔接配置信息
+ * @brief 获取账户的科目系统对接配置信息
  * @param src   源科目系统代码
  * @param des   目的科目系统代码
- * @param cfgs  科目的映射
+ * @param cfgs  科目的对接配置列表
  * @return
  */
-bool Account::getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cfgs)
+bool Account::getSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem2*>& cfgs)
 {
-    return dbUtil->getSubSysJoinCfgInfo(getSubjectManager(src),getSubjectManager(des),cfgs);
+    return AppConfig::getInstance()->getSubSysMaps(src,des,cfgs);
 }
 
-bool Account::saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem *> &cfgs)
+bool Account::saveSubSysJoinCfgInfo(int src, int des, QList<SubSysJoinItem2 *> cfgs)
 {
-    return dbUtil->setSubSysJoinCfgInfo(getSubjectManager(src),getSubjectManager(des),cfgs);
+    return AppConfig::getInstance()->saveSubSysMaps(src,des,cfgs);
 }
 
-/**
- * @brief Account::getSubSysJoinMaps
- *  获取源科目系统到目的科目系统的科目映射
- * @param src   源科目系统代码
- * @param des   目的科目系统代码
- * @param fmaps 主科目映射表
- * @param smaps 子科目映射表
- * @return
- */
-bool Account::getSubSysJoinMaps(int src, int des, QHash<int, int> &fmaps, QHash<int, int> &smaps)
-{
-    if(src == des)
-        return true;
-    QList<SubSysJoinItem *> mapItems;
-    if(!getSubSysJoinCfgInfo(src,des,mapItems))
-        return false;
-    foreach(SubSysJoinItem* item,mapItems){
-        fmaps[item->sFSub->getId()] = item->dFSub->getId();
-        for(int i = 0; i < item->ssubMaps.count(); i+=2)
-            smaps[item->ssubMaps.at(i)] = item->ssubMaps.at(i+1);
-    }
-    return true;
-}
 
-/**
- * @brief 返回是否已完成从源科目系统（src）到目的科目系统（des）的配置
- * @param src
- * @param des
- * @param completed
- * @return
- */
-bool Account::isCompleteSubSysCfg(int src, int des, bool &completed)
-{
-    if(src == 0 || des == 0)
-        return true;
-    QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_COMPLETE_PRE).arg(src).arg(des);
-    QVariant v;
-    v.setValue(completed);
-    if(!dbUtil->getCfgVariable(vname,v))
-        return false;
-    if(v.isValid())
-        completed = v.toBool();
-    else
-        completed = false;
-    return true;
-}
-
-/**
- * @brief 设置是否已完成从源科目系统（src）到目的科目系统（des）的配置
- * @param src
- * @param des
- * @param completed
- */
-bool Account::setCompleteSubSysCfg(int src, int des, bool completed)
-{
-    if(!subSysLst.isEmpty()){
-        for(int i = 0; i < subSysLst.count(); ++i){
-            if(subSysLst.at(i)->code == des){
-                subSysLst.at(i)->isConfiged = true;
-                break;
-            }
-        }
-    }
-    QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_COMPLETE_PRE).arg(src).arg(des);
-    QVariant v;
-    v.setValue(completed);
-    if(!dbUtil->setCfgVariable(vname,v))
-        return false;
-//    vname = QString("%1_%2_%3").arg(CFG_SUBSYS_SUBCLONE_PRE).arg(src).arg(des);
-//    v.setValue(subCloned);
-//    if(!dbUtil->setCfgVariable(vname,v))
-//        return false;
-    return true;
-}
-
-/**
- * @brief 获取是否完成余额的衔接
- * @param src
- * @param des
- * @param completed
- * @return
- */
-bool Account::isCompletedExtraJoin(int src, int des, bool &completed)
-{
-    QString vname = QString("%1_%2_%3").arg(CFG_SUBSYS_EXTRA_JOIN).arg(src).arg(des);
-    QVariant v;
-    v.setValue(completed);
-    if(!dbUtil->getCfgVariable(vname,v))
-        return false;
-    if(v.isValid())
-        completed = v.toBool();
-    else
-        completed = false;
-    return true;
-}
 
 /**
  * @brief Account::isImportSubSys
@@ -1078,42 +964,33 @@ bool Account::isCompletedExtraJoin(int src, int des, bool &completed)
  */
 bool Account::isImportSubSys(int code)
 {
-    //if(code == DEFAULT_SUBSYS_CODE)
-    //    return true;
-    QString vname = QString("%1_%2").arg(CFG_SUBSYS_IMPORT_PRE).arg(code);
-    QVariant v;
-    if(!dbUtil->getCfgVariable(vname,v))
-        return false;
-    if(v.isValid())
-        return v.toBool();
-    else
-        return false;
+    QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(code);
+    return dbUtil->tableExist(tname);
 }
 
 /**
- * @brief Account::setImportSubSys
- *  设置是否已经导入指定的科目系统
+ * @brief 指定代码的科目系统是否已与前一个科目系统对接配置完成
  * @param code
- * @param ok
  * @return
  */
-bool Account::setImportSubSys(int code, bool ok)
+bool Account::isSubSysConfiged(int code)
 {
-    if(!subSysLst.isEmpty()){
-        for(int i = 0; i < subSysLst.count(); ++i){
-            if(subSysLst.at(i)->code == code){
-                subSysLst.at(i)->isImport = true;
-                break;
-            }
+    if(code == DEFAULT_SUBSYS_CODE)
+        return true;
+    QList<SubSysNameItem *> subSyses = getSupportSubSys();
+    if(subSyses.count() < 2)
+        return false;
+    for(int i = 1; i < subSyses.count(); ++i){
+        if(subSyses.at(i)->code == code){
+            bool ok;
+            if(!AppConfig::getInstance()->getSubSysMapConfiged(subSyses.at(i-1)->code,code,ok))
+                return false;
+            return ok;
         }
     }
-    QString vname = QString("%1_%2").arg(CFG_SUBSYS_IMPORT_PRE).arg(code);
-    QVariant v;
-    v.setValue(ok);
-    if(!dbUtil->setCfgVariable(vname,v))
-        return false;
-    return true;
+    return false;
 }
+
 
 /**
  * @brief Account::isConvertExtra
@@ -1155,10 +1032,6 @@ bool Account::convertExtra(QHash<int, Double> &sums, QHash<int,MoneyDirection>& 
         d = dirs.value(it.key());
         id = it.key()/10;
         mt = it.key()%10;
-//        if(id == 361 || id == 363 || id == 369 || id == 446){
-//            int mapId = maps.value(id);
-//            int i = 0;
-//        }
         if(!maps.contains(id))
             return false;
         key = maps.value(id) * 10 + mt;
@@ -1192,6 +1065,137 @@ bool Account::convertExtra(QHash<int, Double> &sums, QHash<int,MoneyDirection>& 
         }
 
     }
+    return true;
+}
+
+/**
+ * @brief 转换余额，当跨帐套读取期初余额，如果恰好发生了科目系统的升级，则必须对余额进行转换
+ *        因为，有些科目被取消并合并到新科目上。这样旧的科目余额也要合并到新科目上
+ * param  year      余额所在年份
+ * @param fsums     旧科目余额
+ * @param fdirs     旧科目余额方向
+ * @param codeMaps  新旧科目系统的对接科目表，键为新科目代码，值为旧科目代码（注意：这是一个多值哈希表）
+ * @return
+ */
+bool Account::convertExtra2(int year, QHash<int, Double> &fsums, QHash<int, MoneyDirection> &fdirs, QHash<int, Double> &dsums, QHash<int, MoneyDirection> &ddirs)
+{
+    int sc = getSuiteRecord(year)->subSys;
+    int dc = getSuiteRecord(year+1)->subSys;
+    if(sc==dc)
+        return true;
+    QList<MixedJoinCfg*> cfgs;
+    if(!dbUtil->getMixJoinInfo(sc,dc,cfgs)){
+        LOG_ERROR(tr("在转换余额时，无法获取混合对接配置信息！"));
+        return false;
+    }
+    //因为有确信的把握这些混合对接科目不使用外币，因此余额转换只涉及到本币余额项
+    int fid = 0,key1,key2;
+    int mmt = getMasterMt()->code();
+    for(int i = 0; i < cfgs.count(); ++i){
+        MixedJoinCfg* item = cfgs.at(i);
+        //转换主目的余额
+        if(fid != item->s_fsubId){
+            fid = item->s_fsubId;
+            key1 = fid * 10 + mmt;
+            if(fsums.contains(key1)){
+                Double v = fsums.value(key1);
+                if(fdirs.value(key1,MDIR_P) == MDIR_D)
+                    v.changeSign();
+                key2 = item->d_fsubId * 10 + mmt;
+                Double sum = fsums.value(key2);
+                if(fdirs.value(key2,MDIR_P) == MDIR_D)
+                    sum.changeSign();
+                sum += v;
+                if(v == 0){
+                    fsums.remove(key2);
+                    fdirs.remove(key2);
+                }
+                else if(v < 0){
+                    sum.changeSign();
+                    fdirs[key2] = MDIR_D;
+                }
+                else
+                    fdirs[key2] = MDIR_J;
+                fsums[key2] = sum;
+                fsums.remove(key1);
+                fdirs.remove(key2);
+            }
+        }
+        //转换子目余额
+        key2 = item->s_ssubId * 10 + mmt;
+        if(dsums.contains(key1)){
+            Double v = dsums.value(key1);
+            if(ddirs.value(key1,MDIR_P) == MDIR_D)
+                v.changeSign();
+            key2 = item->d_ssubId * 10 + mmt;
+            Double sum = dsums.value(key2);
+            if(ddirs.value(key2,MDIR_P) == MDIR_D)
+                sum.changeSign();
+            sum += v;
+            if(v == 0){
+                dsums.remove(key2);
+                ddirs.remove(key2);
+            }
+            else if(v < 0){
+                sum.changeSign();
+                ddirs[key2] = MDIR_D;
+            }
+            else
+                ddirs[key2] = MDIR_J;
+            dsums[key2] = sum;
+            dsums.remove(key1);
+            ddirs.remove(key2);
+        }
+    }
+
+//    QHash<QString,QString> maps;
+//    if(!AppConfig::getInstance()->getNotDefSubSysMaps(sc,dc,maps))
+//        return false;
+//    if(maps.isEmpty())
+//        return true;
+//    QList<int> mtIds = getAllMoneys().keys();
+//    SubjectManager* sm1 = getSubjectManager(sc);
+//    SubjectManager* sm2 = getSubjectManager(dc);
+//    QHashIterator<QString,QString> it(maps);
+//    while(it.hasNext()){
+//        it.next();
+//        FirstSubject* fsub1 = sm1->getFstSubject(it.key());
+//        if(!fsub1){
+//            LOG_ERROR(tr("在转换余额时，发现源科目（%）对象不能找到！").arg(it.key()));
+//            return false;
+//        }
+//        FirstSubject* fsub2 = sm2->getFstSubject(it.value());
+//        if(!fsub2){
+//            LOG_ERROR(tr("在转换余额时，发现对接科目（%）对象不能找到！").arg(it.key()));
+//            return false;
+//        }
+//        foreach(int mt, mtIds){
+//            int key1 = fsub1->getId() * 10 + mt;
+//            if(fsums.contains(key1)){
+//                Double v = fsums.value(key1);
+//                if(fdirs.value(key1,MDIR_P) == MDIR_D)
+//                    v.changeSign();
+//                int key2 = fsub2->getId() * 10 + mt;
+//                Double sum = fsums.value(key2);
+//                if(fdirs.value(key2,MDIR_P) == MDIR_D)
+//                    sum.changeSign();
+//                sum += v;
+//                if(v == 0){
+//                    fsums.remove(key2);
+//                    fdirs.remove(key2);
+//                }
+//                else if(v < 0){
+//                    sum.changeSign();
+//                    fdirs[key2] = MDIR_D;
+//                }
+//                else
+//                    fdirs[key2] = MDIR_J;
+//                fsums[key2] = sum;
+//                fsums.remove(key1);
+//                fdirs.remove(key2);
+//            }
+//        }
+//    }
     return true;
 }
 

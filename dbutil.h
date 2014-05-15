@@ -60,8 +60,8 @@ public:
     //账户升级事务相关
     bool importFstSubjects(int subSys);
     bool getSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem*>& cfgs);
-    bool setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs);
-
+    //bool setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs);
+    bool tableExist(QString tableName);
 
     //账户信息相关
     //bool readAccBriefInfo(AccountBriefInfo& info);
@@ -128,6 +128,7 @@ public:
                                       const QHash<int, MoneyDirection>& sdirs);
     bool saveExtraForMm(int y, int m, const QHash<int, Double>& fsums,
                                       const QHash<int, Double>& ssums);
+    bool verifyExtraForFsub(int y, int m, FirstSubject* fsub);
     bool readExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub, QHash<int, Double>& pvs, QHash<int, MoneyDirection> &dirs,
                                    QHash<int, Double>& mvs);
     bool saveExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub,
@@ -135,9 +136,10 @@ public:
                           QHash<int, MoneyDirection> fdirs, const QHash<int, Double> &v,
                           const QHash<int, Double> &wv, const QHash<int, MoneyDirection> &dir);
 
-    bool convertExtraInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps, QStringList& errors);
-    bool convertPzInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps, QStringList& errors);
+    bool convertExtraInYear(int year, const QHash<int,int> maps, bool isFst = true);
+    bool convertPzInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps);
     bool lastWbExtraIsZeroForFSub(FirstSubject* ssub);
+    bool getMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> &cfgInfos);
 
     //日记账
     bool getDetViewFilters(int suiteId, QList<DVFilterRecord*>& rs);
@@ -246,11 +248,13 @@ private:
     int _genKeyForExtraPoint(int y, int m, int mt);
     bool _isTransformExtra(int y, bool& isTrans, QHash<int, int> &fMaps, QHash<int, int> &sMaps);
     bool _transformExtra(QHash<int,int> maps, QHash<int,Double>& ExtrasP, QHash<int,Double>& extrasM, QHash<int,MoneyDirection>& dirs);
+    bool _extraUnityInspectForFSub(int fid, int mt, Double sum, MoneyDirection dir, QHash<int,Double> values, QHash<int,MoneyDirection> dirs, bool& ok);
 
     //表格创建函数
     void crtGdzcTable();
 
     //
+
     void warn_transaction(ErrorCode witch, QString context);
     void errorNotify(QString info);
     bool isNewExtraAccess(){return (mv==nmv && sv>=nsv) || (mv>nmv);}//是否采用新余额存取机制

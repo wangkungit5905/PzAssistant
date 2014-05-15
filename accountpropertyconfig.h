@@ -328,11 +328,11 @@ class SubSysJoinCfgForm : public QDialog
 {
     Q_OBJECT
 
-    static const int COL_INDEX_SUBCODE = 1;     //源科目代码列
-    static const int COL_INDEX_SUBNAME = 2;     //源科目名称列
-    static const int COL_INDEX_SUBJOIN = 3;     //映射按钮列
-    static const int COL_INDEX_NEWSUBCODE = 4;	//新科目代码列
-    static const int COL_INDEX_NEWSUBNAME = 5;	//新科目名称列
+    static const int COL_INDEX_SUBCODE = 0;     //源科目代码列
+    static const int COL_INDEX_SUBNAME = 1;     //源科目名称列
+    static const int COL_INDEX_SUBJOIN = 2;     //映射按钮列
+    static const int COL_INDEX_NEWSUBCODE = 3;	//新科目代码列
+    static const int COL_INDEX_NEWSUBNAME = 4;	//新科目名称列
 
 public:
     explicit SubSysJoinCfgForm(int src, int des, Account* account, QWidget *parent = 0);
@@ -340,22 +340,23 @@ public:
     bool save();
 
 private slots:
-    void mapBtnClicked();
+    //void mapBtnClicked();
     void destinationSubChanged(QTableWidgetItem* item);
 private:
     void init();
     bool determineAllComplete();
-    void cloneSndSubject();
-    void preConfig();
+    //void cloneSndSubject();
+    //void preConfig();
 
     Ui::SubSysJoinCfgForm *ui;
     Account* account;
     bool isCompleted;     //科目衔接配置是否已经完成
-    SubjectManager *sSmg,*dSmg;
-    QList<SubSysJoinItem*> ssjs;    //科目映射配置列表
+    SubjectManager *sSmg/*,*dSmg*/;
+    int subSys;                      //对接的科目系统的代码
+    QList<SubSysJoinItem2*> ssjs;    //科目映射配置列表
     QList<bool> editTags;   //每个科目的映射条目被修改的标记列表
-
-
+    QHash<QString,QString> subNames; //新科目系统的科目代码到科目名的映射表
+    QString defJoinStr,mixedJoinStr; //默认对接和混合对接的箭头样式文本
 };
 
 //显示期初余额的借贷方向
@@ -486,7 +487,7 @@ private:
     BeginCfgItemDelegate *delegate,*delegate_fsub;
     bool readOnly;              //期初余额是否可编辑
     QBrush bg_red;              //当二级科目有余额项时所采用的前景色
-    bool extraCfg;              //是期初余额配置（true：默认，还是余额显示）
+    bool extraCfg;              //是期初余额配置（true：默认），还是余额显示
 };
 
 class ApcReport : public QWidget

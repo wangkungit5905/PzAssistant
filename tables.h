@@ -112,19 +112,29 @@ const int FSCLS_NAME     = 3;
 //remCode varchar(10), belongTo integer, jdDir integer, isView integer,
 //isUseWb INTEGER, weight integer, subName varchar(10))
 //字段名
-const QString tbl_fsub         = "FirSubjects";
-const QString fld_fsub_subSys  = "subSys";       //科目系统代码（INTEGER）
+//const QString tbl_fsub         = "FirSubjects";
+//const QString fld_fsub_subSys  = "subSys";       //科目系统代码（INTEGER）
+
+
+//const int FSUB_SUBSYS     =  1;
+
+//*************************一级科目id表******************************//
+const QString tbl_fsub_ids = "FstSubIDs";
+//*************************一级科目表*********************************//
+//一级科目表名前缀
+const QString tbl_fsub_prefix = "FstSubs_";
+const QString fld_fsub_fid     = "fid";          //外键，连接到表“FstSubMaps”的id字段
 const QString fld_fsub_subcode = "subCode";      //一级科目代码（国标）(varchar(4))
 const QString fld_fsub_remcode = "remCode";      //科目助记符(varchar(10))
 const QString fld_fsub_class   = "clsId";        //所属类别（integer)
 const QString fld_fsub_jddir   = "jdDir";        //科目的借贷方向判定方法（integer）
                                         //（1：增加在借方，减少在贷方；0：增加在贷方，减少在借方）
-const QString fld_fsub_isview  = "isView";       //是否启用该科目(integer)(1：启用，0：不启用)
+const QString fld_fsub_isEnalbed  = "isEnabled";       //是否启用该科目(integer)(1：启用，0：不启用)
 const QString fld_fsub_isUseWb = "isUseWb";      //是否需要使用外币
 const QString fld_fsub_weight  = "weight";       //科目使用的权重值(integer)
 const QString fld_fsub_name    = "subName";      //科目名(varchar(10))
 //字段索引
-const int FSUB_SUBSYS     =  1;
+const int FSUB_FID        =  1;
 const int FSUB_SUBCODE    =  2;
 const int FSUB_REMCODE    =  3;
 const int FSUB_CLASS      =  4;
@@ -133,12 +143,11 @@ const int FSUB_ISVIEW     =  6;
 const int FSUB_ISUSEWB    =  7;
 const int FSUB_WEIGHT     =  8;
 const int FSUB_SUBNAME    =  9;
-
 //*************************名称条目类别表*************************//
 //二级科目类别表
 //字段名
 const QString tbl_nameItemCls = "NameItemClass";
-const QString fld_nic_order   = "viewOrder";        //显示顺序
+const QString fld_nic_order   = "viewOrder";    //显示顺序
 const QString fld_nic_clscode = "clsCode";      //类别代码（INTEGER）
 const QString fld_nic_name    = "name";         //名称（TEXT）
 const QString fld_nic_explain = "explain";      //简要说明（TEXT）
@@ -169,7 +178,6 @@ const int NI_CREATOR     = 6;
 //*************************二级科目表*************************//
 //字段名
 const QString tbl_ssub        = "SndSubject";
-const QString fld_ssub_subsys  = "subSys" ;       //所属科目系统代码
 const QString fld_ssub_fid     = "fid";           //所属的一级科目ID（INTEGER）
 const QString fld_ssub_nid     = "nid";           //对应的名称条目中的ID（INTEGER）
 const QString fld_ssub_code    = "subCode";       //科目代码（用户根据行业特点自定义的）（TEXT）
@@ -179,15 +187,14 @@ const QString fld_ssub_disTime = "disabledTime";  //禁用时间（TEXT）
 const QString fld_ssub_crtTime = "createdTime";   //创建时间（TEXT）（NOT NULL DEFAULT (datetime('now','localtime'))）
 const QString fld_ssub_creator = "creator";       //创建者（INTEGER）
 //字段索引
-const int SSUB_SUBSYS      = 1;
-const int SSUB_FID         = 2;
-const int SSUB_NID         = 3;
-const int SSUB_SUBCODE     = 4;
-const int SSUB_WEIGHT      = 5;
-const int SSUB_ENABLED     = 6;
-const int SSUB_DISABLETIME = 7;
-const int SSUB_CREATETIME  = 8;
-const int SSUB_CREATOR     = 9;
+const int SSUB_FID         = 1;
+const int SSUB_NID         = 2;
+const int SSUB_SUBCODE     = 3;
+const int SSUB_WEIGHT      = 4;
+const int SSUB_ENABLED     = 5;
+const int SSUB_DISABLETIME = 6;
+const int SSUB_CREATETIME  = 7;
+const int SSUB_CREATOR     = 8;
 
 //******************凭证表*********************************//
 //字段名
@@ -408,7 +415,7 @@ const int DVFS_ENDDATE      = 10;
 const int DVFS_SUBIDS       = 11;
 
 
-//科目系统衔接时一级科目的映射配置表
+//科目系统衔接时一级科目的映射配置表（此表已启用，一级科目的映射参考基本库的相应表）
 const QString tbl_ssjc_pre     = "subSysJoin";
 const QString fld_ssjc_sSub    = "sSub";        //源一级科目id
 const QString fld_ssjc_dSub    = "dSub";        //目的一级科目id
@@ -457,6 +464,22 @@ const int TRANSDESC_TID  = 1;
 const int TRANSDESC_OUT  = 2;
 const int TRANSDESC_IN   = 3;
 
+//二级科目对接表（sndSubJoin）
+//当科目系统升级时，有些老科目可能要并入新科目，这样就必须将原属于老主目的
+//子目并入新主目中，并入的规则是如果原有子目在新主目中有对应的，即使用了相同的名称条目
+//则可以直接对应，否则要使用这个名称条目在新主目下创建一个新子目并建立对应，这个表就是保存
+//了这些对应关系，它应用在
+//（1）当读取采用新科目系统的帐套的期初数据时，用来转换余额
+//（2）当升级帐套时，要使用它来替换分录中的一二级科目，并转换它们的余额。
+const QString tbl_sndsub_join_pre = "sndSubJoin";
+const QString fld_ssj_s_fsub = "sFSubId";   //源一级科目id
+const QString fld_ssj_s_ssub = "sSSubId";   //源二级科目id
+const QString fld_ssj_d_fsub = "dFSubId";   //对接一级科目id
+const QString fld_ssj_d_ssub = "dSSubId";   //对接二级科目id
+const int SSJ_SF_SUB = 1;
+const int SSJ_SS_SUB = 2;
+const int SSJ_DF_SUB = 3;
+const int SSJ_DS_SUB = 4;
 
 
 
@@ -497,13 +520,13 @@ const int PZSSN_LNAME = 3;
  *  配置表（configs）
  */
 //字段名
-const QString tbl_baseCnf       = "configs";
-const QString fld_bconf_type    = "type";
-const QString fld_bconf_name    = "name";
-const QString fld_bconf_value   = "value";
+const QString tbl_base_Cfg       = "configs";
+const QString fld_bconf_type    = "type";       //变量类型
+const QString fld_bconf_enum    = "enumCode";   //变量枚举代码
+const QString fld_bconf_value   = "value";      //变量值
 //字段索引
 const int BCONF_TYPE  = 1;
-const int BCONF_NAME  = 2;
+const int BCONF_ENUM  = 2;
 const int BCONF_VALUE = 3;
 
 /**
@@ -536,13 +559,15 @@ const int LAC_HASH      = 10;
 /**
  *  科目系统名称表
  */
-const QString tbl_subSys = "subSysNames";
-const QString fld_ss_code = "code";     //科目系统代码（integer）
-const QString fld_ss_name = "name";     //科目系统名称（TEXT）
-const QString fld_ss_explain = "explain"; //说明信息（TEXT）
-const int SS_CODE = 1;
-const int SS_NAME = 2;
-const int SS_EXPLAIN = 3;
+const QString tbl_subSys        = "subSysNames";
+const QString fld_ss_code       = "code";       //科目系统代码（integer）
+const QString fld_ss_name       = "name";       //科目系统名称（TEXT）
+const QString fld_ss_startTime  = "startTime";  //启用时间
+const QString fld_ss_explain    = "explain";    //说明信息（TEXT）
+const int SS_CODE   = 1;
+const int SS_NAME   = 2;
+const int SS_TIME   = 3;
+const int SS_EXPLAIN= 4;
 
 //主机表（machines）
 //CREATE TABLE machines(id integer primary key, type integer, mid integer,
@@ -635,4 +660,13 @@ const int FI_BASE_SSCC_SUBSYS = 1;
 const int FI_BASE_SSCC_ENUM   = 2;
 const int FI_BASE_SSCC_CODE   = 3;
 
+//科目系统对接科目表
+const QString tbl_base_subsysjion_pre = "subSysJoin";
+const QString fld_base_ssjc_scode = "scode";    //源科目代码
+const QString fld_base_ssjc_dcode = "dcode";    //目的科目代码
+const QString fld_base_ssjc_isDef = "isDef";    //是否默认对接，即是否有只有一个源科目对接到此科目
+//字段索引
+const int FI_BASE_SSJC_SCODE = 1;
+const int FI_BASE_SSJC_DCODE = 2;
+const int FI_BASE_SSJC_ISDEF = 3;
 #endif // TABLES_H

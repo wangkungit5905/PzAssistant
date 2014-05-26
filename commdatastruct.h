@@ -259,7 +259,8 @@ struct DailyAccountData2{
     int pid;         //该业务活动所属的凭证id
     int bid;         //该业务活动的id（BusiActions表id字段）
     //这些余额表示，到本次业务活动发生后，该科目的当前余额
-    QHash<int,Double> em; //按币种分开核算的余额(key为币种代码)
+    QHash<int,Double> em; //按币种分开核算的原币余额(key为币种代码)
+    QHash<int,Double> mm; //存放外币原币余额对应的本币值(key为币种代码)
     QHash<int,int> dirs;  //各币种的余额方向
     Double etm;           //各币种混合核算的余额值
 };

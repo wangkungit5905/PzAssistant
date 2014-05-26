@@ -385,7 +385,7 @@ void ApcSuite::on_btnCommit_clicked()
  */
 void ApcSuite::on_btnUpgrade_clicked()
 {
-    QMessageBox::warning(this,"",tr("实现要做调整，暂不支持！"));
+    //QMessageBox::warning(this,"",tr("实现要做调整，暂不支持！"));
     if(QMessageBox::No == QMessageBox::information(this,tr("提示信息"),
                                                    tr("确定要升级科目系统吗？\n升级后将无法逆转！"),
                                                    QMessageBox::Yes|QMessageBox::No))
@@ -421,16 +421,11 @@ void ApcSuite::on_btnUpgrade_clicked()
 
     int sc = as->subSys;
     int dc = items.at(index)->code;
-
-//    if(!account->getSubSysJoinMaps(sc,dc,fMaps,sMaps)){
-//        QMessageBox::critical(this,tr("错误提示"),tr("在升级科目系统前，获取科目映射条目时出错"));
-//        return;
-//    }
     QList<MixedJoinCfg*> cfgs;
     if(!account->getDbUtil()->getMixJoinInfo(sc,dc,cfgs)){
         QMessageBox::critical(this,tr("错误提示"),tr("在升级科目系统前，获取混合科目对接条目时出错"));
     }
-    QHash<int,int> fMaps,sMaps;
+    QHash<int,int> fMaps,sMaps;//主目和子目id对接映射表
     int fid = 0;
     foreach(MixedJoinCfg* item, cfgs){
         if(fid != item->s_fsubId){
@@ -1124,7 +1119,7 @@ void ApcSubject::importBtnClicked()
 }
 
 /**
- * @brief 科目系统表的配置按钮被单击（好像已经不需要配置了，这个方法可以废弃）
+ * @brief 查看科目系统对接配置信息
  */
 void ApcSubject::subSysCfgBtnClicked()
 {
@@ -1134,7 +1129,7 @@ void ApcSubject::subSysCfgBtnClicked()
         if(!w)
             continue;
         if(btn == w){
-            SubSysJoinCfgForm* form = new SubSysJoinCfgForm(subSysNames.at(i-1)->code,subSysNames.at(i)->code,account);
+            SubSysJoinCfgForm* form = new SubSysJoinCfgForm(subSysNames.at(i-1)->code,subSysNames.at(i)->code,account,this);
             if(form->exec() == QDialog::Accepted)
                 form->save();
             return;

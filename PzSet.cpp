@@ -513,7 +513,7 @@ int AccountSuiteManager::instatAll(User *user)
  *  （3）自编号是否重复
  *  （4）借贷是否平衡
  *  （5）摘要栏是否为空
- *  （6）科目是否未设值
+ *  （6）科目是否未设值（是否为“幽灵”科目）
  *  （7）金额是否未设值
  *  （8）借贷方向是否违反约定性
  *  （9）币种设置是否与科目的货币使用属性相符
@@ -600,6 +600,18 @@ bool AccountSuiteManager::inspectPzError(QList<PingZhengError*>& errors)
                 e->explain = tr("%1号凭证第%2条会计分录科目未设置！").arg(pz->number()).arg(ba->getNumber());
                 errors<<e;
             }
+            if(ba->getFirstSubject() || (!ba->getFirstSubject() && ba->getSecondSubject())){
+                SecondSubject* ssub = ba->getSecondSubject();
+                if(ssub  && ba->getFirstSubject() != ssub->getParent()){
+                    e = new PingZhengError;
+                    e->errorLevel = PZE_ERROR;
+                    e->errorType = 2;
+                    e->pz = pz;
+                    e->ba = ba;
+                    e->explain = tr("%1号凭证第%2条会计分录发现“幽灵”子目！").arg(pz->number()).arg(ba->getNumber());
+                    errors<<e;
+                }
+            }
             //（7）金额是否未设值
             if(ba->getValue() == 0.0){
                 e = new PingZhengError;
@@ -632,12 +644,6 @@ bool AccountSuiteManager::inspectPzError(QList<PingZhengError*>& errors)
                 errors<<e;
             }
         }
-
-
-
-
-
-
     }
     return true;
 }
@@ -1244,11 +1250,11 @@ bool AccountSuiteManager::_inspectDirEngageError(FirstSubject *fsub, MoneyDirect
     if(pzc == Pzc_Hand){
         if(fsub->getSubClass() == SC_SY){
             if(fsub->getJdDir() && (dir == MDIR_D)){
-                eStr = tr("手工凭证中，费用类科目必须在贷方");
+                eStr = tr("手工凭证中，费用类科目必须在借方");
                 return false;
             }
             else if(!fsub->getJdDir() && (dir == MDIR_J)){
-                eStr = tr("手工凭证中，收入类科目必须在借方");
+                eStr = tr("手工凭证中，收入类科目必须在贷方");
                 return false;
             }
             else

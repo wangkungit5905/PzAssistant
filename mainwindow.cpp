@@ -68,14 +68,19 @@
 PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
 {
     timer = NULL;
-    QLabel *l = new QLabel(tr("日期:"),this);
+    QLabel *l = new QLabel(tr("当前帐套:"),this);
+    curSuite.setFrameShape(QFrame::StyledPanel);
+    curSuite.setFrameShadow(QFrame::Sunken);
+    curSuite.setText("         ");
+    QHBoxLayout* hl1 = new QHBoxLayout(this);
+    hl1->addWidget(l);
+    hl1->addWidget(&curSuite);
+    l = new QLabel(tr("日期:"),this);
     pzSetDate.setFrameShape(QFrame::StyledPanel);
     pzSetDate.setFrameShadow(QFrame::Sunken);
     pzSetDate.setText("                       ");    
-    QHBoxLayout* hl1 = new QHBoxLayout(this);
     hl1->addWidget(l);
     hl1->addWidget(&pzSetDate);
-
     l = new QLabel(tr("凭证集状态："),this);
     pzSetState.setFrameShape(QFrame::StyledPanel);
     pzSetState.setFrameShadow(QFrame::Sunken);
@@ -134,6 +139,11 @@ PaStatusBar::~PaStatusBar()
     delete pBar;
 }
 
+void PaStatusBar::setCurSuite(QString suiteName)
+{
+    curSuite.setText(suiteName);
+}
+
 /**
  * @brief PaStatusBar::setDate
  * 设置凭证集日期信息
@@ -147,7 +157,7 @@ void PaStatusBar::setPzSetDate(int y, int m)
     }
     QDate d(y,m,1);
     int dend = d.daysInMonth();
-    QString ds = tr("%1年%2月1日——%1年%2月%3日").arg(y).arg(m).arg(dend);
+    QString ds = tr("%1月1日——%1月%2日").arg(m).arg(dend);
     pzSetDate.setText(ds);
 }
 
@@ -1706,6 +1716,7 @@ void MainWindow::suiteViewSwitched(AccountSuiteManager *previous, AccountSuiteMa
         }
         adjustEditMenus(UT_PZ,true);
         subWinGroups.value(key)->show();
+        ui->statusbar->setCurSuite(current->getSuiteRecord()->name);
         //if(commonGroups && commonGroups->isShow())
         //    commonGroups->hide();
     }
@@ -1856,8 +1867,8 @@ void MainWindow::prepareClosePzSet(AccountSuiteManager *accSmg, int month)
     if(gm){
         gm->closeSubWindow(SUBWIN_PZEDIT);      //凭证编辑窗口
         gm->closeSubWindow(SUBWIN_PZSTAT);      //本期统计的窗口
-        gm->closeSubWindow(SUBWIN_DETAILSVIEW); //明细账窗口
-        gm->closeSubWindow(TOTALDAILY);         //总分类账窗口
+        //gm->closeSubWindow(SUBWIN_DETAILSVIEW); //明细账窗口
+        //gm->closeSubWindow(TOTALDAILY);         //总分类账窗口
     }
 
 }

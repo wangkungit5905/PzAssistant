@@ -337,6 +337,8 @@ void ShowDZDialog::startDateChanged(const QDate &date)
 void ShowDZDialog::endDateChanged(const QDate &date)
 {
     curFilter->endDate = date;
+    if(date.day() != date.daysInMonth())
+        curFilter->endDate.setDate(date.year(),date.month(),date.daysInMonth());
     adjustSaveBtn();
 }
 
@@ -517,7 +519,8 @@ void ShowDZDialog::moveTo()
 //当用户改变表格的列宽时，记录在内部状态表中
 void ShowDZDialog::colWidthChanged(int logicalIndex, int oldSize, int newSize)
 {
-    colWidths[tf][logicalIndex] = newSize;
+    if(logicalIndex < colWidths.value(tf).count())
+        colWidths[tf][logicalIndex] = newSize;
 }
 
 
@@ -616,7 +619,7 @@ void ShowDZDialog::refreshTalbe()
     for(int y = ui->startDate->date().year(); y <= ui->endDate->date().year(); ++y){
         smgs[y] = account->getSubjectManager(account->getSuiteRecord(y)->subSys);
     }
-    if(!account->getDbUtil()->getDailyAccount2(smgs,ui->startDate->date(),ui->endDate->date(),fid,sid,mt,prev,preDir,datas,
+    if(!account->getDbUtil()->getDailyAccount2(smgs,ui->startDate->date(),curFilter->endDate,fid,sid,mt,prev,preDir,datas,
                                   preExtra,preExtraR,preExtraDir,rates,subIds,gv,lv,true))
         return;
 
@@ -1469,6 +1472,8 @@ int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
     ApStandardItem* item;
     QList<QStandardItem*> l;
     int rows = 0;
+    int masterMt = account->getMasterMt()->code();
+    QString tips;
 
     //期初余额部分
     l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;  //0、1、2、3 跳过年、月、日、凭证号栏
@@ -1487,7 +1492,21 @@ int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
     l<<new ApStandardItem(dirStr(preDir));  //12 期初余额方向
     for(int i = 0; i < mts.count(); ++i)
         l<<new ApStandardItem(preExtra.value(mts[i]));//13 期初余额（外币）
-    l<<new ApStandardItem(esum);//14 期初余额（金额）
+    item = new ApStandardItem(esum);//14 期初余额（金额）
+    if(preDir != DIR_P){
+        Double uv = prev-preExtra.value(masterMt);
+        if(preDir != preExtraDir.value(USD)){
+            uv.changeSign();
+        }
+        tips = tr("人民币：%1 %2\n美金： %3 %4（%5）")
+                .arg(dirStr(preExtraDir.value(masterMt)))
+                .arg(preExtra.value(masterMt).toString2())
+                .arg(dirStr(preExtraDir.value(USD)))
+                .arg(preExtra.value(USD).toString2())
+                .arg(uv.toString2());
+        item->setData(tips,Qt::ToolTipRole);
+    }
+    l<<item;
     l<<new ApStandardItem<<new ApStandardItem;
     pdatas<<l;
     rows++;
@@ -1628,7 +1647,19 @@ int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
         l<<new ApStandardItem(dirStr(datas[i]->dir));        //12：余额方向
         for(int j = 0; j < mts.count(); ++j)
             l<<new ApStandardItem(datas[i]->em.value(mts[j])); //13：余额（外币）
-        l<<new ApStandardItem(datas[i]->etm);    //14：余额（金额）
+        item = new ApStandardItem(datas[i]->etm);    //14：余额（金额）
+        DailyAccountData2* d = datas.at(i);
+        Double uv = d->etm - d->em.value(masterMt);
+        if(d->dirs.value(USD) != d->dir)
+            uv.changeSign();
+        tips = tr("人民币：%1 %2\n美金： %3 %4（%5）")
+                .arg(dirStr(d->dirs.value(masterMt)))
+                .arg(d->em.value(masterMt).toString2())
+                .arg(dirStr(d->dirs.value(USD)))
+                .arg(d->em.value(USD).toString2())
+                .arg(uv.toString2());
+        item->setData(tips,Qt::ToolTipRole);
+        l<<item;    //12：余额（金额）
         //添加两个隐藏列
         l<<new ApStandardItem(datas[i]->pid);//15：业务活动所属凭证id
         l<<new ApStandardItem(datas[i]->bid);//16：业务活动本身的id
@@ -1866,6 +1897,8 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
 {
     QList<QStandardItem*> l;
     int rows = 0;
+    QString tips;
+    int masteMt = account->getMasterMt()->code();
 
     //期初余额部分（0、1、2、3 跳过年月、日、凭证号栏）
     l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;
@@ -1880,7 +1913,23 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
     l<<new ApStandardItem(dirStr(preDir));  //10：期初余额方向
     for(int i = 0; i < mts.count(); ++i)
         l<<new ApStandardItem(preExtra.value(mts[i]));//11：期初余额（外币）
-    l<<new ApStandardItem(prev);//12：期初余额
+    ApStandardItem* item = new ApStandardItem(prev);
+    //只有当查看多币种明细账时，才提供悬停提示功能
+    if(preDir != DIR_P && preExtra.count() == 2){
+        Double uv = prev-preExtra.value(masteMt);
+        if(preDir != preExtraDir.value(USD)){
+            uv.changeSign();
+        }
+        tips = tr("人民币：%1 %2\n美金： %3 %4（%5）")
+                .arg(dirStr(preExtraDir.value(masteMt)))
+                .arg(preExtra.value(masteMt).toString2())
+                .arg(dirStr(preExtraDir.value(USD)))
+                .arg(preExtra.value(USD).toString2())
+                .arg(uv.toString2());
+        item->setData(tips,Qt::ToolTipRole);
+    }
+    l<<item;                    //12：期初余额
+
     l<<new ApStandardItem<<new ApStandardItem; //13、14
     pdatas<<l;
     rows++;
@@ -1967,7 +2016,7 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
         l<<new ApStandardItem(datas[i]->pzNum);              //3：凭证号
         l<<new ApStandardItem(datas[i]->summary,Qt::AlignLeft | Qt::AlignVCenter); //4：摘要
         Double rate = rates.value(datas[i]->y*1000+datas[i]->m*10+datas[i]->mt,1.0);
-        if(datas[i]->mt != RMB)
+        if(datas[i]->mt != masteMt)
             l<<new ApStandardItem(rate);  //5：汇率
         else
             l<<new ApStandardItem;
@@ -2005,7 +2054,21 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
         l<<new ApStandardItem(dirStr(datas[i]->dir));        //10：余额方向
         for(int j = 0; j < mts.count(); ++j)
             l<<new ApStandardItem(datas[i]->em.value(mts[j])); //11：余额（外币）
-        l<<new ApStandardItem(datas[i]->etm);    //12：余额（金额）
+        item = new ApStandardItem(datas[i]->etm);
+        if(datas.at(i)->em.count() == 2){
+            DailyAccountData2* d = datas.at(i);
+            Double uv = d->etm - d->em.value(masteMt);
+            if(d->dirs.value(USD) != d->dir)
+                uv.changeSign();
+            tips = tr("人民币：%1 %2\n美金： %3 %4（%5）")
+                    .arg(dirStr(d->dirs.value(masteMt)))
+                    .arg(d->em.value(masteMt).toString2())
+                    .arg(dirStr(d->dirs.value(USD)))
+                    .arg(d->em.value(USD).toString2())
+                    .arg(uv.toString2());
+            item->setData(tips,Qt::ToolTipRole);
+        }
+        l<<item;    //12：余额（金额）
         //添加两个隐藏列
         l<<new ApStandardItem(datas[i]->pid);//13：业务活动所属凭证id
         l<<new ApStandardItem(datas[i]->bid);//14：业务活动本身的id
@@ -2054,10 +2117,10 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
         l<<new ApStandardItem(dwysums.value(mts[j]));  //8：贷方（外币）
     l<<new ApStandardItem(dysums);  //9：贷方（金额）
     if(datas.empty()){
-        l<<new ApStandardItem(dirStr(preExtraDir.value(RMB)));  //10：期初余额方向
+        l<<new ApStandardItem(dirStr(preExtraDir.value(masteMt)));  //10：期初余额方向
         for(int i = 0; i < mts.count(); ++i)
             l<<new ApStandardItem(dirStr(preDir));//11：期初余额
-        l<<new ApStandardItem(preExtra.value(RMB));//12：期初余额
+        l<<new ApStandardItem(preExtra.value(masteMt));//12：期初余额
     }
     else{
         l<<new ApStandardItem(dirStr(datas[datas.count()-1]->dir));        //10：余额方向

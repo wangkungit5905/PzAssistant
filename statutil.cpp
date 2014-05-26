@@ -591,20 +591,43 @@ void StatUtil::_calEndExtra(bool isFst)
         }
     }
 
-    if(!isFst)
-        qDebug()<<QString("StatUtil::_calEndExtra===> %1").arg(evMs->value(1122).toString());
+    //if(!isFst)
+    //    qDebug()<<QString("StatUtil::_calEndExtra===> %1").arg(evMs->value(1122).toString());
 
     //将存在期初值但本期未发生的科目余额拷贝到期末余额
     QHashIterator<int,Double>* ip = new QHashIterator<int,Double>(*pvs);
     while(ip->hasNext()){
         ip->next();
         int key = ip->key();
+        int mt = key%10;
         if(!evs->contains(key)){
             (*evs)[key] = pvs->value(key);
             (*eds)[key] = pds->value(key);
+            if(mt != mmt)
+                (*evMs)[key] = pvMs->value(key);
         }
     }
-
+    //查找并剔除那些外币的原币余额为0，但其本币值不为0的值项
+    ip = new QHashIterator<int,Double>(*evMs);
+    Double v;
+    while(ip->hasNext()){
+        ip->next();
+        v = ip->value();
+        if(v != 0 && evs->value(ip->key()) == 0){
+            if(v > zv)
+                QMessageBox::warning(0,tr("余额误差"),tr("外币余额的本币值出现大于1分的误差！"));
+            (*evMs)[ip->key()] = 0;
+            QString subName;
+            int sid = ip->key()/10;
+            if(isFst)
+                subName = smg->getFstSubject(sid)->getName();
+            else{
+                SecondSubject* ssub = smg->getSndSubject(sid);
+                subName = QString("%1-%2").arg(ssub->getParent()->getName()).arg(ssub->getName());
+            }
+            LOG_WARNING(tr("%1(sid=%2) 外币余额本币值误差：%3").arg(subName).arg(sid).arg(v.toString2()));
+        }
+    }
 }
 
 /**
@@ -829,10 +852,14 @@ void StatUtil::_calSumValue(bool isPre, bool isfst)
         sid = it->key();
         if(isfst){
             fsub = smg->getFstSubject(sid);
+            if(!fsub)
+                LOG_ERROR(QString("Null point exception! When request FirstSubject object point from sid=%1").arg(sid));
             ssub = NULL;
         }
         else{
             ssub = smg->getSndSubject(sid);
+            if(!ssub)
+                LOG_ERROR(QString("Null point exception! When request SecondSubject object point from sid=%1").arg(sid));
             fsub = ssub->getParent();
         }
         if(it->value() == 0)
@@ -953,6 +980,8 @@ bool StatUtil::_verifyExtraUnity(QStringList& errors, bool isPre)
         it.next();
         int fid = it.key()/10;
         FirstSubject* fsub = smg->getFstSubject(fid);
+        if(!fsub)
+            continue;
         int mt = it.key()%10;
         Double sum; MoneyDirection s_dir,f_dir;
         f_dir = f_dirs->value(it.key(),MDIR_P);
@@ -981,6 +1010,8 @@ bool StatUtil::_verifyExtraUnity(QStringList& errors, bool isPre)
  */
 void StatUtil::_collectSumForFSubMt(FirstSubject* fsub, int mt, Double &sum, MoneyDirection &dir, QHash<int, Double> vs, QHash<int, MoneyDirection> dirs)
 {
+    if(!fsub)
+        return;
     QList<int> ids;
     foreach(SecondSubject* ssub, fsub->getChildSubs())
         ids<<ssub->getId();

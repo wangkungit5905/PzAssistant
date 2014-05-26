@@ -374,7 +374,7 @@ public:
 
     QHash<SubjectClass,QString>& getFstSubClass(){return fsClsNames;}
     //按科目id获取科目对象的方法
-    FirstSubject* getFstSubject(int id){fstSubHash.value(id);}
+    FirstSubject* getFstSubject(int id){return fstSubHash.value(id);}
 
     void getUseWbSubs(QList<FirstSubject*>& fsubs);
     QList<FirstSubject*> getSyClsSubs(bool in=true);

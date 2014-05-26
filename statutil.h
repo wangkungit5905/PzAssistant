@@ -23,6 +23,11 @@ class AccountSuiteManager;
 class StatUtil : public QObject
 {
     Q_OBJECT
+
+    const Double zv= Double(0.01); //某些情况下，外币科目在统计后，其原币值为0，这往往由于计算方式的不同而出现的误差
+                                   //（将外币的余额直接乘以汇率得到的本币值，与每次将外币发生额转换为本币后在参予计算而得的结果往往有几分的差距）
+                                   //但误差是否会超出1分呢？
+
 public:
     StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager* parent);
     bool stat();

@@ -30,6 +30,7 @@ class PaStatusBar : public QStatusBar
 public:
     PaStatusBar(QWidget* parent=0);
     ~PaStatusBar();
+    void setCurSuite(QString suiteName);
     void setPzSetDate(int y, int m);
     void setPzSetState(PzsState state);
     void setExtraState(bool isValid){extraState.setText(isValid?tr("有效"):tr("无效"));}
@@ -53,7 +54,7 @@ private:
     void endProgress();
     void adjustProgress(int value);
 
-    QLabel pzSetDate,pzSetState,extraState,lblUser,pzCount/*,pzRepeal,pzRecording,pzVerify,pzInstat*/;
+    QLabel curSuite,pzSetDate,pzSetState,extraState,lblUser,pzCount/*,pzRepeal,pzRecording,pzVerify,pzInstat*/;
     QProgressBar* pBar;
     QLabel* lblRuntime;
     int pAmount;  //进度指示器的最大值

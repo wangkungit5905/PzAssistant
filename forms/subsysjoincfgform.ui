@@ -24,7 +24,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="sSubSys"/>
+      <widget class="QLineEdit" name="sSubSys">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QLabel" name="label_2">
@@ -34,7 +38,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="dSubSys"/>
+      <widget class="QLineEdit" name="dSubSys">
+       <property name="readOnly">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
      <item>
       <spacer name="horizontalSpacer">

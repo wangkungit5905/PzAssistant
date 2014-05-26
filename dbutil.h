@@ -244,6 +244,7 @@ private:
     bool _readExtraForSSub(int y,int m, int sid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
     bool _readExtrasForSubLst(int y,int m, const QList<int> sids, QHash<int,Double>& pvs, QHash<int,Double>& mvs,QHash<int,MoneyDirection>& dirs,bool isFst = true);
     bool _saveExtrasForSubLst(int y,int m, const QList<int> sids, const QHash<int,Double>& pvs, const QHash<int,Double>& mvs, const QHash<int,MoneyDirection>& dirs,bool isFst = true);
+    bool _convertExtraInYear(int year, const QHash<int,int> maps, bool isFst = true);
     //
     int _genKeyForExtraPoint(int y, int m, int mt);
     bool _isTransformExtra(int y, bool& isTrans, QHash<int, int> &fMaps, QHash<int, int> &sMaps);

@@ -2182,108 +2182,23 @@ bool DbUtil::saveExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub,
 
 /**
  * @brief DbUtil::convertExtraInYear
- *  转换指定年份内的余额（用正确的科目id替换）
+ *  转换指定年份内的余额，即将混合对接科目的余额并入对接科目上后删除原余额条目
  * @param year
- * @param maps 科目映射表
+ * @param maps 科目映射表（键为源科目id，值为混合对接科目id）
  * @param isFst true：主目，false：子目
  * @return
  */
 bool DbUtil::convertExtraInYear(int year, const QHash<int, int> maps,bool isFst)
 {
-    QSqlQuery q1(db),q2(db),q3(db);
-    QString s;
-    QList<int> ePoints;
+
     if(!db.transaction()){
         LOG_SQLERROR(QString("Start transaction failed on convert extra in %1 year!").arg(year));
         return false;
     }
 
-    if(!_readExtraPointInYear(year,ePoints))
+    if(!_convertExtraInYear(year,maps,isFst)){
+        db.rollback();
         return false;
-    QString tname = isFst?tbl_nse_p_f:tbl_nse_p_s;
-    foreach (int p, ePoints) {
-        //1、查找待对接科目的余额是否存在，如果不存在，则不处理，否则，读取此余额以及对接科目的余额，
-        //将两者汇总后保存，并移除待对接科目余额项
-        QHashIterator<int,int> it(maps);
-        s = QString("select id,%1,%2 from %4 where %5=%6 and %7=:sid")
-                .arg(fld_nse_value).arg(fld_nse_dir).arg(tname)
-                .arg(fld_nse_pid).arg(p).arg(fld_nse_sid);
-        if(q1.prepare(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        s = QString("update %1 set %2=:value,%3=:dir where %4=%5 and %6=:sid")
-                .arg(tname).arg(fld_nse_value).arg(fld_nse_dir).arg(fld_nse_pid)
-                .arg(p).arg(fld_nse_sid);
-        if(!q2.prepare(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        s = QString("delete from %1 where id=:id").arg(tname);
-        if(!q3.prepare(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        while(it.hasNext()){
-            it.next();
-            q1.bindValue(":sid",it.key());
-            if(!q1.exec()){
-               LOG_SQLERROR(q1.lastQuery());
-               return false;
-            }
-            if(!q1.first())
-                continue;
-            int id1 = q1.value(0).toInt();
-            Double v = Double(q1.value(1).toDouble());
-            MoneyDirection dir = (MoneyDirection)q1.value(2).toInt();
-            if(dir == MDIR_D)
-                v.changeSign();
-            q1.bindValue(":sid",it.value());
-            if(!q1.exec()){
-               LOG_SQLERROR(q1.lastQuery());
-               return false;
-            }
-            Double sum;
-            MoneyDirection d = MDIR_P;
-            int id2 = 0;
-            if(q1.first()){
-                id2 = q1.value(0).toInt();
-                sum = Double(q1.value(1).toDouble());
-                d = (MoneyDirection)q1.value(2).toInt();
-                if(d == MDIR_D)
-                    sum.changeSign();
-            }
-            sum += v;
-            if(sum == 0 ){
-                if(id2 != 0){
-                    q3.bindValue(":id",id2);
-                    if(!q3.exec()){
-                        LOG_SQLERROR(q3.lastQuery());
-                        return false;
-                    }
-                }
-                else
-                    continue;
-            }
-            else if(sum < 0){
-                d = MDIR_D;
-                sum.changeSign();
-            }
-            else
-                d = MDIR_J;
-            q2.bindValue(":sid",it.value());
-            q2.bindValue(":value",sum.toString2());
-            q2.bindValue(":dir",d);
-            if(!q2.exec()){
-                LOG_SQLERROR(q2.lastQuery());
-                return  false;
-            }
-            q3.bindValue(":id",id1);
-            if(!q3.exec()){
-                LOG_SQLERROR(q3.lastQuery());
-                return false;
-            }
-        }
     }
 
     if(!db.commit()){
@@ -2297,10 +2212,11 @@ bool DbUtil::convertExtraInYear(int year, const QHash<int, int> maps,bool isFst)
 
 /**
  * @brief DbUtil::convertPzInYear
- *  转换指定年份内的所有凭证（将凭证内的会计分录中的科目id替换为对应帐套所使用的科目id）
- * @param year
- * @param fMaps
- * @param sMaps
+ *  转换指定年份内的所有凭证
+ *  即将凭证内的会计分录中的那些混合对接科目id替换为对应科目所使用的科目id
+ * @param year  帐套年份
+ * @param fMaps 主目id映射表（这些科目的对接关系都保存在子目对接表“sndSubJoin"_1_2”中）
+ * @param sMaps 子目id映射表
  * @return
  */
 bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
@@ -2320,6 +2236,14 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
             .arg(tbl_ba).arg(tbl_pz).arg(fld_ba_pid).arg(fld_pz_date).arg(year)
             .arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_pz_date).arg(fld_pz_number)
             .arg(fld_ba_number);
+    if(!fMaps.isEmpty()){
+        s1.append(QString(" and ("));
+        foreach(int fid, fMaps.keys()){
+            s1.append(QString("%1=%2 or ").arg(fld_ba_fid).arg(fid));
+        }
+        s1.chop(4);
+        s1.append(")");
+    }
     if(!q1.exec(s1)){
         LOG_SQLERROR(s1);
         return false;
@@ -2336,8 +2260,6 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
     int nums;
     while(q1.next()){
         fid = q1.value(1).toInt();
-        if(!fMaps.contains(fid))
-            continue;
         id = q1.value(0).toInt();        
         sid = q1.value(2).toInt();        
         date = q1.value(3).toString();
@@ -2346,6 +2268,7 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
         if(!sMaps.contains(sid)){
             LOG_ERROR(QObject::tr("在升级科目系统期间，发现一个未配置的二级科目，在%1，%2#凭证的第%3条分录（id=%4，）包含无效的科目（fid=%5，sid=%6）")
                                           .arg(date).arg(pzNum).arg(baNum).arg(id).arg(fid).arg(sid));
+            db.rollback();
             return false;
         }
         q2.bindValue(":fid", fMaps.value(fid));
@@ -2521,7 +2444,7 @@ bool DbUtil::saveDetViewFilter(const QList<DVFilterRecord*>& dvfs)
  * @param preExtra      期初值（原币形式）（这些键是科目代码和币种构成的复合键）
  * @param preExtraR     期初值（本币形式）
  * @param preExtraDir   期初余额方向
- * @param rates         每月的汇率，键为年月和币种的复合键（高4位年，中2位月，低1位币种）   月份 * 10 + 币种代码（其中，期初余额是个位数，用币种代码表示）
+ * @param rates         每月的汇率，键为年月和币种的复合键（高4位年，中2位月，低1位币种，其中，期初余额是个位数，用币种代码表示）
  * @param subIds        指定的科目代码（当fid=0时包含一级科目代码，反之包含有fid指定的一级科目下的二级科目的id）
  //* @param sids          所有在fids中指定的总账科目所属的明细科目代码总集合
  * @param gv            要提取的会计分录的值的上界
@@ -2628,6 +2551,7 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     //以原币形式保存每次发生业务活动后的各币种余额，初值就是前期余额（还要根据前期余额的方向调整符号）
     //将期初余额以统一的方向来表示，以便后期的累加
     QHash<int,Double> esums;
+    QHash<int,Double> emsums;
     it = new QHashIterator<int,Double>(preExtra);
     while(it->hasNext()){
         it->next();
@@ -2642,22 +2566,25 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     QHashIterator<int,Double> i(preExtra);
     while(i.hasNext()){ //计算期初总余额
         i.next();
-        int mt = i.key() % 10;
-        if(preExtraDir.value(i.key()) == DIR_P)
+        int mt = i.key();
+        if(preExtraDir.value(mt) == DIR_P)
             continue;
-        else if(preExtraDir.value(i.key()) == DIR_J){
-            //tsums += (i.value() * ra.value(i.key()));
+        else if(preExtraDir.value(mt) == DIR_J){
             if(mt == masterMt)
                 tsums += i.value();
-            else
-                tsums += preExtraR.value(it->key());
+            else{
+                tsums += preExtraR.value(mt);
+                emsums[mt] = preExtraR.value(i.key());
+            }
         }
         else{
-            //tsums -= (i.value() * ra.value(i.key()));
             if(mt == masterMt)
                 tsums -= i.value();
-            else
-                tsums -= preExtraR.value(it->key());
+            else{
+                tsums -= preExtraR.value(mt);
+                emsums[mt] = preExtraR.value(i.key());
+                emsums[mt].changeSign();
+            }
         }
     }
     if(tsums == 0){
@@ -2757,8 +2684,7 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
         QDate d = QDate::fromString(q.value(0).toString(), Qt::ISODate);
         cwfyId = smgs.value(d.year())->getCwfySub()->getId();
         //当前凭证是否是结转汇兑损益的凭证
-        bool isJzhdPz = pzClsJzhds.contains(pzCls)/*Pzc_Jzhd_Bank || pzCls == Pzc_Jzhd_Ys
-                        || pzCls == Pzc_Jzhd_Yf*/;
+        bool isJzhdPz = pzClsJzhds.contains(pzCls);
         //如果是结转汇兑损益的凭证作特别处理
         if(isJzhdPz){
             if(mt == RMB && fid != cwfyId) //如果指定的是人民币，则跳过非财务费用方的会计分录
@@ -2801,13 +2727,33 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
 
         //余额
         int key = item->y*1000+item->m*10+item->mt;
+        Double mv;//发生额的美金原币值的本币值
+        if(item->mt == USD)
+            mv = item->v * rates.value(key);
+        else
+            mv = item->v;
         if(item->dh == DIR_J){
-            tsums += (item->v * rates.value(key,1.0));
-            esums[item->mt] += item->v;
+            tsums += mv;
+            if(item->mt != masterMt){
+                emsums[item->mt] += mv;
+                esums[item->mt] += item->v;
+            }
+            else if(isJzhdPz && item->mt == masterMt && fid != cwfyId)
+                emsums[item->mt] += item->v;
+            else
+                esums[item->mt] += item->v;
         }
         else{
-            tsums -= (item->v * rates.value(key,1.0));
-            esums[item->mt] -= item->v;
+            tsums -= mv;
+            if(item->mt != masterMt){
+                emsums[item->mt] -= mv;
+                esums[item->mt] -= item->v;
+            }
+            else if(isJzhdPz && item->mt == masterMt && fid != cwfyId){
+                emsums[item->mt] -= item->v;
+            }
+            else
+                esums[item->mt] -= item->v;
         }
 
         //保存分币种的余额及其方向
@@ -2818,15 +2764,23 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
             if(it->value()>0){
                 item->em[it->key()] = it->value();
                 item->dirs[it->key()] = DIR_J;
+                if(it->key() != masterMt)
+                    item->mm[it->key()] = emsums.value(it->key());
             }
             else if(it->value() < 0.00){
                 item->em[it->key()] = it->value();
                 item->em[it->key()].changeSign();
                 item->dirs[it->key()] = DIR_D;
+                if(it->key() != masterMt){
+                    item->mm[it->key()] = emsums.value(it->key());
+                    item->mm[it->key()].changeSign();
+                }
             }
             else{
                 item->em[it->key()] = 0;
                 item->dirs[it->key()] = DIR_P;
+                if(it->key() != masterMt)
+                    item->mm[it->key()] = 0;
             }
         }
 
@@ -5117,8 +5071,9 @@ bool DbUtil::_delPingZheng(PingZheng *pz)
 bool DbUtil::_readExtraPointInYear(int y, QList<int>& points)
 {
     QSqlQuery q(db);
-    QString s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_nse_point)
-            .arg(fld_nse_year).arg(y).arg(fld_nse_month).arg(masterMt);
+    QString s = QString("select id from %1 where %2=%3 and %4=%5 order by %6")
+            .arg(tbl_nse_point).arg(fld_nse_year).arg(y)
+            .arg(fld_nse_mt).arg(masterMt).arg(fld_nse_month);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -5871,6 +5826,120 @@ bool DbUtil::_saveExtrasForSubLst(int y, int m, const QList<int> sids, const QHa
                     .arg(tm).arg(fld_nse_pid).arg(mtHash.value(mt)).arg(fld_nse_sid).arg(sid);
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+bool DbUtil::_convertExtraInYear(int year, const QHash<int, int> maps, bool isFst)
+{
+    QSqlQuery q1(db),q2(db),q3(db),q4(db);
+    QString s;
+    QList<int> ePoints;
+
+    if(!_readExtraPointInYear(year,ePoints))
+        return false;
+    QString tname = isFst?tbl_nse_p_f:tbl_nse_p_s;
+    foreach (int p, ePoints) {
+        //1、查找源科目的余额是否存在，如果不存在，则不处理，否则，读取此余额以及对接科目的余额，
+        //将两者汇总后保存，并移除源科目余额项
+        QHashIterator<int,int> it(maps);
+        s = QString("select id,%1,%2 from %4 where %5=%6 and %7=:sid")
+                .arg(fld_nse_value).arg(fld_nse_dir).arg(tname)
+                .arg(fld_nse_pid).arg(p).arg(fld_nse_sid);
+        if(!q1.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        s = QString("update %1 set %2=:value,%3=:dir where %4=%5 and %6=:sid")
+                .arg(tname).arg(fld_nse_value).arg(fld_nse_dir).arg(fld_nse_pid)
+                .arg(p).arg(fld_nse_sid);
+        if(!q2.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        s = QString("insert into %1(%2,%3,%4,%5) values(:pid,:sid,:value,:dir)").arg(tname)
+                .arg(fld_nse_pid).arg(fld_nse_sid).arg(fld_nse_value).arg(fld_nse_dir);
+        if(!q3.prepare(s))
+            return false;
+        s = QString("delete from %1 where id=:id").arg(tname);
+        if(!q4.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(it.hasNext()){
+            it.next();
+            //读取源科目余额
+            q1.bindValue(":sid",it.key());
+            if(!q1.exec()){
+               LOG_SQLERROR(q1.lastQuery());
+               return false;
+            }
+            if(!q1.first())
+                continue;
+            int id1 = q1.value(0).toInt();
+            Double v = Double(q1.value(1).toDouble());
+            MoneyDirection dir = (MoneyDirection)q1.value(2).toInt();
+            if(dir == MDIR_P){
+                q4.bindValue(":id",id1);
+                if(!q4.exec())
+                    return false;
+                continue;
+            }
+            //读取对接科目余额
+            q1.bindValue(":sid",it.value());
+            if(!q1.exec()){
+               LOG_SQLERROR(q1.lastQuery());
+               return false;
+            }
+            Double sum;
+            MoneyDirection d = MDIR_P;
+            int id2 = 0;
+            if(q1.first()){
+                id2 = q1.value(0).toInt();
+                sum = Double(q1.value(1).toDouble());
+                d = (MoneyDirection)q1.value(2).toInt();
+                if(d == MDIR_P)
+                    d = dir;
+            }
+            //调整到与对接科目同样的余额方向
+            if(d != dir){
+                dir = d;
+                v.changeSign();
+            }
+            sum += v;
+            if(sum == 0 ){
+                if(id2 != 0){
+                    q4.bindValue(":id",id2);
+                    if(!q4.exec()){
+                        LOG_SQLERROR(q4.lastQuery());
+                        return false;
+                    }
+                }
+                else
+                    continue;
+            }
+            q2.bindValue(":sid",it.value());
+            q2.bindValue(":value",sum.toString2());
+            q2.bindValue(":dir",d);
+            if(!q2.exec()){
+                LOG_SQLERROR(q2.lastQuery());
+                return  false;
+            }
+            int numRows = q2.numRowsAffected();
+            if(numRows != 1){
+                q3.bindValue(":pid",p);
+                q3.bindValue(":sid",it.value());
+                q3.bindValue(":value",sum.toString2());
+                q3.bindValue(":dir",d);
+                if(!q3.exec())
+                    return false;
+            }
+            q4.bindValue(":id",id1);
+            if(!q4.exec()){
+                LOG_SQLERROR(q4.lastQuery());
                 return false;
             }
         }

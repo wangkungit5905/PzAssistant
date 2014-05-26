@@ -693,6 +693,8 @@ void CurStatDialog::genDatas()
 
     QList<QStandardItem*> items;
     ApStandardItem *item;
+    QString tips;
+    int masterMt = account->getMasterMt()->code();
     Double v = 0.00;
 
     //因为需要以科目代码的顺序来显示科目余额，因此，必须先获取此科目id序列
@@ -804,7 +806,15 @@ void CurStatDialog::genDatas()
                 items<<new ApStandardItem(dirStr(spreExaDir.value(ids.at(i))));//2 期初方向
                 for(int k = 0; k<mts.count(); ++k)
                     items<<new ApStandardItem(preExa.value(ids.at(i)*10+mts.at(k))); //3 期初金额（外币部分）
-                items<<new ApStandardItem(spreExa.value(ids.at(i)));//4 期初金额（总额部分）
+                item = new ApStandardItem(spreExa.value(ids.at(i)));
+                tips = tr("人民币：%1  %2\n美金：%3  %4  %5")
+                        .arg(dirStr(preExaDir.value(ids.at(i)*10+masterMt)))
+                        .arg(preExa.value(ids.at(i)*10+masterMt).toString2())
+                        .arg(dirStr(preExaDir.value(ids.at(i)*10+USD)))
+                        .arg(preExa.value(ids.at(i)*10+USD).toString2())
+                        .arg(preExaR.value(ids.at(i)*10+USD).toString2());
+                item->setData(tips,Qt::ToolTipRole);
+                items<<item;//4 期初金额（总额部分）
                 for(int k = 0; k<mts.count(); ++k){
                     v = curJHpn.value(ids.at(i)*10+mts.at(k)); //5 本期借方发生（外币部分）
                     curJSums[mts.value(k)] += v;
@@ -812,7 +822,13 @@ void CurStatDialog::genDatas()
                 }
                 v = scurJHpn.value(ids[i]); //6 本期借方发生（各币种合计总额部分）
                 jsums += v;
-                items<<new ApStandardItem(v);
+                item = new ApStandardItem(v);
+                tips = tr("人民币：%1\n美金：%2  %3")
+                        .arg(curJHpn.value(ids.at(i)*10+masterMt).toString2())
+                        .arg(curJHpn.value(ids.at(i)*10+USD).toString2())
+                        .arg(curJHpnR.value(ids.at(i)*10+USD).toString2());
+                item->setData(tips,Qt::ToolTipRole);
+                items<<item;
                 for(int k = 0; k<mts.count(); ++k){
                     v = curDHpn.value(ids.at(i)*10+mts.at(k));
                     curDSums[mts.at(k)] += v;
@@ -820,7 +836,13 @@ void CurStatDialog::genDatas()
                 }
                 v = scurDHpn.value(ids.at(i));//8 本期贷方发生（各币种合计总额部分）
                 dsums += v;
-                items<<new ApStandardItem(v);
+                item = new ApStandardItem(v);
+                tips = tr("人民币：%1\n美金：%2  %3")
+                        .arg(curDHpn.value(ids.at(i)*10+RMB).toString2())
+                        .arg(curDHpn.value(ids.at(i)*10+USD).toString2())
+                        .arg(curDHpnR.value(ids.at(i)*10+USD).toString2());
+                item->setData(tips,Qt::ToolTipRole);
+                items<<item;
                 items<<new ApStandardItem(dirStr(sendExaDir.value(ids.at(i))));//9 期末方向
 
                 for(int k = 0; k<mts.count(); ++k){
@@ -829,7 +851,15 @@ void CurStatDialog::genDatas()
                 }
 
                 v = sendExa.value(ids.at(i)); //11 期末余额（总额部分）
-                items<<new ApStandardItem(v);
+                item = new ApStandardItem(v);
+                tips = tr("人民币：%1  %2\n美金：%3  %4  %5")
+                        .arg(dirStr(endExaDir.value(ids.at(i)*10+masterMt)))
+                        .arg(endExa.value(ids.at(i)*10+masterMt).toString2())
+                        .arg(dirStr(endExaDir.value(ids.at(i)*10+USD)))
+                        .arg(endExa.value(ids.at(i)*10+USD).toString2())
+                        .arg(endExaR.value(ids.at(i)*10+USD).toString2());
+                item->setData(tips,Qt::ToolTipRole);
+                items<<item;
                 setTableRowBackground(TRT_FSUB,items);
                 dataModel->appendRow(items);
                 items.clear();//至此，主科目余额加载完毕
@@ -862,19 +892,39 @@ void CurStatDialog::genDatas()
                                 items<<new ApStandardItem(v);
                             }
                             v = spreDetExa.value(sids.at(j));//4 期初金额（总额部分）
-                            items<<new ApStandardItem(v);
+                            item = new ApStandardItem(v);
+                            tips = tr("人民币：%1  %2\n美金：%3  %4  %5")
+                                   .arg(dirStr(preDetExaDir.value(sids.at(j)*10+masterMt)))
+                                   .arg(preDetExa.value(sids.at(j)*10+masterMt).toString2())
+                                   .arg(dirStr(preDetExaDir.value(sids.at(j)*10+USD)))
+                                   .arg(preDetExa.value(sids.at(j)*10+USD).toString2())
+                                   .arg(preDetExaR.value(sids.at(j)*10+USD).toString2());
+                            item->setData(tips,Qt::ToolTipRole);
+                            items<<item;
                             for(int k = 0; k<mts.count(); ++k){
                                 v = curJDHpn.value(sids.at(j)*10+mts.at(k));
                                 items<<new ApStandardItem(v);//5 本期借方发生（外币部分）
                             }
                             v = scurJDHpn.value(sids[j]);//6 本期借方发生（总额部分）
-                            items<<new ApStandardItem(v);
+                            item = new ApStandardItem(v);
+                            tips = tr("人民币：%1\n美金：%2  %3")
+                                    .arg(curJDHpn.value(sids.at(j)*10+masterMt).toString2())
+                                    .arg(curJDHpn.value(sids.at(j)*10+USD).toString2())
+                                    .arg(curJDHpnR.value(sids.at(j)*10+USD).toString2());
+                            item->setData(tips,Qt::ToolTipRole);
+                            items<<item;
                             for(int k = 0; k<mts.count(); ++k){
                                 v = curDDHpn.value(sids.at(j)*10+mts.at(k));
                                 items<<new ApStandardItem(v);//7 本期贷方发生（外币部分）
                             }
                             v = scurDDHpn.value(sids[j]);//8 本期贷方发生（总额部分）
-                            items<<new ApStandardItem(v);
+                            item = new ApStandardItem(v);
+                            tips = tr("人民币：%1\n美金：%2  %3")
+                                    .arg(curDDHpn.value(sids.at(j)*10+masterMt).toString2())
+                                    .arg(curDDHpn.value(sids.at(j)*10+USD).toString2())
+                                    .arg(curDDHpnR.value(sids.at(j)*10+USD).toString2());
+                            item->setData(tips,Qt::ToolTipRole);
+                            items<<item;
                             items<<new ApStandardItem(dirStr(sendDetExaDir.value(sids[j])));//9 期末方向
                             for(int k = 0; k<mts.count(); ++k){
                                 v = endDetExa.value(sids.at(j)*10+mts.at(k));//10 期末余额（外币部分）
@@ -882,7 +932,15 @@ void CurStatDialog::genDatas()
                             }
                             //11 期末余额（总额部分）
                             v = sendDetExa.value(sids.at(j));
-                            items<<new ApStandardItem(v);
+                            item = new ApStandardItem(v);
+                            tips = tr("人民币：%1  %2\n美金：%3  %4  %5")
+                                    .arg(dirStr(endDetExaDir.value(sids.at(j)*10+masterMt)))
+                                    .arg(endDetExa.value(sids.at(j)*10+masterMt).toString2())
+                                    .arg(dirStr(endDetExaDir.value(sids.at(j)*10+USD)))
+                                    .arg(endDetExa.value(sids.at(j)*10+USD).toString2())
+                                    .arg(endDetExaR.value(sids.at(j)*10+USD).toString2());
+                            item->setData(tips,Qt::ToolTipRole);
+                            items<<item;
                             setTableRowBackground(TRT_SSUB,items);
                             dataModel->appendRow(items);
                             items.clear();

@@ -1,7 +1,4 @@
 <RCC>
-    <qresource prefix="/qt/etc">
-        <file>qt.conf</file>
-    </qresource>
     <qresource prefix="/files">
         <file>ini/revisionHistorys.ini</file>
     </qresource>

@@ -260,8 +260,11 @@ bool AccountSuiteManager::resetPzNum(int by)
 PzsState AccountSuiteManager::getState(int m)
 {
     int mm;
-    if(m == 0)
+    if(m == 0){
+        if(curM == 0)
+            return Ps_NoOpen;
         mm = curM;
+    }
     else
         mm = m;
     if(!states.contains(mm))
@@ -1202,7 +1205,7 @@ void AccountSuiteManager::_determinePzSetState(PzsState &state)
         state = Ps_Jzed;
     else{
         scanPzCount(c_repeal,c_recording,c_verify,c_instat,pzs);
-        if(c_recording > 0)
+        if(c_recording > 0 || (c_recording==0 && c_verify==0 && c_instat==0))
             state = Ps_Rec;
         else
             state = Ps_AllVerified;
@@ -1670,21 +1673,28 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
         pz->setPzClass(Pzc_Jzhd);
         pz->setRecordUser(user);
         pz->setPzState(Pzs_Recording);
-        QList<int> subIds;
-        foreach(int key, vs.keys())
-            subIds<<key / 10;
-        subIds = QList<int>::fromSet(subIds.toSet());
-        qSort(subIds.begin(),subIds.end());
+        QList<SecondSubject*> ssubObjs; //可以是这个列表代替subIds列表。。。。。
+        //QList<int> subIds;
+        foreach(int key, vs.keys()){
+            int sid = key/10;
+            SecondSubject* ssubObj = subMgr->getSndSubject(sid);
+            if(!ssubObjs.contains(ssubObj))
+                ssubObjs<<ssubObj;
+        }
+        //subIds = QList<int>::fromSet(subIds.toSet());//在多外币的情形下，可以去除重复的子目id
+        //qSort(subIds.begin(),subIds.end());
+        qSort(ssubObjs.begin(),ssubObjs.end(),bySubNameThan_ss);
         sum = 0.0;
         int key;
-        for(int i = 0; i < subIds.count(); ++i){            
-            MoneyDirection dir = fsub->getJdDir()?MDIR_J:MDIR_D;
+        for(int i = 0; i < ssubObjs.count(); ++i){
+            //MoneyDirection dir = fsub->getJdDir()?MDIR_J:MDIR_D;
             for(int j = 0; j < mtCodes.count(); ++j){
+                SecondSubject* ssub = ssubObjs.at(i);
                 ba = pz->appendBlank();
                 ba->setFirstSubject(fsub);
-                ba->setSecondSubject(subMgr->getSndSubject(subIds.at(i)));                
+                ba->setSecondSubject(ssub);
                 ba->setDir(MDIR_D);
-                key = subIds.at(i) * 10 + mtCodes.at(j);
+                key = ssub->getId() * 10 + mtCodes.at(j);
                 v = diffRates.value(mtCodes.at(j)) * vs.value(key);
                 if(dirs.value(key) == MDIR_D)
                     v.changeSign();
@@ -1758,6 +1768,64 @@ void AccountSuiteManager::getJzhdsyPz(QList<PingZheng *> &pzLst)
 }
 
 /**
+ * @brief 获取当前打开凭证集中，必须进行结转汇兑损益的凭证数
+ *  要进行汇兑损益的结转，必须满足2个条件
+ *  1、期初汇率和期末汇率不等；
+ *  2、使用外币的科目的外币余额不为0；
+ * @return
+ */
+int AccountSuiteManager::getJzhdsyMustPzNums()
+{
+    if(!isPzSetOpened())
+        return 0;
+    int yy,mm;
+    if(curM == 12){
+        yy = suiteRecord->year + 1;
+        mm = 1;
+    }
+    else{
+        yy = suiteRecord->year;
+        mm = curM + 1;
+    }
+    SubjectManager* sm = getSubjectManager();
+    QList<FirstSubject*> fsubs;
+    sm->getUseWbSubs(fsubs);
+    QHash<int,Double> sRates,eRates;
+    if(!account->getRates(suiteRecord->year, curM, sRates) ||
+       !account->getRates(yy, mm, eRates)){
+        return fsubs.count() + 1; //返回这个数将会提示用户结转损益操作无法执行。
+    }
+    QList<Money*> wbMts = account->getWaiMt();
+    if(wbMts.isEmpty())
+        return 0;
+    bool rateChanged = false;
+    foreach(Money* mt, wbMts){
+        if(sRates.value(mt->code()) != eRates.value(mt->code())){
+            rateChanged = true;
+            break;
+        }
+    }
+    if(!rateChanged)
+        return 0;
+
+    Double v,wv; MoneyDirection dir=MDIR_P;
+    int pzNums = 0;
+    //只要某个科目的某个外币汇率发生了改变且其余额不为0，则必须进行汇兑损益的结转
+    foreach(FirstSubject* fsub, fsubs){
+        foreach(Money* mt, wbMts){
+            account->getDbUtil()->readExtraForMF(suiteRecord->year,curM,mt->code(),fsub->getId(),v,wv,dir);
+            if(dir != MDIR_P){
+                if(sRates.value(mt->code()) != eRates.value(mt->code())){
+                    pzNums++;
+                    break;
+                }
+            }
+        }
+    }
+    return pzNums;
+}
+
+/**
  * @brief PzSetMgr::crtJzsyPz
  *  创建结转汇兑损益凭证
  * @param y
@@ -1769,15 +1837,16 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
 {
     //读取余额
     QList<int> in_sids, fei_sids; //分别是收入类和费用类损益类二级科目的id集合
-    SubjectManager* subMgr = account->getSubjectManager(account->getSuiteRecord(y)->subSys);
+    QList<SecondSubject*> in_ssubs,fei_ssubs;
+    SubjectManager* subMgr = account->getSubjectManager(suiteRecord->subSys);
     //QList<FirstSubject*> in_subs,fei_subs; //收入类和费用类的损益类一级科目
     //in_subs = subMgr->getSyClsSubs();
     foreach(FirstSubject* fsub, subMgr->getSyClsSubs()){
-        in_sids<<fsub->getChildSubIds();
+        in_ssubs<<fsub->getChildSubs(SORTMODE_NAME);
     }
     //fei_subs = subMgr->getSyClsSubs(false);
     foreach(FirstSubject* fsub, subMgr->getSyClsSubs(false))
-        fei_sids<<fsub->getChildSubIds();
+        fei_ssubs<<fsub->getChildSubs(SORTMODE_NAME);
     QHash<int,Double> vs;
     QHash<int,MoneyDirection> dirs;
     //QList<int> sids = in_sids + fei_sids;
@@ -1795,6 +1864,8 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     }
 
     //创建结转收入类的结转凭证
+    foreach(SecondSubject* ssub, in_ssubs)
+        in_sids<<ssub->getId();
     if(!dbUtil->readAllExtraForSSubMMt(y,m,account->getMasterMt()->code(),in_sids,vs,dirs))
         return false;
     QDate d(year(),month(),1);
@@ -1810,8 +1881,8 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     SecondSubject* ssub;
     BusiAction* ba;
     Double sum = 0.0;
-    for(int i = 0; i < in_sids.count(); ++i){
-        ssub = subMgr->getSndSubject(in_sids.at(i));
+    for(int i = 0; i < in_ssubs.count(); ++i){
+        ssub = in_ssubs.at(i);
         if(!vs.contains(ssub->getId()))
             continue;
         ba = pz->appendBlank();
@@ -1835,6 +1906,8 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     createdPzs<<pz;
 
     //创建结转费用类的结转凭证
+    foreach(SecondSubject* ssub,fei_ssubs)
+        fei_sids<<ssub->getId();
     if(!dbUtil->readAllExtraForSSubMMt(y,m,account->getMasterMt()->code(),fei_sids,vs,dirs))
         return false;
     sum = 0.0;
@@ -1844,8 +1917,8 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     pz->setPzClass(Pzc_JzsyFei);
     pz->setPzState(Pzs_Recording);
     pz->setRecordUser(user);
-    for(int i = 0; i < fei_sids.count(); ++i){
-        ssub = subMgr->getSndSubject(fei_sids.at(i));
+    for(int i = 0; i < fei_ssubs.count(); ++i){
+        ssub = fei_ssubs.at(i);
         if(!vs.contains(ssub->getId()))
             continue;
         ba = pz->appendBlank();

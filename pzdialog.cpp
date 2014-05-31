@@ -656,11 +656,16 @@ bool PzDialog::crtJzhdPz()
     if(!ok)
         return true;
     endRates[USD] = Double(rate);
-    account->setRates(yy,mm,endRates);
-    //创建一个总命令以包容所有涉及到创建结转汇兑损益的各类动作
-    QUndoCommand* mainCmd = new QUndoCommand(tr("结转汇兑损益"));
+    account->setRates(yy,mm,endRates);   
     //创建移除原先存在的结转汇兑损益的凭证的命令
     QList<PingZheng*> pzLst = pzMgr->getAllJzhdPzs();
+    if(!pzLst.isEmpty()){
+        if(QMessageBox::warning(this,tr("警告信息"),tr("凭证集内已存在结转汇兑损益凭证，要覆盖吗？"),
+                                QMessageBox::Yes|QMessageBox::No,QMessageBox::No) == QMessageBox::No)
+            return true;
+    }
+    //创建一个总命令以包容所有涉及到创建结转汇兑损益的各类动作
+    QUndoCommand* mainCmd = new QUndoCommand(tr("结转汇兑损益"));
     if(!pzLst.isEmpty()){
         foreach(PingZheng* pz, pzLst){
             DelPzCmd* cmd = new DelPzCmd(pzMgr,pz,mainCmd);
@@ -697,45 +702,57 @@ bool PzDialog::crtJzsyPz()
         QMessageBox::warning(0,tr("警告信息"),tr("余额无效，请重新进行统计并保存正确余额！"));
         return true;
     }
-    //1、检测本期和下期汇率是否有变动，如果有，则检测是否执行了结转汇兑损益，如果没有，则退出
-    QHash<int,Double> sRates,eRates;
-    int y=pzMgr->year();
-    int m=pzMgr->month();
-    if(!pzMgr->getRates(sRates,m))
-        return false;
-    if(m == 12){
-        y++;
-        m = 1;
-    }
-    else{
-        m++;
-    }
-    if(!pzMgr->getRates(eRates,m))
-        return false;
-
-    if(eRates.empty()){
-        QString tip = tr("下期汇率未设置，请先设置：%1年%2月美金汇率：").arg(y).arg(m);
-        bool ok;
-        double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,0,0,100,2,&ok);
-        if(!ok)
-            return true;
-        eRates[USD] = Double(rate);
-        if(!pzMgr->setRates(eRates,m))
-            return false;
-    }
-    //汇率不等，则检查是否执行了结转汇兑损益
     QList<PingZheng*> oldPzs;
-    if(sRates.value(USD) != eRates.value(USD)){
-        pzMgr->getJzhdsyPz(oldPzs);
-        QList<FirstSubject*> fsubs;
-        subMgr->getUseWbSubs(fsubs);
-        if(oldPzs.count() != fsubs.count()){
-            QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证有误！"));
-            return true;
-        }
+    pzMgr->getJzhdsyPz(oldPzs);
+    if(oldPzs.count() != pzMgr->getJzhdsyMustPzNums()){
+        QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证数有误！"));
+        return true;
     }
+//    //1、检测本期和下期汇率是否有变动，如果有，则检测是否执行了结转汇兑损益，如果没有，则退出
+//    QHash<int,Double> sRates,eRates;
+//    int y=pzMgr->year();
+//    int m=pzMgr->month();
+//    if(!pzMgr->getRates(sRates,m))
+//        return false;
+//    if(m == 12){
+//        y++;
+//        m = 1;
+//    }
+//    else{
+//        m++;
+//    }
+//    if(!pzMgr->getRates(eRates,m))
+//        return false;
+
+//    if(eRates.empty()){
+//        QString tip = tr("下期汇率未设置，请先设置：%1年%2月美金汇率：").arg(y).arg(m);
+//        bool ok;
+//        double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,0,0,100,2,&ok);
+//        if(!ok)
+//            return true;
+//        eRates[USD] = Double(rate);
+//        if(!pzMgr->setRates(eRates,m))
+//            return false;
+//    }
+//    //汇率不等，则检查是否执行了结转汇兑损益
+
+//    if(sRates.value(USD) != eRates.value(USD)){
+//        pzMgr->getJzhdsyPz(oldPzs);
+//        QList<FirstSubject*> fsubs;
+//        subMgr->getUseWbSubs(fsubs);
+//        if(oldPzs.count() != fsubs.count()){
+//            QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证有误！"));
+//            return true;
+//        }
+//    }
+
     oldPzs.clear();
     pzMgr->getJzsyPz(oldPzs);
+    if(!oldPzs.isEmpty()){
+        if(QMessageBox::warning(this,tr("警告信息"),tr("凭证集内已存在结转损益凭证，要重新创建吗？"),
+                                QMessageBox::Yes|QMessageBox::No) == QMessageBox::No)
+            return true;
+    }
     QList<PingZheng*> createdPzs;
     if(!pzMgr->crtJzsyPz(pzMgr->year(),pzMgr->month(),createdPzs))
         return false;
@@ -1255,11 +1272,12 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             mt = subMgr->getSubMatchMt(ssub);
             if(!mt)
                 break;
-            if(mt != curBa->getMt()){
+            Money* curMt = curBa->getMt();
+            if(curMt && mt != curMt){
                 if(mt != account->getMasterMt())
                     v = curBa->getValue() / rates.value(mt->code());
                 else
-                    v = curBa->getValue() * rates.value(curBa->getMt()->code());
+                    v = curBa->getValue() * rates.value(curMt->code());
                 updateCols |= BUC_MTYPE;
             }
             updateCols |= BUC_VALUE;

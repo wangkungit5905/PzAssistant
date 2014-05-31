@@ -321,6 +321,7 @@ private:
     void rfPzSetOpenAct();
     void rfPzSetStateAct();
     void rfPzSetEditAct(bool editable);
+    void rfPzStateEditAct(bool Editable, PzState state);
     void rfPzNaviAct();
     void rfBaEditAct();
     void rfSaveBtn();

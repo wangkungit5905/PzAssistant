@@ -141,7 +141,7 @@ void DatabaseAccessForm::clear(bool isAccount)
         tableDefines_acc.clear();
     }
     else{
-        tableNames_acc.clear();
+        tableNames_base.clear();
         QHashIterator<QString,QList<FieldDefine*> > it(tableDefines_base);
         while(it.hasNext()){
             it.next();

@@ -764,7 +764,7 @@ bool AppConfig::setSubjectJdDirs(int subSys, QStringList codes)
  * @param scode     源科目系统代码
  * @param dcode     目的科目系统代码
  * @param defMaps   所有默认的对接科目配置项
- * @param multiMaps 存在多个对接科目的配置项（键为目的科目代码，值是源科目系统代码列表，它是多值哈希表）
+ * @param multiMaps 混合对接科目的配置项（键为目的科目代码，值是源科目系统代码列表，它是多值哈希表）
  * @return
  */
 bool AppConfig::getSubSysMaps2(int scode, int dcode, QHash<QString, QString> &defMaps, QHash<QString, QString> &multiMaps)
@@ -899,7 +899,7 @@ bool AppConfig::saveSubSysMaps(int scode, int dcode, QList<SubSysJoinItem2 *> cf
  * @brief 获取所有非默认（混合）对接科目的对接配置
  * @param scode
  * @param dcode
- * @param codeMaps  键为源一级科目代码，值为混合对接一级科目代码
+ * @param codeMaps  键为源一级科目代码，值为混合对接到的一级科目代码
  * @return
  */
 bool AppConfig::getNotDefSubSysMaps(int scode, int dcode, QHash<QString, QString> &codeMaps)

@@ -140,95 +140,116 @@ bool ImportOVAccDlg::compareRate()
 
 /**
  * @brief 建立新旧科目之间的对接表
+ * 只有在源帐套和目的帐套所采用的科目系统不同时，才需要将科目进行转换
+ * 科目的转换涉及到主目和子目，且只有那些混合对接科目才需要考虑转换
  * @return
  */
 bool ImportOVAccDlg::createMaps()
 {
-    QSqlQuery q(sdb);
-    //1、从基本库中读取新旧科目系统之间的非默认对接项
+    //1、从基本库中读取新旧科目系统之间的混合对接项
     sm = curSuite->getSubjectManager();
-    QHash<QString,QString> subCodeMaps; //新旧科目系统一级科目（代码）对应表
-    QHash<QString,QString> multiMaps;
-    if(!AppConfig::getInstance()->getSubSysMaps2(DEFAULT_SUBSYS_CODE,sm->getSubSysCode(),subCodeMaps,multiMaps)){
-        LOG_ERROR(tr("无法获取新旧科目映射代码表！"));
-        return false;
-    }
-    //将非默认对接科目中的默认对接项去除
-    QHash<QString,QString> maps;
-    foreach(QString dc, multiMaps.keys()){
-        QList<QString> codes = multiMaps.values(dc);
-        foreach(QString c, codes){
-            if(subCodeMaps.contains(c))
-                continue;
-            maps[c] = dc;
+    if(sm->getSubSysCode() != DEFAULT_SUBSYS_CODE){
+        QList<MixedJoinCfg*> cfgInfos;
+        if(!account->getDbUtil()->getMixJoinInfo(DEFAULT_SUBSYS_CODE,sm->getSubSysCode(),cfgInfos)){
+            LOG_ERROR(tr("无法获取新旧科目混合对接表信息！"));
+            return false;
+        }
+        //2、读取新旧科目系统混合对接配置信息
+        foreach(MixedJoinCfg* item, cfgInfos){
+            FirstSubject* fsub = sm->getFstSubject(item->d_fsubId);
+            if(!fsub){
+                LOG_ERROR(tr("无法找到与旧主目（fid=%1）对应的新主目（fid=%2）").arg(item->s_fsubId).arg(item->d_fsubId));
+                return false;
+            }
+            SecondSubject* ssub = sm->getSndSubject(item->d_ssubId);
+            if(!ssub){
+                LOG_ERROR(tr("无法找到与旧子目（fid=%1）对应的新子目（fid=%2）").arg(item->s_ssubId).arg(item->d_ssubId));
+                return false;
+            }
+            MixedJoinSubObj* item1 = new MixedJoinSubObj;
+            item1->isNew = false;
+            item1->sFid = item->s_fsubId;
+            item1->sSid = item->s_ssubId;
+            item1->dFSub = fsub;
+            item1->dSSub = ssub;
+            mixedJoinItems<<item1;
+            fsubIdMaps[item->s_fsubId] = fsub;
+            ssubIdMaps[item->s_ssubId] = ssub;
         }
     }
-    //6、建立新旧一级科目id的映射表
-    QString s = QString("select id from FirSubjects where subCode=:code");
-    if(!q.prepare(s)){
+
+
+    //3、补齐在源账户内新建但在目的账户内不存在的二级科目和名称条目
+    //即查询在导入源账户内存在的二级科目和它所采用的名称条目是否存在，如果不存在，则创建，
+    //还要考虑其所属的一级科目是否是混合对接科目。如果是，则还要在当前账户的二级科目混合对接表中新增该配置
+
+    QString dateStr = AppConfig::getInstance()->getSpecSubSysItem(sm->getSubSysCode())->startTime.toString(Qt::ISODate);
+    QDate endDate = QDate::fromString(dateStr,Qt::ISODate);//默认科目系统的截止日期
+    endDate.setDate(endDate.year()-1,12,31);
+    QString s = QString("select FSAgent.id,FSAgent.fid,SecSubjects.subName,SecSubjects.subLName,"
+                "SecSubjects.remCode,SecSubjects.classId from FSAgent join SecSubjects on "
+                "FSAgent.sid = SecSubjects.id order by FSAgent.fid");
+    QSqlQuery q(sdb);
+    if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    QHashIterator<QString,QString> it(maps);
-    while(it.hasNext()){
-        it.next();
-        q.bindValue(":code",it.key());
-        if(!q.exec())
-            return false;
-        if(!q.first())
-            return false;
-        int old_id = q.value(0).toInt();
-        FirstSubject* fsub = sm->getFstSubject(it.value());
+    while(q.next()){
+        int sid = q.value(0).toInt();
+        int fid = q.value(1).toInt();
+        FirstSubject* fsub;
+        if(fsubIdMaps.contains(fid))
+            fsub = fsubIdMaps.value(fid);
+        else
+            fsub = sm->getFstSubject(fid);
         if(!fsub){
-            LOG_ERROR(tr("无法找到与旧科目（%1）对应的新科目（%2）").arg(it.key()).arg(it.value()));
+            LOG_ERROR(tr("遇到幽灵主目（fid=%1）").arg(fid));
             return false;
         }
-        fsubIdMaps[old_id] = fsub;
+        QString name = q.value(2).toString();
+        SubjectNameItem* ni = sm->getNameItem(name);
+        if(!ni){
+            //创建名称条目
+            QString lname = q.value(2).toString();
+            QString remCode = q.value(3).toString();
+            int clsId = q.value(4).toInt();
+            CrtNameItemCmd* cmd = new CrtNameItemCmd(name,lname,remCode,clsId,QDateTime::currentDateTime(),curUser,sm);
+            curSuite->getUndoStack()->push(cmd);
+            ni = sm->getNameItem(name);
+            LOG_INFO(tr("创建了名称条目：%1").arg(name));
+        }
+        SecondSubject* ssub = fsub->getChildSub(ni);
+        if(!ssub){
+            //创建二级科目
+            QDateTime crtTime = QDateTime::currentDateTime();
+            if(sm->getSubSysCode() == DEFAULT_SUBSYS_CODE)
+                crtTime = QDateTime(endDate);
+            CrtSndSubUseNICmd* cmd = new CrtSndSubUseNICmd(sm,fsub,ni,1,crtTime,curUser);
+            curSuite->getUndoStack()->push(cmd);
+            LOG_INFO(tr("创建了二级科目：%1--%2").arg(fsub->getName()).arg(ni->getShortName()));
+            ssub = fsub->getChildSub(ni);
+        }
+        //如果新建的二级科目属于混合对接科目，则必须记录在案。当导入成功后，将这些科目保存后得到的id信息写入到二级科目混合对接表中
+        //还有一种情形是源和目的账户存在同名的混合对接二级科目，但在配置项中不存在，则必须添加。
+        if(fsubIdMaps.contains(fid) && (ssub->getId() == 0 || !isExistCfg(fid,sid))){
+            MixedJoinSubObj* item = new MixedJoinSubObj;
+            item->isNew = true;
+            item->sFid = fid;
+            item->sSid = sid;
+            item->dFSub = fsub;
+            item->dSSub = ssub;
+            mixedJoinItems<<item;
+        }
     }
-    //7、建立新旧二级科目映射表
-//    s = QString("select FSAgent.id,SecSubjects.subName,SecSubjects.subLName,"
-//                "SecSubjects.remCode,SecSubjects.classId from FSAgent join SecSubjects on "
-//                "FSAgent.sid = SecSubjects.id where FSAgent.fid=:fid");
-//    if(!q.prepare(s)){
-//        LOG_SQLERROR(s);
-//        return false;
-//    }
-//    foreach(int fid, fsubIdMaps.keys()){
-//        q.bindValue(":fid",fid);
-//        if(!q.exec())
-//            return false;
-//        FirstSubject* fsub = fsubIdMaps.value(fid);
-//        while(q.next()){
-//            int old_id = q.value(0).toInt();
-//            QString name = q.value(1).toString();
-//            SubjectNameItem* ni = sm->getNameItem(name);
-//            if(!ni){
-//                //创建名称条目
-//                QString lname = q.value(2).toString();
-//                QString remCode = q.value(3).toString();
-//                int clsId = q.value(4).toInt();
-//                CrtNameItemCmd* cmd = new CrtNameItemCmd(name,lname,remCode,clsId,QDateTime::currentDateTime(),curUser,sm);
-//                curSuite->getUndoStack()->push(cmd);
-//                ni = sm->getNameItem(name);
-//                LOG_INFO(tr("创建了名称条目：%1").arg(name));
-//            }
-//            SecondSubject* ssub = fsub->getChildSub(ni);
-//            if(!ssub){
-//                //创建二级科目
-//                CrtSndSubUseNICmd* cmd = new CrtSndSubUseNICmd(sm,fsub,ni,1,QDateTime::currentDateTime(),curUser);
-//                curSuite->getUndoStack()->push(cmd);
-//                LOG_INFO(tr("创建了二级科目：%1--%2").arg(fsub->getName()).arg(ni->getShortName()));
-//                ssub = fsub->getChildSub(ni);
-//            }
-//            ssubIdMaps[old_id] = ssub;
-//        }
-//    }
     return true;
 }
 
+/**
+ * @brief 从源账户数据库中导入指定月份内的指定区间的凭证
+ * @return
+ */
 bool ImportOVAccDlg::importPzSet()
 {
-    //8、读取凭证集
     QSqlQuery q(sdb),q2(sdb);
     QHash<int,Money*> moneys = curAccount->getAllMoneys();
     QString ds = ui->edtDate->date().toString(Qt::ISODate);
@@ -245,6 +266,7 @@ bool ImportOVAccDlg::importPzSet()
         LOG_SQLERROR(s);
         return false;
     }
+    bool isTran = curSuite->getSubjectManager()->getSubSysCode() != DEFAULT_SUBSYS_CODE;
     ui->progress->setMaximum(endPzNum - startPzNum + 1);
     ui->progress->setMinimum(0);
     while(q.next()){
@@ -287,12 +309,31 @@ bool ImportOVAccDlg::importPzSet()
                 v = q2.value(7).toDouble();
             }
             //这里要检测是否存在科目？
-            FirstSubject* fsub;
-            if(fsubIdMaps.contains(fid))
-                fsub = fsubIdMaps.value(fid);
-            else
+            FirstSubject* fsub=NULL;
+            SecondSubject* ssub=NULL;
+            if(isTran){
+                //导入到新科目系统，对于混合对接科目要进行科目转换，而对于二级科目如果有转换项存在，则使用转换项
+                if(fsubIdMaps.contains(fid))
+                    fsub = fsubIdMaps.value(fid);
+                else
+                    fsub = sm->getFstSubject(fid);
+                if(ssubIdMaps.contains(sid))
+                    ssub = ssubIdMaps.value(sid);
+                else
+                    ssub = sm->getSndSubject(sid);
+            }
+            else{
+                //导入到旧科目系统，则一级科目一般是一一对应的，但二级科目有可能不是一一对应的
                 fsub = sm->getFstSubject(fid);
-            SecondSubject* ssub = sm->getSndSubject(sid);
+                if(ssubIdMaps.contains(sid))
+                    ssub = ssubIdMaps.value(sid);
+                else
+                    ssub = sm->getSndSubject(sid);
+            }
+            if(!fsub || !ssub){
+                LOG_ERROR(tr("导入凭证期间，在%1#凭证的第%2条分录发现一个幽灵科目（fid=%3，sid=%4）")
+                          .arg(pzNum).arg(baNum).arg(fid).arg(sid));
+            }
             BusiAction* ba = new BusiAction(0,pz,summary,fsub,ssub,mt,d,v,baNum);
             pz->append(ba,false);
         }
@@ -300,9 +341,39 @@ bool ImportOVAccDlg::importPzSet()
         curSuite->getUndoStack()->push(cmd);
     }
     curSuite->save(AccountSuiteManager::SW_PZS);
+    //保存新的混合二级科目配置项
+    if(!mixedJoinItems.isEmpty()){
+        QList<MixedJoinCfg*> cfgItems;
+        foreach(MixedJoinSubObj* item, mixedJoinItems){
+            if(!item->isNew)
+                continue;
+            MixedJoinCfg* m = new MixedJoinCfg;
+            m->s_fsubId = item->sFid;
+            m->s_ssubId = item->sSid;
+            m->d_fsubId = item->dFSub->getId();
+            m->d_ssubId = item->dSSub->getId();
+        }
+        if(!account->getDbUtil()->appendMixJoinInfo(DEFAULT_SUBSYS_CODE,sm->getSubSysCode(),cfgItems))
+            QMessageBox::critical(this,tr("保存出错"),tr("导入的凭证成功保存，但在保存混合对接科目信息时出错！"));
+    }
     curSuite->closePzSet();
     q.finish();q2.finish();
     return true;
+}
+
+/**
+ * @brief 在混合对接二级科目配置列表中查找是否存在指定配置项
+ * @param sfid  源一级科目id
+ * @param ssid  源二级科目id
+ * @return
+ */
+bool ImportOVAccDlg::isExistCfg(int sfid, int ssid)
+{
+    foreach(MixedJoinSubObj* item, mixedJoinItems){
+        if(item->sFid==sfid && item->sSid == ssid)
+            return true;
+    }
+    return false;
 }
 
 

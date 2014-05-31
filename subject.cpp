@@ -807,6 +807,7 @@ void SubjectManager::getUseWbSubs(QList<FirstSubject*>& fsubs)
         if(fsub->isUseForeignMoney())
             fsubs<<fsub;
     }
+    qSort(fsubs.begin(),fsubs.end(),bySubCodeThan_fs);
 }
 
 /**
@@ -822,6 +823,7 @@ QList<FirstSubject *> SubjectManager::getSyClsSubs(bool in)
         if((fsub->getSubClass() == SC_SY) && ((fsub->getJdDir() && !in) || (!fsub->getJdDir() && in)))
             fsubs<<fsub;
     }
+    qSort(fsubs.begin(),fsubs.end(),bySubCodeThan_fs);
     return fsubs;
 }
 
@@ -1241,7 +1243,7 @@ BankAccount *SubjectManager::getBankAccount(SecondSubject* ssub)
 
 /**
  * @brief SubjectManager::getSubMatchMt
- *  获取与银行科目到子科目对应的货币对象
+ *  获取与银行科目的子科目对应的货币对象
  * @param ssub
  * @return
  */

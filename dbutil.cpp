@@ -1684,7 +1684,7 @@ bool DbUtil::scanPzSetCount(int y, int m, int &repeal, int &recording, int &veri
 
 /**
  * @brief DbUtil::readAllExtraForSSubMMt
- *  读取指定年月，指定二级科目集合的本币余额
+ *  读取指定年月，指定二级科目集合的原币余额
  *  此方法主要用于在创建结转损益凭证时，一次性读取所有损益类二级科目的余额
  * @param y
  * @param m
@@ -1699,7 +1699,7 @@ bool DbUtil::readAllExtraForSSubMMt(int y, int m, int mt, QList<int> sids, QHash
     QSqlQuery q(db);
     QString s;
     int pid;
-    if(!_readExtraPoint(y,m,1,pid))
+    if(!_readExtraPoint(y,m,mt,pid))
         return false;
     s = QString("select %1,%2,%3 from %4 where %5=%6")
             .arg(fld_nse_value).arg(fld_nse_dir).arg(fld_nse_sid)
@@ -2325,6 +2325,37 @@ bool DbUtil::getMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *>& cfgInfos)
         item->d_fsubId = q.value(SSJ_DF_SUB).toInt();
         item->d_ssubId = q.value(SSJ_DS_SUB).toInt();
         cfgInfos<<item;
+    }
+    return true;
+}
+
+/**
+ * @brief 添加二级混合对接配置信息
+ * @param sc
+ * @param dc
+ * @param cfgInfos
+ * @return
+ */
+bool DbUtil::appendMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> cfgInfos)
+{
+    QSqlQuery q(db);
+    QString tname = QString("%1_%2_%3").arg(tbl_sndsub_join_pre).arg(sc).arg(dc);
+    QString s = QString("insert into %1(%1,%2,%3,%4) values(:sfid,:ssid,:dfid,:dsid)")
+            .arg(tname).arg(fld_ssj_s_fsub).arg(fld_ssjc_sSub).arg(fld_ssj_s_fsub)
+            .arg(fld_ssjc_sSub);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(MixedJoinCfg* item,cfgInfos){
+        q.bindValue(":sfid",item->s_fsubId);
+        q.bindValue(":ssid",item->s_ssubId);
+        q.bindValue(":dfid",item->d_fsubId);
+        q.bindValue(":dsid",item->d_ssubId);
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
     }
     return true;
 }
@@ -5513,7 +5544,7 @@ bool DbUtil::_readExtraForSubMoney(int y, int m, int mt, int sid, Double &v, Dou
     QSqlQuery q(db);
     QString s;
     int pid;
-    if(_readExtraPoint(y,m,mt,pid))
+    if(!_readExtraPoint(y,m,mt,pid))
         return false;
     s = QString("select %1,%2 from %3 where %4=%5 and %6=%7")
             .arg(fld_nse_value).arg(fld_nse_dir).arg(fst?tbl_nse_p_f:tbl_nse_p_s).arg(fld_nse_pid)

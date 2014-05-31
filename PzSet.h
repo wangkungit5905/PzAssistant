@@ -110,6 +110,7 @@ public:
     bool crtJzhdsyPz(int y, int m, QList<PingZheng*>& createdPzs,
                       QHash<int,Double> sRate,QHash<int,Double> erate, User* user);
     void getJzhdsyPz(QList<PingZheng*>& pzLst);
+    int  getJzhdsyMustPzNums();
     bool crtJzsyPz(int y, int m, QList<PingZheng*>& createdPzs);
     void getJzsyPz(QList<PingZheng*>& pzLst);
     bool crtJzlyPz(int y, int m, PingZheng* pz);

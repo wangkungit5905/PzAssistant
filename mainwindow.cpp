@@ -599,6 +599,7 @@ void MainWindow::initToolBar()
     btnPrint->setPopupMode(QToolButton::InstantPopup);
     QIcon icon(":/images/printer.png");
     btnPrint->setIcon(icon);
+    btnPrint->setEnabled(false);
     actPrintToPrinter = new QAction(tr("打印"),this);
     connect(actPrintToPrinter,SIGNAL(triggered()),this,SLOT(printProcess()));
     actPrintPreview = new QAction(tr("打印预览"),this);
@@ -886,13 +887,28 @@ void MainWindow::rfPzSetEditAct(bool editable)
     PingZheng* curPz = curSuiteMgr?curSuiteMgr->getCurPz():NULL;
     ui->actDelPz->setEnabled(en && curPz);                          //删除凭证
     PzState pzState = curPz?curPz->getPzState():Pzs_NULL;
-    ui->actRepealPz->setEnabled(en && (pzState == Pzs_Recording));  //作废凭证
-    ui->actAntiRepeat->setEnabled(en && (pzState == Pzs_Repeal));	//取消作废
-    ui->actVerifyPz->setEnabled(en && (pzState == Pzs_Recording));  //审核凭证
-    ui->actInStatPz->setEnabled(en && (pzState == Pzs_Verify));     //凭证入账
+    rfPzStateEditAct(en,pzState);
+//    ui->actRepealPz->setEnabled(en && (pzState == Pzs_Recording));  //作废凭证
+//    ui->actAntiRepeat->setEnabled(en && (pzState == Pzs_Repeal));	//取消作废
+//    ui->actVerifyPz->setEnabled(en && (pzState == Pzs_Recording));  //审核凭证
+//    ui->actInStatPz->setEnabled(en && (pzState == Pzs_Verify));     //凭证入账
     ui->actAntiVerify->setEnabled((pzState == Pzs_Verify) || (pzState == Pzs_Instat));//取消审核
     rfBaEditAct();
     rfPzNaviAct();
+}
+
+/**
+ * @brief 控制改变凭证状态的按钮启用性
+ * @param Editable  凭证集是否可编辑
+ * @param state     当前凭证状态
+ */
+void MainWindow::rfPzStateEditAct(bool Editable, PzState state)
+{
+    ui->actRepealPz->setEnabled(Editable && (state == Pzs_Recording));  //作废凭证
+    ui->actAntiRepeat->setEnabled(Editable && (state == Pzs_Repeal));   //取消作废
+    ui->actVerifyPz->setEnabled(Editable && (state == Pzs_Recording));  //审核凭证
+    ui->actInStatPz->setEnabled(Editable && (state == Pzs_Verify));     //凭证入账
+    ui->actAntiVerify->setEnabled(Editable && (state == Pzs_Verify || state == Pzs_Instat));
 }
 
 /**
@@ -906,9 +922,9 @@ void MainWindow::rfPzNaviAct()
     bool isEmpty = false;
     bool isFirst = false;
     bool isLast = false;
-    bool isPrint = false;
+    //bool isPrint = false;
     if(type == SUBWIN_PZEDIT){
-        isPrint = true;
+        //isPrint = true;
         en = open;
         isEmpty = (!open || curSuiteMgr->getPzCount() == 0);
         isFirst = open && curSuiteMgr->isFirst();
@@ -916,7 +932,7 @@ void MainWindow::rfPzNaviAct()
     }
     else if(type == SUBWIN_HISTORYVIEW){
         en = true;
-        isPrint = true;
+        //isPrint = true;
         int suiteId = curSuiteMgr->getSuiteRecord()->id;
         isEmpty = historyPzSet.value(suiteId).isEmpty();
         isFirst = historyPzSetIndex.value(suiteId) == 0;
@@ -926,7 +942,7 @@ void MainWindow::rfPzNaviAct()
     ui->actGoLast->setEnabled(en && !isEmpty && !isLast);
     ui->actGoNext->setEnabled(en && !(isEmpty || isLast));
     ui->actGoPrev->setEnabled(en && !(isEmpty || isFirst));
-    btnPrint->setEnabled(isPrint);
+    //btnPrint->setEnabled(isPrint);
 }
 
 /**
@@ -1621,6 +1637,12 @@ void MainWindow::pzCountChanged(int count)
  */
 void MainWindow::curPzChanged(PingZheng *newPz, PingZheng *oldPz)
 {
+    if(!newPz)
+        rfPzStateEditAct(false,Pzs_NULL);
+    else{
+        bool editable = curSuiteMgr->getState() != Ps_Jzed;
+        rfPzStateEditAct(editable,newPz->getPzState());
+    }
 //    if(oldPz)
 //        disconnect(oldPz,SIGNAL(indexBoundaryChanged(bool,bool)),this,SLOT(baIndexBoundaryChanged(bool,bool)));
 //    if(newPz){
@@ -1960,6 +1982,14 @@ void MainWindow::subWindowActivated(QMdiSubWindow *window)
     }
     rfBaEditAct();
     rfPzNaviAct();
+    if(win){
+        subWindowType wType = win->getWindowType();
+        if(wType == SUBWIN_PZEDIT || wType == SUBWIN_HISTORYVIEW ||
+                wType == SUBWIN_PZSTAT || wType == SUBWIN_DETAILSVIEW)
+            btnPrint->setEnabled(true);
+        else
+            btnPrint->setEnabled(false);
+    }
 }
 
 /**
@@ -1984,6 +2014,8 @@ void MainWindow::specSubWinClosed(subWindowType winType)
     rfPzSetEditAct(false);
     rfBaEditAct();
     rfPzNaviAct();
+    if(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->count() == 0)
+        btnPrint->setEnabled(false);
 }
 
 void MainWindow::printProcess()
@@ -2382,7 +2414,7 @@ void MainWindow::on_actFordPl_triggered()
     if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
-    if(w && w->crtJzsyPz())
+    if(w && !w->crtJzsyPz())
         QMessageBox::critical(0,tr("错误信息"),tr("在创建结转损益的凭证时发生错误!"));
 }
 
@@ -2907,8 +2939,11 @@ void MainWindow::on_actInStatPz_triggered()
     if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
-    if(w)
+    if(w){
         w->setPzState(Pzs_Instat);
+        ui->actInStatPz->setEnabled(false);
+        ui->actAntiVerify->setEnabled(true);
+    }
 }
 
 /**
@@ -2925,8 +2960,12 @@ void MainWindow::on_actVerifyPz_triggered()
     if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
-    if(w)
+    if(w){
         w->setPzState(Pzs_Verify);
+        ui->actVerifyPz->setEnabled(false);
+        ui->actInStatPz->setEnabled(true);
+        ui->actAntiVerify->setEnabled(true);
+    }
 }
 
 
@@ -2944,8 +2983,12 @@ void MainWindow::on_actAntiVerify_triggered()
     if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
         return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
-    if(w)
+    if(w){
         w->setPzState(Pzs_Recording);
+        ui->actVerifyPz->setEnabled(true);
+        ui->actInStatPz->setEnabled(false);
+        ui->actAntiVerify->setEnabled(false);
+    }
 }
 
 /**

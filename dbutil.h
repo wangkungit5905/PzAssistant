@@ -140,6 +140,7 @@ public:
     bool convertPzInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps);
     bool lastWbExtraIsZeroForFSub(FirstSubject* ssub);
     bool getMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> &cfgInfos);
+    bool appendMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> cfgInfos);
 
     //日记账
     bool getDetViewFilters(int suiteId, QList<DVFilterRecord*>& rs);

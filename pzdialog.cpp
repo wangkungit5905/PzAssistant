@@ -71,6 +71,8 @@ void BaTableWidget::setValidRows(int rows)
     validRows=rows;
     if(rows > rowCount())
         setRowCount(validRows + 10);
+    if(rows <= 1)
+        clearSum();
 
     QStringList hs;
     for(int i = 1; i < rows; ++i)
@@ -100,6 +102,19 @@ void BaTableWidget::setDSum(Double v)
 {
     dSumItem->setData(Qt::EditRole,v);
     QModelIndex index = sumTable->model()->index(0,3);
+    sumTable->update(index);
+}
+
+/**
+ * @brief 清除合计栏的内容
+ */
+void BaTableWidget::clearSum()
+{
+    jSumItem->setData(Qt::EditRole,Double());
+    dSumItem->setData(Qt::EditRole,Double());
+    QModelIndex index = sumTable->model()->index(0,2);
+    sumTable->update(index);
+    index = sumTable->model()->index(0,3);
     sumTable->update(index);
 }
 

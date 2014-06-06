@@ -343,6 +343,10 @@ public:
     Account* getAccount(){return account;}
     bool loadAfterImport();
     int getSubSysCode(){return subSys;}
+    QDate getStartDate(){return startDate;}
+    QDate getEndDate(){return endDate;}
+    void setStartDate(QDate date){startDate=date;}
+    void setEndDate(QDate date){endDate=date;}
 
     //保存方法
     bool save();
@@ -438,6 +442,7 @@ private:
     Account* account;
     DbUtil* dbUtil;
     int subSys;   //科目系统的类型
+    QDate startDate,endDate;                    //科目系统启用的开始、截止日期
 
     QHash<SubjectClass,QString> fsClsNames;     //一级科目类别名称表（这是程序内置的类别名称）
     QHash<int,FirstSubject*> fstSubHash;        //一级科目哈希表

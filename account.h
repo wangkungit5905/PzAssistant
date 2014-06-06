@@ -182,7 +182,7 @@ public:
     bool isSubSysConfiged(int code);
 
     bool isConvertExtra(int year);
-    bool convertExtra(QHash<int,Double>& sums, QHash<int,MoneyDirection>& dirs, const QHash<int, int> maps);
+    //bool convertExtra(QHash<int,Double>& sums, QHash<int,MoneyDirection>& dirs, const QHash<int, int> maps);
     bool convertExtra2(int year, QHash<int,Double>& fsums, QHash<int,MoneyDirection>& fdirs, QHash<int, Double> &dsums, QHash<int, MoneyDirection> &ddirs);
 
 private:

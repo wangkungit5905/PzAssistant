@@ -186,6 +186,7 @@ const QString fld_ssub_enable  = "isEnabled";     //是否在账户中启用（I
 const QString fld_ssub_disTime = "disabledTime";  //禁用时间（TEXT）
 const QString fld_ssub_crtTime = "createdTime";   //创建时间（TEXT）（NOT NULL DEFAULT (datetime('now','localtime'))）
 const QString fld_ssub_creator = "creator";       //创建者（INTEGER）
+const QString fld_ssub_subsys  = "subSys";        //所属科目系统（TEXT）多个科目系统代码用逗号隔开
 //字段索引
 const int SSUB_FID         = 1;
 const int SSUB_NID         = 2;
@@ -195,6 +196,7 @@ const int SSUB_ENABLED     = 5;
 const int SSUB_DISABLETIME = 6;
 const int SSUB_CREATETIME  = 7;
 const int SSUB_CREATOR     = 8;
+const int SSUB_SUBSYS      = 9;
 
 //******************凭证表*********************************//
 //字段名
@@ -415,7 +417,7 @@ const int DVFS_ENDDATE      = 10;
 const int DVFS_SUBIDS       = 11;
 
 
-//科目系统衔接时一级科目的映射配置表（此表已启用，一级科目的映射参考基本库的相应表）
+//科目系统衔接时一级科目的映射配置表（此表已弃用，一级科目的映射参考基本库的相应表）
 const QString tbl_ssjc_pre     = "subSysJoin";
 const QString fld_ssjc_sSub    = "sSub";        //源一级科目id
 const QString fld_ssjc_dSub    = "dSub";        //目的一级科目id

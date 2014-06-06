@@ -386,9 +386,10 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
         int niId = q.value(0).toInt();
         maps[niId] = codes;
     }
-    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:fid,:nid,1,:time,:user)")
+    s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(:fid,:nid,1,:time,:user,'%8')")
             .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_enable)
-            .arg(fld_ssub_crtTime).arg(fld_ssub_creator);
+            .arg(fld_ssub_crtTime).arg(fld_ssub_creator).arg(fld_ssub_subsys)
+            .arg(QString::number(subSys));
     if(!qa1.prepare(s)){
         errors = tr("错误执行sql语句（%1）").arg(s);
         return false;
@@ -879,6 +880,12 @@ bool Account::importNewSubSys(int code)
         return false;
     if(!getSubjectManager(code)->loadAfterImport())
         return false;
+    foreach(SubSysNameItem* item, subSysLst){
+        if(item->code == code){
+            item->isImport = true;
+            return true;
+        }
+    }
     return true;
 }
 
@@ -1020,61 +1027,62 @@ bool Account::isConvertExtra(int year)
  * @param maps  科目映射表
  * @return
  */
-bool Account::convertExtra(QHash<int, Double> &sums, QHash<int,MoneyDirection>& dirs,const QHash<int, int> maps)
-{
-    QHashIterator<int, Double> it(sums);
-    int key, id, mt;
-    Double v;
-    MoneyDirection d;
-    while(it.hasNext()){
-        it.next();
-        v = it.value();
-        d = dirs.value(it.key());
-        id = it.key()/10;
-        mt = it.key()%10;
-        if(!maps.contains(id))
-            return false;
-        key = maps.value(id) * 10 + mt;
-        sums.remove(it.key());
-        dirs.remove(it.key());
-        if(!sums.contains(key)){
-            sums[key] = v;
-            dirs[key] = d;
-        }
-        else{
-            if(dirs.value(key) == d)
-                sums[key] += v;
-            else{
-                Double v1 = sums.value(key);
-                v.changeSign();
-                v1 += v;
-                if(v1==0){
-                    sums.remove(key);
-                    dirs.remove(key);
-                }
-                else if(v1 > 0){
-                    sums[key] = v1;
-                    dirs[key] = MDIR_J;
-                }
-                else{
-                    v1.changeSign();
-                    sums[key] = v1;
-                    dirs[key] = MDIR_D;
-                }
-            }
-        }
+//bool Account::convertExtra(QHash<int, Double> &sums, QHash<int,MoneyDirection>& dirs,const QHash<int, int> maps)
+//{
+//    QHashIterator<int, Double> it(sums);
+//    int key, id, mt;
+//    Double v;
+//    MoneyDirection d;
+//    while(it.hasNext()){
+//        it.next();
+//        v = it.value();
+//        d = dirs.value(it.key());
+//        id = it.key()/10;
+//        mt = it.key()%10;
+//        if(!maps.contains(id))
+//            return false;
+//        key = maps.value(id) * 10 + mt;
+//        sums.remove(it.key());
+//        dirs.remove(it.key());
+//        if(!sums.contains(key)){
+//            sums[key] = v;
+//            dirs[key] = d;
+//        }
+//        else{
+//            if(dirs.value(key) == d)
+//                sums[key] += v;
+//            else{
+//                Double v1 = sums.value(key);
+//                v.changeSign();
+//                v1 += v;
+//                if(v1==0){
+//                    sums.remove(key);
+//                    dirs.remove(key);
+//                }
+//                else if(v1 > 0){
+//                    sums[key] = v1;
+//                    dirs[key] = MDIR_J;
+//                }
+//                else{
+//                    v1.changeSign();
+//                    sums[key] = v1;
+//                    dirs[key] = MDIR_D;
+//                }
+//            }
+//        }
 
-    }
-    return true;
-}
+//    }
+//    return true;
+//}
 
 /**
  * @brief 转换余额，当跨帐套读取期初余额，如果恰好发生了科目系统的升级，则必须对余额进行转换
  *        因为，有些科目被取消并合并到新科目上。这样旧的科目余额也要合并到新科目上
- * param  year      余额所在年份
- * @param fsums     旧科目余额
- * @param fdirs     旧科目余额方向
- * @param codeMaps  新旧科目系统的对接科目表，键为新科目代码，值为旧科目代码（注意：这是一个多值哈希表）
+ * @param year  余额所在年份
+ * @param fsums 主目余额
+ * @param fdirs 主目余额方向
+ * @param dsums 子目余额
+ * @param ddirs 子目余额方向
  * @return
  */
 bool Account::convertExtra2(int year, QHash<int, Double> &fsums, QHash<int, MoneyDirection> &fdirs, QHash<int, Double> &dsums, QHash<int, MoneyDirection> &ddirs)
@@ -1118,11 +1126,11 @@ bool Account::convertExtra2(int year, QHash<int, Double> &fsums, QHash<int, Mone
                     fdirs[key2] = MDIR_J;
                 fsums[key2] = sum;
                 fsums.remove(key1);
-                fdirs.remove(key2);
+                fdirs.remove(key1);
             }
         }
         //转换子目余额
-        key2 = item->s_ssubId * 10 + mmt;
+        key1 = item->s_ssubId * 10 + mmt;
         if(dsums.contains(key1)){
             Double v = dsums.value(key1);
             if(ddirs.value(key1,MDIR_P) == MDIR_D)
@@ -1144,7 +1152,7 @@ bool Account::convertExtra2(int year, QHash<int, Double> &fsums, QHash<int, Mone
                 ddirs[key2] = MDIR_J;
             dsums[key2] = sum;
             dsums.remove(key1);
-            ddirs.remove(key2);
+            ddirs.remove(key1);
         }
     }
 

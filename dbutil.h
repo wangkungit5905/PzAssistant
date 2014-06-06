@@ -59,7 +59,7 @@ public:
 
     //账户升级事务相关
     bool importFstSubjects(int subSys);
-    bool getSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem*>& cfgs);
+    //bool getSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem*>& cfgs);
     //bool setSubSysJoinCfgInfo(SubjectManager *src, SubjectManager *des, QList<SubSysJoinItem *> &cfgs);
     bool tableExist(QString tableName);
 
@@ -248,9 +248,9 @@ private:
     bool _convertExtraInYear(int year, const QHash<int,int> maps, bool isFst = true);
     //
     int _genKeyForExtraPoint(int y, int m, int mt);
-    bool _isTransformExtra(int y, bool& isTrans, QHash<int, int> &fMaps, QHash<int, int> &sMaps);
+    bool _isTransformExtra(int y, int fid, int sid, QList<int> &tfids, int &tsid);
     bool _transformExtra(QHash<int,int> maps, QHash<int,Double>& ExtrasP, QHash<int,Double>& extrasM, QHash<int,MoneyDirection>& dirs);
-    bool _extraUnityInspectForFSub(int fid, int mt, Double sum, MoneyDirection dir, QHash<int,Double> values, QHash<int,MoneyDirection> dirs, bool& ok);
+    bool _extraUnityInspectForFSub(FirstSubject* fsub, int mt, Double sum, MoneyDirection dir, QHash<int,Double> values, QHash<int,MoneyDirection> dirs, bool& ok);
 
     //表格创建函数
     void crtGdzcTable();

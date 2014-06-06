@@ -47,7 +47,8 @@ public:
     void setValidRows(int rows);
     int getValidRows(){return validRows;}
     void setJSum(Double v);
-    void setDSum(Double v);    
+    void setDSum(Double v);
+    void clearSum();
     void setLongName(QString name);
     void switchRow(int r1,int r2);
     bool isHasSelectedRows();

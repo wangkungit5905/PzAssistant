@@ -301,6 +301,14 @@ bool DbUtil::importFstSubjects(int subSys)
         }
     }
 
+    //5、调整现存的子目，默认使它们共同属于新老科目系统
+    s = QString("update %1 set %2 = %2 || ',%3' where %2 not like '%3%'")
+            .arg(tbl_ssub).arg(fld_ssub_subsys).arg(QString::number(subSys));
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+
     //4、对接需混合并入的二级科目
     tname = QString("%1_%2_%3").arg(tbl_sndsub_join_pre).arg(DEFAULT_SUBSYS_CODE).arg(subSys);
     if(!tableExist(tname)){
@@ -352,18 +360,21 @@ bool DbUtil::importFstSubjects(int subSys)
         while(q.next()){
             s_sid = q.value(0).toInt();
             s_nid = q.value(1).toInt();
-            s = QString("select id from %1 where %2=%3 and %4=%5").arg(tbl_ssub)
-                    .arg(fld_ssub_fid).arg(d_fid).arg(fld_ssub_nid).arg(s_nid);
+            s = QString("select id from %1 where %2=%3 and %4=%5 and %6 like '%%7%'")
+                    .arg(tbl_ssub).arg(fld_ssub_fid).arg(d_fid).arg(fld_ssub_nid)
+                    .arg(s_nid).arg(fld_ssub_subsys).arg(QString::number(subSys));
+
             if(!q1.exec(s)){
                 LOG_SQLERROR(s);
                 return false;
             }
             if(!q1.first()){
-                QString ds = AppConfig::getInstance()->getSpecSubSysItem(subSys)->startTime.toString(Qt::ISODate);
-                s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,%9,1,1,'%10',%11)")
+                //QString ds = AppConfig::getInstance()->getSpecSubSysItem(subSys)->startTime.toString(Qt::ISODate);
+                QString ds = QDateTime::currentDateTime().toString(Qt::ISODate);
+                s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(%9,%10,1,1,'%11',%12,'%13')")
                             .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_weight)
-                        .arg(fld_ssub_enable).arg(fld_ssub_crtTime).arg(fld_ssub_creator)
-                        .arg(d_fid).arg(s_nid).arg(ds).arg(curUser->getUserId());
+                        .arg(fld_ssub_enable).arg(fld_ssub_crtTime).arg(fld_ssub_creator).arg(fld_ssub_subsys)
+                        .arg(d_fid).arg(s_nid).arg(ds).arg(curUser->getUserId()).arg(QString::number(subSys));
                 if(!q1.exec(s)){
                     LOG_SQLERROR(s);
                     return false;
@@ -400,9 +411,9 @@ bool DbUtil::importFstSubjects(int subSys)
  * @param cfgs
  * @return
  */
-bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QList<SubSysJoinItem *> &cfgs)
-{
-    //注意：衔接映射表的命名规则：subSysJoin_n1_n2，其中n1用源科目系统代码表示，n2用目的科目系统代码表示
+//bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QList<SubSysJoinItem *> &cfgs)
+//{
+//    //注意：衔接映射表的命名规则：subSysJoin_n1_n2，其中n1用源科目系统代码表示，n2用目的科目系统代码表示
 //    QSqlQuery q(db);
 //    QString tname = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(src->getSubSysCode()).arg(des->getSubSysCode());
 //    QString s;
@@ -459,8 +470,8 @@ bool DbUtil::getSubSysJoinCfgInfo(SubjectManager* src, SubjectManager* des, QLis
 //        }
 //        cfgs<<item;
 //    }
-    return true;
-}
+//    return true;
+//}
 
 /**
  * @brief 保存科目系统衔接的科目映射信息
@@ -892,8 +903,8 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
 
     //2、装载所有一级科目
     QString tname = QString("%1%2").arg(tbl_fsub_prefix).arg(subSys);
-    s = QString("select * from %1 order by %2")
-            .arg(tname).arg(fld_fsub_subcode);
+    s = QString("select * from %1 where %2!=0 order by %3")
+            .arg(tname).arg(fld_fsub_fid).arg(fld_fsub_subcode);
     if(!q.exec(s))
         return false;
 
@@ -939,34 +950,61 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             smg->yfSub = fsub;
     }
 
-    //3、装载所有二级科目
-    //首先要判定是否存在有采用比当前科目系统还要新的帐套，如果有则记录该帐套的时间点
-    //这个主要是用来判定读取到的二级科目是否属于当前科目系统
-    s = QString("select %1,%2 from %3 where %4>%5").arg(fld_accs_year)
-            .arg(fld_accs_startMonth).arg(tbl_accSuites).arg(fld_accs_subSys)
-            .arg(subSys);
+    //3、判定科目系统的开始、截止日期
+    s = QString("select %1 from %2 where %3=%4 order by %1")
+            .arg(fld_accs_year).arg(tbl_accSuites).arg(fld_accs_subSys).arg(subSys);
+
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    bool exist = q.first();
-    QDate startDate;
-    if(exist){
+
+    if(q.first()){
         int y = q.value(0).toInt();
-        int m = q.value(1).toInt();
-        startDate.setDate(y,m,1);
+        smg->startDate.setDate(y,1,1);
+    }
+    if(q.last()){
+        int y = q.value(0).toInt();
+        smg->endDate.setDate(y,12,31);
+    }
+    if(!smg->startDate.isValid() || !smg->endDate.isValid()){
+        //这种情况通常出现在导入新科目系统，但新科目系统还没有被任何帐套采用
+        LOG_ERROR(QString("Don't get subject system(code=%1) start or end date!").arg(subSys));
+        //return false;
     }
 
+//    //首先要判定是否存在有采用比当前科目系统还要新的帐套，如果有则记录该帐套的时间点
+//    //这个主要是用来判定读取到的二级科目是否属于当前科目系统
+//    s = QString("select %1,%2 from %3 where %4>%5 order by %1").arg(fld_accs_year)
+//            .arg(fld_accs_startMonth).arg(tbl_accSuites).arg(fld_accs_subSys)
+//            .arg(subSys);
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    bool exist = q.first();
+//    //QDate startDate;
+//    if(exist){
+//        int y = q.value(0).toInt();
+//        int m = q.value(1).toInt();
+//        smg->startDate.setDate(y,m,1);
+//    }
+
+    //4、装载所有二级科目
     s = QString("select * from %1 join %2 on %1.%3=%2.%4").arg(tbl_ssub).arg(tname)
             .arg(fld_ssub_fid).arg(fld_fsub_fid);
     if(!q.exec(s))
         return false;
 
     SecondSubject* ssub;
+    QString subSysCodeSign = QString::number(subSys);
     while(q.next()){
-        QDateTime crtTime = q.value(SSUB_CREATETIME).toDateTime();
-        if(exist && crtTime.date() >= startDate)
+        QString subSys = q.value(SSUB_SUBSYS).toString();
+        if(!subSys.contains(subSysCodeSign))
             continue;
+        QDateTime crtTime = q.value(SSUB_CREATETIME).toDateTime();
+        //if(crtTime.date() <= smg->startDate || crtTime.date() >= smg->endDate)
+        //    continue;
         int id = q.value(0).toInt();
         int fid = q.value(SSUB_FID).toInt();
         fsub = smg->fstSubHash.value(fid);
@@ -2340,9 +2378,9 @@ bool DbUtil::appendMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> cfgInfos)
 {
     QSqlQuery q(db);
     QString tname = QString("%1_%2_%3").arg(tbl_sndsub_join_pre).arg(sc).arg(dc);
-    QString s = QString("insert into %1(%1,%2,%3,%4) values(:sfid,:ssid,:dfid,:dsid)")
-            .arg(tname).arg(fld_ssj_s_fsub).arg(fld_ssjc_sSub).arg(fld_ssj_s_fsub)
-            .arg(fld_ssjc_sSub);
+    QString s = QString("insert into %1(%2,%3,%4,%5) values(:sfid,:ssid,:dfid,:dsid)")
+            .arg(tname).arg(fld_ssj_s_fsub).arg(fld_ssj_s_ssub).arg(fld_ssj_d_fsub)
+            .arg(fld_ssj_d_ssub);
     if(!q.prepare(s)){
         LOG_SQLERROR(s);
         return false;
@@ -2469,21 +2507,20 @@ bool DbUtil::saveDetViewFilter(const QList<DVFilterRecord*>& dvfs)
  * @param fid           一级科目id（0表示所有一级科目）
  * @param sid           二级科目id（0表示指定一级科目下的所有二级科目）
  * @param mt            币种代码
- * @param prev          期初总余额（各币种合计值）（键是科目代码）
+ * @param prev          期初总余额（各币种合计值）
  * @param preDir        期初方向
  * @param datas         发生项数据
- * @param preExtra      期初值（原币形式）（这些键是科目代码和币种构成的复合键）
+ * @param preExtra      期初值（原币形式）（这些键币种代码）
  * @param preExtraR     期初值（本币形式）
  * @param preExtraDir   期初余额方向
  * @param rates         每月的汇率，键为年月和币种的复合键（高4位年，中2位月，低1位币种，其中，期初余额是个位数，用币种代码表示）
  * @param subIds        指定的科目代码（当fid=0时包含一级科目代码，反之包含有fid指定的一级科目下的二级科目的id）
- //* @param sids          所有在fids中指定的总账科目所属的明细科目代码总集合
  * @param gv            要提取的会计分录的值的上界
  * @param lv            要提取的会计分录的值的下界
  * @param inc           是否包含未记账凭证
  * @return
  */
-bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate ed, int fid, int sid, int mt, Double &prev, int &preDir, QList<DailyAccountData2 *> &datas, QHash<int, Double> &preExtra, QHash<int, Double> &preExtraR, QHash<int, int> &preExtraDir, QHash<int, Double> &rates, QList<int> subIds, /*QHash<int, QList<int> > sids,*/ Double gv, Double lv, bool inc)
+bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate ed, int fid, int sid, int mt, Double &prev, int &preDir, QList<DailyAccountData2 *> &datas, QHash<int, Double> &preExtra, QHash<int, Double> &preExtraR, QHash<int, int> &preExtraDir, QHash<int, Double> &rates, QList<int> subIds, Double gv, Double lv, bool inc)
 {
     QSqlQuery q(db);
     QString s;
@@ -2498,7 +2535,6 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
     //获取期初汇率并加入汇率表
     if(!getRates(yy,mm,ra))
         return false;
-    //ra[RMB] = 1.00;
     it = new QHashIterator<int,Double>(ra);
     while(it->hasNext()){
         it->next();
@@ -2507,55 +2543,48 @@ bool DbUtil::getDailyAccount2(QHash<int, SubjectManager*> smgs, QDate sd, QDate 
 
     //只有提取指定总账科目的明细发生项的情况下，读取余额才有意义
     if(fid != 0){
-        QHash<int,MoneyDirection>dirs;        
-        bool isTrans;
-        QHash<int,int> fMaps,sMaps;
-        if(sd.month() > 1)
-            isTrans = false;
-        else{
-            if(!_isTransformExtra(sd.year(),isTrans,fMaps,sMaps))
+        //注意：如果选定的主目存在有混合对接的科目（当然是在跨帐套读取期初余额且科目系统发生变化的情况下）
+        QHash<int,MoneyDirection>dirs;
+        QList<int> mixedFsubIds;    //混合对接主目id
+        int tsid;
+        if(!_isTransformExtra(sd.year(),fid,sid,mixedFsubIds,tsid))
+            return false;
+        //读取总账科目或明细科目的余额
+        if(sid == 0){
+            if(!_readExtraForFSub(yy,mm,fid,preExtra,preExtraR,dirs))
                 return false;
-        }
-        int pre_fid=fid,pre_sid=sid;
-        if(isTrans){
-            QHashIterator<int,int> it(fMaps);
-            while(it.hasNext()){
-                it.next();
-                if(fid == it.value()){
-                    pre_fid = it.key();
-                    break;
-                }
-            }
-            if(sid != 0){
-                QHashIterator<int,int> it(sMaps);
-                while(it.hasNext()){
-                    it.next();
-                    if(it.value() == sid){
-                        pre_sid = it.key();
-                        break;
+            if(!mixedFsubIds.isEmpty()){
+                QHash<int,Double> temExtra,temExtraR;
+                QHash<int,MoneyDirection> temDir;
+                foreach(int subId, mixedFsubIds){
+                    //读取混合对接科目的余额
+                    if(!_readExtraForFSub(yy,mm,subId,temExtra,temExtraR,temDir))
+                        return false;
+                    //加入到默认对接科目余额，形成实际的余额
+                    QHashIterator<int,Double> it(temExtra);
+                    while(it.hasNext()){
+                        it.next();
+                        Double v = it.value();
+                        Double mv = temExtraR.value(it.key());
+                        if(dirs.value(it.key()) == MDIR_P)
+                            dirs[it.key()] = temDir.value(it.key());
+                        else if((temDir.value(it.key()) != MDIR_P) && (temDir.value(it.key()) != dirs.value(it.key()))){
+                            v.changeSign();
+                            mv.changeSign();
+                        }
+                        preExtra[it.key()] += v;
+                        preExtraR[it.key()] += mv;
                     }
                 }
             }
         }
-
-        //读取总账科目或明细科目的余额
-        if(sid == 0){
-            if(!_readExtraForFSub(yy,mm,pre_fid,preExtra,preExtraR,dirs))
-                return false;
-        }
         else{
-            if(!_readExtraForSSub(yy,mm,pre_sid,preExtra,preExtraR,dirs))
+            int preSid = sid;
+            if(!mixedFsubIds.isEmpty())
+                preSid = tsid;
+            if(!_readExtraForSSub(yy,mm,preSid,preExtra,preExtraR,dirs))
                 return false;
         }
-
-
-        //因为期初余额值表的键为币种代码，因此，无须进行转换。。。。。
-//        if(isTrans){
-//            if(sid == 0 && !_transformExtra(fMaps,preExtra,preExtraR,dirs))
-//                return false;
-//            else if(sid != 0 && !_transformExtra(sMaps,preExtra,preExtraR,dirs))
-//                return false;
-//        }
 
         //原先方向是用整形来表示的，而新实现是用枚举类型来实现的，因此先进行转换以使用原先的数据生成代码
         //待验证明细帐功能正确后可以移除
@@ -4411,14 +4440,16 @@ bool DbUtil::_saveSecondSubject(SecondSubject *sub)
         return false;
 
     if(sub->getId() == UNID)
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) "
-                    "values(%9,%10,'%11',%12,%13,'%14',%15)").arg(tbl_ssub)
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9) "
+                    "values(%10,%11,'%12',%13,%14,'%15',%16)").arg(tbl_ssub)
                 .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
                 .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_crtTime)
-                .arg(fld_ssub_creator).arg(sub->getParent()->getId())
-                .arg(sub->getNameItem()->getId()).arg(sub->getCode())
-                .arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
-                .arg(sub->getCreateTime().toString(Qt::ISODate)).arg(sub->getCreator()->getUserId());
+                .arg(fld_ssub_creator).arg(fld_ssub_subsys)
+                .arg(sub->getParent()->getId()).arg(sub->getNameItem()->getId())
+                .arg(sub->getCode()).arg(sub->getWeight()).arg(sub->isEnabled()?1:0)
+                .arg(sub->getCreateTime().toString(Qt::ISODate))
+                .arg(sub->getCreator()->getUserId())
+                .arg(QString::number(sub->getParent()->parent()->getSubSysCode()));
     else{
         SecondSubjectEditStates state = sub->getEditState();
         if(state == ES_SS_INIT)
@@ -5999,70 +6030,66 @@ int DbUtil::_genKeyForExtraPoint(int y, int m, int mt)
 }
 
 /**
- * @brief 判定指定年份与前一年份的帐套所使用的科目系统是否发生了变化
- * @param y
- * @param isTrans   是否需要转换
- * @param fMaps     如果发生了变化，则此参数返回一级科目映射表
- * @param sMaps     二级科目映射表
+ * @brief 此函数用来在读取跨帐套（且帐套所采用的科目系统不同）的期初余额时，
+ *        获取如何对余额进行前期处理的必要信息以反映科目的对接情况
+ * @param y         年份
+ * @param fid       选择的主目id
+ * @param sid       选择的子目id
+ * @param isTrans   是否需要进行转换
+ * @param tfids     与fid对应的主目混合对接的主目id
+ * @param tsid      与sid对应的子目混合对接的子目id
  * @return
  */
-bool DbUtil::_isTransformExtra(int y, bool &isTrans, QHash<int, int> &fMaps, QHash<int, int> &sMaps)
+bool DbUtil::_isTransformExtra(int y, int fid, int sid, QList<int> &tfids, int &tsid)
 {
     QSqlQuery q(db);
+    if(!tfids.isEmpty())
+        tfids.clear();
+    //首先判断科目系统是否发生变化
     QString s = QString("select %1 from %5 where %2=%3 or %2=%4 order by %2")
             .arg(fld_accs_subSys).arg(fld_accs_year).arg(y).arg(y-1).arg(tbl_accSuites);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
-        isTrans = false;
         return false;
     }
     if(!q.first()){
         LOG_ERROR("Account %1 is exist!");
-        isTrans = false;
         return false;
     }
     int preSubSys = q.value(0).toInt();
     if(!q.next()){
-        isTrans = false;
         return true;
     }
     int curSubSys = q.value(0).toInt();
-    if(curSubSys == preSubSys){
-        isTrans = false;
+    if(curSubSys == preSubSys)
         return true;
-    }
-    isTrans = true;
-    QString tName = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(preSubSys).arg(curSubSys);
-    s = QString("select * from %1").arg(tName);
+    //然后判断选择的主目是否存在混合对接科目
+    QString tName = QString("%1_%2_%3").arg(tbl_sndsub_join_pre).arg(preSubSys).arg(curSubSys);
+    s = QString("select * from %1 where %2=%3").arg(tName).arg(fld_ssj_d_fsub).arg(fid);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    QStringList sl;
-    int sFid,dFid,sSid,dSid;
-    bool isMapping,ok;
     while(q.next()){
-        sl.clear();
-        isMapping = q.value(SSJC_ISMAP).toBool();
-        if(!isMapping){
-            errorNotify(QObject::tr("科目系统升级衔接配置不完整！"));
-            return false;
+        int sfid = q.value(SSJ_SF_SUB).toInt();
+        int ssid = q.value(SSJ_SS_SUB).toInt();
+        int dsid = q.value(SSJ_DS_SUB).toInt();
+        if(sid != 0){
+            if(dsid == sid){
+                tsid = ssid;
+                tfids<<sfid;
+                return true;
+            }
+            else
+                continue;
         }
-        sFid = q.value(SSJC_SSUB).toInt();
-        dFid = q.value(SSJC_DSUB).toInt();
-        sl = q.value(SSJC_SSUBMaps).toString().split(",",QString::SkipEmptyParts);
-        if(!sl.isEmpty()){
-            for(int i = 0; i < sl.count(); i+=2){
-                sSid = sl.at(i).toInt(&ok);
-                dSid = sl.at(i+1).toInt(&ok);
-                if(!ok){
-                    errorNotify(QObject::tr("二级科目衔接配置有问题（一级科目id=%1）").arg(sFid));
-                    return false;
-                }
-                sMaps[sSid] = dSid;
+        else{
+            if(tfids.contains(sfid))
+                continue;
+            else{
+                tfids<<sfid;
             }
         }
-        fMaps[sFid] = dFid;
     }
     return true;
 }
@@ -6109,7 +6136,7 @@ bool DbUtil::_transformExtra(QHash<int,int> maps, QHash<int,Double>& ExtrasP, QH
  * @param ok        true：一致，false：不一致
  * @return
  */
-bool DbUtil::_extraUnityInspectForFSub(int fid, int mt, Double sum, MoneyDirection dir, QHash<int, Double> values, QHash<int,MoneyDirection> dirs, bool& ok)
+bool DbUtil::_extraUnityInspectForFSub(FirstSubject* fsub, int mt, Double sum, MoneyDirection dir, QHash<int, Double> values, QHash<int,MoneyDirection> dirs, bool& ok)
 {
 
     //将子目余额进行汇总，汇总的余额方向归并到主目的余额方向
@@ -6121,15 +6148,17 @@ bool DbUtil::_extraUnityInspectForFSub(int fid, int mt, Double sum, MoneyDirecti
     }
 
     QList<int> sids;
-    QSqlQuery q(db);
-    QString s = QString("select id from %1 where %2=%3").arg(tbl_ssub)
-            .arg(fld_ssub_fid).arg(fid);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    while(q.next())
-        sids<<q.value(0).toInt();
+    foreach(SecondSubject* ssub, fsub->getChildSubs())
+        sids<<ssub->getId();
+//    QSqlQuery q(db);
+//    QString s = QString("select id from %1 where %2=%3").arg(tbl_ssub)
+//            .arg(fld_ssub_fid).arg(fsub->getId());
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        return false;
+//    }
+//    while(q.next())
+//        sids<<q.value(0).toInt();
     int key;
     Double v,sv;
     MoneyDirection d;

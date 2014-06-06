@@ -464,10 +464,12 @@ bool VMAccount::updateTo1_3()
 
     s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER, "
                 "%3 INTEGER, %4 varchar(5),%5 INTEGER,%6 INTEGER,%7 TimeStamp, "
-                "%8 TimeStamp NOT NULL DEFAULT (datetime('now','localtime')),%9 integer)")
+                "%8 TimeStamp NOT NULL DEFAULT (datetime('now','localtime')),"
+                "%9 INTEGER,%10 INTEGER)")
             .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid)
             .arg(fld_ssub_code).arg(fld_ssub_weight).arg(fld_ssub_enable)
-            .arg(fld_ssub_disTime).arg(fld_ssub_crtTime).arg(fld_ssub_creator);
+            .arg(fld_ssub_disTime).arg(fld_ssub_crtTime).arg(fld_ssub_creator)
+            .arg(fld_ssub_subsys);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在创建“%1”表时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
@@ -475,23 +477,25 @@ bool VMAccount::updateTo1_3()
     emit upgradeStep(verNum,tr("成功创建“%1”表！").arg(tbl_ssub),VUR_OK);
 
 
-    s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7,%8) select id,fid,sid,subCode,"
-                "FrequencyStat,isEnabled,'2013-12-31' as createTime,1 as user from old_FSAgent")
+    s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7,%8,%9) select id,fid,sid,subCode,"
+                "FrequencyStat,isEnabled,'2013-12-31' as createTime,1 as user,1 as subsys"
+                " from old_FSAgent")
             .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_nid)
             .arg(fld_ssub_code).arg(fld_ssub_weight).arg(fld_ssub_enable)
-            .arg(fld_ssub_crtTime).arg(fld_ssub_creator);
+            .arg(fld_ssub_crtTime).arg(fld_ssub_creator).arg(fld_ssub_subsys);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在从表“old_FSAgent”转移数据到表“%1”时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
     }
     emit upgradeStep(verNum,tr("成功将表“old_FSAgent”数据转移到表“%1”中！").arg(tbl_ssub),VUR_OK);
 
-    QString dateStr = AppConfig::getInstance()->getSpecSubSysItem(2)->startTime.toString(Qt::ISODate);
-    QDate date = QDate::fromString(dateStr,Qt::ISODate);
-    date.setDate(date.year()-1,12,31);
+    //QString dateStr = AppConfig::getInstance()->getSpecSubSysItem(2)->startTime.toString(Qt::ISODate);
+    //QDate date = QDate::fromString(dateStr,Qt::ISODate);
+    //date.setDate(date.year()-1,12,31);
     s = QString("update %1 set %2=1,%3=1,%4='%5'").arg(tbl_ssub)
             .arg(fld_ssub_enable).arg(fld_ssub_weight).arg(fld_ssub_crtTime)
-            .arg(date.toString(Qt::ISODate));
+            .arg(QDateTime::currentDateTime().toString(Qt::ISODate));
+            //.arg(date.toString(Qt::ISODate));
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在更新表“%1”启用、权重字段时发生错误！").arg(tbl_ssub),VUR_ERROR);
         return false;
@@ -1199,7 +1203,8 @@ bool VMAccount::updateTo1_4()
                 continue;
             }
             if(!q2.first()){
-                emit upgradeStep(verNum,tr("未能找到名称条目（%1）！").arg(sname),VUR_ERROR);
+                emit upgradeStep(verNum,tr("未能找到名称条目（%1）用作“%2”科目下的默认科目！")
+                                 .arg(sname).arg(subNames.at(i)),VUR_WARNING);
                 continue;
             }
             nid = q2.value(0).toInt();
@@ -1374,7 +1379,7 @@ bool VMAccount::updateTo1_5()
     emit upgradeStep(verNum,tr("共需要转移 %1 个凭证集的余额数据！").arg(suiteMonthes.count()),VUR_OK);
 
     //（2）、读取并转储
-    QHash<int,Double> fes,des/*,feRs,deRs*/; //一二级科目的原币余额和本币余额
+    QHash<int,Double> fes,des/*,feRs,deRs*/; //一二级科目的余额
     QHash<int,MoneyDirection> feDirs,deDirs; //一二级科目的余额方向
     int y,m;
     bool state;

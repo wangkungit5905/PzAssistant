@@ -2910,7 +2910,7 @@ bool BusiUtil::readExtraForDetSub2(int y, int m, int sid,
 
 /**
  * @brief BusiUtil::readExtraByMonth2
- *  读取老机制的余额（本币形式）
+ *  读取老机制的余额（原币形式）
  * @param y
  * @param m
  * @param sums      一级科目余额(key：id x 10 + 币种代码)

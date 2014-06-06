@@ -52,6 +52,7 @@ private:
     bool compareRate();
     bool createMaps();
     bool importPzSet();
+    bool processSSubMaps(int fid,QSqlQuery q);
     bool isExistCfg(int sfid, int ssid);
 
     Ui::ImportOVAccDlg *ui;

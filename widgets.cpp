@@ -633,15 +633,18 @@ bool SubjectComplete::eventFilter(QObject *obj, QEvent *e)
                 else{
                     if(pid != 0)
                         s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on "
-                                "%1.id = %4.%5 where %6=%7")
+                                "%1.id = %4.%5 where %6=%7 and  %4.%8 like '%%9%'")
                                 .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_remcode)
-                                .arg(tbl_ssub).arg(fld_ssub_nid).arg(fld_ssub_fid).arg(pid);
+                                .arg(tbl_ssub).arg(fld_ssub_nid).arg(fld_ssub_fid)
+                                .arg(fld_ssub_subsys).arg(pid).arg(QString::number(subSys));
                     else
-                        s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on %1.id = %4.%5")
+                        s = QString("select %1.%2,%1.%3,%4.id from %1 join %4 on %1.id = %4.%5"
+                                    " where %4.%6=like '%%7%'")
                                 .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_remcode)
-                                .arg(tbl_ssub).arg(fld_ssub_fid);
+                                .arg(tbl_ssub).arg(fld_ssub_fid).arg(fld_ssub_subsys)
+                                .arg(QString::number(subSys));
 
-                    //LOG_DEBUG(QString("model station is '%1'").arg(s));
+                    LOG_DEBUG(QString("model station is '%1'").arg(s));
                     q->exec(s);
                     m.setQuery(*q);
                 }

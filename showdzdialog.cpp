@@ -2651,6 +2651,10 @@ SubjectRangeSelectDialog::SubjectRangeSelectDialog(SubjectManager* smg, const QL
     ui->setupUi(this);
     this->subIds = subIds;
     curFsub = smg->getFstSubject(fstSubId);
+    if(!curFsub)
+        ui->rdoFst->setChecked(true);
+    else
+        ui->rdoSnd->setChecked(true);
     loadSubjects();
     connect(ui->rdoFst,SIGNAL(toggled(bool)),this,SLOT(onSubjectSelectModeChanged(bool)));
     connect(ui->lstFstSubs,SIGNAL(currentRowChanged(int)),this,SLOT(curFstSubChanged(int)));

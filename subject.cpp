@@ -165,6 +165,11 @@ void FirstSubject::addChildSub(SecondSubject *sub)
         return;
     sub->setParent(this);
     childSubs<<sub;
+//    QDate d = sub->getCreateTime().date();
+//    if(d > parent()->getEndDate())
+//        sub->setCreateTime(QDateTime(parent()->getEndDate()));
+//    else if(d < parent()->getStartDate())
+//        sub->setCreateTime(QDateTime(parent()->getStartDate()));
     witchEdited |= ES_FS_CHILD;
 }
 
@@ -185,8 +190,13 @@ SecondSubject *FirstSubject::addChildSub(SubjectNameItem *ni, QString Code, int 
     foreach(SecondSubject* sub, childSubs)
         if(sub->getNameItem() == ni)
             return NULL;
-    SecondSubject* sb = new SecondSubject(this,0,ni,Code,subWeight,isEnable,QDateTime::currentDateTime(),
-                                          QDateTime::currentDateTime(),curUser);
+    QDateTime t = QDateTime::currentDateTime();
+//    if(t.date()>parent()->getEndDate())
+//        t = QDateTime(parent()->getEndDate());
+//    else if(t.date()<parent()->getStartDate())
+//        t = QDateTime(parent()->getStartDate());
+    SecondSubject* sb = new SecondSubject(this,0,ni,Code,subWeight,isEnable,t,
+                                          QDateTime(),curUser);
     childSubs<<sb;
     witchEdited |= ES_FS_CHILD;
     return sb;

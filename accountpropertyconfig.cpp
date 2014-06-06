@@ -374,6 +374,8 @@ void ApcSuite::on_btnCommit_clicked()
         account->addSuite(as);
     if(!account->saveSuite(as))
         QMessageBox::critical(this,tr("出错信息"),tr("在保存帐套时发生错误！"));
+    SubjectManager* sm = account->getSubjectManager(as->subSys);
+    sm->setEndDate(QDate(as->year,12,31));
     stack_i.clear();
     stack_s.clear();
     editAction = EA_NONE;
@@ -451,6 +453,8 @@ void ApcSuite::on_btnUpgrade_clicked()
     as->subSys = dc;
     if(!account->saveSuite(as))
         QMessageBox::critical(this,tr("错误提示"),tr("在保存升级后的帐套时发生错误"));
+    SubjectManager* sm = account->getSubjectManager(dc);
+    sm->setStartDate(QDate(as->year,1,1));
     ui->lblSubSys->setText(subSystems.value(dc)->name);
     ui->btnUpgrade->setEnabled(false);
 
@@ -2442,7 +2446,7 @@ bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubInd
     }
     if(!replaceSubs.isEmpty() &&
             !account->getDbUtil()->replaceMapSidWithReserved(preserveSub,replaceSubs)){
-        QMessageBox::critical(this,"",tr("合并过程发生中在科目衔接配置表中替换科目id时错误，请查看日志！"));
+        QMessageBox::critical(this,"",tr("合并过程中在科目衔接配置表中替换科目id时发生错误，请查看日志！"));
         return false;
     }
 

@@ -2103,6 +2103,8 @@ void MainWindow::on_actAddPz_triggered()
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->addPz();
         refreshShowPzsState();
+        if(!ui->actDelPz->isEnabled())
+            ui->actDelPz->setEnabled(true);
         //refreshActEnanble();
     }
 }
@@ -2117,6 +2119,8 @@ void MainWindow::on_actInsertPz_triggered()
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->insertPz();
         refreshShowPzsState();
+        if(!ui->actDelPz->isEnabled())
+            ui->actDelPz->setEnabled(true);
     }
 }
 

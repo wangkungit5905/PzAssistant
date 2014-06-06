@@ -80,7 +80,6 @@ HEADERS  += \
     c.h \
     utils.h \
     widgets.h \
-    forms/sqltooldialog.h \
     completsubinfodialog.h \
     dialog2.h \
     mainwindow.h \

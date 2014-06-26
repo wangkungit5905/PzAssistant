@@ -34,7 +34,7 @@
      <x>0</x>
      <y>0</y>
      <width>1052</width>
-     <height>20</height>
+     <height>23</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnufile">
@@ -170,6 +170,13 @@
      </property>
      <addaction name="actImpPzSet"/>
     </widget>
+    <widget class="QMenu" name="menu">
+     <property name="title">
+      <string>外部工具</string>
+     </property>
+     <addaction name="actManageExternalTool"/>
+    </widget>
+    <addaction name="menu"/>
     <addaction name="actGdzcAdmin"/>
     <addaction name="actDtfyAdmin"/>
     <addaction name="separator"/>
@@ -177,6 +184,7 @@
     <addaction name="menu_4"/>
     <addaction name="actSecCon"/>
     <addaction name="menu_5"/>
+    <addaction name="actOption"/>
    </widget>
    <widget class="QMenu" name="mnuHelp">
     <property name="title">
@@ -1131,6 +1139,19 @@
    </property>
    <property name="toolTip">
     <string>将常用名称条目与一级科目的所属情况到基本库中，以便新建账户时采用</string>
+   </property>
+  </action>
+  <action name="actOption">
+   <property name="text">
+    <string>选项</string>
+   </property>
+  </action>
+  <action name="actManageExternalTool">
+   <property name="text">
+    <string>管理</string>
+   </property>
+   <property name="toolTip">
+    <string>管理外部实用工具</string>
    </property>
   </action>
  </widget>

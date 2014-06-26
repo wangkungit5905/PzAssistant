@@ -68,7 +68,9 @@ SOURCES += main.cpp\
     widgets/fstsubeditcombobox.cpp \
     nabaseinfodialog.cpp \
     newsndsubdialog.cpp \
-    importovaccdlg.cpp
+    importovaccdlg.cpp \
+    optionform.cpp \
+    widgets/configpanels.cpp
 
 HEADERS  += \
     connection.h \
@@ -133,7 +135,9 @@ HEADERS  += \
     widgets/fstsubeditcombobox.h \
     nabaseinfodialog.h \
     newsndsubdialog.h \
-    importovaccdlg.h
+    importovaccdlg.h \
+    optionform.h \
+    widgets/configpanels.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -189,7 +193,8 @@ FORMS    += \
     forms/testform.ui \
     forms/nabaseinfodialog.ui \
     forms/newsndsubdialog.ui \
-    forms/importovaccdlg.ui
+    forms/importovaccdlg.ui \
+    forms/pztemplateoptionform.ui
 
 RESOURCES += \
     imgers.qrc \
@@ -213,104 +218,3 @@ OTHER_FILES += \
 win32{
     RC_FILE = exeico.rc
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -589,7 +589,8 @@ enum subWindowType{
     SUBWIN_LOOKUPSUBEXTRA =15,//查看科目余额
     SUBWIN_ACCOUNTPROPERTY=16,//查看账户属性
     SUBWIN_VIEWPZSETERROR=17,  //查看凭证错误窗口
-    SUBWIN_SQL = 18           //SQL工具窗口
+    SUBWIN_SQL = 18,           //SQL工具窗口
+    SUBWIN_OPTION = 19      //选项窗口
     //设置期初余额的窗口
     //科目配置窗口
 };
@@ -606,6 +607,20 @@ struct MixedJoinCfg{
     int s_ssubId;   //源二级科目id
     int d_fsubId;   //对接一级科目id
     int d_ssubId;   //对接二级科目id
+};
+
+/**
+ * @brief 凭证打印模板参数
+ */
+struct PzTemplateParameter{
+    float titleHeight;        //分录表标题条高度（高度单位是毫米）
+    float baRowHeight;        //分录行高度（所有行高总和）
+    int baRows;             //分录最大行数
+    double factor[4];       //分录表格列宽分配因子（从左到右分别是摘要栏、科目栏、借贷方、外币，汇率列自动拉伸）
+    int cutAreaHeight;      //两张凭证之间的裁剪区域高度
+    int topBottonMargin;    //凭证的上下边界高度
+    int leftRightMargin;    //凭证的左右边界宽度
+    int fontSize;           //分录表字体尺寸
 };
 
 //enum MachineType{

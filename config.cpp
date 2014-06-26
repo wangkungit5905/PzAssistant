@@ -1628,6 +1628,74 @@ bool AppConfig::saveMachines(QList<Machine *> macs)
     return true;
 }
 
+/**
+ * @brief 读取凭证模板配置参数
+ * @param parameter
+ * @return
+ */
+bool AppConfig::getPzTemplateParameter(PzTemplateParameter *parameter)
+{
+    if(!parameter)
+        return false;
+    appIni->beginGroup(SEGMENT_PZ_TEMPLATE);
+    parameter->baRowHeight = appIni->value(KEY_PZT_BAROWHEIGHT,6).toFloat();
+    parameter->titleHeight = appIni->value(KEY_PZT_BATITLEHEIGHT,5).toFloat();
+    parameter->baRows = appIni->value(KEY_PZT_BAROWNUM,8).toInt();
+    parameter->cutAreaHeight = appIni->value(KEY_PZT_CUTAREA,30).toInt();
+    parameter->leftRightMargin = appIni->value(KEY_PZT_LR_MARGIN,10).toInt();
+    parameter->topBottonMargin = appIni->value(KEY_PZT_TB_MARGIN,10).toInt();
+    parameter->fontSize = appIni->value(KEY_PZT_FONTSIZE,9).toInt();
+    bool result = true;
+    QString vs = "0.28,0.28,0.12,0.12";
+    QStringList factors = appIni->value(KEY_PZT_BATABLE_FACTOR,vs).toString().split(",");
+    if(factors.count() != 4){
+        LOG_ERROR("PingZheng template parameter error(allocate factor error)");
+        factors = vs.split(",");
+    }
+    for(int i = 0; i < factors.count(); ++i){
+        QString factor = factors.at(i);
+        bool ok = true;
+        double f = factor.toDouble(&ok);
+        if(!ok){
+            result = false;
+            break;
+        }
+        else
+            parameter->factor[i] = f;
+    }
+    appIni->endGroup();
+    if(!result)
+        return false;
+    return true;
+}
+
+/**
+ * @brief 保存凭证模板配置参数
+ * @param parameter
+ * @return
+ */
+bool AppConfig::savePzTemplateParameter(PzTemplateParameter *parameter)
+{
+    if(!parameter)
+        return false;
+    appIni->beginGroup(SEGMENT_PZ_TEMPLATE);
+    appIni->setValue(KEY_PZT_BATITLEHEIGHT,parameter->titleHeight);
+    appIni->setValue(KEY_PZT_BAROWHEIGHT,parameter->baRowHeight);
+    appIni->setValue(KEY_PZT_BAROWNUM,parameter->baRows);
+    appIni->setValue(KEY_PZT_CUTAREA,parameter->cutAreaHeight);
+    appIni->setValue(KEY_PZT_LR_MARGIN,parameter->leftRightMargin);
+    appIni->setValue(KEY_PZT_TB_MARGIN,parameter->topBottonMargin);
+    appIni->setValue(KEY_PZT_FONTSIZE,parameter->fontSize);
+    QStringList factors;
+    for(int i = 0; i < 4; ++i){
+        factors<<QString::number(parameter->factor[i],'f',2);
+    }
+    appIni->setValue(KEY_PZT_BATABLE_FACTOR,factors.join(","));
+    appIni->endGroup();
+    appIni->sync();
+    return true;
+}
+
 
 /**
  * @brief AppConfig::readPzEwTableState

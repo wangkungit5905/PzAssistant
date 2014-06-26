@@ -45,6 +45,7 @@
 #include "nabaseinfodialog.h"
 #include "commands.h"
 #include "importovaccdlg.h"
+#include "optionform.h"
 
 #include "completsubinfodialog.h"
 
@@ -1206,6 +1207,41 @@ void MainWindow::on_actExtComSndSub_triggered()
         QMessageBox::warning(this,"",tr("导出过程出错，请查看日志！"));
 }
 
+/**
+ * @brief 打开选项配置窗口
+ */
+void MainWindow::on_actOption_triggered()
+{
+    QByteArray* sinfo = NULL;
+    SubWindowDim* winfo = NULL;
+    ConfigPanels* form = NULL;
+    if(!commonGroups.contains(SUBWIN_OPTION)){
+        dbUtil->getSubWinInfo(SUBWIN_OPTION,winfo,sinfo);
+        form = new ConfigPanels();
+        PzTemplateOptionForm* panel = new PzTemplateOptionForm(form);
+        form->addPanel(panel,QIcon(":/images/Options/pzTemplate.png"));
+        TestPanel* testPanel = new TestPanel(form);
+        form->addPanel(testPanel,QIcon(":/images/Options/test1.png"));
+
+    }
+    showCommonSubWin(SUBWIN_OPTION,form,winfo);
+    if(sinfo)
+        delete sinfo;
+    if(winfo)
+        delete winfo;
+}
+
+/**
+ * @brief 管理外部实用工具
+ */
+void MainWindow::on_actManageExternalTool_triggered()
+{
+    //任务：
+    //1在配置文件中添加外部工具设置段
+    //2在AppConfig类中添加读取和保存方法
+    //3创建一个管理界面，可以浏览、添加、删除外部工具
+    //4、启动时如果外部工具为空，则根据运行的操作系统平台类型添加默认的计算器工具软件
+}
 
 
 //退出应用
@@ -2056,8 +2092,12 @@ void MainWindow::printProcess()
             QPrinter printer;
             QPrintDialog* dlg = new QPrintDialog(&printer); //获取所选的打印机
             if(dlg->exec() == QDialog::Accepted){
+                if(printer.pageSize() != QPrinter::A4){
+                    QMessageBox::warning(this,tr("打印纸张出错"),tr("打印凭证只支持A4纸打印，一张A4纸可以打印两张凭证！"));
+                    return;
+                }
                 QPrintPreviewDialog* preview = NULL;
-                printer.setOrientation(QPrinter::Portrait);
+                printer.setOrientation(QPrinter::Portrait);                              
                 PrintPzUtils* view = new PrintPzUtils(curAccount,&printer);
                 view->setPzs(pzs);
                 switch(pac){
@@ -3705,8 +3745,18 @@ bool MainWindow::impTestDatas()
 //    SubjectManager* sm = curAccount->getSubjectManager(1);
 //    FirstSubject* fsub = sm->getFstSubject("1151");
 //    bool b = curAccount->getDbUtil()->verifyExtraForFsub(2013,12,fsub);
+
+//    PzTemplateParameter pt;
+//    AppConfig* config = AppConfig::getInstance();
+//    bool r = config->getPzTemplateParameter(&pt);
+//    pt.baRowHeight = 8;
+//    pt.factor[4] = 0.11;
+//    r = config->savePzTemplateParameter(&pt);
     int i = 0;
 }
+
+
+
 
 
 

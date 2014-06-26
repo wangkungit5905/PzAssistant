@@ -14,7 +14,8 @@
 
 class PingZheng;
 class Account;
-
+class PzPrintTemplate;
+struct PzTemplateParameter;
 
 //完成打印表格任务的实用类
 class PrintUtils : public QObject
@@ -61,16 +62,20 @@ class PrintPzUtils : public QObject{
     Q_OBJECT
 public:
     PrintPzUtils(Account* account, QPrinter* printer);
+    ~PrintPzUtils();
     void setPzs(QList<PingZheng*> pzs);
 
 public slots:
     void print(QPrinter* printer);
 
 private:
-    void printPage(QPainter* paint, int index, bool newPage = false);
+    void printPage(double scaleX, double scaleY, QPainter* paint, int index, bool newPage = false);
     void genPzPrintDatas();
     QPrinter* printer;
+    //QPainter* paint;
     int pageW,pageH;         //可打印区域的宽和高
+    PzPrintTemplate* tp;     //模板对象
+    PzTemplateParameter* parameter;
     QList<PingZheng*> pzs;   //凭证数据集合
     QList<PzPrintData*> datas; //经分页处理后的凭证打印数据集
     QString company;         //凭证的单位名称

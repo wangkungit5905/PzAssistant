@@ -299,6 +299,10 @@ private slots:
 
     void on_actExtComSndSub_triggered();
 
+    void on_actOption_triggered();
+
+    void on_actManageExternalTool_triggered();
+
 private:
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);

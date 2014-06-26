@@ -83,5 +83,7 @@
         <file>images/accountRefresh.png</file>
         <file>images/pzs_lookup.png</file>
         <file>images/password.png</file>
+        <file>images/Options/pzTemplate.png</file>
+        <file>images/Options/test1.png</file>
     </qresource>
 </RCC>

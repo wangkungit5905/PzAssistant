@@ -25,13 +25,16 @@ enum PrintPageType{
     STATPAGE = 4       //本期统计
 };
 
+
+
 //凭证打印模板类
 class PzPrintTemplate : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit PzPrintTemplate(QWidget *parent = 0);
+
+    explicit PzPrintTemplate(PzTemplateParameter* parameter, /*QPainter* painter, */QWidget *parent = 0);
     ~PzPrintTemplate();
 
     void setMasterMoneyType(Money* mt){mmt = mt;}
@@ -45,21 +48,16 @@ public:
     void setVerify(QString name);
     void setBookKeeper(QString name);
     void setRates(QHash<int, Double> &rates);
-
-    void resize(const QSize& size);
-    void resize(int w, int h);
-    void setTvHeight();
-
-    static int TvHeight;
+    void adjustTableRow();
 
 private:
+    //bool isReduceFontSize(int colIndex, QTableWidgetItem* item);
+
     Ui::PzPrintTemplate *ui;
-    //QHash<int,QString> mtNames; //币种代码到币种名称的映射
-    QHash<int,Double> rates;    //汇率
-    QList<double> wr; //列宽比率
+    PzTemplateParameter* parameter;  //模板参数
+    QHash<int,Double> rates;        //汇率
     Money* mmt;     //本币对象
-
-
+    QList<int> pointSizes; //支持的字体尺寸
 };
 
 //打印模板基类（所有需要用PrewViewDialog类来打印的共同接口方法）

@@ -231,75 +231,102 @@ void PrintUtils::formatTableTitle(int rows, QTableView* tv)
 }
 
 
-PrintPzUtils::PrintPzUtils(Account *account, QPrinter* printer):account(account)
+PrintPzUtils::PrintPzUtils(Account *account, QPrinter* printer)
+    :account(account)
 {
     this->printer = printer;
+    parameter = new PzTemplateParameter;
+    AppConfig::getInstance()->getPzTemplateParameter(parameter);
+    printer->setPageMargins(0,0,0,0,QPrinter::Millimeter);//设置页边距
+    pageW = printer->paperRect().width();
+    pageH = printer->paperRect().height();
+    int ps_h = pageW/210;
+    int ps_v = pageH/297;
+    parameter->baRowHeight = ps_v * parameter->baRowHeight;
+    parameter->titleHeight = ps_v * parameter->titleHeight;
+    parameter->leftRightMargin = ps_h * parameter->leftRightMargin;
+    parameter->topBottonMargin = ps_v * parameter->topBottonMargin;
+    parameter->cutAreaHeight = ps_v * parameter->cutAreaHeight;
+    int tw = pageW - parameter->leftRightMargin*2;
+    parameter->factor[0] = parameter->factor[0] * tw;
+    parameter->factor[1] = parameter->factor[1] * tw;
+    parameter->factor[2] = parameter->factor[2] * tw;
+    parameter->factor[3] = parameter->factor[3] * tw;
+    tp = new PzPrintTemplate(parameter/*,paint*/);
+}
+
+PrintPzUtils::~PrintPzUtils()
+{
+    delete parameter;
+    delete tp;
 }
 
 
 void PrintPzUtils::print(QPrinter* printer)
 {
     if(printer != NULL){
-        this->printer = printer;
-
-        //设置页边距
-        printer->setPageMargins(10,10,10,10,QPrinter::Millimeter);
-        pageW = printer->pageRect().width();
-        pageH = printer->pageRect().height();
-
+        int mapW = pageW - parameter->leftRightMargin*2;
+        int mapH = pageH/2 - parameter->topBottonMargin*2 - parameter->cutAreaHeight/2;
+        QPixmap pixmap(mapW,mapH);
+        tp->render(&pixmap);
+        double scaleX = mapW/double(tp->width());
+        double scaleY = mapH/double(tp->height());
         QPainter paint(printer);
         if(datas.count() < 3)
-            printPage(&paint,0);
+            printPage(scaleX,scaleY,&paint,0);
         else{
-            printPage(&paint,0);
+            printPage(scaleX,scaleY,&paint,0);
             for(int i = 2; i < datas.count(); i+=2){
-                printPage(&paint,i,true);
+                printPage(scaleX,scaleY,&paint,i,true);
             }
         }
     }
 }
 
-void PrintPzUtils::printPage(QPainter* paint, int index, bool newPage)
+void PrintPzUtils::printPage(double scaleX, double scaleY, QPainter* paint, int index, bool newPage)
 {
-    QPixmap pixmap(pageW,pageH/2-PZPRINTE_MIDGAP/2);
     if(newPage)
         printer->newPage();
-    PzPrintTemplate* p1;
+    //绘制中线和裁剪线
+    paint->save();
+    paint->setPen(Qt::DotLine);
+    int y = pageH/2;
+    int x1 = parameter->leftRightMargin;
+    int x2 = pageW-parameter->leftRightMargin;
+    paint->drawLine(QPoint(x1,y),QPoint(x2,y));
+    y -= parameter->cutAreaHeight/2;
+    paint->drawLine(QPoint(x1,y),QPoint(x2,y));
+    y = pageH/2 + parameter->cutAreaHeight/2;
+    paint->drawLine(QPoint(x1,y),QPoint(x2,y));
+
     PzPrintData* pd;
-    int x=0;int y=0;
     for(int i = index; i < index+2; ++i){
         if(i < datas.count()){
-            p1 = new PzPrintTemplate;
-            p1->setMasterMoneyType(account->getMasterMt());
-            p1->setRates(rates);
-            p1->setCompany(account->getLName());   //单位名称
+            tp->setMasterMoneyType(account->getMasterMt());
+            tp->setRates(rates);
+            tp->setCompany(account->getLName());   //单位名称
             pd = datas.at(i);
-            p1->setPzDate(pd->date);   //凭证日期
-            p1->setAttNums(pd->attNums);     //附件数
-            p1->setPzNum(pd->pzNum);         //凭证号
-            p1->setProducer(pd->producer?pd->producer->getName():"");
-            p1->setVerify(pd->verify?pd->verify->getName():"");
-            p1->setBookKeeper(pd->bookKeeper?pd->bookKeeper->getName():"");
+            tp->setPzDate(pd->date);   //凭证日期
+            tp->setAttNums(pd->attNums);     //附件数
+            tp->setPzNum(pd->pzNum);         //凭证号
+            tp->setProducer(pd->producer?pd->producer->getName():"");
+            tp->setVerify(pd->verify?pd->verify->getName():"");
+            tp->setBookKeeper(pd->bookKeeper?pd->bookKeeper->getName():"");
+            tp->setBaList(pd->baLst);
+            tp->setJDSums(pd->jsum, pd->dsum);
+            if(i == index)
+                paint->translate(printer->paperRect().x()+parameter->leftRightMargin,
+                                 printer->paperRect().y()+parameter->topBottonMargin);
 
-            p1->setBaList(pd->baLst);
-            p1->setJDSums(pd->jsum, pd->dsum);
-            p1->resize(pageW,pageH/2-PZPRINTE_MIDGAP/2);
-            if(PzPrintTemplate::TvHeight == 0){
-                p1->render(&pixmap);
-                p1->setTvHeight();
-            }
-            p1->resize(pageW,pageH/2-PZPRINTE_MIDGAP/2);
-            p1->render(&pixmap);
+            else
+                paint->translate(0,tp->height()*scaleY+parameter->topBottonMargin*2+parameter->cutAreaHeight);
             paint->save();
-            paint->setPen(Qt::DotLine);
-            paint->drawPixmap(QPoint(x,y),pixmap);
-            y += pageH/2;
-            paint->drawLine(QPoint(0,y),QPoint(pageW,y));
-            y += PZPRINTE_MIDGAP/2;
+            paint->scale(scaleX,scaleY);
+            tp->render(paint);
             paint->restore();
         }
     }
-
+    paint->restore();
 }
 
 /**
@@ -332,10 +359,10 @@ void PrintPzUtils::setPzs(QList<PingZheng*> pzs)
         pz = pzs.at(i);
         bac = pz->baCount();
         baIndex = 0;
-        if((bac % PZPRINTE_MAXROWS) == 0)
-            pages = bac / PZPRINTE_MAXROWS;
+        if((bac % parameter->baRows) == 0)
+            pages = bac / parameter->baRows;
         else
-            pages = bac / PZPRINTE_MAXROWS + 1;
+            pages = bac / parameter->baRows + 1;
 
         Double jsum = 0.00,dsum = 0.00; //借贷合计值
         for(int i = 0; i < pages; ++i){
@@ -348,7 +375,7 @@ void PrintPzUtils::setPzs(QList<PingZheng*> pzs)
                 pd->pzNum = QString::number(pz->number()) + '-' + QString("%1/%2").arg(i+1).arg(pages);
 
             int num = 0; //已提取的会计分录数
-            while((num < PZPRINTE_MAXROWS) && (baIndex < bac)){
+            while((num < parameter->baRows) && (baIndex < bac)){
                 ba = pz->getBusiAction(baIndex++);
                 pd->baLst<<ba;
                 num++;

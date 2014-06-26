@@ -68,6 +68,16 @@ public:
         CVC_GdzcCzRate = 0,            //固定资产折旧残值率
     };
 
+    const QString SEGMENT_DEBUG = "Debug";
+    const QString SEGMENT_PZ_TEMPLATE = "PzTemplate";
+    const QString KEY_PZT_BAROWHEIGHT = "BaRowHeight";
+    const QString KEY_PZT_BATITLEHEIGHT = "BaTitleHeight";
+    const QString KEY_PZT_BAROWNUM = "BaRowNum";
+    const QString KEY_PZT_CUTAREA = "CutAreaHeight";
+    const QString KEY_PZT_LR_MARGIN = "LeftRightWidth";
+    const QString KEY_PZT_TB_MARGIN = "TopBottonHeight";
+    const QString KEY_PZT_BATABLE_FACTOR = "AllocateFactor";
+    const QString KEY_PZT_FONTSIZE = "FontSize";
 
     ~AppConfig();
 
@@ -96,6 +106,8 @@ public:
     QHash<int,Machine*> getAllMachines(){return machines;}
     bool saveMachine(Machine* mac);
     bool saveMachines(QList<Machine*> macs);
+    bool getPzTemplateParameter(PzTemplateParameter* parameter);
+    bool savePzTemplateParameter(PzTemplateParameter* parameter);
 
     //子窗口状态信息存取方法
     bool readPzEwTableState(QList<int> &infos);

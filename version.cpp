@@ -335,6 +335,7 @@ bool VMAccount::updateTo1_3()
         LOG_SQLERROR(s);
         return false;
     }
+
     QSqlQuery qb(AppConfig::getBaseDbConnect());
     s = QString("select * from %1 where %2<29").arg(tbl_base_nic).arg(fld_base_nic_code);
     if(!qb.exec(s)){
@@ -452,6 +453,14 @@ bool VMAccount::updateTo1_3()
     s = "drop table old_SecSubjects";
     if(!q.exec(s))
         emit upgradeStep(verNum,tr("不能删除表“old_SecSubjects”"),VUR_WARNING);
+
+    s = QString("update %1 set %2=%3 where %2=''").arg(tbl_nameItem)
+            .arg(fld_ni_lname).arg(fld_ni_name);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在补缺名称表的全称时发生错误！"),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
 
     //3、创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者
     emit upgradeStep(verNum,tr("第三步：创建新表“SndSubject”替换“FSAgent”表，添加创建（启用）时间列、禁用时间列、创建者"),VUR_OK);

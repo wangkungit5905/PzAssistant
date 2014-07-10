@@ -68,13 +68,35 @@ Double Double::operator =(double v)
 {
     digs = 2;
     digRate = 100;
-    lv = v*1000;
-    if(lv%10 > 4){
-        lv/=10;
-        lv++;
-    }
-    else
-        lv/=10;
+    QString s;
+    s.setNum(v*digRate,'f',0);
+    lv = s.toLongLong();
+
+    //原始的实现代码有bug，当v是负数时，会产生负余数
+    //    lv = v*1000;
+//    if(lv%10 > 4){
+//        lv/=10;
+//        lv++;
+//    }
+//    else
+//        lv/=10;
+
+    //也可以用下面的方法实现
+//    digs = 2;
+//    digRate = 100;
+//    lv = v*1000;
+//    int yd = lv%10;
+//    if(yd < 0)
+//        yd = -yd;
+//    if(yd > 4){
+//        lv/=10;
+//        if(lv > 0)
+//            lv++;
+//        else if(lv < 0)
+//            lv--;
+//    }
+//    else
+//        lv/=10;
 }
 
 Double Double::operator =(int v)

@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>明细账</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_2">
+  <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,0,1,0">
    <item>
     <widget class="QLabel" name="lbltitle">
      <property name="font">
@@ -143,8 +143,19 @@
         <verstretch>0</verstretch>
        </sizepolicy>
       </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
       <property name="contextMenuPolicy">
        <enum>Qt::ActionsContextMenu</enum>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">gridline-color: rgb(15, 5, 6);
+selection-color: rgb(19, 9, 9);</string>
       </property>
       <property name="selectionBehavior">
        <enum>QAbstractItemView::SelectRows</enum>

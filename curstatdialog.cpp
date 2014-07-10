@@ -21,9 +21,10 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     dataModel = NULL;
 
     //初始化表格行的背景色
-//    row_tc_fsub = QColor(Qt::blue);
-//    row_tc_ssub =QColor(Qt::black);
-//    row_tc_sum = QColor(Qt::red);
+    row_tc_fsub = QColor(Qt::blue);
+    row_tc_ssub =QColor(Qt::black);
+    row_tc_sum = QColor(Qt::red);
+
     row_bk_ssub = QBrush(QColor(200,200,255));
     row_bk_fsub = QBrush(QColor(150,150,255));
     row_bk_sum = QBrush(QColor(100,100,255));
@@ -31,6 +32,9 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     //初始化自定义的层次式表头
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
     hv->setHighlightSections(true);
+    QFont font = hv->font();
+    font.setPixelSize(12);
+    //font.setBold(true);
     //hv->setClickable(true);
     hv->setSectionsClickable(true);
     //hv->setStyleSheet("QHeaderView::section {background-color:darkcyan;}");
@@ -1039,21 +1043,37 @@ void CurStatDialog::printCommon(PrintTask task, QPrinter *printer)
  */
 void CurStatDialog::setTableRowBackground(CurStatDialog::TableRowType rt, const QList<QStandardItem *> l)
 {
-    QBrush br;
-    switch(rt){
-    case TRT_FSUB:
-        br = row_bk_fsub;
-        break;
-    case TRT_SSUB:
-        br = row_bk_ssub;
-        break;
-    case TRT_SUM:
-        br = row_bk_sum;
-        break;
-    }
-    for(int i = 0; i < l.count(); ++i){
-        l.at(i)->setBackground(br);
-    }
+//    QBrush br;
+//    switch(rt){
+//    case TRT_FSUB:
+//        br = row_bk_fsub;
+//        break;
+//    case TRT_SSUB:
+//        br = row_bk_ssub;
+//        break;
+//    case TRT_SUM:
+//        br = row_bk_sum;
+//        break;
+//    }
+//    for(int i = 0; i < l.count(); ++i){
+//        l.at(i)->setBackground(br);
+//    }
+        QColor color;
+        switch(rt){
+        case TRT_FSUB:
+            color = row_tc_fsub;
+            break;
+        case TRT_SSUB:
+            color = row_tc_ssub;
+            break;
+        case TRT_SUM:
+            color = row_tc_sum;
+            break;
+        }
+        for(int i = 0; i < l.count(); ++i){
+            l.at(i)->setData(color,Qt::ForegroundRole);
+
+        }
 }
 
 /**
@@ -1063,22 +1083,7 @@ void CurStatDialog::setTableRowBackground(CurStatDialog::TableRowType rt, const 
  */
 void CurStatDialog::setTableRowTextColor(CurStatDialog::TableRowType rt, const QList<QStandardItem *> l)
 {
-//    QColor color;
-//    switch(rt){
-//    case TRT_FSUB:
-//        color = row_tc_fsub;
-//        break;
-//    case TRT_SSUB:
-//        color = row_tc_ssub;
-//        break;
-//    case TRT_SUM:
-//        color = row_tc_sum;
-//        break;
-//    }
-//    for(int i = 0; i < l.count(); ++i){
-//        l.at(i)->setData(color,Qt::ForegroundRole);
 
-//    }
 }
 
 /**

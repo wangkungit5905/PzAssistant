@@ -151,6 +151,8 @@ void SummaryEdit::keyPressEvent(QKeyEvent *event)
         if(key == Qt::Key_Equal){
             emit copyPrevShortcutPressed(row,col);
         }
+        else
+            QLineEdit::keyPressEvent(event);//没有它，无法捕获拷贝、粘贴快捷键
     }
     else
         QLineEdit::keyPressEvent(event);
@@ -252,8 +254,6 @@ SndSubComboBox::SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectM
     connect(com->lineEdit(),SIGNAL(returnPressed()),this,SLOT(nameTexteditingFinished()));
 
     //装载所有名称条目
-    //foreach(SubjectNameItem* ni, subMgr->getAllNameItems())
-    //    allNIs<<ni;
     allNIs = subMgr->getAllNameItems();
     qSort(allNIs.begin(),allNIs.end(),byNameThan_ni);
     QListWidgetItem* item;
@@ -288,20 +288,9 @@ void SndSubComboBox::setSndSub(SecondSubject *sub)
     QVariant v;
     v.setValue(ssub);
     com->setCurrentIndex(com->findData(v,Qt::UserRole));
+    //com->lineEdit()->setFocus();
+    //com->lineEdit()->setCursorPosition(1);
 }
-
-///**
-// * @brief SndSubComboBox::setRowColNum 设置编辑器激活时所处的行列号
-// * @param row
-// * @param col
-// */
-//void SndSubComboBox::setRowColNum(int row, int col)
-//{
-//    this->row = row;
-//    this->col = col;
-//}
-
-
 
 void SndSubComboBox::keyPressEvent(QKeyEvent *e)
 {
@@ -651,294 +640,7 @@ void SndSubComboBox::enterKeyWhenHide()
     //LOG_INFO("after hideList()");
 }
 
-//    : QComboBox(parent),pid(pid),subMgr(subMgr)
-//SndSubComboBox2::SndSubComboBox2(int pid, SubjectManager *subMgr, QWidget *parent)
-//    : QComboBox(parent),pid(pid),subMgr(subMgr)
-//{
-//    QList<int> ids;
-//    QList<QString> names;
-//    if(pid != 0){
-//        subMgr->getSndSubInSpecFst(pid, ids, names);
-//        for(int i = 0; i < ids.count(); ++i)
-//            addItem(names[i], ids[i]);
-//    }
-//    else{
-//        QHashIterator<int,QString> it(allSndSubs);
-//        while(it.hasNext()){
-//            it.next();
-//            addItem(it.value(), it.key());
-//        }
-//    }
 
-//    setEditable(true);  //使其可以输入新的二级科目名
-//    //BusiUtil::getAllSndSubNameList(snames);
-//    //lineEdit()->setCompleter(new QCompleter(snames, this));
-//    model = new QSqlQueryModel;
-//    model->setQuery("select FSAgent.id,FSAgent.fid,FSAgent.sid,"
-//                    "FSAgent.subCode,FSAgent.FrequencyStat,SecSubjects.subName "
-//                    "from FSAgent join SecSubjects on FSAgent.sid = "
-//                    "SecSubjects.id order by FSAgent.subCode");
-//    keys = new QString;
-//    listview = new QListView(parent);
-
-//    //应该使用取自SecSubjects表的model
-//    smodel = new QSqlTableModel;
-//    smodel->setTable("SecSubjects");
-//    smodel->setSort(SNDSUB_REMCODE, Qt::AscendingOrder);
-//    listview->setModel(smodel);
-//    listview->setModelColumn(SNDSUB_SUBNAME);
-//    smodel->select();
-
-//    //因为QSqlTableModel不会一次提取所有的记录，因此，必须用如下方法
-//    //获取真实的行数，但基于性能的原因，不建议使用如下的方法，而直接用一个
-//    //QSqlQuery来提取实际的行数
-//    //while (smodel->canFetchMore())
-//    //{
-//    //    smodel->fetchMore();
-//    //}
-//    //rows = smodel->rowCount();
-
-//    QSqlQuery q;
-//    bool r = q.exec("select count() from SecSubjects");
-//    r = q.first();
-//    rows = q.value(0).toInt();
-
-//    listview->setFixedHeight(150); //最好是设置一个与父窗口的高度合适的尺寸
-//    //QPoint globalP = mapToGlobal(parent->pos());
-//    //listview->move(parent->x(),parent->y() + this->height());
-
-//}
-
-//SndSubComboBox2::~SndSubComboBox2()
-//{
-//    delete listview;
-//    delete keys;
-//}
-
-////设置编辑器激活时所处的行列号
-//void SndSubComboBox2::setRowColNum(int row, int col)
-//{
-//    this->row = row;
-//    this->col = col;
-//}
-
-////void SndSubComboBox::focusOutEvent(QFocusEvent* e)
-////{
-////    listview->hide();
-////    QComboBox::focusOutEvent(e);
-////}
-
-//void SndSubComboBox2::keyPressEvent(QKeyEvent* e)
-//{
-//    static int i = 0;
-//    static bool isDigit = true;  //true：输入的是科目的数字代码，false：科目的助记符
-//    int sid;   //在SndSubClass表中的ID
-//    int index;
-//    int idx,c;
-
-//    if((e->modifiers() != Qt::NoModifier) &&
-//       (e->modifiers() != Qt::KeypadModifier)){
-//        e->ignore();
-//        QComboBox::keyPressEvent(e);
-//        return;
-//    }
-
-//    int keyCode = e->key();
-
-//    //如果是字母键，则输入的是科目助记符，则按助记符快速定位
-//    //字母键只有在输入法未打开的情况下才会接收到
-//    if(((keyCode >= Qt::Key_A) && (keyCode <= Qt::Key_Z))){
-//        keys->append(keyCode);
-//        if(keys->size() == 1){ //接收到第一个字符，需要重新按科目助记符排序，并装载到列表框
-//            isDigit = false;
-//            smodel->select();
-//            while (smodel->canFetchMore())
-//            {
-//                smodel->fetchMore();
-//            }
-//            i = 0;
-//            listview->setMinimumWidth(width());
-//            listview->setMaximumWidth(width());
-//            QPoint p(0, height());
-//            int x = mapToParent(p).x();
-//            int y = mapToParent(p).y() + 1;
-//            listview->move(x, y);
-//            listview->show();
-//        }
-//        //定位到最匹配的条目
-//        QString remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
-//        while((keys->compare(remCode, Qt::CaseInsensitive) > 0) && (i < rows)){
-//            i++;
-//            remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
-//        }
-//        if(i < rows)
-//            listview->setCurrentIndex(smodel->index(i, SNDSUB_SUBNAME));
-
-//        //e->accept();
-
-//    }
-//    //如果是数字键则键入的是科目代码，则按科目代码快速定位
-//    else if((keyCode >= Qt::Key_0) && (keyCode <= Qt::Key_9)){
-////        keys->append(keyCode);
-////        isDigit = true;
-////        if(keys->size() == 1)
-////            i = 0;
-////        showPopup();
-////        //定位到最匹配的科目
-////        QString subCode = model->data(model->index(i, 3)).toString();
-////        int rows = model->rowCount();
-////        while((keys->compare(subCode) > 0) && (i < rows)){
-////            i++;
-////            subCode = model->data(model->index(i, 3)).toString();
-////        }
-////        if(i < rows)
-////            setCurrentIndex(i);
-////        e->accept();
-
-//    }
-//    //如果是其他编辑键
-//    else if(listview->isVisible() || (keys->size() > 0)){
-//        int id; //FSAgent表的id值
-//        switch(keyCode){
-//        case Qt::Key_Backspace:  //退格键，则维护键盘字符缓存，并进行重新定位
-//            keys->chop(1);
-//            if(keys->size() == 0)
-//                listview->hide();
-//            if((keys->size() == 0) && isDigit)
-//                hidePopup();
-//            else{ //用遗留的字符根据是数字还是字母再重新进行依据科目代码或助记符进行定位
-//                if(isDigit){
-//                    i = 0;
-//                    QString subCode = model->data(model->index(i, 3)).toString();
-//                    int rows = model->rowCount();
-//                    while((keys->compare(subCode) > 0) && (i < rows)){
-//                        i++;
-//                        subCode = model->data(model->index(i, 3)).toString();
-//                    }
-//                    if(i < rows)
-//                        listview->setCurrentIndex(model->index(i, 3));
-//                }
-//                else{
-//                    i = 0;
-//                    QString remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
-//                    //int rows = smodel->rowCount();
-//                    while((keys->compare(remCode, Qt::CaseInsensitive) > 0) && (i < rows)){
-//                        i++;
-//                        remCode = smodel->data(smodel->index(i, SNDSUB_REMCODE)).toString();
-//                    }
-//                    if(i < rows)
-//                        listview->setCurrentIndex(smodel->index(i, SNDSUB_SUBNAME));
-//                }
-//            }
-//            break;
-
-//        case Qt::Key_Up:
-//            if(listview->currentIndex().row() > 0){
-//                listview->setCurrentIndex(smodel->index(listview->currentIndex().row() - 1, SNDSUB_SUBNAME));
-//            }
-//            break;
-
-//        case Qt::Key_Down:
-//            idx = listview->currentIndex().row();
-//            //c = smodel->rowCount();
-//            if( idx < rows - 1){
-//                listview->setCurrentIndex(smodel->index(idx + 1, SNDSUB_SUBNAME));
-//            }
-//            break;
-
-//        case Qt::Key_Return:  //回车键
-//        case Qt::Key_Enter:
-//            index = listview->currentIndex().row();
-//            sid = smodel->data(smodel->index(index, SNDSUB_ID)).toInt();
-
-//            //在当前一级科目下没有任何二级科目的映射，或者如果在当前的smodel中
-//            //找不到此sid值，说明当前一级科目和选择的二级科目没有对应的映射条目
-
-//            if(!findSubMapper(pid, sid, id)){
-//                listview->hide();
-//                keys->clear();
-//                emit dataEditCompleted(2,true);
-//                emit newMappingItem(pid, sid, row, col);
-//            }
-//            else{
-//                listview->hide();
-//                keys->clear();
-//                setCurrentIndex(findData(id));
-//                emit dataEditCompleted(2,true);
-//                emit editNextItem(row,col);
-//            }
-//            break;
-//        }
-//        //e->accept();
-//    }
-//    //在智能提示框没有出现时输入的文本（中文文本），需要在SecSubjects表中进行查找，
-//    //如果不能找到一个匹配的，这说明是一个新的二级科目
-//    else if((keyCode == Qt::Key_Return) || (keyCode == Qt::Key_Enter)){
-//            QString name = currentText();
-//            name.simplified();
-//            if(name != ""){
-//                int sid;
-//                if(!findSubName(name,sid)){
-//                    emit dataEditCompleted(2,true);
-//                    emit newSndSubject(pid, name, row, col);
-//                }
-//                else{ //如果找到，还要检测是否存在一二级科目的对应映射关系
-//                    int id = 0;
-//                    subMgr->getFstToSnd(pid,sid,id);
-//                    if(id == 0){ //不存在对应映射关系
-//                        emit dataEditCompleted(2,true);
-//                        emit newMappingItem(pid,sid,row,col);
-//                    }
-//                    else{
-//                        setCurrentIndex(findData(id));
-//                        emit dataEditCompleted(2,true);
-//                    }
-//                }
-//            }
-//            else     //明细科目不能为空（但这样处置，却不能阻止关闭编辑器）
-//                return;
-
-//            //e->accept();
-//    }
-//    else
-//        //e->ignore();
-//        QComboBox::keyPressEvent(e);
-//}
-
-////在this.model中查找是否有此一级和二级科目的对应条目
-//bool SndSubComboBox2::findSubMapper(int fid, int sid, int& id)
-//{
-//    int c = model->rowCount();
-//    bool founded = false;
-
-//    if(c > 0){
-//        int i = 0;
-//        while((i < c) && !founded){
-//            int fv = model->data(model->index(i,1)).toInt();
-//            int sv = model->data(model->index(i, 2)).toInt();
-//            if((fv == fid) && (sv == sid)){
-//                founded = true;
-//                id = model->data(model->index(i,0)).toInt();
-//            }
-//            i++;
-//        }
-//    }
-//    return founded;
-//}
-
-////在二级科目表SecSubjects中查找是否存在名称为name的二级科目
-//bool SndSubComboBox2::findSubName(QString name, int& sid)
-//{
-//    QSqlQuery q;
-//    QString s = QString("select id from SecSubjects "
-//                        "where subName = '%1'").arg(name);
-//    if(q.exec(s) && q.first()){
-//        sid = q.value(0).toInt();
-//        return true;
-//    }
-//    else
-//        return false;
-//}
 
 
 
@@ -1006,7 +708,7 @@ MoneyValueEdit::MoneyValueEdit(int row, int witch, Double v, QWidget *parent)
     validator  = new QDoubleValidator(this);
     validator->setDecimals(2);
     //setValidator(validator);
-    connect(this,SIGNAL(textChanged(QString)),this,SLOT(valueChanged(QString)));
+    //connect(this,SIGNAL(textChanged(QString)),this,SLOT(valueChanged(QString)));
     //connect(this,SIGNAL(editingFinished()),this,SLOT(valueEdited()));
 }
 
@@ -1014,6 +716,12 @@ void MoneyValueEdit::setValue(Double v)
 {
     this->v = v;
     setText(v.toString());
+}
+
+Double MoneyValueEdit::getValue()
+{
+    v = text().toDouble();
+    return v;
 }
 
 void MoneyValueEdit::keyPressEvent(QKeyEvent *e)
@@ -1046,11 +754,11 @@ void MoneyValueEdit::keyPressEvent(QKeyEvent *e)
         QLineEdit::keyPressEvent(e);
 }
 
-void MoneyValueEdit::valueChanged(const QString &text)
-{
-    v = text.toDouble();
-    //qDebug()<<QString("value is %1").arg(v.toString());
-}
+//void MoneyValueEdit::valueChanged(const QString &text)
+//{
+//    v = Double(text.toDouble());
+//    //qDebug()<<QString("value is %1").arg(v.toString());
+//}
 
 
 //void MoneyValueEdit::valueEdited()

@@ -185,12 +185,12 @@ class MoneyValueEdit : public QLineEdit
 public:
     MoneyValueEdit(int row, int witch = 0,Double v = Double(), QWidget* parent = 0);
     void setValue(Double v);
-    Double getValue(){return v;}
+    Double getValue();
     void setCell(int row, int col){this->row = row;this->col = col;}
 protected:
     void keyPressEvent(QKeyEvent* e );
 private slots:
-    void valueChanged(const QString & text);
+    //void valueChanged(const QString & text);
     //void valueEdited();
 signals:
     void dataEditCompleted(int col, bool isMove);

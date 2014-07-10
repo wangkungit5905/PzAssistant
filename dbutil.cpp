@@ -4441,7 +4441,7 @@ bool DbUtil::_saveSecondSubject(SecondSubject *sub)
 
     if(sub->getId() == UNID)
         s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9) "
-                    "values(%10,%11,'%12',%13,%14,'%15',%16)").arg(tbl_ssub)
+                    "values(%10,%11,'%12',%13,%14,'%15',%16,%17)").arg(tbl_ssub)
                 .arg(fld_ssub_fid).arg(fld_ssub_nid).arg(fld_ssub_code)
                 .arg(fld_ssub_weight).arg(fld_ssub_enable).arg(fld_ssub_crtTime)
                 .arg(fld_ssub_creator).arg(fld_ssub_subsys)

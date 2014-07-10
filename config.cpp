@@ -1005,6 +1005,26 @@ bool AppConfig::getSubCodeToNameHash(int subSys, QHash<QString, QString> &subNam
 }
 
 /**
+ * @brief 读取所有配置的外部工具配置项
+ * @param items
+ */
+void AppConfig::readAllExternalTools(QList<ExternalToolCfgItem *> &items)
+{
+
+}
+
+/**
+ * @brief 保存配置的外部工具配置项
+ * @param item
+ */
+void AppConfig::saveExternalTool(ExternalToolCfgItem *item)
+{
+    appIni->beginGroup(SEGMENT_EXTERNAL_TOOL);
+
+    appIni->endGroup();
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  代码不符合规定，代码为空，代码重复冲突等都视为无效

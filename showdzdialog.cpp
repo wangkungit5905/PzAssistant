@@ -44,7 +44,12 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
 
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
     hv->setHighlightSections(true);
+    //hv->setStyleSheet("gridline-color: rgb(15, 5, 6);");//好像不认可此
     //hv->setClickable(true);
+    QFont font = hv->font();
+    font.setPixelSize(12);
+    font.setBold(true);
+    hv->setFont(font);
     hv->setSectionsClickable(true);
     ui->tview->setHorizontalHeader(hv);
 

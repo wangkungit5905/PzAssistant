@@ -241,6 +241,38 @@ void BaTableWidget::updateSubTableGeometry()
     sumTable->setGeometry(x,y,w,h);
 }
 
+/**
+ * @brief BaTableWidget::setRowChangedTags 设置行修改标记
+ * 两个列表的元素个数必须相等，且行索引必须在当前表格的有效行数内
+ * @param rowIndex
+ * @param states
+ */
+void BaTableWidget::setRowChangedTags(QList<int> rowIndex, QList<CommonItemEditState> states)
+{
+
+}
+
+/**
+ * @brief BaTableWidget::setRowChangedTag 设置指定行的修改标记
+ * @param row
+ * @param state
+ */
+void BaTableWidget::setRowChangedTag(int row, CommonItemEditState state)
+{
+    if(row >= validRows)
+        return;
+    QString tag = getModifyTag(state);
+    QTableWidgetItem* item = verticalHeaderItem(row);
+    if(!item)
+        item = new QTableWidgetItem;
+    if(tag.isEmpty())
+        item->setText(QString::number(row+1));
+    else
+        item->setText(QString("%1%2").arg(row+1).arg(tag));
+    setVerticalHeaderItem(row,item);
+
+}
+
 void BaTableWidget::resizeEvent(QResizeEvent *event)
 {
     QTableWidget::resizeEvent(event);
@@ -282,18 +314,18 @@ void BaTableWidget::mousePressEvent(QMouseEvent *event)
     QTableWidget::mousePressEvent(event);
 }
 
-///**
-// * @brief BaTableWidget::processShortcut
-// * 处理快捷键的主入口
-// */
-//void BaTableWidget::processShortcut()
-//{
-//    LOG_INFO("enter processShortcut()!");
-//    if(sender() == shortCut){
-//        LOG_INFO("shortcut Ctrl+= is actived!");
-//    }
-//}
-
+QString BaTableWidget::getModifyTag(CommonItemEditState state)
+{
+    switch(state){
+    case CIES_INIT:
+        return "";
+    case CIES_CHANGED:
+        return "#";
+    case CIES_NEW:
+        return "+";
+    }
+    return "";
+}
 
 
 
@@ -447,7 +479,12 @@ void PzDialog::setMonth(int month)
     if(ui->cmbMt->count() > 0)
         moneyTypeChanged(0);
     curPz = pzMgr->first();    
+    if(curPz){
+        connect(curPz,SIGNAL(updateBalanceState(bool)),this,SLOT(pzBalanceStateChanged(bool)));
+        pzBalanceStateChanged(curPz->jsum()==curPz->dsum());
+    }
     refreshPzContent();
+
     //delegate->watchExtraException();
 }
 
@@ -1105,6 +1142,10 @@ void PzDialog::curPzChanged(PingZheng *newPz, PingZheng *oldPz)
 //    }
     curPz = newPz;
     updateContent();
+    if(oldPz)
+        disconnect(oldPz,SIGNAL(updateBalanceState(bool)),this,SLOT(pzBalanceStateChanged(bool)));
+    if(curPz)
+        connect(curPz,SIGNAL(updateBalanceState(bool)),this,SLOT(pzBalanceStateChanged(bool)));
 }
 
 /**
@@ -1159,9 +1200,15 @@ void PzDialog::currentCellChanged(int currentRow, int currentColumn, int previou
     if(curPz){
         curBa = curPz->getBusiAction(currentRow);
         curPz->setCurBa(curBa);
+        if(curBa && curBa->getSecondSubject())
+            ui->tview->setLongName(curBa->getSecondSubject()->getLName());
+        else
+            ui->tview->setLongName("");
     }
-    else
+    else{
         curBa = NULL;
+        ui->tview->setLongName("");
+    }
 }
 
 /**
@@ -1281,7 +1328,7 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         if(isInteracting)
             return;
         fsub = curBa->getFirstSubject();
-        ssub = item->data(Qt::EditRole).value<SecondSubject*>();
+        ssub = item->data(Qt::EditRole).value<SecondSubject*>();        
         //如果是银行科目，则根据银行账户所属的币种设置币种对象
         if(subMgr->getBankSub() == fsub){
             mt = subMgr->getSubMatchMt(ssub);
@@ -1309,6 +1356,9 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         }
         multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir());
         pzMgr->getUndoStack()->push(multiCmd);
+        if(ssub){
+            ui->tview->setLongName(ssub->getLName());
+        }
         break;
     case BT_MTYPE:
         mt = item->data(Qt::EditRole).value<Money*>();
@@ -1542,6 +1592,21 @@ void PzDialog::pzMemInfoModified(bool changed)
     isPzMemModified = changed;
 }
 
+/**
+ * @brief PzDialog::pzBalanceStateChanged
+ *  根据当前凭证的借贷方是否平衡来
+ * @param isBalance
+ */
+void PzDialog::pzBalanceStateChanged(bool isBalance)
+{
+    ui->tview->setBalance(isBalance);
+    if(isBalance)
+        ui->lblDiff->setText("                    ");
+    else
+        ui->lblDiff->setText(tr("借方 - 贷方 = %1")
+                             .arg((curPz->jsum()-curPz->dsum()).toString()));
+}
+
 
 /**
  * @brief PzDialog::adjustTableSize
@@ -1623,11 +1688,12 @@ void PzDialog::refreshPzContent()
  */
 void PzDialog::refreshActions()
 {
+    ui->tview->setLongName("");
     if(curPz == NULL){
         //validBas = -1;
         delegate->setReadOnly(true);
         ui->tview->clearContents();
-        ui->tview->setValidRows(1);
+        ui->tview->setValidRows(1);        
         return;
     }
 
@@ -1655,8 +1721,9 @@ void PzDialog::refreshActions()
         i++;
         rowSelStates<<false;
     }
-    initBlankBa(i);    
+    initBlankBa(i);
     ui->tview->setBalance(curPz->isBalance());
+    pzBalanceStateChanged(curPz->isBalance());
     ui->tview->setJSum(curPz->jsum());
     ui->tview->setDSum(curPz->dsum());
     delegate->setVolidRows(curPz->baCount());
@@ -1669,6 +1736,7 @@ void PzDialog::refreshActions()
     connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
     connect(ui->tview,SIGNAL(currentCellChanged(int,int,int,int)),
             this,SLOT(currentCellChanged(int,int,int,int)));
+
 }
 
 /**
@@ -1895,6 +1963,7 @@ void PzDialog::installInfoWatch(bool install)
         //connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
         connect(ui->edtComment,SIGNAL(textChanged()),this,SLOT(pzCommentChanged()));
         //connect(ui->edtComment,SIGNAL(modificationChanged(bool)),this,SLOT(pzMemInfoModified(bool)));
+
     }
     else{
         disconnect(ui->dateEdit,SIGNAL(dateChanged(QDate)),this,SLOT(pzDateChanged(QDate)));
@@ -1903,6 +1972,7 @@ void PzDialog::installInfoWatch(bool install)
         //disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
         disconnect(ui->edtComment,SIGNAL(textChanged()),this,SLOT(pzCommentChanged()));
         //disconnect(ui->edtComment,SIGNAL(modificationChanged(bool)),this,SLOT(pzMemInfoModified(bool)));
+
     }
 }
 

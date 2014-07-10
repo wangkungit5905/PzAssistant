@@ -70,7 +70,7 @@ public slots:
 
 private:
     void printPage(double scaleX, double scaleY, QPainter* paint, int index, bool newPage = false);
-    void genPzPrintDatas();
+    //void genPzPrintDatas();
     QPrinter* printer;
     //QPainter* paint;
     int pageW,pageH;         //可打印区域的宽和高

@@ -11,6 +11,13 @@
 class QSettings;
 class VersionManager;
 class Machine;
+
+struct ExternalToolCfgItem{
+    QString name;       //外部工具名称
+    QString cmd;        //启动命令
+    QStringList paras;  //命令的参数列表
+};
+
 //通过访问应用程序的基本库来存取配置信息
 class AppConfig
 {
@@ -68,6 +75,7 @@ public:
         CVC_GdzcCzRate = 0,            //固定资产折旧残值率
     };
 
+    //凭证打印模板参数名
     const QString SEGMENT_DEBUG = "Debug";
     const QString SEGMENT_PZ_TEMPLATE = "PzTemplate";
     const QString KEY_PZT_BAROWHEIGHT = "BaRowHeight";
@@ -78,6 +86,13 @@ public:
     const QString KEY_PZT_TB_MARGIN = "TopBottonHeight";
     const QString KEY_PZT_BATABLE_FACTOR = "AllocateFactor";
     const QString KEY_PZT_FONTSIZE = "FontSize";
+
+    //外部工具配置段落名
+    const QString SEGMENT_EXTERNAL_TOOL = "ExternalTools";
+    const QString KEY_ET_TOOL = "Tool";
+    const QString KEY_ET_NAME = "Name";
+    const QString KEY_ET_COMMAND = "Command";
+    const QString KEY_ET_PARAMETER = "Parameter";
 
     ~AppConfig();
 
@@ -153,6 +168,9 @@ public:
     bool getSubSysMapConfiged(int scode,int dcode, bool &ok);
     bool setSubSysMapConfiged(int scode,int dcode, bool ok = true);
     bool getSubCodeToNameHash(int subSys, QHash<QString,QString>& subNames);
+
+    void readAllExternalTools(QList<ExternalToolCfgItem*> &items);
+    void saveExternalTool(ExternalToolCfgItem* item);
 
 private:
     bool _isValidAccountCode(QString code);

@@ -142,9 +142,9 @@ private:
     SubjectManager* smg;
 
     //表格行文本色
-//    QColor row_tc_ssub;
-//    QColor row_tc_fsub;
-//    QColor row_tc_sum;
+    QColor row_tc_ssub;
+    QColor row_tc_fsub;
+    QColor row_tc_sum;
     //表格行背景色
     QBrush row_bk_ssub;    //子目行
     QBrush row_bk_fsub;    //总目行

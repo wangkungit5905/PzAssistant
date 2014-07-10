@@ -237,7 +237,8 @@ PrintPzUtils::PrintPzUtils(Account *account, QPrinter* printer)
     this->printer = printer;
     parameter = new PzTemplateParameter;
     AppConfig::getInstance()->getPzTemplateParameter(parameter);
-    printer->setPageMargins(0,0,0,0,QPrinter::Millimeter);//设置页边距
+    //printer->setPageMargins(0,0,0,0,QPrinter::Millimeter);//设置页边距
+    printer->setFullPage(true);
     pageW = printer->paperRect().width();
     pageH = printer->paperRect().height();
     int ps_h = pageW/210;
@@ -269,8 +270,8 @@ void PrintPzUtils::print(QPrinter* printer)
         int mapH = pageH/2 - parameter->topBottonMargin*2 - parameter->cutAreaHeight/2;
         QPixmap pixmap(mapW,mapH);
         tp->render(&pixmap);
-        double scaleX = mapW/double(tp->width());
-        double scaleY = mapH/double(tp->height());
+        double scaleX = mapW/(double(tp->width()));
+        double scaleY = mapH/(double(tp->height())+2);
         QPainter paint(printer);
         if(datas.count() < 3)
             printPage(scaleX,scaleY,&paint,0);
@@ -315,7 +316,7 @@ void PrintPzUtils::printPage(double scaleX, double scaleY, QPainter* paint, int 
             tp->setBaList(pd->baLst);
             tp->setJDSums(pd->jsum, pd->dsum);
             if(i == index)
-                paint->translate(printer->paperRect().x()+parameter->leftRightMargin,
+                paint->translate(printer->paperRect().x()+parameter->leftRightMargin+3,
                                  printer->paperRect().y()+parameter->topBottonMargin);
 
             else

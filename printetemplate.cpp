@@ -37,7 +37,7 @@ void PzPrintTemplate::adjustTableRow()
     ui->tview->setColumnWidth(3,parameter->factor[2]);
     ui->tview->setColumnWidth(4,parameter->factor[3]);
     ui->tview->setRowHeight(0,parameter->titleHeight);
-    for(int i = 0; i < parameter->baRows+1; ++i)
+    for(int i = 1; i < parameter->baRows+1; ++i)
         ui->tview->setRowHeight(i,parameter->baRowHeight);
 }
 

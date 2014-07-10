@@ -1234,6 +1234,7 @@ void MainWindow::on_actOption_triggered()
 /**
  * @brief 管理外部实用工具
  */
+#include <QProcess>
 void MainWindow::on_actManageExternalTool_triggered()
 {
     //任务：
@@ -1241,6 +1242,10 @@ void MainWindow::on_actManageExternalTool_triggered()
     //2在AppConfig类中添加读取和保存方法
     //3创建一个管理界面，可以浏览、添加、删除外部工具
     //4、启动时如果外部工具为空，则根据运行的操作系统平台类型添加默认的计算器工具软件
+
+    QProcess* p = new QProcess(this);
+    p->start("gedit",QStringList());
+
 }
 
 
@@ -2090,7 +2095,7 @@ void MainWindow::printProcess()
             if(!psDlg->getSelectedPzs(pzs))//获取打印范围
                 return;
             QPrinter printer;
-            QPrintDialog* dlg = new QPrintDialog(&printer); //获取所选的打印机
+            QPrintDialog* dlg = new QPrintDialog(&printer,this); //获取所选的打印机
             if(dlg->exec() == QDialog::Accepted){
                 if(printer.pageSize() != QPrinter::A4){
                     QMessageBox::warning(this,tr("打印纸张出错"),tr("打印凭证只支持A4纸打印，一张A4纸可以打印两张凭证！"));

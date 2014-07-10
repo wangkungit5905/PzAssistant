@@ -28,6 +28,8 @@ namespace Ui {
     class HistoryPzForm;
 }
 
+
+
 //编辑和显示凭证的会计分录的类
 class BaTableWidget : public QTableWidget
 {
@@ -54,6 +56,8 @@ public:
     bool isHasSelectedRows();
     void selectedRows(QList<int>& selRows, bool& isContinuous);
     void updateSubTableGeometry();
+    void setRowChangedTags(QList<int> rowIndex,QList<CommonItemEditState> states);
+    void setRowChangedTag(int row, CommonItemEditState state);
 public slots:
     void setBalance(bool isBalance);
 protected:
@@ -71,6 +75,8 @@ signals:
     void requestContextMenu(int row, int col); //请求对上下文菜单进行刷新
 
 private:
+    QString getModifyTag(CommonItemEditState state);
+
     QTableWidget* sumTable;                 //显示会计分录合计栏的表格
     QTableWidgetItem *lnItem;               //显示二级科目全名
     BAMoneyValueItem_new *jSumItem, *dSumItem;  //显示借贷合计值
@@ -227,6 +233,7 @@ private slots:
     void modifyRate();
     void pzCommentChanged();
     void pzMemInfoModified(bool changed);
+    void pzBalanceStateChanged(bool isBalance);
     void on_btnOk_clicked();
 
     void on_btnCancel_clicked();

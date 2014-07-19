@@ -616,11 +616,13 @@ struct PzTemplateParameter{
     float titleHeight;        //分录表标题条高度（高度单位是毫米）
     float baRowHeight;        //分录行高度（所有行高总和）
     int baRows;             //分录最大行数
-    double factor[4];       //分录表格列宽分配因子（从左到右分别是摘要栏、科目栏、借贷方、外币，汇率列自动拉伸）
+    double factor[5];       //分录表格列宽分配因子（从左到右分别是摘要栏、科目栏、借贷方、外币、汇率列）
     int cutAreaHeight;      //两张凭证之间的裁剪区域高度
     int topBottonMargin;    //凭证的上下边界高度
     int leftRightMargin;    //凭证的左右边界宽度
     int fontSize;           //分录表字体尺寸
+    bool isPrintCutLine;    //是否打印裁剪线
+    bool isPrintMidLine;    //是否打印中心线
 };
 
 //enum MachineType{

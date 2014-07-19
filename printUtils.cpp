@@ -249,11 +249,9 @@ PrintPzUtils::PrintPzUtils(Account *account, QPrinter* printer)
     parameter->topBottonMargin = ps_v * parameter->topBottonMargin;
     parameter->cutAreaHeight = ps_v * parameter->cutAreaHeight;
     int tw = pageW - parameter->leftRightMargin*2;
-    parameter->factor[0] = parameter->factor[0] * tw;
-    parameter->factor[1] = parameter->factor[1] * tw;
-    parameter->factor[2] = parameter->factor[2] * tw;
-    parameter->factor[3] = parameter->factor[3] * tw;
-    tp = new PzPrintTemplate(parameter/*,paint*/);
+    for(int i = 0; i < 5; ++i)
+        parameter->factor[i] = parameter->factor[i] * tw;
+    tp = new PzPrintTemplate(parameter);
 }
 
 PrintPzUtils::~PrintPzUtils()
@@ -270,7 +268,7 @@ void PrintPzUtils::print(QPrinter* printer)
         int mapH = pageH/2 - parameter->topBottonMargin*2 - parameter->cutAreaHeight/2;
         QPixmap pixmap(mapW,mapH);
         tp->render(&pixmap);
-        double scaleX = mapW/(double(tp->width()));
+        double scaleX = mapW/(double(tp->width())+2);
         double scaleY = mapH/(double(tp->height())+2);
         QPainter paint(printer);
         if(datas.count() < 3)
@@ -294,12 +292,15 @@ void PrintPzUtils::printPage(double scaleX, double scaleY, QPainter* paint, int 
     int y = pageH/2;
     int x1 = parameter->leftRightMargin;
     int x2 = pageW-parameter->leftRightMargin;
-    paint->drawLine(QPoint(x1,y),QPoint(x2,y));
-    y -= parameter->cutAreaHeight/2;
-    paint->drawLine(QPoint(x1,y),QPoint(x2,y));
-    y = pageH/2 + parameter->cutAreaHeight/2;
-    paint->drawLine(QPoint(x1,y),QPoint(x2,y));
-
+    if(parameter->isPrintMidLine)
+        paint->drawLine(QPoint(x1,y),QPoint(x2,y));
+    if(parameter->isPrintCutLine){
+        y -= parameter->cutAreaHeight/2;
+        paint->drawLine(QPoint(x1,y),QPoint(x2,y));
+        y = pageH/2 + parameter->cutAreaHeight/2;
+        paint->drawLine(QPoint(x1,y),QPoint(x2,y));
+    }
+    paint->setPen(Qt::SolidLine);
     PzPrintData* pd;
     for(int i = index; i < index+2; ++i){
         if(i < datas.count()){
@@ -315,16 +316,32 @@ void PrintPzUtils::printPage(double scaleX, double scaleY, QPainter* paint, int 
             tp->setBookKeeper(pd->bookKeeper?pd->bookKeeper->getName():"");
             tp->setBaList(pd->baLst);
             tp->setJDSums(pd->jsum, pd->dsum);
+            paint->save();
             if(i == index)
-                paint->translate(printer->paperRect().x()+parameter->leftRightMargin+3,
+                paint->translate(printer->paperRect().x()+parameter->leftRightMargin,
                                  printer->paperRect().y()+parameter->topBottonMargin);
 
             else
-                paint->translate(0,tp->height()*scaleY+parameter->topBottonMargin*2+parameter->cutAreaHeight);
-            paint->save();
+                //paint->translate(printer->paperRect().x()+parameter->leftRightMargin+3,
+                //                 tp->height()*scaleY+parameter->topBottonMargin*2+parameter->cutAreaHeight);
+                paint->translate(printer->paperRect().x()+parameter->leftRightMargin,
+                                 pageH/2+parameter->topBottonMargin+parameter->cutAreaHeight/2);
+            //paint->save();
             paint->scale(scaleX,scaleY);
-            tp->render(paint);
+            tp->render(paint);            
             paint->restore();
+            int y1,y2;
+            x1 = printer->paperRect().x()+parameter->leftRightMargin+12;
+            if(i == index){
+                y1 = parameter->topBottonMargin+tp->height()-1;
+            }
+            else{
+                //y1 = parameter->topBottonMargin*3+parameter->cutAreaHeight+tp->height()*2-2;
+                //y1 = pageH-parameter->topBottonMargin-parameter->baRowHeight-35;
+                y1 = pageH/2+parameter->topBottonMargin+tp->height()+19;
+            }
+            y2 = y1 + parameter->baRowHeight;
+            paint->drawLine(x1,y1,x1,y2);
         }
     }
     paint->restore();

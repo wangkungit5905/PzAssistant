@@ -86,6 +86,8 @@ public:
     const QString KEY_PZT_TB_MARGIN = "TopBottonHeight";
     const QString KEY_PZT_BATABLE_FACTOR = "AllocateFactor";
     const QString KEY_PZT_FONTSIZE = "FontSize";
+    const QString KEY_PZT_ISPRINTCUTLINE = "IsPrintCutLine";
+    const QString KEY_PZT_ISPRINTMIDLINE = "IsPrintMidLine";
 
     //外部工具配置段落名
     const QString SEGMENT_EXTERNAL_TOOL = "ExternalTools";

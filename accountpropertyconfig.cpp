@@ -2022,13 +2022,17 @@ void ApcSubject::on_btnFSubCommit_clicked()
     bool enableChanged = (curFSub->isEnabled() && !ui->fsubIsEnable->isChecked()) ||
             (!curFSub->isEnabled() && ui->fsubIsEnable->isChecked());
     curFSub->setEnabled(ui->fsubIsEnable->isChecked());
-    if(curFSub->isUseForeignMoney() && !ui->isUseWb->isChecked() &&
-            account->getDbUtil()->lastWbExtraIsZeroForFSub(curFSub)){
-        QMessageBox::warning(this,"",tr("科目“%1”的存在外币余额且不为0，不能改变该科目是否使用外币的属性！").arg(curFSub->getName()));
-        ui->isUseWb->setChecked(true);
+    if(curFSub->isUseForeignMoney() && !ui->isUseWb->isChecked()){
+        bool isExist = true;
+        account->getDbUtil()->isUsedWbForFSub(curFSub,isExist);
+        if(isExist){
+            QMessageBox::warning(this,"",tr("科目“%1”的存在外币余额且不为0，不能改变该科目是否使用外币的属性！").arg(curFSub->getName()));
+            ui->isUseWb->setChecked(true);
+        }
+        else
+            curFSub->setIsUseForeignMoney(ui->isUseWb->isChecked());
     }
-    else
-        curFSub->setIsUseForeignMoney(ui->isUseWb->isChecked());
+
     curFSub->setJdDir(ui->jdDir_P->isChecked());
     curFSub->setWeight(ui->fsubWeight->text().toInt());
     if(stack_strs.at(1) != curFSub->getName())

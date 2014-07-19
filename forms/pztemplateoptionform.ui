@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>531</width>
-    <height>383</height>
+    <width>549</width>
+    <height>446</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -19,94 +19,98 @@
      <property name="title">
       <string>分录表</string>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
+     <layout class="QVBoxLayout" name="verticalLayout_3" stretch="2,3">
       <item>
-       <layout class="QHBoxLayout" name="horizontalLayout">
+       <layout class="QVBoxLayout" name="verticalLayout">
         <item>
-         <widget class="QLabel" name="label_4">
-          <property name="text">
-           <string>标题高度</string>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="horizontalLayout">
+          <item>
+           <widget class="QLabel" name="label_4">
+            <property name="text">
+             <string>标题高度</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QDoubleSpinBox" name="spnTitleHeight">
+            <property name="minimum">
+             <double>5.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>15.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.250000000000000</double>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
-         <widget class="QDoubleSpinBox" name="spnTitleHeight">
-          <property name="minimum">
-           <double>5.000000000000000</double>
-          </property>
-          <property name="maximum">
-           <double>15.000000000000000</double>
-          </property>
-          <property name="singleStep">
-           <double>0.250000000000000</double>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_3">
-        <item>
-         <widget class="QLabel" name="label_10">
-          <property name="text">
-           <string>分录行高</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QDoubleSpinBox" name="spnBaRowHeight">
-          <property name="minimum">
-           <double>5.000000000000000</double>
-          </property>
-          <property name="maximum">
-           <double>15.000000000000000</double>
-          </property>
-          <property name="singleStep">
-           <double>0.100000000000000</double>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_2">
-        <item>
-         <widget class="QLabel" name="label_9">
-          <property name="text">
-           <string>最大分录数</string>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="horizontalLayout_3">
+          <item>
+           <widget class="QLabel" name="label_10">
+            <property name="text">
+             <string>分录行高</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QDoubleSpinBox" name="spnBaRowHeight">
+            <property name="minimum">
+             <double>5.000000000000000</double>
+            </property>
+            <property name="maximum">
+             <double>15.000000000000000</double>
+            </property>
+            <property name="singleStep">
+             <double>0.100000000000000</double>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
-         <widget class="QSpinBox" name="spnBaRowNum">
-          <property name="minimum">
-           <number>6</number>
-          </property>
-          <property name="maximum">
-           <number>10</number>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <item>
+           <widget class="QLabel" name="label_9">
+            <property name="text">
+             <string>最大分录数</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="spnBaRowNum">
+            <property name="minimum">
+             <number>6</number>
+            </property>
+            <property name="maximum">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
-       </layout>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_5">
         <item>
-         <widget class="QLabel" name="label_11">
-          <property name="text">
-           <string>分录字体尺寸</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QSpinBox" name="spnFontSize">
-          <property name="minimum">
-           <number>6</number>
-          </property>
-          <property name="maximum">
-           <number>10</number>
-          </property>
-         </widget>
+         <layout class="QHBoxLayout" name="horizontalLayout_5">
+          <item>
+           <widget class="QLabel" name="label_11">
+            <property name="text">
+             <string>分录字体尺寸</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QSpinBox" name="spnFontSize">
+            <property name="minimum">
+             <number>6</number>
+            </property>
+            <property name="maximum">
+             <number>10</number>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
        </layout>
       </item>
@@ -123,27 +127,6 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
-          <widget class="QLabel" name="label_6">
-           <property name="text">
-            <string>科目栏</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_7">
-           <property name="text">
-            <string>金额栏</string>
-           </property>
-          </widget>
-         </item>
-         <item row="3" column="0">
-          <widget class="QLabel" name="label_8">
-           <property name="text">
-            <string>外币栏</string>
-           </property>
-          </widget>
-         </item>
          <item row="0" column="1">
           <widget class="QDoubleSpinBox" name="spnSummary">
            <property name="minimum">
@@ -154,6 +137,13 @@
            </property>
            <property name="singleStep">
             <double>0.010000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>科目栏</string>
            </property>
           </widget>
          </item>
@@ -170,6 +160,13 @@
            </property>
           </widget>
          </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="label_7">
+           <property name="text">
+            <string>金额栏</string>
+           </property>
+          </widget>
+         </item>
          <item row="2" column="1">
           <widget class="QDoubleSpinBox" name="spnMoney">
            <property name="minimum">
@@ -183,8 +180,35 @@
            </property>
           </widget>
          </item>
+         <item row="3" column="0">
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>外币栏</string>
+           </property>
+          </widget>
+         </item>
          <item row="3" column="1">
           <widget class="QDoubleSpinBox" name="spnWb">
+           <property name="minimum">
+            <double>0.010000000000000</double>
+           </property>
+           <property name="maximum">
+            <double>0.300000000000000</double>
+           </property>
+           <property name="singleStep">
+            <double>0.010000000000000</double>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_12">
+           <property name="text">
+            <string>汇率栏</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1">
+          <widget class="QDoubleSpinBox" name="spnRate">
            <property name="minimum">
             <double>0.010000000000000</double>
            </property>
@@ -203,37 +227,13 @@
     </widget>
    </item>
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout_2">
+    <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
       <widget class="QGroupBox" name="groupBox">
        <property name="title">
         <string>边界值（毫米）</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
-        <item row="2" column="1">
-         <widget class="QSpinBox" name="spnCutArea"/>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label_3">
-          <property name="text">
-           <string>裁剪区高度</string>
-          </property>
-         </widget>
-        </item>
-        <item row="1" column="0">
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>上下</string>
-          </property>
-         </widget>
-        </item>
-        <item row="0" column="0">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>左右</string>
-          </property>
-         </widget>
-        </item>
         <item row="1" column="1">
          <widget class="QSpinBox" name="spnTBMargin">
           <property name="minimum">
@@ -244,6 +244,20 @@
           </property>
          </widget>
         </item>
+        <item row="0" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>左右</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label_3">
+          <property name="text">
+           <string>裁剪区高度</string>
+          </property>
+         </widget>
+        </item>
         <item row="0" column="1">
          <widget class="QSpinBox" name="spnLFMargin">
           <property name="minimum">
@@ -251,6 +265,39 @@
           </property>
           <property name="maximum">
            <number>20</number>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>上下</string>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QSpinBox" name="spnCutArea"/>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox_4">
+       <property name="title">
+        <string>辅助线</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_2">
+        <item>
+         <widget class="QCheckBox" name="chkCutLine">
+          <property name="text">
+           <string>打印裁剪线</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="chkMidLine">
+          <property name="text">
+           <string>打印中线</string>
           </property>
          </widget>
         </item>

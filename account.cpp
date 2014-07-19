@@ -300,6 +300,8 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
     while(qb.next()){
         QString sname = qb.value(FI_BASE_NI_SNAME).toString();
         QString lname = qb.value(FI_BASE_NI_LNAME).toString();
+        if(lname.isEmpty())
+            lname=sname;
         QString remCode = qb.value(FI_BASE_NI_REMCODE).toString();
         int cls = qb.value(FI_BASE_NI_CLASS).toInt();
         QString ctime = QDateTime::currentDateTime().toString(Qt::ISODate);

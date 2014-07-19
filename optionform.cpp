@@ -18,10 +18,13 @@ PzTemplateOptionForm::PzTemplateOptionForm(QWidget *parent) :
     ui->spnLFMargin->setValue(parameter.leftRightMargin);
     ui->spnTBMargin->setValue(parameter.topBottonMargin);
     ui->spnCutArea->setValue(parameter.cutAreaHeight);
+    ui->chkCutLine->setChecked(parameter.isPrintCutLine);
+    ui->chkMidLine->setChecked(parameter.isPrintMidLine);
     ui->spnSummary->setValue(parameter.factor[0]);
     ui->spnSubject->setValue(parameter.factor[1]);
     ui->spnMoney->setValue(parameter.factor[2]);
     ui->spnWb->setValue(parameter.factor[3]);
+    ui->spnRate->setValue(parameter.factor[4]);
 }
 
 PzTemplateOptionForm::~PzTemplateOptionForm()
@@ -45,6 +48,10 @@ bool PzTemplateOptionForm::isDirty()
         return true;
     if(parameter.topBottonMargin != ui->spnTBMargin->value())
         return true;
+    if(parameter.isPrintCutLine != ui->chkCutLine->isChecked())
+        return true;
+    if(parameter.isPrintMidLine != ui->chkMidLine->isChecked())
+        return true;
     if(parameter.factor[0] != ui->spnSummary->value())
         return true;
     if(parameter.factor[1] != ui->spnSubject->value())
@@ -52,6 +59,8 @@ bool PzTemplateOptionForm::isDirty()
     if(parameter.factor[2] != ui->spnMoney->value())
         return true;
     if(parameter.factor[3] != ui->spnWb->value())
+        return true;
+    if(parameter.factor[4] != ui->spnRate->value())
         return true;
     return false;
 }
@@ -74,6 +83,10 @@ bool PzTemplateOptionForm::save()
         parameter.leftRightMargin = ui->spnLFMargin->value();
     if(parameter.topBottonMargin != ui->spnTBMargin->value())
         parameter.topBottonMargin = ui->spnTBMargin->value();
+    if(parameter.isPrintCutLine != ui->chkCutLine->isChecked())
+        parameter.isPrintCutLine = ui->chkCutLine->isChecked();
+    if(parameter.isPrintMidLine != ui->chkMidLine->isChecked())
+        parameter.isPrintMidLine = ui->chkMidLine->isChecked();
     if(parameter.factor[0] != ui->spnSummary->value())
         parameter.factor[0] = ui->spnSummary->value();
     if(parameter.factor[1] != ui->spnSubject->value())
@@ -82,6 +95,8 @@ bool PzTemplateOptionForm::save()
         parameter.factor[2] = ui->spnMoney->value();
     if(parameter.factor[3] != ui->spnWb->value())
         parameter.factor[3] = ui->spnWb->value();
+    if(parameter.factor[4] != ui->spnRate->value())
+        parameter.factor[4] = ui->spnRate->value();
     return AppConfig::getInstance()->savePzTemplateParameter(&parameter);
 }
 

@@ -138,7 +138,7 @@ public:
 
     bool convertExtraInYear(int year, const QHash<int,int> maps, bool isFst = true);
     bool convertPzInYear(int year, const QHash<int,int> fMaps, const QHash<int,int> sMaps);
-    bool lastWbExtraIsZeroForFSub(FirstSubject* ssub);
+    bool isUsedWbForFSub(FirstSubject* fsub, bool &isExist);
     bool getMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> &cfgInfos);
     bool appendMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> cfgInfos);
 

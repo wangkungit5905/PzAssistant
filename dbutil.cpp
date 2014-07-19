@@ -2327,16 +2327,52 @@ bool DbUtil::convertPzInYear(int year, const QHash<int, int> fMaps,
 }
 
 /**
- * @brief 指定一级科目的外币余额是否为零
- * 这个要参考最后两个月的凭证集，后一个月未结账，前一个月已结账，且前一个月没有外币余额，而后一个月
- * 凭证集内没有包含使用此科目和外币的分录存在。只有这样才能视为可以调整为不使用外币。
- * 但这样还有一个问题，如果要查看前面凭证集，比如统计或明细账，则会因为使用调整为不使用外币而无法显示
- * 涉及到外币的分录。
- * @param ssub
+ * @brief 检查使用指定主目所属科目系统的帐套内是否存在这样的分录：
+ *  主目设置为指定主目，货币类型为外币且值不为0的分录。
+ * @param fsub      主目对象
+ * @param isExist   是否存在
  * @return
  */
-bool DbUtil::lastWbExtraIsZeroForFSub(FirstSubject *ssub)
+bool DbUtil::isUsedWbForFSub(FirstSubject *fsub, bool& isExist)
 {
+    isExist = true;
+    int subSysCode = fsub->parent()->getSubSysCode();
+    //查出使用该科目系统的帐套，以确定凭证的查找时间区间
+    QSqlQuery q(db);
+    QString s = QString("select %4,%5,%6 from %1 where %2=%3 order by %4")
+            .arg(tbl_accSuites).arg(fld_accs_subSys).arg(subSysCode)
+            .arg(fld_accs_year).arg(fld_accs_startMonth).arg(fld_accs_endMonth);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int sy=0,sm=0,ey=0,em=0;
+    if(!q.first())
+        return true;
+    sy = q.value(0).toInt();
+    ey = sy;
+    sm = q.value(1).toInt();
+    em = q.value(2).toInt();
+    if(q.last()){
+        ey = q.value(0).toInt();
+        em = q.value(2).toInt();
+    }
+    //查询是否存在符合条件的分录
+    QDate d(sy,sm,1);
+    QString st = d.toString(Qt::ISODate);
+    d.setDate(ey,em,1);
+    d.setDate(ey,em,d.daysInMonth());
+    QString et = d.toString(Qt::ISODate);
+    s = QString("select %1.id from %1 join %2 on %1.%3=%2.id where %2.%4>='%5' "
+                "and %2.%4<='%6' and %1.%7 !=%8")
+            .arg(tbl_ba).arg(tbl_pz).arg(fld_ba_pid).arg(fld_pz_date)
+            .arg(st).arg(et).arg(fld_ba_mt).arg(masterMt);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())
+        isExist = false;
     return true;
 }
 

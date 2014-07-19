@@ -1658,17 +1658,19 @@ bool AppConfig::getPzTemplateParameter(PzTemplateParameter *parameter)
     if(!parameter)
         return false;
     appIni->beginGroup(SEGMENT_PZ_TEMPLATE);
-    parameter->baRowHeight = appIni->value(KEY_PZT_BAROWHEIGHT,6).toFloat();
-    parameter->titleHeight = appIni->value(KEY_PZT_BATITLEHEIGHT,5).toFloat();
+    parameter->baRowHeight = appIni->value(KEY_PZT_BAROWHEIGHT,10.5).toFloat();
+    parameter->titleHeight = appIni->value(KEY_PZT_BATITLEHEIGHT,10).toFloat();
     parameter->baRows = appIni->value(KEY_PZT_BAROWNUM,8).toInt();
-    parameter->cutAreaHeight = appIni->value(KEY_PZT_CUTAREA,30).toInt();
-    parameter->leftRightMargin = appIni->value(KEY_PZT_LR_MARGIN,10).toInt();
-    parameter->topBottonMargin = appIni->value(KEY_PZT_TB_MARGIN,10).toInt();
-    parameter->fontSize = appIni->value(KEY_PZT_FONTSIZE,9).toInt();
+    parameter->cutAreaHeight = appIni->value(KEY_PZT_CUTAREA,14).toInt();
+    parameter->leftRightMargin = appIni->value(KEY_PZT_LR_MARGIN,8).toInt();
+    parameter->topBottonMargin = appIni->value(KEY_PZT_TB_MARGIN,8).toInt();
+    parameter->fontSize = appIni->value(KEY_PZT_FONTSIZE,8).toInt();
+    parameter->isPrintCutLine = appIni->value(KEY_PZT_ISPRINTCUTLINE,true).toBool();
+    parameter->isPrintMidLine = appIni->value(KEY_PZT_ISPRINTMIDLINE,true).toBool();
     bool result = true;
-    QString vs = "0.28,0.28,0.12,0.12";
+    QString vs = "0.27,0.26,0.12,0.10,0.05";
     QStringList factors = appIni->value(KEY_PZT_BATABLE_FACTOR,vs).toString().split(",");
-    if(factors.count() != 4){
+    if(factors.count() != 5){
         LOG_ERROR("PingZheng template parameter error(allocate factor error)");
         factors = vs.split(",");
     }
@@ -1706,8 +1708,10 @@ bool AppConfig::savePzTemplateParameter(PzTemplateParameter *parameter)
     appIni->setValue(KEY_PZT_LR_MARGIN,parameter->leftRightMargin);
     appIni->setValue(KEY_PZT_TB_MARGIN,parameter->topBottonMargin);
     appIni->setValue(KEY_PZT_FONTSIZE,parameter->fontSize);
+    appIni->setValue(KEY_PZT_ISPRINTCUTLINE,parameter->isPrintCutLine);
+    appIni->setValue(KEY_PZT_ISPRINTMIDLINE,parameter->isPrintMidLine);
     QStringList factors;
-    for(int i = 0; i < 4; ++i){
+    for(int i = 0; i < 5; ++i){
         factors<<QString::number(parameter->factor[i],'f',2);
     }
     appIni->setValue(KEY_PZT_BATABLE_FACTOR,factors.join(","));

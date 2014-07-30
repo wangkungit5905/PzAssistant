@@ -590,7 +590,8 @@ enum subWindowType{
     SUBWIN_ACCOUNTPROPERTY=16,//查看账户属性
     SUBWIN_VIEWPZSETERROR=17,  //查看凭证错误窗口
     SUBWIN_SQL = 18,           //SQL工具窗口
-    SUBWIN_OPTION = 19      //选项窗口
+    SUBWIN_OPTION = 19,      //选项窗口
+    SUBWIN_TAXCOMPARE = 20  //税金比对
     //设置期初余额的窗口
     //科目配置窗口
 };
@@ -599,7 +600,8 @@ enum PrintActionClass{
     PAC_NONE        = 0,    //未知打印动作
     PAC_TOPRINTER   = 1,    //输出到打印机
     PAC_PREVIEW     = 2,    //打印预览
-    PAC_TOPDF       = 3     //输出到pdf文件
+    PAC_TOPDF       = 3,    //输出到pdf文件
+    PAC_TOEXCEL     = 4     //输出到Excel文件
 };
 
 struct MixedJoinCfg{

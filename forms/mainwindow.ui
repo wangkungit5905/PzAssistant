@@ -34,7 +34,7 @@
      <x>0</x>
      <y>0</y>
      <width>1052</width>
-     <height>23</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnufile">
@@ -168,6 +168,7 @@
      <property name="title">
       <string>管理员工具</string>
      </property>
+     <addaction name="actTaxCompare"/>
      <addaction name="actImpPzSet"/>
     </widget>
     <widget class="QMenu" name="menu">
@@ -1152,6 +1153,14 @@
    </property>
    <property name="toolTip">
     <string>管理外部实用工具</string>
+   </property>
+  </action>
+  <action name="actTaxCompare">
+   <property name="text">
+    <string>税金比对</string>
+   </property>
+   <property name="toolTip">
+    <string>根据导入的税金数据进行比对，查出不一致的税金及其遗漏或未认证的发票等</string>
    </property>
   </action>
  </widget>

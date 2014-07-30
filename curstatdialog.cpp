@@ -10,6 +10,7 @@
 #include "widgets.h"
 #include "PzSet.h"
 #include "previewdialog.h"
+#include "outputexceldlg.h"
 
 CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *parent)
     :DialogWithPrint(parent),ui(new Ui::CurStatDialog),statUtil(statUtil)
@@ -265,6 +266,9 @@ void CurStatDialog::print(PrintActionClass action)
         break;
     case PAC_TOPDF:
         on_actToPDF_triggered();
+        break;
+    case PAC_TOEXCEL:
+        on_actToExcel_triggered();
         break;
     }
 }
@@ -1125,7 +1129,28 @@ void CurStatDialog::on_actToPDF_triggered()
  */
 void CurStatDialog::on_actToExcel_triggered()
 {
-    QMessageBox::information(this,tr("提示信息"),tr("本功能未实现！"));
+    //QMessageBox::information(this,tr("提示信息"),tr("本功能未实现！"));
+#ifdef Q_OS_WIN
+    OutpuExcelDlg dlg(tr("本期统计（%1年%2余额）").arg(statUtil->year()).arg(statUtil->month()), headerModel,dataModel,this);
+    QList<int> colWidthes,aligns;
+    if(ui->rdoJe->isChecked()){ //金额式
+        //科目编码、科目名称、方向、期初金额、本期借方、本期贷方、方向、期末金额
+        colWidthes<<10<<20<<5<<12<<12<<12<<5<<12;
+        aligns<<1<<1<<1<<0<<0<<0<<1<<0;
+    }
+    else{ //外币金额式
+        //科目编码、科目名称、方向、期初外币、期初金额、本期借方外币、本期借方、本期贷方外币、本期贷方、方向、期末外币、期末金额
+        colWidthes<<10<<20<<5<<12<<12<<12<<12<<12<<12<<5<<12<<12;
+        aligns<<1<<1<<1<<0<<0<<0<<0<<0<<0<<1<<0<<0;
+    }
+
+    dlg.setColWidthes(colWidthes);
+    dlg.setColTextAligns(aligns);
+    dlg.setSheetName(tr("统计"));
+    dlg.exec();
+#else
+    QMessageBox::warning(this,"",tr("此功能目前仅在Windows平台下可用！"));
+#endif
 }
 
 void CurStatDialog::on_btnSave_clicked()

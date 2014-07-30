@@ -303,6 +303,8 @@ private slots:
 
     void on_actManageExternalTool_triggered();
 
+    void on_actTaxCompare_triggered();
+
 private:
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
@@ -371,6 +373,7 @@ private:
     QAction* actPrintPreview;
     QAction* actPrintToPDF;
     QAction* actPrintToPrinter;
+    QAction* actOutputToExcel;
 
     AccountSuiteManager* curSuiteMgr;
     DbUtil* dbUtil;

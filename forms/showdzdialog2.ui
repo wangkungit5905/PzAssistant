@@ -353,6 +353,14 @@ selection-color: rgb(19, 9, 9);</string>
     <string>输出到打印机</string>
    </property>
   </action>
+  <action name="actToExcel">
+   <property name="text">
+    <string>输出到Excel</string>
+   </property>
+   <property name="toolTip">
+    <string>输出到Excel</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>

@@ -87,7 +87,7 @@ class DialogWithPrint : public QDialog{
 public:
     DialogWithPrint(QWidget* parent = 0):QDialog(parent){}
     virtual void print(PrintActionClass pac = PAC_TOPRINTER){}
-    //virtual bool demandPrint(){return true;}
+    //virtual void toExcel(){}
 };
 
 //在QTableWidget中显示业务活动摘要部分内容的表格项
@@ -330,6 +330,26 @@ protected:
     void mouseReleaseEvent(QMouseEvent* event);
 private:
     int intent;
+
+};
+
+/**
+ * @brief 以26个大写字母表示值的spinbox类
+ */
+class LetterSpinBox :public QSpinBox
+{
+    Q_OBJECT
+public:
+    LetterSpinBox(QWidget* parent=0);
+    void setTextValue(QString text);
+    QString textValue();
+
+protected:
+    virtual QString	textFromValue(int textValue) const;
+    virtual int	valueFromText(const QString & text) const;
+    virtual QValidator::State	validate(QString & text, int & pos) const;
+//private:
+
 
 };
 

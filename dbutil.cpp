@@ -948,6 +948,8 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             smg->ysSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_YF))
             smg->yfSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_YJSJ))
+            smg->yjsjSub = fsub;
     }
 
     //3、判定科目系统的开始、截止日期

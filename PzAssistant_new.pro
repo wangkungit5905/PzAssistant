@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core widgets sql xml printsupport
+QT       += core widgets sql xml printsupport axcontainer
 
 TARGET = PzAssistant
 DESTDIR = $${PWD}/../workDir/
@@ -70,7 +70,10 @@ SOURCES += main.cpp\
     newsndsubdialog.cpp \
     importovaccdlg.cpp \
     optionform.cpp \
-    widgets/configpanels.cpp
+    widgets/configpanels.cpp \
+    excel/ExcelUtil.cpp \
+    taxescomparisonform.cpp \
+    outputexceldlg.cpp
 
 HEADERS  += \
     connection.h \
@@ -137,7 +140,10 @@ HEADERS  += \
     newsndsubdialog.h \
     importovaccdlg.h \
     optionform.h \
-    widgets/configpanels.h
+    widgets/configpanels.h \
+    excel/ExcelUtil.h \
+    taxescomparisonform.h \
+    outputexceldlg.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -194,7 +200,10 @@ FORMS    += \
     forms/nabaseinfodialog.ui \
     forms/newsndsubdialog.ui \
     forms/importovaccdlg.ui \
-    forms/pztemplateoptionform.ui
+    forms/pztemplateoptionform.ui \
+    forms/taxesexcelfilecfgform.ui \
+    forms/taxescomparisonform.ui \
+    forms/outpuexceldlg.ui
 
 RESOURCES += \
     imgers.qrc \
@@ -211,7 +220,7 @@ OTHER_FILES += \
     PrjExplain/revisionHistorys \
     账户文本版本说明.txt \
     ini/revisionHistorys.ini \
-    PrjExplain/任务需求分析.txt \
+    PrjExplain/任务需求分�?.txt \
     bugs.txt \
     修改日志.txt
 

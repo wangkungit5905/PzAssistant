@@ -46,6 +46,7 @@
 #include "commands.h"
 #include "importovaccdlg.h"
 #include "optionform.h"
+#include "taxescomparisonform.h"
 
 #include "completsubinfodialog.h"
 
@@ -607,9 +608,12 @@ void MainWindow::initToolBar()
     connect(actPrintPreview,SIGNAL(triggered()),this,SLOT(printProcess()));
     actPrintToPDF = new QAction(tr("打印到PDF文件"),this);
     connect(actPrintToPDF,SIGNAL(triggered()),this,SLOT(printProcess()));
+    actOutputToExcel = new QAction(tr("输出到Excel文件"),this);
+    connect(actOutputToExcel,SIGNAL(triggered()),this,SLOT(printProcess()));
     btnPrint->addAction(actPrintToPrinter);
     btnPrint->addAction(actPrintPreview);
     btnPrint->addAction(actPrintToPDF);
+    btnPrint->addAction(actOutputToExcel);
     ui->tbrMain->addWidget(btnPrint);
 }
 
@@ -1246,6 +1250,30 @@ void MainWindow::on_actManageExternalTool_triggered()
     QProcess* p = new QProcess(this);
     p->start("gedit",QStringList());
 
+}
+
+/**
+ * @brief 税金比对
+ */
+void MainWindow::on_actTaxCompare_triggered()
+{
+#ifdef Q_OS_WIN
+    QByteArray* sinfo = NULL;
+    SubWindowDim* winfo = NULL;
+    TaxesComparisonForm* form = NULL;
+    if(!commonGroups.contains(SUBWIN_TAXCOMPARE)){
+        dbUtil->getSubWinInfo(SUBWIN_TAXCOMPARE,winfo,sinfo);
+        form = new TaxesComparisonForm(curSuiteMgr);
+        connect(form,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
+    }
+    showCommonSubWin(SUBWIN_TAXCOMPARE,form,winfo);
+    if(sinfo)
+        delete sinfo;
+    if(winfo)
+        delete winfo;
+#else
+    QMessageBox::warning(this,"",tr("此功能目前仅在Windows平台下可用！"));
+#endif
 }
 
 
@@ -1989,6 +2017,12 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
                 delete w;
             }
         }
+        else if(winType == SUBWIN_TAXCOMPARE){
+            TaxesComparisonForm* w = static_cast<TaxesComparisonForm*>(subWin->widget());
+            if(w){
+                disconnect(w,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
+            }
+        }
         commonGroups.remove(winType);
     }
     else{
@@ -2071,6 +2105,8 @@ void MainWindow::printProcess()
         pac = PAC_PREVIEW;
     else if(act == actPrintToPDF)
         pac = PAC_TOPDF;
+    else if(act == actOutputToExcel)
+        pac = PAC_TOEXCEL;
     else
         return;
     MyMdiSubWindow* subWin = qobject_cast<MyMdiSubWindow*>(ui->mdiArea->activeSubWindow());
@@ -3638,6 +3674,7 @@ void MainWindow::on_actViewLog_triggered()
 //#include <QToolTip>
 #include "widgets/subjectselectorcombobox.h"
 #include "testform.h"
+#include "excel/ExcelUtil.h"
 bool MainWindow::impTestDatas()
 {
 //    SubjectManager* subMgr = curAccount->getSubjectManager();
@@ -3757,8 +3794,13 @@ bool MainWindow::impTestDatas()
 //    pt.baRowHeight = 8;
 //    pt.factor[4] = 0.11;
 //    r = config->savePzTemplateParameter(&pt);
+
+    ExcelUtil eu;
+    eu.createNew("测试Excel文件.xls");
     int i = 0;
 }
+
+
 
 
 

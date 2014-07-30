@@ -71,6 +71,8 @@ private slots:
 
     void on_actToPdf_triggered();
 
+    void on_actToExcel_triggered();
+
     //void on_btnClose_clicked();
 
     void on_btnSaveFilter_clicked();

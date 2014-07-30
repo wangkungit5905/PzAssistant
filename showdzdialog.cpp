@@ -6,6 +6,7 @@
 #include "HierarchicalHeaderView.h"
 #include "subject.h"
 #include "dbutil.h"
+#include "outputexceldlg.h"
 
 #include <QBuffer>
 #include <QInputDialog>
@@ -299,6 +300,9 @@ void ShowDZDialog::print(PrintActionClass pac)
         break;
     case PAC_TOPDF:
         on_actToPdf_triggered();
+        break;
+    case PAC_TOEXCEL:
+        on_actToExcel_triggered();
         break;
     }
 }
@@ -2504,6 +2508,53 @@ void ShowDZDialog::on_actToPdf_triggered()
     preview = NULL;
 }
 
+void ShowDZDialog::on_actToExcel_triggered()
+{
+#ifdef Q_OS_WIN
+    OutpuExcelDlg dlg(tr("明细表"), headerModel,dataModel,this);
+    QList<int> colWidthes,aligns;
+    switch(tf){
+    //现金格式
+    //0年、1月、2日、3凭证号、4摘要、5结算号、6借方、7贷方、8方向、9余额、10PID、11SID
+    case CASHDAILY:
+        colWidthes<<5<<5<<5<<5<<7<<40<<0<<15<<15<<5<<15<<0<<0;
+        aligns<<1<<1<<1<<1<<1<<0<<0<<0<<0<<1<<0<<0<<0;
+        break;
+    //银行本币格式
+    //0年、1月、2日、3凭证号、4摘要、5结算号、6对方科目、7借方、8贷方、9方向、10余额、11PID、12SID
+    case BANKRMB:
+        colWidthes<<5<<5<<5<<7<<40<<0<<0<<15<<15<<5<<15<<0<<0;
+        aligns<<1<<1<<1<<1<<0<<0<<0<<0<<0<<1<<0<<0<<0;
+        break;
+    //银行外币格式
+    //0年、1月、2日、3凭证号、4摘要、5结算号、6对方科目、7汇率、8借方（外币）、9借方金额、10贷方（外币）、11贷方金额、12方向、13余额（外币）、14余额金额、15PID、16SID
+    case BANKWB:
+        colWidthes<<5<<5<<5<<7<<40<<0<<0<<10<<15<<15<<15<<15<<5<<15<<15<<0<<0;
+        aligns<<1<<1<<1<<1<<1<<0<<0<<0<<0<<0<<0<<0<<1<<0<<0<<0<<0;
+        break;
+    //通用金额式
+    //0年、1月、2日、3凭证号、4摘要、5借方、6贷方、7方向、8余额、9PID、10SID
+    case COMMON:
+        colWidthes<<5<<5<<5<<7<<40<<15<<15<<5<<15<<0<<0;
+        aligns<<1<<1<<1<<1<<0<<0<<0<<1<<0<<0<<0;
+        break;
+    //通用三栏式
+    //0年、1月、2日、3凭证号、4摘要、5汇率、6借方（外币）、7借方金额、8贷方（外币）、9贷方金额、10方向、11余额（外币）、12余额金额、13PID、14SID
+    case THREERAIL:
+        colWidthes<<5<<5<<5<<7<<40<<10<<15<<15<<15<<15<<5<<15<<15<<0<<0;
+        aligns<<1<<1<<1<<1<<0<<0<<0<<0<<0<<0<<1<<0<<0<<0<<0;
+        break;
+    }
+    dlg.setColWidthes(colWidthes);
+    dlg.setColTextAligns(aligns);
+    dlg.setSheetName(tr("明细账"));
+    dlg.exec();
+    #else
+    QMessageBox::warning(this,"",tr("此功能目前仅在Windows平台下可用！"));
+    #endif
+}
+
+
 //void ShowDZDialog2::on_btnClose_clicked()
 //{
 //    emit closeWidget();
@@ -2953,6 +3004,7 @@ void SubjectRangeSelectDialog::on_btnSelAllNot_clicked()
     for(int r = 0; r < ui->tblFstSubs->rowCount(); ++r)
         ui->tblFstSubs->item(r,1)->setCheckState(Qt::Unchecked);
 }
+
 
 
 

@@ -851,5 +851,64 @@ void IntentButton::mouseReleaseEvent(QMouseEvent* event)
     QPushButton::mousePressEvent(event);
 }
 
+//////////////////////LetterSpinBox//////////////////////////
+LetterSpinBox::LetterSpinBox(QWidget *parent):QSpinBox(parent)
+{
+    setMinimum(0);
+    setMaximum(26);
+    setTextValue(0);
+}
+
+void LetterSpinBox::setTextValue(QString text)
+{
+    int v = valueFromText(QString(text));
+    setValue(v);
+}
+
+QString LetterSpinBox::textValue()
+{
+    int v = value();
+    if(v == 0)
+        return "";
+    return textFromValue(v);
+}
+
+QString LetterSpinBox::textFromValue(int value) const
+{
+    if(value == 0)
+        return "";
+    char c = 'A';
+    c = c + value - 1;
+    return QString(c);
+}
+
+int LetterSpinBox::valueFromText(const QString &text) const
+{
+    if(text.length() != 1)
+        return 0;
+    QString t = text;
+    if(text >= "a" && text <= "z")
+        t = text.toUpper();
+    if(t >= "A" && t <= "Z" ){
+        char c = t.at(0).toLatin1();
+        return c - 'A' + 1;
+    }
+    else
+        return 0;
+}
+
+QValidator::State LetterSpinBox::validate(QString &text, int &pos) const
+{
+    if(pos == 0)
+        return QValidator::Acceptable;
+    if(pos > 1)
+        text = text.right(1);
+    if(text >="a" && text <= "z")
+        text = text.toUpper();
+    if(text >= "A" && text <= "Z")
+        return QValidator::Acceptable;
+    else
+        return QValidator::Invalid;
+}
 
 

@@ -41,7 +41,8 @@ public:
         SSC_BNLR    = 5,    //本年利润
         SSC_LRFP    = 6,    //利润分配
         SSC_YS      = 7,    //应收账款
-        SSC_YF      = 8     //应付账款
+        SSC_YF      = 8,    //应付账款
+        SSC_YJSJ    = 9     //应交税金
     };
 
     /**

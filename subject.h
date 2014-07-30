@@ -403,6 +403,7 @@ public:
     FirstSubject* getLrfpSub(){return lrfpSub;}
     FirstSubject* getYsSub(){return ysSub;}
     FirstSubject* getYfSub(){return yfSub;}
+    FirstSubject* getYjsjSub(){return yjsjSub;}
     bool isSySubject(int sid);
     bool isSyClsSubject(int sid, bool &yes, bool isFst=true);
 
@@ -459,7 +460,7 @@ private:
     FirstSubject* FSub_NULL;               //空的一级科目（其id为-1，没有任何实际的科目相对应）
     FirstSubject *cashSub,*bankSub,*ysSub,*yfSub;  //现金、银行科目对象
     FirstSubject *gdzcSub,*dtfySub,*ljzjSub,*bnlrSub,*lrfpSub;//固定资产、待摊费用、累计折旧、本年利润和利润分配科目id
-    FirstSubject *cwfySub;
+    FirstSubject *cwfySub,*yjsjSub; //财务费用、应交税金
 
     friend class DbUtil;
 };

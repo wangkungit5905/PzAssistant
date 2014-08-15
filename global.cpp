@@ -120,7 +120,10 @@ int appInit()
     screenHeight = desktop.availableGeometry().height();
 
     bdb = appCfg->getBaseDbConnect();
-    initSecurity();    
+    if(!initSecurity()){
+        //QMessageBox::critical(0,"",QObjetr("安全模块初始化错误！"));
+        return 6;
+    }
     //appCfg->initGlobalVar();
 
     appCfg->readPzSetStates(pzsStates,pzsStateDescs);

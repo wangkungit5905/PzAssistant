@@ -35,7 +35,8 @@ public:
         ETIME     = 10,          //账户记账终止时间（当前账户最后记账时间）
         CSUITE    = 11,          //账户当前帐套年份
         SUITENAME = 12,          //帐套名列表
-        LASTACCESS= 13,          //账户最后访问时间
+        LASTACCESS= 13,          //账户最后访问时间        
+        EXCLUSIVEUSER = 14,      //账户专属用户（只有是此用户或超级用户或管理员才可以访问该账户）
         LOGFILE   = 50,          //与该账户相关的日志文件名
         DBVERSION = 51           //账户文件的版本号（用来表示数据库内表格的变动）
     };
@@ -208,6 +209,9 @@ public:
     bool getSubWinInfo(int winEnum, SubWindowDim* &info, QByteArray* &otherInfo);
     bool saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo = NULL);
 
+    //笔记功能函数
+    bool readNotes(QList<NoteStruct *> &notes);
+    bool saveNote(NoteStruct* note, bool isDel=false);
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool _readAccountSuites(QList<AccountSuiteRecord*>& suites);
@@ -263,6 +267,9 @@ private:
 
     void _getPreYM(int y, int m, int& yy, int& mm);
     void _getNextYM(int y, int m, int& yy, int& mm);
+
+    //笔记功能函数
+    bool initNoteTable();
 
 private:
     QSqlDatabase db;

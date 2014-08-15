@@ -4,7 +4,10 @@
 #
 #-------------------------------------------------
 
-QT       += core widgets sql xml printsupport axcontainer
+QT       += core widgets sql xml printsupport
+win32{
+    QT += axcontainer
+}
 
 TARGET = PzAssistant
 DESTDIR = $${PWD}/../workDir/
@@ -73,7 +76,9 @@ SOURCES += main.cpp\
     widgets/configpanels.cpp \
     excel/ExcelUtil.cpp \
     taxescomparisonform.cpp \
-    outputexceldlg.cpp
+    outputexceldlg.cpp \
+    tools/notemgrform.cpp \
+    tools/externaltoolconfigform.cpp
 
 HEADERS  += \
     connection.h \
@@ -143,7 +148,9 @@ HEADERS  += \
     widgets/configpanels.h \
     excel/ExcelUtil.h \
     taxescomparisonform.h \
-    outputexceldlg.h
+    outputexceldlg.h \
+    tools/notemgrform.h \
+    tools/externaltoolconfigform.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -203,7 +210,9 @@ FORMS    += \
     forms/pztemplateoptionform.ui \
     forms/taxesexcelfilecfgform.ui \
     forms/taxescomparisonform.ui \
-    forms/outpuexceldlg.ui
+    forms/outpuexceldlg.ui \
+    forms/notemgrform.ui \
+    externaltoolconfigform.ui
 
 RESOURCES += \
     imgers.qrc \
@@ -220,9 +229,8 @@ OTHER_FILES += \
     PrjExplain/revisionHistorys \
     账户文本版本说明.txt \
     ini/revisionHistorys.ini \
-    PrjExplain/任务需求分�?.txt \
-    bugs.txt \
-    修改日志.txt
+    PrjExplain/任务需求分析.txt \
+    bugs.txt
 
 win32{
     RC_FILE = exeico.rc

@@ -484,6 +484,17 @@ const int SSJ_DF_SUB = 3;
 const int SSJ_DS_SUB = 4;
 
 
+//笔记表
+const QString tbl_Notes = "notes";
+const QString fld_notes_title = "title";
+const QString fld_notes_createTime = "createTime";
+const QString fld_notes_lastEditTime = "lastEditTime";
+const QString fld_notes_content = "content";
+const int FI_NOTE_TITLE = 1;
+const int FI_NOTE_CREATETIME = 2;
+const int FI_NOTE_LASTTIME = 3;
+const int FI_NOTE_CONTENT = 4;
+
 
 //////////*****************基本库数据表********************************//////////
 //币种类别表
@@ -671,4 +682,58 @@ const QString fld_base_ssjc_isDef = "isDef";    //是否默认对接，即是否
 const int FI_BASE_SSJC_SCODE = 1;
 const int FI_BASE_SSJC_DCODE = 2;
 const int FI_BASE_SSJC_ISDEF = 3;
+
+//权限类别表
+const QString tbl_base_righttypes = "rightType";
+const QString fld_base_rt_pcode = "pcode";      //父类别代码
+const QString fld_base_rt_code = "code";
+const QString fld_base_rt_name = "name";
+const QString fld_base_rt_explain = "explain";
+const int FI_BASE_RT_PCODE = 1;
+const int FI_BASE_RT_CODE = 2;
+const int FI_BASE_RT_NAME = 3;
+const int FI_BASE_RT_EXPLAIN = 4;
+
+//权限表
+const QString tbl_base_rights = "rights";
+const QString fld_base_r_code = "code";
+const QString fld_base_r_type = "type";
+const QString fld_base_r_name = "name";
+const QString fld_base_r_explain = "explain";
+const int FI_BASE_R_CODE = 1;
+const int FI_BASE_R_TYPE = 2;
+const int FI_BASE_R_NAME = 3;
+const int FI_BASE_R_EXPLAIN = 4;
+
+//用户组表
+const QString tbl_base_usergroups = "groups";
+const QString fld_base_g_code = "code";
+const QString fld_base_g_name = "name";
+const QString fld_base_g_rights = "haveRights";
+const QString fld_base_g_explain = "explain";
+const int FI_BASE_G_CODE = 1;
+const int FI_BASE_G_NAME = 2;
+const int FI_BASE_G_RIGHTS = 3;
+const int FI_BASE_G_EXPLAIN = 4;
+
+//用户表
+const QString tbl_base_users = "users";
+const QString fld_base_u_name = "name";
+const QString fld_base_u_password = "password";
+const QString fld_base_u_groups = "ownerGroups";
+const QString fld_base_u_accounts = "exclusiveAccounts";
+const int FI_BASE_U_NAME = 1;
+const int FI_BASE_U_PASSWORD = 2;
+const int FI_BASE_U_GROUPS = 3;
+const int FI_BASE_U_ACCOUNTS = 4;
+
+//外部工具配置表
+const QString tbl_base_external_tools = "ExternalTools";
+const QString fld_base_et_name = "Name";
+const QString fld_base_et_commandline = "Command";
+const QString fld_base_et_parameter = "Parameter";
+const int FI_BASE_ET_NAME = 1;
+const int FI_BASE_ET_COMMANDLINE = 2;
+const int FI_BASE_ET_PARAMETER = 3;
+
 #endif // TABLES_H

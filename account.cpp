@@ -459,6 +459,18 @@ bool Account::isValid()
         return true;
 }
 
+/**
+ * @brief 指定用户是否可以访问该账户
+ * @param u
+ * @return
+ */
+bool Account::canAccess(User *u)
+{
+    if(u->isSuperUser() || u->isAdmin())
+        return true;
+    return accInfos.exclusiveUsers.contains(u);
+}
+
 void Account::close()
 {
     dbUtil->saveAccountInfo(accInfos);

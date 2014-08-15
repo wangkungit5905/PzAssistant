@@ -104,7 +104,17 @@ public:
     explicit SecConDialog(QWidget *parent = 0);
     ~SecConDialog();
 
+    enum TabIndexEnum{
+        TI_GROUP    = 0,
+        TI_USER     = 1,
+        TI_RIGHT    = 2,
+        TI_RIGHTTYPE= 3,
+        TI_OPERATER = 4
+    };
+
 private slots:
+    void currentTabChanged(int index);
+
     void onRightellChanged(int row, int column);
 
     void on_actAddRight_triggered();
@@ -121,13 +131,43 @@ private slots:
 
     void on_actChgUserOwner_triggered();
 
-
-
     void on_lwGroup_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
+
+    void on_lwUsers_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
+
+    void on_actAddGrpForUser_triggered();
+
+    void on_actDelGrpForUser_triggered();
+
+    void on_actAddGroup_triggered();
+
+    void on_actDelGroup_triggered();
+
+    void on_actAddUser_triggered();
+
+    void on_actDelUser_triggered();
+
+    void on_actAddAcc_triggered();
+
+    void on_actDelAcc_triggered();
 
 private:
     void init();
+    QList<RightType*> getRightType(RightType* parent = NULL);
+    QList<Right*> getRightsForType(RightType* type);
+
+    //组相关函数
+    //void initRightTreesInGroupPanel();
+    void genRightTree(RightType* type, bool isLeaf = false, QTreeWidgetItem* parent=NULL);
     void initRightTypes(int pcode, QTreeWidgetItem* pitem = NULL);
+    void refreshRightForGroup(UserGroup* group, QTreeWidgetItem *parent=NULL);
+    void collectRightForGroup(QSet<Right*> &rs, QTreeWidgetItem *parent=NULL);
+    void isCurGroupChanged(UserGroup* g);
+
+    //用户相关函数
+    void viewUserInfos(User* u);
+    void isCurUserChanged(User* u);
+
     QTreeWidgetItem* findItem(QTreeWidget* tree, int code, QTreeWidgetItem* startItem = NULL);
     void saveRights();
     void saveGroups();
@@ -135,12 +175,15 @@ private:
     void saveOperates();
 
     Ui::SecConDialog *ui;
-    //QSqlDatabase db;
-    //QSqlTableModel* rmodel;
+    AppConfig* appCon;
+    TabIndexEnum curTab;
+    //这些集合保存被修改的对象，以便在退出时保存
+    QSet<UserGroup*> set_groups;
+    QSet<User*> set_Users;
 
     QIntValidator* vat; //用于验证代码
     //数据修改标记
-    bool rightDirty,groupDirty,userDirty,operDirty;
+    //bool rightDirty,groupDirty,userDirty,operDirty;
 };
 
 //凭证搜索对话框类

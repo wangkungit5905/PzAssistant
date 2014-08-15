@@ -1008,20 +1008,240 @@ bool AppConfig::getSubCodeToNameHash(int subSys, QHash<QString, QString> &subNam
  * @brief 读取所有配置的外部工具配置项
  * @param items
  */
-void AppConfig::readAllExternalTools(QList<ExternalToolCfgItem *> &items)
+bool AppConfig::readAllExternalTools(QList<ExternalToolCfgItem *> &items)
 {
-
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_base_external_tools);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        ExternalToolCfgItem* item = new ExternalToolCfgItem;
+        item->id = q.value(0).toInt();
+        item->name = q.value(FI_BASE_ET_NAME).toString();
+        item->commandLine = q.value(FI_BASE_ET_COMMANDLINE).toString();
+        item->parameter = q.value(FI_BASE_ET_PARAMETER).toString();
+        items<<item;
+    }
+    return true;
 }
 
 /**
  * @brief 保存配置的外部工具配置项
  * @param item
  */
-void AppConfig::saveExternalTool(ExternalToolCfgItem *item)
+bool AppConfig::saveExternalTool(ExternalToolCfgItem *item, bool isDelete)
 {
-    appIni->beginGroup(SEGMENT_EXTERNAL_TOOL);
+    QSqlQuery q(db);
+    QString s;
+    if(isDelete){
+        s = QString("delete from %1 where id=%2").arg(tbl_base_external_tools).arg(item->id);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    else{
+        if(item->id==0)
+            s = QString("insert into %1(%2,%3,%4) values('%5','%6','%7')").arg(tbl_base_external_tools)
+                    .arg(fld_base_et_name).arg(fld_base_et_commandline).arg(fld_base_et_parameter)
+                    .arg(item->name).arg(item->commandLine).arg(item->parameter);
+        else
+            s = QString("update %1 set %2='%5',%3='%6',%4='%7' where id=%8").arg(tbl_base_external_tools)
+                    .arg(fld_base_et_name).arg(fld_base_et_commandline).arg(fld_base_et_parameter)
+                    .arg(item->name).arg(item->commandLine).arg(item->parameter).arg(item->id);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        if(item->id == 0){
+            q.exec("select last_insert_rowid()");
+            q.first();
+            item->id = q.value(0).toInt();
+        }
+    }
+    return true;
+}
 
-    appIni->endGroup();
+bool AppConfig::getRights(QHash<int, Right *> &rights)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_base_rights);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int code = q.value(FI_BASE_R_CODE).toInt();
+        QString name = q.value(FI_BASE_R_NAME).toString();
+        RightType* type = allRightTypes.value(q.value(FI_BASE_R_TYPE).toInt());
+        QString explain = q.value(FI_BASE_R_EXPLAIN).toString();
+        Right* right = new Right(code,type,name,explain);
+        rights[code] = right;
+    }
+    return true;
+}
+
+bool AppConfig::getUsers(QHash<int, User *> &users)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_base_users);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int id = q.value(0).toInt();
+        QString name = q.value(FI_BASE_U_NAME).toString();
+        QString pw = q.value(FI_BASE_U_PASSWORD).toString();
+        QString gs = q.value(FI_BASE_U_GROUPS).toString();
+        QSet<UserGroup*> groups;
+        if(!gs.isEmpty()){
+            QStringList gr = gs.split(",");            
+            for(int i = 0; i < gr.count(); ++i){
+                groups.insert(allGroups.value(gr[i].toInt()));
+            }            
+        }
+        User* user = new User(id, name, pw, groups);
+        users[id] = user;
+        gs = q.value(FI_BASE_U_ACCOUNTS).toString();
+        if(!gs.isEmpty()){
+            foreach(QString code, gs.split(",")){
+                if(!code.isEmpty())
+                    user->addExclusiveAccount(code);
+            }
+        }
+    }
+    return true;
+}
+
+bool AppConfig::saveUser(User *u, bool isDelete)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(isDelete){
+        s = QString("delete from %1 where id=%2").arg(tbl_base_users).arg(u->getUserId());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        return true;
+    }
+    if(u->getUserId() != UNID)
+        s = QString("update %1 set %2='%6',%3='%7',%4='%8',%5='%9' where id=%10")
+                .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
+                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(u->getName())
+                .arg(u->getPassword()).arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(","))
+                .arg(u->getUserId());
+    else
+        s = QString("insert into %1(%2,%3,%4,%5) value('%6','%7','%8','%9')")
+                .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
+                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(u->getName())
+                .arg(u->getPassword()).arg(u->getOwnerGroupCodeList())
+                .arg(u->getExclusiveAccounts().join(","));
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(u->getUserId() == UNID){
+        q.exec("select last_insert_rowid()");
+        q.first();
+        int id = q.value(0).toInt();
+        u->id = id;
+        allUsers[id] = u;
+    }
+    return true;
+}
+
+bool AppConfig::getRightTypes(QHash<int, RightType*> &types)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 order by %2")
+            .arg(tbl_base_righttypes).arg(fld_base_rt_pcode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int c = q.value(FI_BASE_RT_CODE).toInt();
+        int pc = q.value(FI_BASE_RT_PCODE).toInt();
+        RightType* p = types.value(pc);
+        RightType* t = new RightType;
+        t->code = c; t->pType = p;
+        t->name = q.value(FI_BASE_RT_NAME).toString();
+        t->explain = q.value(FI_BASE_RT_EXPLAIN).toString();
+        types[c] = t;
+    }
+    return true;
+}
+
+bool AppConfig::getUserGroups(QHash<int, UserGroup *> &groups)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_base_usergroups);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int code = q.value(FI_BASE_G_CODE).toInt();
+        QString name = q.value(FI_BASE_G_NAME).toString();
+        QString rs = q.value(FI_BASE_G_RIGHTS).toString();
+        QSet<Right*> haveRights;
+        if(!rs.isEmpty()){
+            QStringList rl = rs.split(",");            
+            for(int i = 0; i < rl.count(); ++i){
+                Right* r = allRights.value(rl[i].toInt());
+                if(!r)
+                    LOG_ERROR(QString("Fonded a not exist right(right code=%1,group code=%2)")
+                              .arg(rl[i].toInt()).arg(code));
+                else
+                    haveRights.insert(r);
+            }            
+        }
+        UserGroup* group = new UserGroup(code, name, haveRights);
+        groups[code] = group;
+    }
+    return true;
+}
+
+bool AppConfig::saveUserGroup(UserGroup *g, bool isDelete)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(isDelete){
+        s = QString("delete from %1 where %2=%3").arg(tbl_base_usergroups)
+                .arg(fld_base_g_code).arg(g->getGroupCode());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        allGroups.remove(g->getGroupCode());
+        delete g;
+        return true;
+    }
+    s = QString("update %1 set %3='%7',%4='%8',%5='%9' where %2=%6")
+            .arg(tbl_base_usergroups).arg(fld_base_g_code).arg(fld_base_g_name)
+            .arg(fld_base_g_rights).arg(fld_base_g_explain).arg(g->getGroupCode())
+            .arg(g->getName()).arg(g->getRightCodeList()).arg(g->getExplain());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int nums = q.numRowsAffected();
+    if(nums == 0){
+        s = QString("insert into %1(%2,%3,%4,%5) values(%6,'%7','%8','%9')").arg(tbl_base_usergroups)
+                .arg(fld_base_g_code).arg(fld_base_g_name).arg(fld_base_g_explain)
+                .arg(fld_base_g_rights).arg(g->getGroupCode()).arg(g->getName())
+                .arg(g->getExplain()).arg(g->getRightCodeList());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        allGroups[g->getGroupCode()] = g;
+    }
+    return true;
 }
 
 /**

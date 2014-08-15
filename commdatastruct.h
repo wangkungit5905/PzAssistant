@@ -573,25 +573,22 @@ enum subWindowType{
     SUBWIN_PZEDIT       = 1,    //凭证编辑窗口（新）
     SUBWIN_PZSTAT       = 2,    //本期统计窗口（新）
     SUBWIN_DETAILSVIEW  = 3,    //明细账视图（新）
-
-    //CASHDAILY  = 3,    //现金日记账窗口
-    //BANKDAILY  = 4,    //银行日记账窗口
-    //DETAILSDAILY=5,    //明细科目日记账窗口
-    TOTALDAILY = 6,    //总分类账窗口
-    SUBWIN_SETUPBASE  = 7,    //设置账户期初余额窗口
-    //SETUPBANK  = 8,    //设置开户行信息
-    SUBWIN_BASEDATAEDIT = 9,  //基本数据库编辑窗口
-    SUBWIN_GDZCADMIN =  10,   //固定资产管理窗口
-    //DTFYADMIN = 11,    //待摊费用管理窗口
-    SUBWIN_TOTALVIEW = 12,    //总账视图
-    //DETAILSVIEW = 13,  //明细账视图
-    SUBWIN_HISTORYVIEW = 14,  //历史凭证
-    SUBWIN_LOOKUPSUBEXTRA =15,//查看科目余额
-    SUBWIN_ACCOUNTPROPERTY=16,//查看账户属性
-    SUBWIN_VIEWPZSETERROR=17,  //查看凭证错误窗口
-    SUBWIN_SQL = 18,           //SQL工具窗口
-    SUBWIN_OPTION = 19,      //选项窗口
-    SUBWIN_TAXCOMPARE = 20  //税金比对
+    TOTALDAILY = 6,             //总分类账窗口
+    SUBWIN_SETUPBASE  = 7,      //设置账户期初余额窗口
+    SUBWIN_BASEDATAEDIT = 9,    //基本数据库编辑窗口
+    SUBWIN_GDZCADMIN =  10,     //固定资产管理窗口
+    //DTFYADMIN = 11,           //待摊费用管理窗口
+    SUBWIN_TOTALVIEW = 12,      //总账视图
+    SUBWIN_HISTORYVIEW = 14,    //历史凭证
+    SUBWIN_LOOKUPSUBEXTRA =15,  //查看科目余额
+    SUBWIN_ACCOUNTPROPERTY=16,  //查看账户属性
+    SUBWIN_VIEWPZSETERROR=17,   //查看凭证错误窗口
+    SUBWIN_SQL = 18,            //SQL工具窗口
+    SUBWIN_OPTION = 19,         //选项窗口
+    SUBWIN_TAXCOMPARE = 20,     //税金比对
+    SUBWIN_SECURITY = 21,       //安全模块配置窗口
+    SUBWIN_NOTEMGR = 22,        //笔记管理
+    SUBWIN_EXTERNALTOOLS = 23   //外部工具
     //设置期初余额的窗口
     //科目配置窗口
 };
@@ -625,6 +622,25 @@ struct PzTemplateParameter{
     int fontSize;           //分录表字体尺寸
     bool isPrintCutLine;    //是否打印裁剪线
     bool isPrintMidLine;    //是否打印中心线
+};
+
+/**
+ * @brief 笔记结构
+ */
+struct NoteStruct{
+    int id;
+    qint64 crtTime,lastEditTime;
+    QString title;
+    QString content;
+};
+Q_DECLARE_METATYPE(NoteStruct*)
+
+/**
+ * @brief 外部工具配置项
+ */
+struct ExternalToolCfgItem{
+    int id;
+    QString name,commandLine,parameter;
 };
 
 //enum MachineType{

@@ -180,6 +180,8 @@ private slots:
     void baIndexBoundaryChanged(bool first, bool last);
     void baSelectChanged(QList<int> rows, bool conti);
 
+    void startExternalTool(int index);
+
     /////////////////////////////////////////////////////////////////
     void suiteViewSwitched(AccountSuiteManager* previous, AccountSuiteManager* current);
     void viewOrEditPzSet(AccountSuiteManager* accSmg, int month);
@@ -305,6 +307,8 @@ private slots:
 
     void on_actTaxCompare_triggered();
 
+    void on_actNoteMgr_triggered();
+
 private:
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
@@ -313,6 +317,7 @@ private:
     void initToolBar();
     void initSearchClientToolView();
     void initTvActions();
+    void initExternalTools();
     void accountInit(AccountCacheItem *ci);
     subWindowType activedMdiChild();
     void addSubWindowMenuItem(QList<MyMdiSubWindow*> windows);
@@ -360,6 +365,7 @@ private:
 
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
     QSignalMapper* tvMapper;     //用于处理从视图菜单中选择显示的工具视图
+    QSignalMapper* etMapper;     //用于处理外部工具菜单
 
     bool sortBy; //凭证集的排序方式（true：按凭证号，false：按自编号）
 
@@ -389,5 +395,7 @@ private:
     QHash<int,QList<PingZheng*> > historyPzSet;    //每个帐套视图当前正浏览的历史凭证列表
     QHash<int,int> historyPzSetIndex;              //每个帐套视图当前正浏览的历史凭证集的当前索引
     QHash<int,int> historyPzMonth;                 //每个账套视图当前装载的历史凭证的月份数
+    QList<ExternalToolCfgItem*> eTools;            //外部工具配置项列表
+    AppConfig* appCon;
  };
 #endif // MAINWINDOW_H

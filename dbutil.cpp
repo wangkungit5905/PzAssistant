@@ -601,6 +601,18 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
         case LOGFILE:
             infos.logFileName = q.value(1).toString();
             break;
+        case EXCLUSIVEUSER:
+            s = q.value(1).toString();
+            if(!s.isEmpty()){
+                sl = s.split(",");
+                foreach(QString str, sl){
+                    int id = str.toInt();
+                    User* u = allUsers.value(id);
+                    if(u)
+                        infos.exclusiveUsers.insert(u);
+                }
+            }
+            break;
         case DBVERSION:
             infos.dbVersion = q.value(1).toString();
             sl = infos.dbVersion.split(".");
@@ -4279,6 +4291,78 @@ bool DbUtil::saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *otherIn
 }
 
 /**
+ * @brief 读取笔记
+ * @return
+ */
+bool DbUtil::readNotes(QList<NoteStruct*> &notes)
+{
+    if(!initNoteTable())
+        return false;
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 order by %2 DESC").arg(tbl_Notes).arg(fld_notes_lastEditTime);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        NoteStruct* note = new NoteStruct;
+        note->id = q.value(0).toInt();
+        note->title = q.value(FI_NOTE_TITLE).toString();
+        note->content = q.value(FI_NOTE_CONTENT).toString();
+        note->crtTime = q.value(FI_NOTE_CREATETIME).toULongLong();
+        note->lastEditTime = q.value(FI_NOTE_LASTTIME).toULongLong();
+        notes<<note;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveNote 保存笔记
+ * @param note
+ * @return
+ */
+bool DbUtil::saveNote(NoteStruct *note, bool isDel)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(isDel){
+        s = QString("delete from %1 where id=%2").arg(tbl_Notes).arg(note->id);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    else{
+        if(note->id == 0)
+            s = QString("insert into %1(%2,%3,%4,%5) values(:title,:content,:crtTime,:lastTime)")
+                    .arg(tbl_Notes).arg(fld_notes_title).arg(fld_notes_content)
+                    .arg(fld_notes_createTime).arg(fld_notes_lastEditTime);
+        else
+            s = QString("update %1 set %2=:title,%3=:content,%4=:crtTime,%5=:lastTime where id=%6")
+                    .arg(tbl_Notes).arg(fld_notes_title).arg(fld_notes_content)
+                    .arg(fld_notes_createTime).arg(fld_notes_lastEditTime).arg(note->id);
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.bindValue(":title",note->title);
+        q.bindValue(":content",note->content);
+        q.bindValue(":crtTime",note->crtTime);
+        q.bindValue(":lastTime",note->lastEditTime);
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+        if(note->id == 0){
+            q.exec("select last_insert_rowid()");
+            q.first();
+            note->id = q.value(0).toInt();
+        }
+    }
+    return true;
+}
+
+/**
  * @brief DbUtil::saveAccInfoPiece
  *  保存账户信息片段
  * @param code
@@ -6298,4 +6382,22 @@ void DbUtil::_getNextYM(int y, int m, int &yy, int &mm)
         yy = y;
         mm = m + 1;
     }
+}
+
+bool DbUtil::initNoteTable()
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from sqlite_master where name='%1'").arg(tbl_Notes);
+    if(!q.exec(s))
+        return false;
+    if(!q.first()){
+        s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY, %2 TEXT, %3 INTEGER, %4 INTEGER, %5 BLOB)")
+                .arg(tbl_Notes).arg(fld_notes_title).arg(fld_notes_createTime)
+                .arg(fld_notes_lastEditTime).arg(fld_notes_content);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    return true;
 }

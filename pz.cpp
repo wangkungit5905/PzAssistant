@@ -155,6 +155,14 @@ void BusiAction::setMt(Money *mt, Double v)
             emit valueChanged(oldMt,oldV,dir,this);
         parent->setEditState(ES_PZ_BACTION);
     }
+    else if(this->mt == mt && this->v != v){
+        Double oldV = this->v;
+        this->v = v;
+        setEditState(ES_BA_VALUE);
+        if(mt)
+            emit valueChanged(mt,oldV,dir,this);
+        parent->setEditState(ES_PZ_BACTION);
+    }
 }
 
 void BusiAction::setValue(Double value)

@@ -1,94 +1,45 @@
 #include "securitys.h"
 #include "global.h"
 
-//QSqlDatabase bdb;
 QHash<int,User*> allUsers;
-QHash<int,QString> allRightTypes;
+QHash<int,RightType*> allRightTypes;
 QHash<int,Right*> allRights;
 QHash<int,UserGroup*> allGroups;
 QHash<int,Operate*> allOperates;
 
+
+bool rightTypeByCode(RightType *rt1, RightType *rt2)
+{
+    return rt1->code < rt2->code;
+}
+
+bool rightByCode(Right *r1, Right *r2)
+{
+    return r1->getCode() < r2->getCode();
+}
+
+bool groupByCode(UserGroup* g1, UserGroup* g2)
+{
+    return g1->getGroupCode() < g2->getGroupCode();
+}
+
+bool userByCode(User* u1, User* u2)
+{
+    return u1->getUserId() < u2->getUserId();
+}
+
 //初始化用户、组、权限和操作
 bool initSecurity()
 {
-    bool r = false;
-    QSqlQuery q(bdb);
-
-    r = q.exec("select * from rightType");
-    while(q.next()){
-        int code = q.value(2).toInt();
-        QString name = q.value(3).toString();
-        allRightTypes[code] = name;
-    }
-
-    r = q.exec("select * from rights");
-    while(q.next()){
-        int code = q.value(1).toInt();
-        int type = q.value(2).toInt();
-        QString name = q.value(3).toString();
-        QString explain = q.value(4).toString();
-        Right* right = new Right(code,type,name,explain);
-        allRights[code] = right;
-    }
-
-    UserGroup* group;
-    r = q.exec("select * from groups");
-    while(q.next()){
-        int code = q.value(1).toInt();        
-        QString name = q.value(2).toString();
-        if(code == USER_GROUP_ROOT_ID){ //超级用户组
-            group = new UserGroup(USER_GROUP_ROOT_ID, name);
-            allGroups[USER_GROUP_ROOT_ID] = group;
-            continue;
-        }
-        QString rs = q.value(3).toString();        
-        if(rs != ""){
-            QStringList rl = rs.split(",");
-            QSet<Right*> haveRights;
-            for(int i = 0; i < rl.count(); ++i){
-                haveRights.insert(allRights.value(rl[i].toInt()));
-            }
-            group = new UserGroup(code, name, haveRights);
-            allGroups[code] = group;
-        }
-
-    }
-
-    r = q.exec("select * from users");
-    while(q.next()){
-        int id = q.value(0).toInt();
-        QString name = q.value(1).toString();
-        QString pw = q.value(2).toString();
-        QString gs = q.value(3).toString();
-        if(gs != ""){
-            QStringList gr = gs.split(",");
-            QSet<UserGroup*> groups;
-            for(int i = 0; i < gr.count(); ++i){
-                groups.insert(allGroups.value(gr[i].toInt()));
-            }
-            User* user = new User(id, name, pw, groups);
-            allUsers[id] = user;
-        }
-    }
-
-    r = q.exec("select * from permitions");
-    while(q.next()){
-        int code = q.value(1).toInt();
-        QString name = q.value(2).toString();
-        QString rst = q.value(3).toString();
-        if(rst != ""){
-            QSet<Right*> rights;
-            QStringList rs = rst.split(",");
-            for(int i = 0; i < rs.count(); ++i){
-                rights.insert(allRights.value(rs[i].toInt()));
-            }
-            Operate* op = new Operate(code, name, rights);
-            allOperates[code] = op;
-        }
-    }
-
+    AppConfig* appCon = AppConfig::getInstance();
+    bool r = appCon->getRightTypes(allRightTypes);
+    if(r)
+        r = appCon->getRights(allRights);
+    if(r)
+        r = appCon->getUserGroups(allGroups);
+    if(r)
+        r = appCon->getUsers(allUsers);
     return r;
-
 }
 
 ///////////////////////User类/////////////////////////////////////
@@ -139,18 +90,32 @@ void User::setOwnerGroups(QSet<UserGroup*> groups)
     refreshRights();
 }
 
+/**
+ * @brief 返回用户所属组的代码串
+ * @return
+ */\
+QString User::getOwnerGroupCodeList()
+{
+    QList<UserGroup*> gs = groups.toList();
+    qSort(gs.begin(),gs.end(),groupByCode);
+    QStringList sl;
+    foreach(UserGroup* g, gs)
+        sl<<QString::number(g->getGroupCode());
+    return sl.join(",");
+}
+
 //添加组
 void User::addGroup(UserGroup* group)
 {
     groups.insert(group);
-    refreshRights();
+    rights += group->getHaveRights();
 }
 
 //删除组
 void User::delGroup(UserGroup* group)
 {
     groups.remove(group);
-    refreshRights();
+    rights -= group->getHaveRights();
 }
 
 //刷新用户具有的所有权限
@@ -159,7 +124,8 @@ void User::refreshRights()
     rights.clear();
     QSetIterator<UserGroup*> it(groups);
     while(it.hasNext()){
-        rights = rights + it.next()->getHaveRights();
+        UserGroup* g = it.next();
+        rights += g->getHaveRights();
     }
 }
 
@@ -172,7 +138,7 @@ QSet<Right*> User::getAllRight()
 //是否用户具有指定的权限
 bool User::haveRight(Right* right)
 {
-    if(id == 1)
+    if(isSuperUser())
         return true;
     else
         return rights.contains(right);
@@ -198,9 +164,57 @@ bool User::isSuperUser()
     return false;
 }
 
+/**
+ * @brief 是否是管理员
+ * @return
+ */
+bool User::isAdmin()
+{
+    QSetIterator<UserGroup*> it(groups);
+    while(it.hasNext()){
+        if(it.next()->getGroupCode() == USER_GROUP_ADMIN_ID)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * @brief 是否可以访问指定账户
+ * @param account
+ * @return
+ */
+bool User::canAccessAccount(Account *account)
+{
+    if(isSuperUser() || isAdmin())
+        return true;
+    return accountCodes.contains(account->getCode());
+}
+
+/**
+ * @brief 返回用户可以访问的账户代码列表
+ * @return
+ */
+QStringList User::getExclusiveAccounts()
+{
+    QSetIterator<QString> it(accountCodes);
+    QStringList sl;
+    while(it.hasNext()){
+        sl<<it.next();
+    }
+    qSort(sl.begin(),sl.end());
+    return sl;
+}
+
+void User::setExclusiveAccounts(QStringList codes)
+{
+    accountCodes.clear();
+    foreach(QString code,codes)
+        accountCodes.insert(code);
+}
+
 ///////////////////////////right类////////////////////////////////////
 
-Right::Right(int code, int type, QString name, QString explain)
+Right::Right(int code, RightType *type, QString name, QString explain)
 {
     this->code = code;
     this->type = type;
@@ -208,12 +222,12 @@ Right::Right(int code, int type, QString name, QString explain)
     this->explain = explain;
 }
 
-void Right::setType(int t)
+void Right::setType(RightType* t)
 {
     type = t;
 }
 
-int Right::getType()
+RightType* Right::getType()
 {
     return type;
 }
@@ -248,6 +262,7 @@ QString Right::getExplain()
     return explain;
 }
 
+
 //////////////////UserGroup类////////////////////////////////////////////
 UserGroup::UserGroup(int code, QString name, QSet<Right*> haveRights)
 {
@@ -275,6 +290,20 @@ QSet<Right*> UserGroup::getHaveRights()
     return rights;
 }
 
+/**
+ * @brief 返回组所拥有的所有权限的代码的字符串，代码之间用逗号分隔
+ * @return
+ */
+QString UserGroup::getRightCodeList()
+{
+    QList<Right*> rs = rights.toList();
+    qSort(rs.begin(),rs.end(),rightByCode);
+    QStringList sl;
+    foreach(Right* r, rs)
+        sl<<QString::number(r->getCode());
+    return sl.join(",");
+}
+
 //设置组具有的权限列表
 void UserGroup::setHaveRights(QSet<Right*> rights)
 {
@@ -300,6 +329,23 @@ void UserGroup::delRight(Right* right)
 int UserGroup::getGroupCode()
 {
     return code;
+}
+
+/**
+ * @brief 组是否用于指定权限r（组本身具有的权限和其所属组拥有的权限）
+ * @param r
+ * @return
+ */
+bool UserGroup::hasRight(Right *r)
+{
+    if(rights.contains(r))
+        return true;
+//    QSetIterator<UserGroup*> it(ownerGroups);
+//    while(it.hasNext()){
+//        if(it.next()->hasRight(r))
+//            return true;
+//    }
+    return false;
 }
 
 
@@ -352,3 +398,7 @@ bool Operate::isPermition(User* user)
     }
     return true;
 }
+
+
+
+

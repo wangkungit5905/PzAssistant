@@ -52,15 +52,39 @@ void ApcBase::init()
         item->setData(Qt::UserRole,v);
         ui->lstWMt->addItem(item);
     }
+    foreach(User* u, allUsers.values()){
+        if(u->isAdmin() || u->isSuperUser())
+            continue;
+        if(u->canAccessAccount(account)){
+            QListWidgetItem* item = new QListWidgetItem(u->getName());
+            item->setData(Qt::UserRole,u->getUserId());
+            ui->lstUsers->addItem(item);
+        }
+    }
     if(!account->isReadOnly()){
+        connect(ui->lstUsers,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
+                this,SLOT(currentUserChanged(QListWidgetItem*,QListWidgetItem*)));
         connect(ui->edtName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
         connect(ui->edtLName,SIGNAL(textEdited(QString)),this,SLOT(textEdited()));
+        if(curUser->isSuperUser() || curUser->isAdmin()){
+            ui->addUser->setEnabled(true);
+            if(ui->lstUsers->currentRow()>=0)
+                ui->removeUser->setEnabled(true);
+            else
+                ui->removeUser->setEnabled(false);
+        }
+        else{
+            ui->addUser->setEnabled(false);
+            ui->removeUser->setEnabled(false);
+        }
     }
     else{
         ui->addWb->setEnabled(false);
         ui->delWb->setEnabled(false);
         ui->edtName->setReadOnly(true);
         ui->edtLName->setReadOnly(true);
+        ui->addUser->setEnabled(false);
+        ui->removeUser->setEnabled(false);
     }
     iniTag = true;
 }
@@ -106,6 +130,14 @@ void ApcBase::windowShallClosed()
 void ApcBase::textEdited()
 {
     changed = true;
+}
+
+void ApcBase::currentUserChanged(QListWidgetItem * current, QListWidgetItem * previous)
+{
+    if(current && !previous)
+        ui->removeUser->setEnabled(true);
+    else if(!current && previous)
+        ui->removeUser->setEnabled(false);
 }
 
 void ApcBase::on_addWb_clicked()
@@ -173,6 +205,68 @@ void ApcBase::on_delWb_clicked()
     ui->lstWMt->takeItem(ui->lstWMt->currentRow());
     wbs.removeOne(mt);
     account->delWaiMt(mt);
+}
+
+/**
+ * @brief 添加专属用户
+ */
+void ApcBase::on_addUser_clicked()
+{
+    QList<User*> users = allUsers.values();
+    foreach(User* u, users){
+        if(u->isSuperUser() || u->isAdmin())
+            users.removeOne(u);
+    }
+    for(int i = 0; i < ui->lstUsers->count(); ++i){
+        User* u = allUsers.value(ui->lstUsers->item(i)->data(Qt::UserRole).toInt());
+        users.removeOne(u);
+    }
+    if(users.isEmpty()){
+        QMessageBox::warning(this,"",tr("没有可作为专属用户的用户！"));
+        return;
+    }
+    QDialog dlg(this);
+    QListWidget lw(&dlg);
+    foreach(User* u, users){
+        QListWidgetItem* item = new QListWidgetItem(u->getName());
+        item->setData(Qt::UserRole,u->getUserId());
+        lw.addItem(item);
+    }
+    lw.setCurrentRow(0);
+    QPushButton btnOk(tr("确定"),&dlg),btnCancel(tr("取消"),&dlg);
+    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+    QHBoxLayout lb;
+    lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
+    QVBoxLayout* lm = new QVBoxLayout;
+    lm->addWidget(&lw);
+    lm->addLayout(&lb);
+    dlg.setLayout(lm);
+    dlg.resize(200,200);
+    if(QDialog::Rejected == dlg.exec())
+        return;
+    User* u = allUsers.value(lw.currentItem()->data(Qt::UserRole).toInt());
+    QListWidgetItem* item = new QListWidgetItem(u->getName());
+    item->setData(Qt::UserRole,u->getUserId());
+    ui->lstUsers->addItem(item);
+    u->addExclusiveAccount(account->getCode());
+    AppConfig::getInstance()->saveUser(u);
+}
+
+/**
+ * @brief 移除专属用户
+ */
+void ApcBase::on_removeUser_clicked()
+{
+    if(ui->lstUsers->currentRow() == -1)
+        return;
+    if(QMessageBox::Yes == QMessageBox::warning(this,"",tr("如果移除此用户，则该用户此后将不能访问当前账户。确定要这样做吗？"),
+                                    QMessageBox::Yes|QMessageBox::No,QMessageBox::No)){
+        User* u = allUsers.value(ui->lstUsers->currentItem()->data(Qt::UserRole).toInt());
+        u->removeExclusiveAccount(account->getCode());
+        delete ui->lstUsers->takeItem(ui->lstUsers->currentRow());
+        AppConfig::getInstance()->saveUser(u);
+    }
 }
 
 
@@ -3608,6 +3702,8 @@ void AccountPropertyConfig::createIcons()
     connect(contentsWidget,SIGNAL(currentRowChanged(int)),
          this, SLOT(pageChanged(int)));
 }
+
+
 
 
 

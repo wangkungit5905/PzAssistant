@@ -80,7 +80,8 @@ public:
         QString dbVersion;                  //账户文件版本号
         QString logFileName;                //账户日志文件
         QString fileName;                   //账户文件名
-        AccontTranferInfo* transInfo;       //账户转移信息
+        AccontTranferInfo* transInfo;       //账户转移信息        
+        QSet<User*> exclusiveUsers;         //专属用户集
     };
 
 
@@ -91,6 +92,7 @@ public:
     Account(QString fname, QObject* parent=0);
     ~Account();
     bool isValid();
+    bool canAccess(User* u);
     void close();
     AccontTranferInfo* getRecentTransferInfo(){return accInfos.transInfo;}
     bool saveAccountInfo();

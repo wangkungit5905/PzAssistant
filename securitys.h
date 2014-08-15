@@ -9,7 +9,19 @@
 #include <QSqlQuery>
 #include <QVariant>
 
-static int USER_GROUP_ROOT_ID = 1;
+static int USER_GROUP_ROOT_ID = 1;        //超级用户组ID
+static int USER_GROUP_ADMIN_ID = 2;       //管理员组ID
+
+class Account;
+
+struct RightType;
+//权限类别
+struct RightType{
+    int code;               //类别代码
+    RightType* pType;        //父类别
+    QString name,explain;   //名称和简介
+};
+bool rightTypeByCode(RightType* rt1, RightType* rt2);
 
 //权限类
 class Right
@@ -18,6 +30,7 @@ public:
     //权限代码
     enum RightCode{
     //1、软件管理配置类（执行与会计业务本身无关的软件配置任务所需的权限）(1-50)
+
     //2、账户管理类：（51-100）
     //    账户生命期管理：（51-60）
 
@@ -80,9 +93,9 @@ public:
 
     };
 
-    Right(int code, int type, QString name, QString explain = "");
-    void setType(int t);
-    int getType();
+    Right(int code, RightType* type, QString name, QString explain = "");
+    void setType(RightType* t);
+    RightType *getType();
     void setCode(int c);
     int getCode();
     void setName(QString name);
@@ -92,9 +105,11 @@ public:
 
 private:
     int code;              //权限代码
-    int type;              //权限类别代码
+    RightType* type;              //权限类别代码
     QString name, explain; //权限名称和解释
 };
+bool rightByCode(Right* r1, Right *r2);
+
 
 inline bool operator==(Right &e1, Right &e2)
 {
@@ -108,17 +123,25 @@ public:
     UserGroup(int code, QString name, QSet<Right*> haveRights = QSet<Right*>());
     QString getName();
     void setName(QString name);
+    QString getExplain(){return explain;}
+    void setExplain(QString explain){this->explain=explain;}
     QSet<Right*> getHaveRights();
+    QString getRightCodeList();
     void setHaveRights(QSet<Right*> rights);
     void addRight(Right* right);
     void delRight(Right* right);
     int getGroupCode();
+    bool hasRight(Right* r);
 
 private:
-    int code;
-    QString name;
-    QSet<Right*> rights;
+    int id;
+    int code;                       //组代码
+    QString name,explain;           //组名，组说明信息
+    QSet<Right*> rights;            //所拥有的权限集（不包括其所属的其他组所拥有的权限）
+    //QSet<UserGroup*> ownerGroups;   //所属组
 };
+Q_DECLARE_METATYPE(UserGroup*)
+bool groupByCode(UserGroup* g1, UserGroup* g2);
 
 //用户类
 class User
@@ -129,16 +152,23 @@ public:
     QString getName();
     void setName(QString name);
     void setPassword(QString password);
+    QString getPassword(){return password;}
     bool verifyPw(QString password);
     QSet<UserGroup*> getOwnerGroups();
     void setOwnerGroups(QSet<UserGroup*> ownerGroups);
+    QString getOwnerGroupCodeList();
     void addGroup(UserGroup* group);
     void delGroup(UserGroup* group);
     QSet<Right*> getAllRight();
     bool haveRight(Right* right);
     bool haveRights(QSet<Right*> rights);
     bool isSuperUser();
-
+    bool isAdmin();
+    bool canAccessAccount(Account* account);
+    void addExclusiveAccount(QString accountCode){accountCodes.insert(accountCode);}
+    void removeExclusiveAccount(QString accountCode){accountCodes.remove(accountCode);}
+    QStringList getExclusiveAccounts();
+    void setExclusiveAccounts(QStringList codes);
     static QString encryptPw(QString pw){return pw;} //默认实现不对密码进行加密
 
 private:
@@ -148,9 +178,13 @@ private:
     QString name;
     QString password;
     QSet<UserGroup*> groups;   //用户所属组
-    QSet<Right*> rights;
-};
+    QSet<Right*> rights;       //用户拥有的所有权限
+    QSet<QString> accountCodes;//专属账户代码集合
 
+    friend class AppConfig;
+};
+Q_DECLARE_METATYPE(User*)
+bool userByCode(User* u1, User* u2);
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -176,11 +210,10 @@ private:
 };
 
 extern QHash<int,User*> allUsers;
-extern QHash<int,QString> allRightTypes; //权限类别
+extern QHash<int,RightType*> allRightTypes; //权限类别
 extern QHash<int,Right*> allRights;
 extern QHash<int,UserGroup*> allGroups;
 extern QHash<int,Operate*> allOperates;
-//extern QSqlDatabase bdb;  //基本数据库连接
 
 extern bool initSecurity();
 

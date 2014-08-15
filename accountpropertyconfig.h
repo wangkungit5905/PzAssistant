@@ -41,9 +41,14 @@ public:
 private slots:
     void windowShallClosed();
     void textEdited();
+    void currentUserChanged(QListWidgetItem * current, QListWidgetItem * previous);
     void on_addWb_clicked();
 
     void on_delWb_clicked();
+
+    void on_addUser_clicked();
+
+    void on_removeUser_clicked();
 
 private:
     Ui::ApcBase *ui;

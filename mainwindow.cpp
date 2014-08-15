@@ -47,6 +47,8 @@
 #include "importovaccdlg.h"
 #include "optionform.h"
 #include "taxescomparisonform.h"
+#include "tools/notemgrform.h"
+#include "tools/externaltoolconfigform.h"
 
 #include "completsubinfodialog.h"
 
@@ -453,11 +455,13 @@ MainWindow::MainWindow(QWidget *parent) :
     undoStack = NULL;
     undoView = NULL;
     curSSPanel = NULL;
+    etMapper = NULL;
 
+    appCon = AppConfig::getInstance();
     initActions();
     initToolBar();
     initTvActions();
-
+    initExternalTools();
 
     mdiAreaWidth = ui->mdiArea->width();
     mdiAreaHeight = ui->mdiArea->height();
@@ -473,33 +477,37 @@ MainWindow::MainWindow(QWidget *parent) :
     if(!curUser)
         return;
 
+    bool ok = true;
     AppConfig* appCfg = AppConfig::getInstance();
     AccountCacheItem* ci = appCfg->getRecendOpenAccount();
-    if(ci/* && recentAcc->lastOpened*/){
+    if(ci){
         if(!AccountVersionMaintain(ci->fileName)){
             setWindowTitle(QString("%1---%2").arg(appTitle)
                            .arg(tr("无账户被打开")));
             return;
-        }
-
+        }        
         curAccount = new Account(ci->fileName);
         if(!curAccount->isValid()){
-            showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
-            delete curAccount;
-            curAccount = NULL;
-            setWindowTitle(QString("%1---%2").arg(appTitle)
-                           .arg(tr("无账户被打开")));
-            return;
+            QMessageBox::warning(this,"",tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
+            ok = false;
         }
-        accountInit(ci);
-        rfMainAct();
-        setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
+        else if(!curAccount->canAccess(curUser)){
+            QMessageBox::warning(this,"",tr("当前登录用户不能访问账户（%1），请以合适的用户登录！").arg(curAccount->getSName()));
+            ok = false;
+        }
     }
-    else {//禁用只有在账户打开的情况下才可以的部件
+    else
+        ok = false;
+    if(!ok){
+        if(curAccount)
+            delete curAccount;
+        curAccount = NULL;
         setWindowTitle(QString("%1---%2").arg(appTitle)
                        .arg(tr("无账户被打开")));
-
+        return;
     }
+    accountInit(ci);
+    setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
     rfMainAct();
     refreshShowPzsState();
 }
@@ -580,6 +588,7 @@ void MainWindow::initActions()
     //工具菜单
     connect(ui->actImpTestDatas, SIGNAL(triggered()), this, SLOT(impTestDatas()));    //导入测试数据
     connect(ui->actSqlTool, SIGNAL(triggered()), this, SLOT(showSqlTool()));          //Sql工具
+
 
     //窗口菜单
     connect(ui->mnuWindow, SIGNAL(aboutToShow()), this, SLOT(updateWindowMenu()));
@@ -667,6 +676,37 @@ void MainWindow::initTvActions()
     addDockWidget(Qt::LeftDockWidgetArea, dw);
     dockWindows[TV_SUITESWITCH] = dw;
     dw->hide();
+}
+
+void MainWindow::initExternalTools()
+{
+    if(!etMapper){
+        etMapper = new QSignalMapper(this);
+        connect(etMapper,SIGNAL(mapped(int)),this,SLOT(startExternalTool(int)));
+    }
+
+    QList<QAction*> actions = ui->mnuExternalTools->actions();
+    if(actions.count() > 1){
+        for(int i = actions.count()-1; i > 0 ; i--){
+            delete actions.at(i);
+            actions.removeLast();
+        }
+    }
+    if(eTools.isEmpty())
+        appCon->readAllExternalTools(eTools);
+    int i = 0;
+    foreach(ExternalToolCfgItem* tool,eTools){
+        if(tool->id == 0){
+            eTools.removeOne(tool);
+            continue;
+        }
+        QAction* act = new QAction(eTools.at(i)->name,this);
+        etMapper->setMapping(act,i);
+        connect(act,SIGNAL(triggered()),etMapper,SLOT(map()));
+        actions<<act;
+        i++;
+    }
+    ui->mnuExternalTools->addActions(actions);
 }
 
 
@@ -1006,29 +1046,37 @@ void MainWindow::openAccount()
     if(dlg->exec() != QDialog::Accepted)
         return;
 
-    //ui->tbrPzs->setVisible(true);
     AccountCacheItem* ci =dlg->getAccountCacheItem();
     if(!ci || !AccountVersionMaintain(ci->fileName)){
         setWindowTitle(QString("%1---%2").arg(appTitle)
                        .arg(tr("无账户被打开")));
+        rfMainAct();
         return;
     }
     if(curAccount){
         delete curAccount;
         curAccount = NULL;
     }
+    bool ok = true;
     curAccount = new Account(ci->fileName);
     if(!curAccount->isValid()){
-        showTemInfo(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
-        delete curAccount;
+        QMessageBox::warning(this,"",tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
+        ok = false;
+    }
+    else if(!curAccount->canAccess(curUser)){
+        QMessageBox::warning(this,"",tr("当前登录用户不能访问该账户（%1），请以合适的用户登录！").arg(curAccount->getSName()));
+        ok = false;
+    }
+    if(!ok){
+        if(curAccount)
+            delete curAccount;
         curAccount = NULL;
-        setWindowTitle(QString("%1---%2").arg(appTitle)
-                       .arg(tr("无账户被打开")));        
+        setWindowTitle(QString("%1---%2").arg(appTitle).arg(tr("无账户被打开")));
+        rfMainAct();
         return;
     }
-    setWindowTitle(tr("会计凭证处理系统---") + curAccount->getLName());
+    setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
     AppConfig::getInstance()->setRecentOpenAccount(ci->code);
-    rfMainAct();
     accountInit(ci);
     rfMainAct();
 }
@@ -1247,8 +1295,21 @@ void MainWindow::on_actManageExternalTool_triggered()
     //3创建一个管理界面，可以浏览、添加、删除外部工具
     //4、启动时如果外部工具为空，则根据运行的操作系统平台类型添加默认的计算器工具软件
 
-    QProcess* p = new QProcess(this);
-    p->start("gedit",QStringList());
+//    QProcess* p = new QProcess(this);
+//    p->start("gedit",QStringList());
+    QByteArray* sinfo = NULL;
+    SubWindowDim* winfo = NULL;
+    ExternalToolConfigForm* form = NULL;
+    if(!commonGroups.contains(SUBWIN_EXTERNALTOOLS)){
+        dbUtil->getSubWinInfo(SUBWIN_EXTERNALTOOLS,winfo,sinfo);
+        form = new ExternalToolConfigForm(&eTools);
+    }
+    showCommonSubWin(SUBWIN_EXTERNALTOOLS,form,winfo);
+    if(sinfo)
+        delete sinfo;
+    if(winfo)
+        delete winfo;
+
 
 }
 
@@ -1275,6 +1336,23 @@ void MainWindow::on_actTaxCompare_triggered()
     QMessageBox::warning(this,"",tr("此功能目前仅在Windows平台下可用！"));
 #endif
 }
+
+void MainWindow::on_actNoteMgr_triggered()
+{
+    QByteArray* sinfo = NULL;
+    SubWindowDim* winfo = NULL;
+    NoteMgrForm* form = NULL;
+    if(!commonGroups.contains(SUBWIN_NOTEMGR)){
+        dbUtil->getSubWinInfo(SUBWIN_NOTEMGR,winfo,sinfo);
+        form = new NoteMgrForm(curAccount);
+    }
+    showCommonSubWin(SUBWIN_NOTEMGR,form,winfo);
+    if(sinfo)
+        delete sinfo;
+    if(winfo)
+        delete winfo;
+}
+
 
 
 //退出应用
@@ -1530,19 +1608,6 @@ void MainWindow::toCrtAccNextStep(int curStep, int nextStep)
 //    }
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 void MainWindow::showTemInfo(QString info)
 {
     int timeout;
@@ -1784,7 +1849,20 @@ void MainWindow::baSelectChanged(QList<int> rows, bool conti)
 //    r = r && (curSuiteMgr->getCurPz()->getPzState() == Pzs_Recording);
 //    ui->actDelAction->setEnabled(r && !rows.isEmpty());
 //    ui->actInsertBa->setEnabled(r && (rows.count() == 1));
-//    ui->actAddAction->setEnabled(r);
+    //    ui->actAddAction->setEnabled(r);
+}
+
+/**
+ * @brief 启动指定索引的外部工具
+ * @param index
+ */
+void MainWindow::startExternalTool(int index)
+{
+    ExternalToolCfgItem* tool = eTools.at(index);
+    QString commandline = tool->commandLine;
+    if(!tool->parameter.isEmpty())
+        commandline.append(" ").append(tool->parameter);
+    QProcess::startDetached(commandline);
 }
 
 /**
@@ -2017,12 +2095,29 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
                 delete w;
             }
         }
+        else if(winType == SUBWIN_EXTERNALTOOLS){
+            ExternalToolConfigForm* w = static_cast<ExternalToolConfigForm*>(subWin->widget());
+            if(w){
+                if(w->maybeSave() && QMessageBox::warning(this,"",tr("工具配置已改变，需要保存吗？"),
+                                                          QMessageBox::Yes|QMessageBox::No,
+                                                          QMessageBox::Yes)==QMessageBox::Yes)
+                    w->save();
+                if(w->isUpdateMenuItem()){
+                    //因为有可能有效项目是新加入的但最后被取消了，因此不能作为正确项目
+                    initExternalTools();
+                }
+                delete w;
+            }
+        }
+#ifdef Q_OS_WIN
         else if(winType == SUBWIN_TAXCOMPARE){
+
             TaxesComparisonForm* w = static_cast<TaxesComparisonForm*>(subWin->widget());
             if(w){
                 disconnect(w,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
             }
         }
+#endif
         commonGroups.remove(winType);
     }
     else{
@@ -2579,10 +2674,18 @@ void MainWindow::on_actShiftUser_triggered()
 //显示安全配置对话框
 void MainWindow::on_actSecCon_triggered()
 {
-    QMessageBox::information(this,"",tr("还未实现！"));
-//    SecConDialog* dlg = new SecConDialog(this);
-//    ui->mdiArea->addSubWindow(dlg);
-//    dlg->exec();
+//    QByteArray* sinfo = NULL;
+//    SubWindowDim* winfo = NULL;
+//    SecConDialog* dlg = NULL;
+//    if(!commonGroups.contains(SUBWIN_SECURITY)){
+//        dbUtil->getSubWinInfo(SUBWIN_SECURITY,winfo,sinfo);
+//        dlg = new SecConDialog(this);
+//    }
+//    showCommonSubWin(SUBWIN_SECURITY,dlg,winfo);
+//    if(sinfo)
+//        delete sinfo;
+//    if(winfo)
+//        delete winfo;
 }
 
 
@@ -3795,10 +3898,10 @@ bool MainWindow::impTestDatas()
 //    pt.factor[4] = 0.11;
 //    r = config->savePzTemplateParameter(&pt);
 
-    ExcelUtil eu;
-    eu.createNew("测试Excel文件.xls");
+
     int i = 0;
 }
+
 
 
 

@@ -11,12 +11,13 @@
 class QSettings;
 class VersionManager;
 class Machine;
+struct ExternalToolCfgItem;
 
-struct ExternalToolCfgItem{
-    QString name;       //外部工具名称
-    QString cmd;        //启动命令
-    QStringList paras;  //命令的参数列表
-};
+//struct ExternalToolCfgItem{
+//    QString name;       //外部工具名称
+//    QString cmd;        //启动命令
+//    QStringList paras;  //命令的参数列表
+//};
 
 //通过访问应用程序的基本库来存取配置信息
 class AppConfig
@@ -90,12 +91,7 @@ public:
     const QString KEY_PZT_ISPRINTCUTLINE = "IsPrintCutLine";
     const QString KEY_PZT_ISPRINTMIDLINE = "IsPrintMidLine";
 
-    //外部工具配置段落名
-    const QString SEGMENT_EXTERNAL_TOOL = "ExternalTools";
-    const QString KEY_ET_TOOL = "Tool";
-    const QString KEY_ET_NAME = "Name";
-    const QString KEY_ET_COMMAND = "Command";
-    const QString KEY_ET_PARAMETER = "Parameter";
+
 
     ~AppConfig();
 
@@ -172,9 +168,17 @@ public:
     bool setSubSysMapConfiged(int scode,int dcode, bool ok = true);
     bool getSubCodeToNameHash(int subSys, QHash<QString,QString>& subNames);
 
-    void readAllExternalTools(QList<ExternalToolCfgItem*> &items);
-    void saveExternalTool(ExternalToolCfgItem* item);
+    bool readAllExternalTools(QList<ExternalToolCfgItem*> &items);
+    bool saveExternalTool(ExternalToolCfgItem* item, bool isDelete=false);
 
+    //安全模块需要的方法
+    bool getRights(QHash<int,Right*>& rights);
+    bool getUsers(QHash<int,User*>& users);
+    bool saveUser(User* u, bool isDelete=false);
+    bool getRightTypes(QHash<int, RightType *> &types);
+    bool getUserGroups(QHash<int,UserGroup*>& groups);
+    bool saveUserGroup(UserGroup* g, bool isDelete=false);
+    //bool getOprates(QHash<int,Operate*>& operates);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);

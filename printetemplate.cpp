@@ -20,6 +20,7 @@ PzPrintTemplate::PzPrintTemplate(PzTemplateParameter* parameter, /*QPainter* pai
     pointSizes = fd.pointSizes(pFont.family(),pFont.styleName());
     pFont.setPointSize(parameter->fontSize);
     ui->tview->setFont(pFont);
+    ui->tview->setSpan(parameter->baRows+1,0,1,2);
 }
 
 PzPrintTemplate::~PzPrintTemplate()
@@ -222,7 +223,7 @@ void PzPrintTemplate::setBaList(QList<BusiAction*>& bas)
 void PzPrintTemplate::setJDSums(Double jsum, Double dsum)
 {
     QTableWidgetItem* item;
-    ui->tview->setSpan(parameter->baRows+1,0,1,2);
+    //ui->tview->setSpan(parameter->baRows+1,0,1,2);
     item = new QTableWidgetItem(tr("合   计"));
     item->setTextAlignment(Qt::AlignCenter);
     ui->tview->setItem(parameter->baRows+1,0,item);

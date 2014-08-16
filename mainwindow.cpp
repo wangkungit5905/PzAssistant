@@ -2591,8 +2591,10 @@ void MainWindow::on_actFordPl_triggered()
     if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT)){
+        QMessageBox::warning(this,"",tr("请先打开凭证编辑窗口，再执行结转损益操作！"));
         return;
+    }
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && !w->crtJzsyPz())
         QMessageBox::critical(0,tr("错误信息"),tr("在创建结转损益的凭证时发生错误!"));

@@ -69,7 +69,7 @@ public slots:
     void print(QPrinter* printer);
 
 private:
-    void printPage(double scaleX, double scaleY, QPainter* paint, int index, bool newPage = false);
+    void printPage(QPixmap* pic/*double scaleX, double scaleY*/, QPainter* paint, int index, bool newPage = false);
     //void genPzPrintDatas();
     QPrinter* printer;
     //QPainter* paint;
@@ -81,5 +81,12 @@ private:
     QString company;         //凭证的单位名称
     QHash<int,Double> rates; //汇率
     Account* account;
+
+    //
+    bool isPatchLine;   //是否需要修补凭证分录表左下角缺失的表格线
+    int dltY1; //上一个凭证分录表修补线的纵向修补偏移量
+    int dltY2; //下一个凭证分录表修补线的纵向修补偏移量
+    int dltX;   //修补线的横向坐标
+    int secPzDownOffset; //同一张纸上的第二张凭证的向下调整偏移量
 };
 #endif // PRINTUTILS_H

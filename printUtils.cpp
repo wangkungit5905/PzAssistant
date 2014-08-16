@@ -3,6 +3,7 @@
 #include <QScrollBar>
 #include <QPainter>
 #include <QStandardItemModel>
+#include <QSettings>
 
 #include "printUtils.h"
 #include "printtemplate.h"
@@ -237,10 +238,15 @@ PrintPzUtils::PrintPzUtils(Account *account, QPrinter* printer)
     this->printer = printer;
     parameter = new PzTemplateParameter;
     AppConfig::getInstance()->getPzTemplateParameter(parameter);
-    //printer->setPageMargins(0,0,0,0,QPrinter::Millimeter);//设置页边距
-    printer->setFullPage(true);
-    pageW = printer->paperRect().width();
-    pageH = printer->paperRect().height();
+    QMarginsF margin(qreal(parameter->leftRightMargin),qreal(parameter->topBottonMargin),
+                     qreal(parameter->leftRightMargin),qreal(parameter->topBottonMargin));
+    printer->setPageMargins(margin,QPageLayout::Millimeter);//设置页边距
+    //printer->setFullPage(true);
+    pageW = printer->pageRect().width();
+    pageH = printer->pageRect().height();
+    ///////////////////////////////////
+
+    /// ///////////////////////////////
     int ps_h = pageW/210;
     int ps_v = pageH/297;
     parameter->baRowHeight = ps_v * parameter->baRowHeight;
@@ -252,6 +258,18 @@ PrintPzUtils::PrintPzUtils(Account *account, QPrinter* printer)
     for(int i = 0; i < 5; ++i)
         parameter->factor[i] = parameter->factor[i] * tw;
     tp = new PzPrintTemplate(parameter);
+
+    QString fileName = QApplication::applicationDirPath()+"/config/patchSettings.ini";
+    QSettings pchSet(fileName,QSettings::IniFormat);
+    pchSet.beginGroup("PatchLine");
+    isPatchLine = pchSet.value("isPacthLine",true).toBool();
+    dltY1 = pchSet.value("dltY1",-77).toInt();//上一个凭证分录表修补线的纵向修补偏移量
+    dltY2 = pchSet.value("dltY2",-20).toInt();//下一个凭证分录表修补线的纵向修补偏移量
+    dltX = pchSet.value("dltX",12).toInt();//修补线的横向坐标
+    pchSet.endGroup();
+    pchSet.beginGroup("SecondPzDownAdjust");//同一张纸上的第二张凭证的向下调整偏移量
+    secPzDownOffset = pchSet.value("DownOffset",12).toInt();
+    pchSet.endGroup();
 }
 
 PrintPzUtils::~PrintPzUtils()
@@ -264,25 +282,23 @@ PrintPzUtils::~PrintPzUtils()
 void PrintPzUtils::print(QPrinter* printer)
 {
     if(printer != NULL){
-        int mapW = pageW - parameter->leftRightMargin*2;
-        int mapH = pageH/2 - parameter->topBottonMargin*2 - parameter->cutAreaHeight/2;
+        int mapW = pageW;
+        int mapH = pageH/2 - parameter->topBottonMargin - parameter->cutAreaHeight/2;
         QPixmap pixmap(mapW,mapH);
-        tp->render(&pixmap);
-        double scaleX = mapW/(double(tp->width())+2);
-        double scaleY = mapH/(double(tp->height())+2);
+        tp->resize(mapW,mapH);
         QPainter paint(printer);
         if(datas.count() < 3)
-            printPage(scaleX,scaleY,&paint,0);
+            printPage(&pixmap,&paint,0);
         else{
-            printPage(scaleX,scaleY,&paint,0);
+            printPage(&pixmap,&paint,0);
             for(int i = 2; i < datas.count(); i+=2){
-                printPage(scaleX,scaleY,&paint,i,true);
+                printPage(&pixmap,&paint,i,true);
             }
         }
     }
 }
 
-void PrintPzUtils::printPage(double scaleX, double scaleY, QPainter* paint, int index, bool newPage)
+void PrintPzUtils::printPage(QPixmap* pic, QPainter* paint, int index, bool newPage)
 {
     if(newPage)
         printer->newPage();
@@ -290,8 +306,8 @@ void PrintPzUtils::printPage(double scaleX, double scaleY, QPainter* paint, int 
     paint->save();
     paint->setPen(Qt::DotLine);
     int y = pageH/2;
-    int x1 = parameter->leftRightMargin;
-    int x2 = pageW-parameter->leftRightMargin;
+    int x1 = 0;
+    int x2 = pageW;
     if(parameter->isPrintMidLine)
         paint->drawLine(QPoint(x1,y),QPoint(x2,y));
     if(parameter->isPrintCutLine){
@@ -316,32 +332,25 @@ void PrintPzUtils::printPage(double scaleX, double scaleY, QPainter* paint, int 
             tp->setBookKeeper(pd->bookKeeper?pd->bookKeeper->getName():"");
             tp->setBaList(pd->baLst);
             tp->setJDSums(pd->jsum, pd->dsum);
-            paint->save();
+            tp->render(pic);
             if(i == index)
-                paint->translate(printer->paperRect().x()+parameter->leftRightMargin,
-                                 printer->paperRect().y()+parameter->topBottonMargin);
-
+                y = 0;
             else
-                //paint->translate(printer->paperRect().x()+parameter->leftRightMargin+3,
-                //                 tp->height()*scaleY+parameter->topBottonMargin*2+parameter->cutAreaHeight);
-                paint->translate(printer->paperRect().x()+parameter->leftRightMargin,
-                                 pageH/2+parameter->topBottonMargin+parameter->cutAreaHeight/2);
-            //paint->save();
-            paint->scale(scaleX,scaleY);
-            tp->render(paint);            
-            paint->restore();
-            int y1,y2;
-            x1 = printer->paperRect().x()+parameter->leftRightMargin+12;
-            if(i == index){
-                y1 = parameter->topBottonMargin+tp->height()-1;
+                y = pageH/2 + parameter->topBottonMargin+parameter->cutAreaHeight/2+secPzDownOffset;
+            paint->drawPixmap(0,y,*pic);
+
+            //填补表格左下角的缺角线
+            if(isPatchLine){
+                int y1,y2;
+                if(i == index){
+                    y1 = tp->height() + dltY1;
+                }
+                else{
+                    y1 = pageH/2+tp->height() + dltY2;
+                }
+                y2 = y1 + parameter->baRowHeight;
+                paint->drawLine(dltX,y1,dltX,y2);
             }
-            else{
-                //y1 = parameter->topBottonMargin*3+parameter->cutAreaHeight+tp->height()*2-2;
-                //y1 = pageH-parameter->topBottonMargin-parameter->baRowHeight-35;
-                y1 = pageH/2+parameter->topBottonMargin+tp->height()+19;
-            }
-            y2 = y1 + parameter->baRowHeight;
-            paint->drawLine(x1,y1,x1,y2);
         }
     }
     paint->restore();

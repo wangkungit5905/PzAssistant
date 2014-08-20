@@ -78,7 +78,8 @@ SOURCES += main.cpp\
     taxescomparisonform.cpp \
     outputexceldlg.cpp \
     tools/notemgrform.cpp \
-    tools/externaltoolconfigform.cpp
+    tools/externaltoolconfigform.cpp \
+    seccondialog.cpp
 
 HEADERS  += \
     connection.h \
@@ -150,7 +151,8 @@ HEADERS  += \
     taxescomparisonform.h \
     outputexceldlg.h \
     tools/notemgrform.h \
-    tools/externaltoolconfigform.h
+    tools/externaltoolconfigform.h \
+    seccondialog.h
 
 FORMS    += \
     forms/createaccountdialog.ui \

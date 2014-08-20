@@ -175,9 +175,11 @@ public:
     bool getRights(QHash<int,Right*>& rights);
     bool getUsers(QHash<int,User*>& users);
     bool saveUser(User* u, bool isDelete=false);
+    bool restorUser(User* u);
     bool getRightTypes(QHash<int, RightType *> &types);
     bool getUserGroups(QHash<int,UserGroup*>& groups);
     bool saveUserGroup(UserGroup* g, bool isDelete=false);
+    bool restoreUserGroup(UserGroup* g);
     //bool getOprates(QHash<int,Operate*>& operates);
 private:
     bool _isValidAccountCode(QString code);

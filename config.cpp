@@ -1095,12 +1095,15 @@ bool AppConfig::getUsers(QHash<int, User *> &users)
         int id = q.value(0).toInt();
         QString name = q.value(FI_BASE_U_NAME).toString();
         QString pw = q.value(FI_BASE_U_PASSWORD).toString();
+        pw = User::encryptPw(pw);
         QString gs = q.value(FI_BASE_U_GROUPS).toString();
         QSet<UserGroup*> groups;
         if(!gs.isEmpty()){
             QStringList gr = gs.split(",");            
             for(int i = 0; i < gr.count(); ++i){
-                groups.insert(allGroups.value(gr[i].toInt()));
+                UserGroup* g = allGroups.value(gr[i].toInt());
+                if(g)
+                    groups.insert(g);
             }            
         }
         User* user = new User(id, name, pw, groups);
@@ -1110,6 +1113,14 @@ bool AppConfig::getUsers(QHash<int, User *> &users)
             foreach(QString code, gs.split(",")){
                 if(!code.isEmpty())
                     user->addExclusiveAccount(code);
+            }
+        }
+        gs = q.value(FI_BASE_U_EXTRARIGHTS).toString();
+        if(!gs.isEmpty()){
+            foreach(QString code, gs.split(",")){
+                Right* r = allRights.value(code.toInt());
+                if(r)
+                    user->addRight(r);
             }
         }
     }
@@ -1129,17 +1140,19 @@ bool AppConfig::saveUser(User *u, bool isDelete)
         return true;
     }
     if(u->getUserId() != UNID)
-        s = QString("update %1 set %2='%6',%3='%7',%4='%8',%5='%9' where id=%10")
+        s = QString("update %1 set %2='%7',%3='%8',%4='%9',%5='%10',%6='%11' where id=%12")
                 .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
-                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(u->getName())
-                .arg(u->getPassword()).arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(","))
+                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
+                .arg(u->getName()).arg(User::decryptPw(u->getPassword())).arg(u->getOwnerGroupCodeList())
+                .arg(u->getExclusiveAccounts().join(",")).arg(u->getExtraRightCodes())
                 .arg(u->getUserId());
     else
-        s = QString("insert into %1(%2,%3,%4,%5) value('%6','%7','%8','%9')")
+        s = QString("insert into %1(%2,%3,%4,%5,%6) values('%7','%8','%9','%10','%11')")
                 .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
-                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(u->getName())
-                .arg(u->getPassword()).arg(u->getOwnerGroupCodeList())
-                .arg(u->getExclusiveAccounts().join(","));
+                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
+                .arg(u->getName()).arg(User::decryptPw(u->getPassword()))
+                .arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(","))
+                .arg(u->getExtraRightCodes());
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -1150,6 +1163,58 @@ bool AppConfig::saveUser(User *u, bool isDelete)
         int id = q.value(0).toInt();
         u->id = id;
         allUsers[id] = u;
+    }
+    return true;
+}
+
+/**
+ * @brief 从数据库中恢复用户对象
+ * @param u
+ * @return
+ */
+bool AppConfig::restorUser(User *u)
+{
+    if(!u)
+        return false;
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where id=%2").arg(tbl_base_users).arg(u->getUserId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())
+        return false;
+    QString name = q.value(FI_BASE_U_NAME).toString();
+    u->setName(name);
+    QString pw = q.value(FI_BASE_U_PASSWORD).toString();
+    pw = User::decryptPw(pw);
+    u->setPassword(pw);
+    QString gs = q.value(FI_BASE_U_GROUPS).toString();
+    QSet<UserGroup*> groups;
+    if(!gs.isEmpty()){
+        QStringList gr = gs.split(",");
+        for(int i = 0; i < gr.count(); ++i){
+            UserGroup* g = allGroups.value(gr[i].toInt());
+            if(g)
+                groups.insert(g);
+        }
+    }
+    u->setOwnerGroups(groups);
+    gs = q.value(FI_BASE_U_ACCOUNTS).toString();
+    if(!gs.isEmpty()){
+        foreach(QString code, gs.split(",")){
+            if(!code.isEmpty())
+                u->addExclusiveAccount(code);
+        }
+    }
+    gs = q.value(FI_BASE_U_EXTRARIGHTS).toString();
+    u->clearExtraRights();
+    if(!gs.isEmpty()){
+        foreach(QString code, gs.split(",")){
+            Right* r = allRights.value(code.toInt());
+            if(r)
+                u->addRight(r);
+        }
     }
     return true;
 }
@@ -1185,8 +1250,10 @@ bool AppConfig::getUserGroups(QHash<int, UserGroup *> &groups)
         return false;
     }
     while(q.next()){
+        int id = q.value(0).toInt();
         int code = q.value(FI_BASE_G_CODE).toInt();
         QString name = q.value(FI_BASE_G_NAME).toString();
+        QString explain = q.value(FI_BASE_G_EXPLAIN).toString();
         QString rs = q.value(FI_BASE_G_RIGHTS).toString();
         QSet<Right*> haveRights;
         if(!rs.isEmpty()){
@@ -1200,7 +1267,8 @@ bool AppConfig::getUserGroups(QHash<int, UserGroup *> &groups)
                     haveRights.insert(r);
             }            
         }
-        UserGroup* group = new UserGroup(code, name, haveRights);
+        UserGroup* group = new UserGroup(id,code, name, haveRights);
+        group->setExplain(explain);
         groups[code] = group;
     }
     return true;
@@ -1241,6 +1309,46 @@ bool AppConfig::saveUserGroup(UserGroup *g, bool isDelete)
         }
         allGroups[g->getGroupCode()] = g;
     }
+    return true;
+}
+
+/**
+ * @brief 从数据库中恢复用户组对象
+ * @param g
+ * @return
+ */
+bool AppConfig::restoreUserGroup(UserGroup *g)
+{
+    if(!g)
+        return false;
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where id=%2").arg(tbl_base_usergroups)
+            .arg(g->getGroupId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())
+        return false;
+    int code = q.value(FI_BASE_G_CODE).toInt();
+    QString name = q.value(FI_BASE_G_NAME).toString();
+    g->setName(name);
+    QString explain = q.value(FI_BASE_G_EXPLAIN).toString();
+    g->setExplain(explain);
+    QString rs = q.value(FI_BASE_G_RIGHTS).toString();
+    QSet<Right*> haveRights;
+    if(!rs.isEmpty()){
+        QStringList rl = rs.split(",");
+        for(int i = 0; i < rl.count(); ++i){
+            Right* r = allRights.value(rl[i].toInt());
+            if(!r)
+                LOG_ERROR(QString("Fonded a not exist right(right code=%1,group code=%2)")
+                          .arg(rl[i].toInt()).arg(code));
+            else
+                haveRights.insert(r);
+        }
+    }
+    g->setHaveRights(haveRights);
     return true;
 }
 

@@ -721,11 +721,13 @@ const QString tbl_base_users = "users";
 const QString fld_base_u_name = "name";
 const QString fld_base_u_password = "password";
 const QString fld_base_u_groups = "ownerGroups";
-const QString fld_base_u_accounts = "exclusiveAccounts";
+const QString fld_base_u_accounts = "exclusiveAccounts";//专属账户列表
+const QString fld_base_u_extra_rights = "extraRights";  //额外权限列表
 const int FI_BASE_U_NAME = 1;
 const int FI_BASE_U_PASSWORD = 2;
 const int FI_BASE_U_GROUPS = 3;
 const int FI_BASE_U_ACCOUNTS = 4;
+const int FI_BASE_U_EXTRARIGHTS = 5;
 
 //外部工具配置表
 const QString tbl_base_external_tools = "ExternalTools";

@@ -47,6 +47,7 @@
 #include "importovaccdlg.h"
 #include "optionform.h"
 #include "taxescomparisonform.h"
+#include "seccondialog.h"
 #include "tools/notemgrform.h"
 #include "tools/externaltoolconfigform.h"
 
@@ -840,7 +841,9 @@ void MainWindow::rfLogin()
     ui->actLogout->setEnabled(login);
     ui->actShiftUser->setEnabled(login);
     //如果当前登录的root用户，则启用安全配置菜单项，目前未实现，暂不启用
-    ui->actSecCon->setEnabled(login && curUser->isSuperUser());
+    bool r = login && curUser->isSuperUser();
+    ui->actSecCon->setEnabled(r);
+    ui->actSqlTool->setEnabled(r);
     rfMainAct();
 }
 
@@ -2109,6 +2112,11 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
                 delete w;
             }
         }
+        else if(winType == SUBWIN_SECURITY){
+            SecConDialog* w = static_cast<SecConDialog*>(subWin->widget());
+            if(w)
+                state = w->getState();
+        }
 #ifdef Q_OS_WIN
         else if(winType == SUBWIN_TAXCOMPARE){
 
@@ -2119,7 +2127,7 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
         }
 #endif
         commonGroups.remove(winType);
-    }
+    }    
     else{
         if(winType == SUBWIN_SQL){
             DatabaseAccessForm* w = static_cast<DatabaseAccessForm*>(subWin->widget());
@@ -2655,9 +2663,7 @@ void MainWindow::on_actLogout_triggered()
 {
     curUser = NULL;
     ui->statusbar->setUser(curUser);
-    //enaActOnLogin(false);
-    //rfTbrVisble();
-    //refreshActEnanble();
+    rfLogin();
 }
 
 
@@ -2669,25 +2675,24 @@ void MainWindow::on_actShiftUser_triggered()
         curUser = dlg->getLoginUser();
         ui->statusbar->setUser(curUser);
     }
-    //rfTbrVisble();
-    //refreshActEnanble();
+    rfLogin();
 }
 
 //显示安全配置对话框
 void MainWindow::on_actSecCon_triggered()
 {
-//    QByteArray* sinfo = NULL;
-//    SubWindowDim* winfo = NULL;
-//    SecConDialog* dlg = NULL;
-//    if(!commonGroups.contains(SUBWIN_SECURITY)){
-//        dbUtil->getSubWinInfo(SUBWIN_SECURITY,winfo,sinfo);
-//        dlg = new SecConDialog(this);
-//    }
-//    showCommonSubWin(SUBWIN_SECURITY,dlg,winfo);
-//    if(sinfo)
-//        delete sinfo;
-//    if(winfo)
-//        delete winfo;
+    QByteArray* sinfo = NULL;
+    SubWindowDim* winfo = NULL;
+    SecConDialog* dlg = NULL;
+    if(!commonGroups.contains(SUBWIN_SECURITY)){
+        dbUtil->getSubWinInfo(SUBWIN_SECURITY,winfo,sinfo);
+        dlg = new SecConDialog(sinfo,this);
+    }
+    showCommonSubWin(SUBWIN_SECURITY,dlg,winfo);
+    if(sinfo)
+        delete sinfo;
+    if(winfo)
+        delete winfo;
 }
 
 
@@ -2749,8 +2754,8 @@ void MainWindow::on_actNaviToPz_triggered()
 //全部手工凭证通过审核
 void MainWindow::on_actAllVerify_triggered()
 {
-    if(!curUser->haveRight(allRights.value(Right::VerifyPz))){
-        rightWarnning(Right::VerifyPz);
+    if(!curUser->haveRight(allRights.value(Right::Pz_Advanced_Verify))){
+        rightWarnning(Right::Pz_Advanced_Verify);
         return;
     }
     if(!curSuiteMgr->isPzSetOpened()){
@@ -2767,8 +2772,8 @@ void MainWindow::on_actAllVerify_triggered()
 void MainWindow::on_actAllInstat_triggered()
 {
     //应该利用undo框架完成该动作，而不是直接操纵数据库
-    if(!curUser->haveRight(allRights.value(Right::InstatPz))){
-        rightWarnning(Right::InstatPz);
+    if(!curUser->haveRight(allRights.value(Right::Pz_Advanced_Instat))){
+        rightWarnning(Right::Pz_Advanced_Instat);
         return;
     }
     if(!curSuiteMgr->isPzSetOpened()){

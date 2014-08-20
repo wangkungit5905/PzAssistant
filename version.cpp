@@ -2215,7 +2215,7 @@ bool VMAppConfig::updateTo1_6()
 
 /**
  * @brief VMAppConfig::updateTo1_7
- * 1、给用户表添加专属账户字段，该字段存放该用户可以访问的账户代码列表，用逗号分隔。
+ * 1、给用户表添加专属账户、额外权限字段，该字段存放该用户可以访问的账户代码列表，用逗号分隔。
  * 2、创建外部工具配置表
  * @return
  */
@@ -2224,13 +2224,21 @@ bool VMAppConfig::updateTo1_7()
     QSqlQuery q(db);
     int verNum = 107;
     emit startUpgrade(verNum, tr("开始更新到版本“1.7”..."));
-//    QString s = QString("alter table %1 add column  exclusiveAccounts TEXT").arg(tbl_base_users);
-//    if(!q.exec(s)){
-//        upgradeStep(verNum,tr("在给%1表添加专属账户字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
-//        LOG_SQLERROR(s);
-//        return false;
-//    }
-    QString s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 TEXT, %3 TEXT, %4 TEXT)")
+    QString s = QString("alter table %1 add column  %2 TEXT")
+            .arg(tbl_base_users).arg(fld_base_u_accounts);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("在给%1表添加专属账户字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("alter table %1 add column  %2 TEXT")
+            .arg(tbl_base_users).arg(fld_base_u_extra_rights);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("在给%1表添加额外权限字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 TEXT, %3 TEXT, %4 TEXT)")
             .arg(tbl_base_external_tools).arg(fld_base_et_name).arg(fld_base_et_commandline)
             .arg(fld_base_et_parameter);
     if(!q.exec(s)){

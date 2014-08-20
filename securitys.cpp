@@ -64,14 +64,13 @@ void User::setName(QString name)
 
 void User::setPassword(QString password)
 {
-    this->password = encryptPw(password);
+    this->password = password;
 }
 
 //校验密码
 bool User::verifyPw(QString password)
 {
-    QString pw = encryptPw(password);
-    if(this->password == pw)
+    if(this->password == password)
         return true;
     else
         return false;
@@ -108,31 +107,120 @@ QString User::getOwnerGroupCodeList()
 void User::addGroup(UserGroup* group)
 {
     groups.insert(group);
-    rights += group->getHaveRights();
+    refreshRights();
 }
 
 //删除组
 void User::delGroup(UserGroup* group)
 {
     groups.remove(group);
-    rights -= group->getHaveRights();
+    refreshRights();
+}
+
+/**
+ * @brief 添加用户权限（该权限可能不属于任何用户所属的组）
+ * @param r
+ */
+void User::addRight(Right *r)
+{
+    if(rights.contains(r))
+        return;
+    rights.insert(r);
+    extraRights.insert(r);
+    //如果添加的权限不属于用户当前所属的任何一个组，则将该权限视为额外权限
+//    bool isExtra = true;
+//    foreach(UserGroup* g, groups){
+//        if(g->hasRight(r)){
+//            isExtra = false;
+//            break;
+//        }
+//    }
+//    if(isExtra)
+//        extraRights.insert(r);
+//    rights.insert(r);
+}
+
+/**
+ * @brief 移除用户的额外权限
+ * @param r
+ */
+//void User::removeExtraRight(Right *r)
+//{
+//    if(extraRights.contains(r)){
+//        extraRights.remove(r);
+//        rights.remove(r);
+//        return;
+//    }
+//    //如果要移除的权限是属于用户当前所属的某个组，
+//    //则将该组从用户所属组中移除，并将该组的其他权限加入到额外权限集中
+//    foreach(UserGroup* g,groups){
+//        QSet<Right*> rs = g->getHaveRights();
+//        if(rs.contains(r)){
+//            delGroup(g);
+//            rs.remove(r);
+//            extraRights += rs;
+//            return;
+//        }
+//    }
+//}
+
+/**
+ * @brief 返回额外权限代码列表
+ * @return
+ */
+QString User::getExtraRightCodes()
+{
+    QSetIterator<Right*> it(extraRights);
+    QStringList sl;
+    while(it.hasNext())
+        sl<<QString::number(it.next()->getCode());
+    qSort(sl.begin(),sl.end());
+    return sl.join(",");
 }
 
 //刷新用户具有的所有权限
 void User::refreshRights()
 {
     rights.clear();
-    QSetIterator<UserGroup*> it(groups);
-    while(it.hasNext()){
-        UserGroup* g = it.next();
+    foreach(UserGroup* g, groups)
         rights += g->getHaveRights();
+    if(!extraRights.isEmpty()){
+        foreach(Right* r, extraRights){
+            if(rights.contains(r))
+                extraRights.remove(r);
+            rights.insert(r);
+        }
     }
 }
 
 //返回用户具有的所有权限
-QSet<Right*> User::getAllRight()
+QSet<Right*> User::getAllRights()
 {
     return rights;
+}
+
+/**
+ * @brief 设置用户的所有权限
+ * @param rs
+ */
+void User::setAllRights(QSet<Right *> rs)
+{
+    rights = rs;
+    QSet<Right*> rs_t;
+    QSet<UserGroup*> gs;
+    //如果用户所属的某个组所拥有的全部权限包含在rs中，
+    //则可以继续保留用户与组的所属关系，否则用户就不能属于该组
+    //这样处理是为了尽可能保留用户所属组的设置信息
+    foreach(UserGroup* g, groups){
+        if(rs.contains(g->getHaveRights())){
+            gs.insert(g);
+            rs_t += g->getHaveRights();
+        }
+    }
+    groups = gs;
+    rs -= rs_t;
+    if(!rs.isEmpty())
+        extraRights = rs;
 }
 
 //是否用户具有指定的权限
@@ -147,7 +235,10 @@ bool User::haveRight(Right* right)
 //是否用户具有指定的权限集
 bool User::haveRights(QSet<Right*> rights)
 {
-    return this->rights.contains(rights);
+    if(isSuperUser())
+        return true;
+    else
+        return this->rights.contains(rights);
 }
 
 /**
@@ -264,8 +355,9 @@ QString Right::getExplain()
 
 
 //////////////////UserGroup类////////////////////////////////////////////
-UserGroup::UserGroup(int code, QString name, QSet<Right*> haveRights)
+UserGroup::UserGroup(int id, int code, QString name, QSet<Right*> haveRights)
 {
+    this->id = id;
     this->code = code;
     this->name = name;
     if(haveRights.count() > 0)
@@ -390,7 +482,7 @@ void Operate::setRight(QSet<Right*> rights)
 //判断某用户是否具备执行该操作所要求的所有权限
 bool Operate::isPermition(User* user)
 {
-    QSet<Right*> userRights = user->getAllRight();
+    QSet<Right*> userRights = user->getAllRights();
     QSetIterator<Right*> it(rights);
     while(it.hasNext()){
         if(!userRights.contains(it.next()))

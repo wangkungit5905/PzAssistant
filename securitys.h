@@ -29,63 +29,72 @@ class Right
 public:
     //权限代码
     enum RightCode{
-    //1、软件管理配置类（执行与会计业务本身无关的软件配置任务所需的权限）(1-50)
+    //1、软件管理配置类（执行与会计业务本身无关的软件配置任务所需的权限）(1-40)
+
+    //2、数据库访问类（以数据库的方式访问账户文件）（8）（41）
+    Database_Access  = 41,
 
     //2、账户管理类：（51-100）
-    //    账户生命期管理：（51-60）
+    //账户生命期管理（2-21）：（51-60）
+    Account_Create   = 51,       //创建账户（51）
+    Account_Remove   = 52,       //移除账户（52）
+    Account_Import   = 53,       //导入账户（53）
+    Account_Export   = 54,       //导出账户（54）
+    Account_Refresh  = 55,       //刷新账户列表（55）
 
-    CreateAccount   = 51,       //创建账户（51）
-    DelAccount      = 52,       //删除账户（52）
-    ImportAccount   = 53,       //导入账户（53）
-    ExportAccount   = 54,       //导出账户（54）
-    RefreshAccount  = 55,       //刷新账户列表（55）
+    //账户配置（2-22）：（61-80）
+    Account_Config_SetCommonInfo    = 61,  //设置账户一般信息（61--账户名、全名，全局账户代码）
+    Account_Config_SetSensitiveInfo = 62,  //设置账户敏感信息（62--比如开户行帐号等）；
+    Account_Config_SetUsedSubSys    = 63,  //所用科目系统的设定（63--使用新/旧科目系统）；
+    Account_Config_SetFstSubject    = 64,  //一级科目的配置（64--比如配置实际使用的一级科目，过滤掉从不使用的科目）；
+    Account_Config_SetSndSubject    = 65,  //二级科目的配置（65--增、删、改二级科目以及建立与一级科目的属从关系）；
 
-    //账户配置：（61-80）
-    SetAccCommonInfo =    61,  //设置账户一般信息（61--账户名、全名，全局账户代码）
-    SetAccSensitiveInfo = 62,  //设置账户敏感信息（62--比如开户行帐号等）；
-    SetUsedSubject      = 63,  //所用科目系统的设定（63--使用新/旧科目系统）；
-    ConfigFstSubject    = 64,  //一级科目的配置（64--比如配置实际使用的一级科目，过滤掉从不使用的科目）；
-    ConfigSndSubject    = 65,  //二级科目的配置（65--增、删、改二级科目以及建立与一级科目的属从关系）；
+    //配置账户的基准数据（2-23）：（81-89）
+    Account_Config_SetBaseTime      = 81,  // 配置账户的基准时间（81）
+    Account_Config_SetPeriodBegin   = 82,  //配置账户的期初数（82）
 
-    //配置账户的基准数据：（81-89）
-    ConfigAccStandandTime = 81,// 配置账户的基准时间（81）
-    ConfigAccPeriodBegin  = 82,//配置账户的期初数（82）
-
-    //3：账户操作类：（101 - 150）
-    OpenAccount     = 101,     //打开账户（101）
-    CloseAccount    = 102,     //关闭账户（102）
+    //3：账户操作类（3）：（101 - 150）
+    Account_Common_Open     = 101,     //打开账户（101）
+    Account_Common_Close    = 102,     //关闭账户（102）
 
     //4、业务操作类：（151 - 250）
     //    会计业务类：
-    //        凭证集操作类：
-    OpenPzs      = 151,        //打开凭证集（151）
-    ClosePzs     = 152,        //关闭凭证集（152）
+    //凭证集通用操作类（41）：
+    PzSet_Common_Open    = 151,        //打开凭证集（151）
+    PzSet_Common_Close   = 152,        //关闭凭证集（152）
 
-    //        一般凭证操作类：
-    AddPz        = 155,        //新增凭证（155）
-    DelPz        = 156,        //删除凭证（156）
-    EditPz       = 157,        //修改凭证（157）
-    ViewPz       = 158,        //查看凭证（158）
+    //一般凭证操作类（42）：
+    Pz_common_Add        = 155,        //新增凭证（155）
+    Pz_Common_Del        = 156,        //删除凭证（156）
+    Pz_Common_Edit       = 157,        //修改凭证（157）
+    Pz_Common_Show       = 158,        //查看凭证（158）
 
-//            高级凭证操作类：
-    RepealPz     = 201,        //凭证作废（201）
-    InstatPz     = 202,        //凭证入账（202）
-    VerifyPz     = 211,        //审核凭证（211）
-    //VerifyPz2    = 221,        //审核凭证2（审核软件自动生成的结转凭证）（221）
-//                结账
-//                反审核1
-//                反审核2
-//                反结账
-//                保存期末余额；
+    //高级凭证操作类（43）：（201-210）
+    Pz_Advanced_Repeal     = 201,        //凭证作废（201）
+    Pz_Advanced_Instat     = 202,        //凭证入账（202）
+    Pz_Advanced_Verify     = 203,        //审核凭证（203）
+    Pz_Advanced_AntiVerify = 204,        //取消审核凭证（204）
+    Pz_Advanced_JzHdsy     = 205,        //创建结转汇兑损益凭证（205）
+    Pz_Advanced_JzSy       = 206,        //创建结转损益凭证（206）
 
-    //5、统计类：（250 - 300）
-    //    查看明细/总分类帐；
-    //    查看统计表；
 
-    //6、打印类： （301 - 350）
-    PrintPz           = 301,    //打印凭证（301）；
-    PrintDetialTable  = 302,    //打印明细帐和总分类帐（302）
-    PrintStatTable    = 303,    //打印统计表（303）
+    //高级凭证集操作（44）
+    PzSet_Advance_ShowExtra     = 211,  //查看余额（211）
+    PzSet_Advance_SaveExtra     = 212,  //保存凭证集余额（212）
+    PzSet_Advance_EndSet        = 213,  //凭证集结账（213）
+    PzSet_Advance_AntiEndSet    = 214,  //反结账（214）
+    PzSet_Advance_EndSuite      = 215,  //关账（帐套关账）（215）
+    PzSet_Advance_AntiEndSuite  = 216,  //反关账（216）
+
+    //5、统计类（45）：（251 - 300）
+    PzSet_ShowStat_Details  = 251,      //查看明细账
+    PzSet_ShowStat_Totals   = 252,      //查看总分类账
+    PzSet_ShowStat_Current  = 253,      //查看本期统计
+
+    //6、打印类（46）： （301 - 350）
+    Print_Pz           = 301,    //打印凭证（301）；
+    Print_DetialTable  = 302,    //打印明细帐和总分类帐（302）
+    Print_StatTable    = 303,    //打印统计表（303）
 
     //7、数据导出类：（351 - 400）
     //    导出明细帐和总分类帐数据；
@@ -120,7 +129,8 @@ inline bool operator==(Right &e1, Right &e2)
 class UserGroup
 {
 public:
-    UserGroup(int code, QString name, QSet<Right*> haveRights = QSet<Right*>());
+    UserGroup(int id, int code, QString name, QSet<Right*> haveRights = QSet<Right*>());
+    int getGroupId(){return id;}
     QString getName();
     void setName(QString name);
     QString getExplain(){return explain;}
@@ -139,6 +149,8 @@ private:
     QString name,explain;           //组名，组说明信息
     QSet<Right*> rights;            //所拥有的权限集（不包括其所属的其他组所拥有的权限）
     //QSet<UserGroup*> ownerGroups;   //所属组
+
+    friend class AppConfig;
 };
 Q_DECLARE_METATYPE(UserGroup*)
 bool groupByCode(UserGroup* g1, UserGroup* g2);
@@ -159,7 +171,12 @@ public:
     QString getOwnerGroupCodeList();
     void addGroup(UserGroup* group);
     void delGroup(UserGroup* group);
-    QSet<Right*> getAllRight();
+    void addRight(Right* r);
+    QSet<Right*> getExtraRights(){return extraRights;}
+    void clearExtraRights(){extraRights.clear();refreshRights();}
+    QString getExtraRightCodes();
+    QSet<Right*> getAllRights();
+    void setAllRights(QSet<Right*> rs);
     bool haveRight(Right* right);
     bool haveRights(QSet<Right*> rights);
     bool isSuperUser();
@@ -170,6 +187,7 @@ public:
     QStringList getExclusiveAccounts();
     void setExclusiveAccounts(QStringList codes);
     static QString encryptPw(QString pw){return pw;} //默认实现不对密码进行加密
+    static QString decryptPw(QString pw){return pw;}
 
 private:
     void refreshRights();
@@ -179,6 +197,7 @@ private:
     QString password;
     QSet<UserGroup*> groups;   //用户所属组
     QSet<Right*> rights;       //用户拥有的所有权限
+    QSet<Right*> extraRights;   //额外权限
     QSet<QString> accountCodes;//专属账户代码集合
 
     friend class AppConfig;

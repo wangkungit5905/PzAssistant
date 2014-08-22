@@ -391,7 +391,7 @@ public:
     FSubItrator* getFstSubItrator(){return new FSubItrator(fstSubHash);}
 
 
-    //获取特种科目的方法
+    //获取特种主目对象的方法
     FirstSubject* getNullFSub(){return FSub_NULL;}
     FirstSubject* getCashSub(){return cashSub;}
     FirstSubject* getBankSub(){return bankSub;}
@@ -404,9 +404,14 @@ public:
     FirstSubject* getYsSub(){return ysSub;}
     FirstSubject* getYfSub(){return yfSub;}
     FirstSubject* getYjsjSub(){return yjsjSub;}
+    FirstSubject* getZysrSub(){return zysrSub;}
+    FirstSubject* getZycbSub(){return zycbSub;}
     bool isSySubject(int sid);
     bool isSyClsSubject(int sid, bool &yes, bool isFst=true);
 
+    //获取特种子目对象方法
+    SecondSubject* getJxseSSub();
+    SecondSubject* getXxseSSub();
 
     bool isUsedSSub(SecondSubject* ssub);
 
@@ -461,6 +466,7 @@ private:
     FirstSubject *cashSub,*bankSub,*ysSub,*yfSub;  //现金、银行科目对象
     FirstSubject *gdzcSub,*dtfySub,*ljzjSub,*bnlrSub,*lrfpSub;//固定资产、待摊费用、累计折旧、本年利润和利润分配科目id
     FirstSubject *cwfySub,*yjsjSub; //财务费用、应交税金
+    FirstSubject *zysrSub, *zycbSub; //主营业务收入、主营业务成本
 
     friend class DbUtil;
 };

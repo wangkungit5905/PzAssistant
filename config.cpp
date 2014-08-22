@@ -1854,27 +1854,18 @@ bool AppConfig::isSpecSubCodeConfiged(int subSys)
  * @return
  */
 QString AppConfig::getSpecSubCode(int subSys, AppConfig::SpecSubCode witch)
-{
-    //目前为了简化，将硬编码实现
-//    switch(witch){
-//    case SSC_CASH:
-//        return "1001";
-//    case SSC_BANK:
-//        return "1002";
-//    case SSC_GDZC:
-//        return "1501";
-//    case SSC_CWFY:
-//        return "5503";
-//    case SSC_BNLR:
-//        return "3131";
-//    case SSC_LRFP:
-//        return "3141";
-//    case SSC_YS:
-//        return "1131";
-//    case SSC_YF:
-//        return "2121";
-//    }
+{    
     return specCodes.value(subSys).value(witch);
+}
+
+/**
+ * @brief 返回指定科目系统的所有特定科目配置项
+ * @param subSys
+ * @return
+ */
+QHash<AppConfig::SpecSubCode, QString> AppConfig::getAllSpecSubCodeForSubSys(int subSys)
+{
+    return specCodes.value(subSys);
 }
 
 /**
@@ -1883,9 +1874,29 @@ QString AppConfig::getSpecSubCode(int subSys, AppConfig::SpecSubCode witch)
  * @param witch
  * @param code
  */
-void AppConfig::setSpecSubCode(int subSys, AppConfig::SpecSubCode witch, QString code)
+bool AppConfig::setSpecSubCode(int subSys, AppConfig::SpecSubCode witch, QString code)
 {
-    //待以后决定了如何保存这些特别科目的机制后，再实现
+    specCodes[subSys][witch] = code;
+    QSqlQuery q(db);
+    QString s = QString("update %1 set %2='%3' where %4=%5 and %6=%7")
+            .arg(tbl_base_sscc).arg(fld_base_sscc_subSys).arg(subSys)
+            .arg(fld_base_sscc_enum).arg(witch).arg(fld_base_sscc_code)
+            .arg(code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int num = q.numRowsAffected();
+    if(num == 0){
+        s = QString("insert into %1(%2,%3,%4) values(%5,%6,'%7')").arg(tbl_base_sscc)
+                .arg(fld_base_sscc_subSys).arg(fld_base_sscc_enum).arg(fld_base_sscc_code)
+                .arg(subSys).arg(witch).arg(code);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    return true;
 }
 
 /**

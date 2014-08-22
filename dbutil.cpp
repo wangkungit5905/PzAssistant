@@ -900,7 +900,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
     QSqlQuery q(db);
     QString s;
 
-    int preSubSys = (subSys<=2)?DEFAULT_SUBSYS_CODE:(subSys-1);    //前一个科目系统的代码
+    //int preSubSys = (subSys<=2)?DEFAULT_SUBSYS_CODE:(subSys-1);    //前一个科目系统的代码
     //1、装载一级科目类别
     s = QString("select %1,%2 from %3 where %4=%5").arg(fld_fsc_code)
             .arg(fld_fsc_name).arg(tbl_fsclass).arg(fld_fsc_subSys).arg(subSys);
@@ -962,6 +962,10 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             smg->yfSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_YJSJ))
             smg->yjsjSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_ZYSR))
+            smg->zysrSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_ZYCB))
+            smg->zycbSub = fsub;
     }
 
     //3、判定科目系统的开始、截止日期

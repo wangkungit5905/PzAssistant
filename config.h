@@ -43,7 +43,9 @@ public:
         SSC_LRFP    = 6,    //利润分配
         SSC_YS      = 7,    //应收账款
         SSC_YF      = 8,    //应付账款
-        SSC_YJSJ    = 9     //应交税金
+        SSC_YJSJ    = 9,    //应交税金
+        SSC_ZYSR    = 10,   //主营业务收入
+        SSC_ZYCB    = 11    //主营业务成本
     };
 
     /**
@@ -111,7 +113,8 @@ public:
     void setSpecNameItemcls(SpecNameItemClass witch, int code);
     bool isSpecSubCodeConfiged(int subSys);
     QString getSpecSubCode(int subSys, SpecSubCode witch);
-    void setSpecSubCode(int subSys, SpecSubCode witch, QString code);
+    QHash<SpecSubCode,QString> getAllSpecSubCodeForSubSys(int subSys);
+    bool setSpecSubCode(int subSys, SpecSubCode witch, QString code);
     QHash<int,SubjectClass> getSubjectClassMaps(int subSys);
 
     QHash<MachineType,QString> getMachineTypes();

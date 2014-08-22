@@ -1192,16 +1192,18 @@ void PzDialog::selectedRowChanged()
  */
 void PzDialog::currentCellChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
 {
-    //如果
-//    if(currentRow == curPz->baCount())
-//        delegate->setVolidRows(currentRow+1);
-    //moveToNextBa(currentRow);
     curRow = currentRow;
     if(curPz){
         curBa = curPz->getBusiAction(currentRow);
         curPz->setCurBa(curBa);
-        if(curBa && curBa->getSecondSubject())
-            ui->tview->setLongName(curBa->getSecondSubject()->getLName());
+        if(curBa && curBa->getSecondSubject()){
+            FirstSubject* fsub = curBa->getFirstSubject();
+            SecondSubject* ssub = curBa->getSecondSubject();
+            QString tip = ssub->getLName();
+            if(fsub == subMgr->getBankSub())
+                tip.append(tr("（账号：%1）").arg(subMgr->getBankAccount(ssub)->accNumber));
+            ui->tview->setLongName(tip);
+        }
         else
             ui->tview->setLongName("");
     }
@@ -1218,7 +1220,6 @@ void PzDialog::currentCellChanged(int currentRow, int currentColumn, int previou
  */
 void PzDialog::pzDateChanged(const QDate &date)
 {
-    //curPz->setDate(date);
     ModifyPzDateCmd*  cmd = new ModifyPzDateCmd(pzMgr,curPz,date.toString(Qt::ISODate));
     pzMgr->getUndoStack()->push(cmd);
 }
@@ -1291,6 +1292,15 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
     case BT_FSTSUB:
         fsub = item->data(Qt::EditRole).value<FirstSubject*>();
         ssub = fsub->getDefaultSubject();
+        if(fsub == subMgr->getYjsjSub() && row > 0){
+            BusiAction* ba = curPz->getBusiAction(row-1);
+            if(ba && ba->getFirstSubject()){
+                if(ba->getFirstSubject() == subMgr->getZysrSub())
+                    ssub = subMgr->getXxseSSub();
+                else if(ba->getFirstSubject() == subMgr->getZycbSub())
+                    ssub = subMgr->getJxseSSub();
+            }
+        }
         updateCols |= BUC_FSTSUB;
         updateCols |= BUC_SNDSUB;
         //如果是银行科目（其二级科目决定了匹配的币种），则根据银行账户的货币属性设置当前的币种
@@ -1328,7 +1338,7 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         if(isInteracting)
             return;
         fsub = curBa->getFirstSubject();
-        ssub = item->data(Qt::EditRole).value<SecondSubject*>();        
+        ssub = item->data(Qt::EditRole).value<SecondSubject*>();
         //如果是银行科目，则根据银行账户所属的币种设置币种对象
         if(subMgr->getBankSub() == fsub){
             mt = subMgr->getSubMatchMt(ssub);
@@ -1357,7 +1367,10 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir());
         pzMgr->getUndoStack()->push(multiCmd);
         if(ssub){
-            ui->tview->setLongName(ssub->getLName());
+            QString tip = ssub->getLName();
+            if(fsub == subMgr->getBankSub())
+                tip.append(tr("（帐号：%1）").arg(subMgr->getBankAccount(ssub)->accNumber));
+            ui->tview->setLongName(tip);
         }
         break;
     case BT_MTYPE:

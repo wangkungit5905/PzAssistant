@@ -1156,6 +1156,34 @@ bool SubjectManager::isSyClsSubject(int sid, bool &yes, bool isFst)
     return true;
 }
 
+/**
+ * @brief 返回应交税金-应交增值税（进项）子目对象
+ * @return
+ */
+SecondSubject *SubjectManager::getJxseSSub()
+{
+    FirstSubject* fsub = getYjsjSub();
+    foreach(SecondSubject* ssub, fsub->getChildSubs()){
+        if(ssub->getName() == QObject::tr("应交增值税（进项）"))
+            return ssub;
+    }
+    return 0;
+}
+
+/**
+ * @brief 返回应交税金-应交增值税（销项）子目对象
+ * @return
+ */
+SecondSubject *SubjectManager::getXxseSSub()
+{
+    FirstSubject* fsub = getYjsjSub();
+    foreach(SecondSubject* ssub, fsub->getChildSubs()){
+        if(ssub->getName() == QObject::tr("应交增值税（销项）"))
+            return ssub;
+    }
+    return 0;
+}
+
 
 
 /**

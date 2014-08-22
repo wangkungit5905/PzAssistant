@@ -1274,7 +1274,9 @@ void MainWindow::on_actOption_triggered()
         dbUtil->getSubWinInfo(SUBWIN_OPTION,winfo,sinfo);
         form = new ConfigPanels();
         PzTemplateOptionForm* panel = new PzTemplateOptionForm(form);
-        form->addPanel(panel,QIcon(":/images/Options/pzTemplate.png"));
+        form->addPanel(panel,QIcon(":/images/Options/pzTemplate.png"));        
+        //SpecSubCodeCfgform* ssccPanel = new SpecSubCodeCfgform(form);
+        //form->addPanel(ssccPanel,QIcon(":/images/Options/test1.png"));
         TestPanel* testPanel = new TestPanel(form);
         form->addPanel(testPanel,QIcon(":/images/Options/test1.png"));
 

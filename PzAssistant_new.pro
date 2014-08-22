@@ -214,7 +214,8 @@ FORMS    += \
     forms/taxescomparisonform.ui \
     forms/outpuexceldlg.ui \
     forms/notemgrform.ui \
-    externaltoolconfigform.ui
+    externaltoolconfigform.ui \
+    forms/specsubcodecfgform.ui
 
 RESOURCES += \
     imgers.qrc \

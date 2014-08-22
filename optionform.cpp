@@ -1,6 +1,7 @@
 #include "optionform.h"
 #include "widgets.h"
-#include "config.h"
+//#include "global.h"
+#include "subject.h"
 #include "ui_pztemplateoptionform.h"
 
 #include <QHBoxLayout>
@@ -100,7 +101,78 @@ bool PzTemplateOptionForm::save()
     return AppConfig::getInstance()->savePzTemplateParameter(&parameter);
 }
 
+///////////////////////SpecSubCodeCfgform//////////////////////////////////
 
+
+//SpecSubCodeCfgform::SpecSubCodeCfgform(QWidget *parent) :
+//    ConfigPanelBase(parent),ui(new Ui::SpecSubCodeCfgform)
+//{
+//    ui->setupUi(this);
+//    appCon = AppConfig::getInstance();
+//    init();
+//}
+
+//SpecSubCodeCfgform::~SpecSubCodeCfgform()
+//{
+//    delete ui;
+//}
+
+//bool SpecSubCodeCfgform::isDirty()
+//{
+//    return false;
+//}
+
+//bool SpecSubCodeCfgform::save()
+//{
+//    return true;
+//}
+
+//void SpecSubCodeCfgform::init()
+//{
+//    names[AppConfig::SSC_CASH ] = tr("现金");
+//    names[AppConfig::SSC_BANK ] = tr("银行存款");
+//    names[AppConfig::SSC_GDZC] = tr("固定资产");
+//    names[AppConfig::SSC_CWFY] = tr("财务费用");
+//    names[AppConfig::SSC_BNLR] = tr("本年利润");
+//    names[AppConfig::SSC_LRFP] = tr("利润分配");
+//    names[AppConfig::SSC_YS] = tr("应收账款");
+//    names[AppConfig::SSC_YF] = tr("应付账款");
+//    names[AppConfig::SSC_YJSJ] = tr("应交税金");
+//    names[AppConfig::SSC_ZYSR] = tr("主营业务收入");
+//    names[AppConfig::SSC_ZYCB] = tr("主营业务成本");
+//    QList<SubSysNameItem*> items;
+//    appCon->getSubSysItems(items);
+////    foreach(SubSysNameItem* item, items){
+////        ui->tabWidget->addTab(crtTab(item->code),item->name);
+////    }
+//    ui->tabWidget->addTab(crtTab(2),items.at(1)->name);
+//}
+
+///**
+// * @brief 创建对应与指定科目系统的特定科目配置页
+// * @param subSys
+// * @return
+// */
+//QWidget *SpecSubCodeCfgform::crtTab(int subSys)
+//{
+//    SubjectManager* sm = curAccount->getSubjectManager(subSys);
+//    QWidget* w = new QWidget(this);
+//    QHash<AppConfig::SpecSubCode,QString> items = appCon->getAllSpecSubCodeForSubSys(subSys);
+//    QList<AppConfig::SpecSubCode> es = items.keys();
+//    qSort(es.begin(),es.end());
+//    QGridLayout* gl = new QGridLayout();
+//    for(int r = 0; r < es.count(); ++r){
+//        AppConfig::SpecSubCode e = es.at(r);
+//        QLabel* lblName = new QLabel(items.value(e),w);
+//        QString code = items.value(e);
+//        FirstSubject* fsub = sm->getFstSubject(code);
+//        QLabel* lblSub = new QLabel(fsub->getName());
+//        gl->addWidget(lblName,r,0,1,1);
+//        gl->addWidget(lblSub,r,1,1,1);
+//    }
+//    w->setLayout(gl);
+//    return w;
+//}
 
 /////////////////////////////
 

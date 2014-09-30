@@ -4,6 +4,13 @@
 #include <QString>
 #include <QMetaType>
 
+/**
+ * @brief The Double class
+ * 满足了会计数值计算所要求的精度的实用类
+ * 实现思路是使用大整数来模拟浮点数（小数位在2位（表示普通数值或计算结果）或4位（表示汇率））
+ * Double类对于运算符有如下约定：
+ * 参予操作的两个数，精度（即保留小数位）可以不同，但结果值将只保留2位小数
+ */
 class Double
 {
 public:
@@ -12,7 +19,7 @@ public:
     Double(qint64 v, int digit = 2);
     //Double(const Double &other);
 
-    QString toString() const;
+    QString toString(bool zero=false) const;
     QString toString2() const;
     int getDig() const {return digs;}
     int getDigRate() const {return digRate;}
@@ -44,10 +51,13 @@ public:
     bool operator >=(const int v) const;
     bool operator <=(const Double &other) const;
     bool operator <=(const int v) const;
-
+    static qint64 reduce(qint64 sv, int rate);
 private:
-    qint64 lv;
-    int digs; //小数位数
+    int max(const int x, const int y) const {return x>=y?x:y;}
+    void adjustValue(int rate, qint64 &v1, qint64 &v2) const;
+
+    qint64 lv;    //用于表示浮点数的大整数
+    int digs;     //小数位数
     int digRate;  //与小数位数对应的10的倍数（比如2位即100）
 };
 Q_DECLARE_METATYPE(Double)

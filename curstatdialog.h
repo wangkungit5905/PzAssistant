@@ -140,15 +140,10 @@ private:
     bool isCanSave; //是否可以保存余额（基于当前的凭证集状态）
 
     SubjectManager* smg;
-
-    //表格行文本色
-    QColor row_tc_ssub;
-    QColor row_tc_fsub;
-    QColor row_tc_sum;
     //表格行背景色
-    QBrush row_bk_ssub;    //子目行
-    QBrush row_bk_fsub;    //总目行
-    QBrush row_bk_sum;     //合计行
+    QColor row_bk_ssub;    //子目行
+    QColor row_bk_fsub;    //总目行
+    QColor row_bk_sum;     //合计行
 };
 Q_DECLARE_METATYPE(CurStatDialog::StateInfo)
 

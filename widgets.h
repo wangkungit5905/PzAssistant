@@ -12,6 +12,7 @@
 #include <QSqlQueryModel>
 #include <QStandardItem>
 #include <QPushButton>
+#include <QVBoxLayout>
 
 #include "commdatastruct.h"
 #include "common.h"
@@ -62,21 +63,38 @@ class MyMdiSubWindow : public QMdiSubWindow
 {
     Q_OBJECT
 public:
-    MyMdiSubWindow(int gid=0, subWindowType winType=SUBWIN_NONE, bool isHideWhenColse = false, QWidget* parent = 0):
-        QMdiSubWindow(parent),groupId(gid),winType(winType),isHideWhenColse(isHideWhenColse){}
+    MyMdiSubWindow(int gid=0, subWindowType winType=SUBWIN_NONE, bool isHideWhenColse = false, QWidget* parent = 0);
     //~MyMdiSubWindow();
     int getGroupId(){return groupId;}
     subWindowType getWindowType(){return winType;}
-//public slots:
-//    void close();
+    //void setWidget(QWidget* widget);
+    //QWidget* widget();
+
 signals:
     void windowClosed(MyMdiSubWindow* subWin);
 protected:
     void closeEvent(QCloseEvent *closeEvent);
 private:
+    void init();
+
     int groupId;            //子窗口所属视图组的id
     subWindowType winType;  //子窗口的自定义类型
     bool isHideWhenColse;
+
+
+    QWidget* wrapWidget,*cw;
+    QVBoxLayout* lm;
+    QVBoxLayout *verticalLayout;
+    QWidget *widget_title;
+    QHBoxLayout *horizontalLayout_2;
+    QLabel *lab_Ico;
+    QLabel *lab_Title;
+    QWidget *widget_menu;
+    QHBoxLayout *horizontalLayout;
+    QPushButton *btnMenu;
+    QPushButton *btnMenu_Min;
+    QPushButton *btnMenu_Max;
+    QPushButton *btnMenu_Close;
 };
 
 /**

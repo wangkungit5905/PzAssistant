@@ -83,6 +83,27 @@ void AppConfig::setLogLevel(Logger::LogLevel level)
     appIni->endGroup();
 }
 
+QString AppConfig::getAppStyleName()
+{
+    appIni->beginGroup("AppStyle");
+    QString name = appIni->value("styleName").toString();
+    appIni->endGroup();
+    if(name.isEmpty()){
+        name = "navy";
+        appIni->setValue("AppStyle/styleName",name);
+        appIni->sync();
+    }
+    return name;
+}
+
+void AppConfig::setAppStyleName(QString styleName)
+{
+    appIni->beginGroup("AppStyle");
+    appIni->setValue("styleName",styleName);
+    appIni->endGroup();
+    appIni->sync();
+}
+
 
 /**
  * @brief AppConfig::getBaseDbConnect

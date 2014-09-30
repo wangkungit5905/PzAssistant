@@ -18,6 +18,8 @@ CREATE TABLE subWinInfos(id INTEGER PRIMARY KEY,winEnum INTEGER,x INTEGER,y INTE
 
 8、实现业务活动的复制、剪切和粘贴功能(ok)
 
+9、
+
 （二）基本数据库
 增加下面的表
 1、账户信息表

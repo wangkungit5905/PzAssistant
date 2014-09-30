@@ -79,7 +79,9 @@ SOURCES += main.cpp\
     outputexceldlg.cpp \
     tools/notemgrform.cpp \
     tools/externaltoolconfigform.cpp \
-    seccondialog.cpp
+    seccondialog.cpp \
+    frmmessagebox.cpp \
+    iconhelper.cpp
 
 HEADERS  += \
     connection.h \
@@ -152,7 +154,10 @@ HEADERS  += \
     outputexceldlg.h \
     tools/notemgrform.h \
     tools/externaltoolconfigform.h \
-    seccondialog.h
+    seccondialog.h \
+    frmmessagebox.h \
+    myhelper.h \
+    iconhelper.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -215,7 +220,9 @@ FORMS    += \
     forms/outpuexceldlg.ui \
     forms/notemgrform.ui \
     externaltoolconfigform.ui \
-    forms/specsubcodecfgform.ui
+    forms/specsubcodecfgform.ui \
+    forms/frmmessagebox.ui \
+    forms/appcommcfgpanel.ui
 
 RESOURCES += \
     imgers.qrc \

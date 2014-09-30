@@ -31,6 +31,7 @@ protected:
 
 private slots:
     void titleListContextMenuRequested(const QPoint & pos);
+    void noteContentChanged();
     void on_btnReturn_clicked();
 
     void on_lwTitles_itemDoubleClicked(QListWidgetItem *item);

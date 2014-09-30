@@ -50,6 +50,7 @@
 #include "seccondialog.h"
 #include "tools/notemgrform.h"
 #include "tools/externaltoolconfigform.h"
+#include "myhelper.h"
 
 #include "completsubinfodialog.h"
 
@@ -359,6 +360,8 @@ MyMdiSubWindow* SubWinGroupMgr::showSubWindow(subWindowType winType, QWidget *wi
     return sw;
 }
 
+
+
 QWidget *SubWinGroupMgr::getSubWinWidget(subWindowType winType)
 {
     if(!subWinHashs.contains(winType))
@@ -403,6 +406,7 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         state = w->getState();
         disconnect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
         disconnect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
+        disconnect(w,SIGNAL(rateChanged(int)),this,SLOT(rateChanged(int)));
         delete w;
     }
     else if(t == SUBWIN_HISTORYVIEW){
@@ -457,6 +461,9 @@ MainWindow::MainWindow(QWidget *parent) :
     undoView = NULL;
     curSSPanel = NULL;
     etMapper = NULL;
+
+    //setStyleSheet("QMainWindow::separator:hover {background: red;}");
+
 
     appCon = AppConfig::getInstance();
     initActions();
@@ -1022,7 +1029,8 @@ void MainWindow::rfBaEditAct()
  */
 void MainWindow::rfSaveBtn()
 {
-    bool en = (curSuiteMgr && !curSuiteMgr->getUndoStack()->isClean())?true:false;
+    //bool en = (curSuiteMgr && !curSuiteMgr->getUndoStack()->isClean())?true:false;
+    bool en = (curSuiteMgr && curSuiteMgr->isDirty())?true:false;
     ui->actSave->setEnabled(en);
 }
 
@@ -1273,6 +1281,8 @@ void MainWindow::on_actOption_triggered()
     if(!commonGroups.contains(SUBWIN_OPTION)){
         dbUtil->getSubWinInfo(SUBWIN_OPTION,winfo,sinfo);
         form = new ConfigPanels();
+        AppCommCfgPanel* comPanel = new AppCommCfgPanel(form);
+        form->addPanel(comPanel,QIcon(":/images/Options/common.png"));
         PzTemplateOptionForm* panel = new PzTemplateOptionForm(form);
         form->addPanel(panel,QIcon(":/images/Options/pzTemplate.png"));        
         //SpecSubCodeCfgform* ssccPanel = new SpecSubCodeCfgform(form);
@@ -1444,6 +1454,7 @@ void MainWindow::openSpecPz(int pid,int bid)
             w->setWindowTitle(tr("凭证窗口（新）"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
+            connect(w,SIGNAL(rateChanged(int)),this,SLOT(rateChanged(int)));
             subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,w,winfo);
         }
         else{
@@ -1857,6 +1868,11 @@ void MainWindow::baSelectChanged(QList<int> rows, bool conti)
     //    ui->actAddAction->setEnabled(r);
 }
 
+void MainWindow::rateChanged(int month)
+{
+    ui->actSave->setEnabled(true);
+}
+
 /**
  * @brief 启动指定索引的外部工具
  * @param index
@@ -1982,6 +1998,7 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
             w->setWindowTitle(tr("凭证编辑窗口"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
+            connect(w,SIGNAL(rateChanged(int)),this,SLOT(rateChanged(int)));
             subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZEDIT,w,winfo);
         }
         else{
@@ -3907,7 +3924,9 @@ bool MainWindow::impTestDatas()
 //    pt.factor[4] = 0.11;
 //    r = config->savePzTemplateParameter(&pt);
 
-
+    MyMdiSubWindow* win = new MyMdiSubWindow();
+    ui->mdiArea->addSubWindow(win);
+    win->show();
     int i = 0;
 }
 

@@ -219,7 +219,7 @@ public:
     QList<BusiAction*>& baList(){return baLst;}
     void setBaList(QList<BusiAction*> lst);
 
-
+    void reCalSums();
     //编辑状态方法
     PingZhengEditStates getEditState();
     void resetEditState(){setProperty(ObjEditState,ES_PZ_INIT);isDeleted=false;}

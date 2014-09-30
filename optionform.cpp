@@ -1,10 +1,62 @@
 #include "optionform.h"
 #include "widgets.h"
-//#include "global.h"
 #include "subject.h"
+#include "myhelper.h"
 #include "ui_pztemplateoptionform.h"
 
 #include <QHBoxLayout>
+
+
+////////////////////AppCommCfgPanel//////////////////////////////
+AppCommCfgPanel::AppCommCfgPanel(QWidget *parent) :
+    ConfigPanelBase(parent),
+    ui(new Ui::AppCommCfgPanel)
+{
+    ui->setupUi(this);
+    init();
+}
+
+AppCommCfgPanel::~AppCommCfgPanel()
+{
+    delete ui;
+}
+
+bool AppCommCfgPanel::isDirty()
+{
+    return false;
+}
+
+bool AppCommCfgPanel::save()
+{
+    return true;
+}
+
+void AppCommCfgPanel::styleChanged(bool checked)
+{
+    if(checked){
+        QRadioButton* obj = qobject_cast<QRadioButton*>(sender());
+        QString cssName;
+        if(obj == ui->rdoNavy)
+            cssName = "navy";
+        else if(obj == ui->rdoBlack)
+            cssName = "black";
+        else
+            cssName = "pink";
+        myHelper::SetStyle(cssName);
+        AppConfig::getInstance()->setAppStyleName(cssName);
+    }
+}
+
+void AppCommCfgPanel::init()
+{
+    QString styleName = AppConfig::getInstance()->getAppStyleName();
+    if(styleName == "navy")
+        ui->rdoNavy->setChecked(true);
+    else if(styleName == "black")
+        ui->rdoBlack->setChecked(true);
+    else
+        ui->rdoPink->setChecked(true);
+}
 
 //////////////////////PzTemplateOptionForm//////////////////////////////////
 PzTemplateOptionForm::PzTemplateOptionForm(QWidget *parent) :

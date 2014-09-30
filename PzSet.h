@@ -134,7 +134,8 @@ public:
 
     QList<PingZheng *> getHistoryPzSet(int m);
 
-
+public slots:
+    void rateChanged(int month=0);
 private slots:
     void needRestat();
     void pzChangedInSet(PingZheng* pz);

@@ -22,13 +22,21 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     dataModel = NULL;
 
     //初始化表格行的背景色
-    row_tc_fsub = QColor(Qt::blue);
-    row_tc_ssub =QColor(Qt::black);
-    row_tc_sum = QColor(Qt::red);
-
-    row_bk_ssub = QBrush(QColor(200,200,255));
-    row_bk_fsub = QBrush(QColor(150,150,255));
-    row_bk_sum = QBrush(QColor(100,100,255));
+    QString cssName = AppConfig::getInstance()->getAppStyleName();
+    if(cssName == "navy"){
+        row_bk_ssub = QColor(0xC8C8FF);
+        row_bk_fsub = QColor(0x9696FF);
+        row_bk_sum = QColor(0x6464FF);
+    }else if(cssName == "pink"){
+        row_bk_ssub = QColor(0xFDD8D8);
+        row_bk_fsub = QColor(0xFEBEBE);
+        row_bk_sum = QColor(0xF9A2A2);
+    }
+    else{
+        row_bk_ssub = QColor(0xE8E8EA);
+        row_bk_fsub = QColor(0xD9D9DC);
+        row_bk_sum = QColor(0xC7C7CD);
+    }
 
     //初始化自定义的层次式表头
     hv = new HierarchicalHeaderView(Qt::Horizontal, ui->tview);
@@ -1062,22 +1070,20 @@ void CurStatDialog::setTableRowBackground(CurStatDialog::TableRowType rt, const 
 //    for(int i = 0; i < l.count(); ++i){
 //        l.at(i)->setBackground(br);
 //    }
-        QColor color;
+        QColor bk;
         switch(rt){
         case TRT_FSUB:
-            color = row_tc_fsub;
+            bk = row_bk_fsub;
             break;
         case TRT_SSUB:
-            color = row_tc_ssub;
+            bk = row_bk_ssub;
             break;
         case TRT_SUM:
-            color = row_tc_sum;
+            bk = row_bk_sum;
             break;
         }
-        for(int i = 0; i < l.count(); ++i){
-            l.at(i)->setData(color,Qt::ForegroundRole);
-
-        }
+        for(int i = 0; i < l.count(); ++i)
+            l.at(i)->setData(bk,Qt::BackgroundColorRole);
 }
 
 /**

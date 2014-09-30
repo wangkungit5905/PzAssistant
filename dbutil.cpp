@@ -3118,12 +3118,13 @@ bool DbUtil::getRates(int y, int m, QHash<int, Double> &rates)
         LOG_SQLERROR(s);
         return false;
     }
+    rates.clear();
     if(!q.first()){
         LOG_DEBUG(QObject::tr("没有指定汇率！"));
         return true;
     }
     for(int i = 0;i<mtcs.count();++i)
-        rates[mtcs.at(i)] = Double(q.value(i).toDouble());
+        rates[mtcs.at(i)] = Double(q.value(i).toDouble(),4);
     return true;
 }
 
@@ -3177,7 +3178,7 @@ bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
         for(int i = 0; i < mtFields.count(); ++i){
             if(rates.contains(wbCodes.at(i)))
                 s.append(QString("%1=%2,").arg(mtFields.at(i))
-                         .arg(rates.value(wbCodes.at(i)).toString2()));
+                         .arg(rates.value(wbCodes.at(i)).toString(true)));
         }
 
         s.chop(1);
@@ -3193,7 +3194,7 @@ bool DbUtil::saveRates(int y, int m, QHash<int, Double> &rates)
         for(int i = 0; i < mtFields.count(); ++i){
             if(rates.contains(wbCodes.at(i))){
                 s.append(mtFields.at(i)).append(",");
-                vs.append(rates.value(wbCodes[i]).toString2()).append(",");
+                vs.append(rates.value(wbCodes[i]).toString(true)).append(",");
             }
         }
         s.chop(1); vs.chop(1);

@@ -273,7 +273,7 @@ QVariant BAMoneyValueItem_new::data(int role) const
             else if(witch == DIR_J)  //借方金额用蓝色
                 return qVariantFromValue(QColor(Qt::blue));
             else if(witch == DIR_D)  //贷方金额用绿色
-                return qVariantFromValue(QColor(Qt::green));
+                return qVariantFromValue(QColor(Qt::darkGreen));
         }
         else
             return qVariantFromValue(forColor);

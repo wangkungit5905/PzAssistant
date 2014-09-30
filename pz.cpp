@@ -988,6 +988,31 @@ void PingZheng::setBaList(QList<BusiAction *> lst)
     emit mustRestat();
 }
 
+/**
+ * @brief 重新计算借贷方合计值
+ */
+void PingZheng::reCalSums()
+{
+    Double oldJv=js,oldDv=ds;
+    js=0;ds=0;
+    Money* mmt = p->getAccount()->getMasterMt();
+    QHash<int,Double> rates;
+    p->getRates(rates,getDate2().month());
+    foreach(BusiAction* ba, baLst){
+        Double v = ba->getValue();
+        if(ba->getMt() != mmt)
+            v *= rates.value(ba->getMt()->code());
+        if(ba->getDir() == MDIR_J)
+            js += v;
+        else
+            ds += v;
+    }
+    if(oldJv != js)
+        setEditState(ES_PZ_JSUM);
+    if(oldDv != ds)
+        setEditState(ES_PZ_DSUM);
+}
+
 PingZhengEditStates PingZheng::getEditState()
 {
     if(property(ObjEditState).canConvert<PingZhengEditStates>())

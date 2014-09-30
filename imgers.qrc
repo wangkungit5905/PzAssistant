@@ -85,5 +85,22 @@
         <file>images/password.png</file>
         <file>images/Options/pzTemplate.png</file>
         <file>images/Options/test1.png</file>
+        <file>styles/sub-line_vertical.png</file>
+        <file>styles/sub-line_horizontal.png</file>
+        <file>styles/radio_selected.png</file>
+        <file>styles/radio_normal.png</file>
+        <file>styles/navy.css</file>
+        <file>styles/fontawesome-webfont.ttf</file>
+        <file>styles/Font Awesome Cheatsheet.png</file>
+        <file>styles/checkbox_unchecked.png</file>
+        <file>styles/checkbox_checked.png</file>
+        <file>styles/black.css</file>
+        <file>styles/add-line_vertical.png</file>
+        <file>styles/add-line_horizontal.png</file>
+        <file>translations/qt_zh_CN.qm</file>
+        <file>styles/arrow-up.png</file>
+        <file>styles/arrow-down.png</file>
+        <file>images/Options/common.png</file>
+        <file>styles/pink.css</file>
     </qresource>
 </RCC>

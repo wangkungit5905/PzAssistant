@@ -738,20 +738,37 @@ void MoneyValueEdit::keyPressEvent(QKeyEvent *e)
         if(witch == 0)
             emit nextRow(row);  //传播给代理，代理再传播给凭证编辑窗
         emit editNextItem(row,col);
+        e->accept();
     }
     else if((key >= Qt::Key_0 && key <= Qt::Key_9) || key == Qt::Key_Period){
         QString t = text()+ e->text();
         int i = 0;
         QValidator::State state = validator->validate(t,i);
-        if(state == QValidator::Acceptable)
+        if(state == QValidator::Acceptable){
             QLineEdit::keyPressEvent(e);
+            e->accept();
+        }
     }
-    else if(key == Qt::Key_Minus && cursorPosition() == 0)
+    else if(key == Qt::Key_Minus){//负号
+        if(text().indexOf('-') != 0){
+            if(hasSelectedText())
+                del();
+            if(cursorPosition() != 0)
+                setCursorPosition(0);
+            QLineEdit::keyPressEvent(e);
+            e->accept();
+        }
+    }
+    else if(key == Qt::Key_Backspace || key == Qt::Key_Left || key == Qt::Key_Right){
         QLineEdit::keyPressEvent(e);
-    else if(key == Qt::Key_Backspace)
+        e->accept();
+    }
+    else if(e->matches(QKeySequence::Copy) || e->matches(QKeySequence::Cut) || e->matches(QKeySequence::Paste)){
         QLineEdit::keyPressEvent(e);
-    else if(key == Qt::Key_Up || key == Qt::Key_Down)
-        QLineEdit::keyPressEvent(e);
+        e->accept();
+    }
+    else
+        e->ignore();
 }
 
 //void MoneyValueEdit::valueChanged(const QString &text)

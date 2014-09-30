@@ -179,6 +179,7 @@ private slots:
     void curPzChanged(PingZheng* newPz=NULL, PingZheng* oldPz=NULL);
     void baIndexBoundaryChanged(bool first, bool last);
     void baSelectChanged(QList<int> rows, bool conti);
+    void rateChanged(int month);
 
     void startExternalTool(int index);
 

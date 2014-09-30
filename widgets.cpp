@@ -4,6 +4,7 @@
 #include <QPrinter>
 #include <QDomDocument>
 
+#include "iconhelper.h"
 #include "widgets.h"
 #include "utils.h"
 #include "global.h"
@@ -105,17 +106,160 @@ void ValidableTableWidgetItem::setData(int role, const QVariant& value)
 //    }
 //}
 
+MyMdiSubWindow::MyMdiSubWindow(int gid, subWindowType winType, bool isHideWhenColse, QWidget *parent):
+    QMdiSubWindow(parent),groupId(gid),winType(winType),isHideWhenColse(isHideWhenColse)
+{    
+    //init();
+}
+
+//void MyMdiSubWindow::setWidget(QWidget *widget)
+//{
+//    lm->removeWidget(cw);
+//    cw = widget;
+//    lm->addWidget(cw);
+//    wrapWidget->setLayout(lm);
+//    QMdiSubWindow::setWidget(this->wrapWidget);
+//}
+
+//QWidget *MyMdiSubWindow::widget()
+//{
+//    return cw;
+//}
+
 void MyMdiSubWindow::closeEvent(QCloseEvent *closeEvent)
 {
     if(isHideWhenColse)
         hide();
     else{
         emit windowClosed(this);
-        //delete widget();
         QMdiSubWindow::closeEvent(closeEvent);
     }
 }
 
+void MyMdiSubWindow::init()
+{
+    this->setWindowFlags(Qt::FramelessWindowHint |Qt::SubWindow| Qt::WindowSystemMenuHint | Qt::WindowMinMaxButtonsHint);
+    QHBoxLayout* layout = new QHBoxLayout(this);
+    layout->setSpacing(0);
+    layout->setContentsMargins(0, 0, 0, 0);
+    wrapWidget = new QWidget(this);
+    wrapWidget->resize(622, 496);
+    //setSizeGripEnabled(true);
+    lm = new QVBoxLayout(wrapWidget);
+    lm->setSpacing(0);
+    lm->setContentsMargins(11, 11, 11, 11);
+    lm->setContentsMargins(0, 0, 0, 0);
+
+    //标题条控件
+    widget_title = new QWidget(wrapWidget);
+    widget_title->setObjectName(QString::fromUtf8("widget_title"));
+    QSizePolicy sizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    sizePolicy.setHorizontalStretch(0);
+    sizePolicy.setVerticalStretch(0);
+    sizePolicy.setHeightForWidth(widget_title->sizePolicy().hasHeightForWidth());
+    widget_title->setSizePolicy(sizePolicy);
+    widget_title->setMinimumSize(QSize(100, 33));
+    horizontalLayout_2 = new QHBoxLayout(widget_title);
+    horizontalLayout_2->setSpacing(0);
+    horizontalLayout_2->setContentsMargins(11, 11, 11, 11);
+    horizontalLayout_2->setObjectName(QString::fromUtf8("horizontalLayout_2"));
+    horizontalLayout_2->setContentsMargins(0, 0, 0, 0);
+    lab_Ico = new QLabel(widget_title);
+    lab_Ico->setObjectName(QString::fromUtf8("lab_Ico"));
+    QSizePolicy sizePolicy1(QSizePolicy::Minimum, QSizePolicy::Preferred);
+    sizePolicy1.setHorizontalStretch(0);
+    sizePolicy1.setVerticalStretch(0);
+    sizePolicy1.setHeightForWidth(lab_Ico->sizePolicy().hasHeightForWidth());
+    lab_Ico->setSizePolicy(sizePolicy1);
+    lab_Ico->setMinimumSize(QSize(30, 0));
+    lab_Ico->setAlignment(Qt::AlignCenter);
+
+    horizontalLayout_2->addWidget(lab_Ico);
+
+    lab_Title = new QLabel(widget_title);
+    lab_Title->setObjectName(QString::fromUtf8("lab_Title"));
+    QSizePolicy sizePolicy2(QSizePolicy::Expanding, QSizePolicy::Preferred);
+    sizePolicy2.setHorizontalStretch(0);
+    sizePolicy2.setVerticalStretch(0);
+    sizePolicy2.setHeightForWidth(lab_Title->sizePolicy().hasHeightForWidth());
+    lab_Title->setSizePolicy(sizePolicy2);
+    lab_Title->setStyleSheet(QString::fromUtf8("font: 10pt \"\345\276\256\350\275\257\351\233\205\351\273\221\";"));
+    lab_Title->setAlignment(Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter);
+
+    horizontalLayout_2->addWidget(lab_Title);
+
+    widget_menu = new QWidget(widget_title);
+    widget_menu->setObjectName(QString::fromUtf8("widget_menu"));
+    sizePolicy1.setHeightForWidth(widget_menu->sizePolicy().hasHeightForWidth());
+    widget_menu->setSizePolicy(sizePolicy1);
+    horizontalLayout = new QHBoxLayout(widget_menu);
+    horizontalLayout->setSpacing(0);
+    horizontalLayout->setContentsMargins(11, 11, 11, 11);
+    horizontalLayout->setObjectName(QString::fromUtf8("horizontalLayout"));
+    horizontalLayout->setContentsMargins(0, 0, 0, 0);
+    btnMenu = new QPushButton(widget_menu);
+    btnMenu->setObjectName(QString::fromUtf8("btnMenu"));
+    QSizePolicy sizePolicy3(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    sizePolicy3.setHorizontalStretch(0);
+    sizePolicy3.setVerticalStretch(0);
+    sizePolicy3.setHeightForWidth(btnMenu->sizePolicy().hasHeightForWidth());
+    btnMenu->setSizePolicy(sizePolicy3);
+    btnMenu->setMinimumSize(QSize(31, 0));
+    btnMenu->setCursor(QCursor(Qt::ArrowCursor));
+    btnMenu->setFocusPolicy(Qt::NoFocus);
+    btnMenu->setFlat(true);
+
+    horizontalLayout->addWidget(btnMenu);
+
+    btnMenu_Min = new QPushButton(widget_menu);
+    btnMenu_Min->setObjectName(QString::fromUtf8("btnMenu_Min"));
+    sizePolicy3.setHeightForWidth(btnMenu_Min->sizePolicy().hasHeightForWidth());
+    btnMenu_Min->setSizePolicy(sizePolicy3);
+    btnMenu_Min->setMinimumSize(QSize(31, 0));
+    btnMenu_Min->setCursor(QCursor(Qt::ArrowCursor));
+    btnMenu_Min->setFocusPolicy(Qt::NoFocus);
+    btnMenu_Min->setFlat(true);
+
+    horizontalLayout->addWidget(btnMenu_Min);
+
+    btnMenu_Max = new QPushButton(widget_menu);
+    btnMenu_Max->setObjectName(QString::fromUtf8("btnMenu_Max"));
+    sizePolicy3.setHeightForWidth(btnMenu_Max->sizePolicy().hasHeightForWidth());
+    btnMenu_Max->setSizePolicy(sizePolicy3);
+    btnMenu_Max->setMinimumSize(QSize(31, 0));
+    btnMenu_Max->setCursor(QCursor(Qt::ArrowCursor));
+    btnMenu_Max->setFocusPolicy(Qt::NoFocus);
+    btnMenu_Max->setFlat(true);
+
+    horizontalLayout->addWidget(btnMenu_Max);
+
+    btnMenu_Close = new QPushButton(widget_menu);
+    btnMenu_Close->setObjectName(QString::fromUtf8("btnMenu_Close"));
+    sizePolicy3.setHeightForWidth(btnMenu_Close->sizePolicy().hasHeightForWidth());
+    btnMenu_Close->setSizePolicy(sizePolicy3);
+    btnMenu_Close->setMinimumSize(QSize(40, 0));
+    btnMenu_Close->setCursor(QCursor(Qt::ArrowCursor));
+    btnMenu_Close->setFocusPolicy(Qt::NoFocus);
+    btnMenu_Close->setFlat(true);
+
+    horizontalLayout->addWidget(btnMenu_Close);
+    horizontalLayout_2->addWidget(widget_menu);
+    lm->addLayout(horizontalLayout_2);
+
+    cw = new QWidget(wrapWidget);
+    QLabel* tem = new QLabel("Content Widget",cw);
+    QHBoxLayout* ll = new QHBoxLayout(cw);
+    ll->addWidget(tem);
+    lm->addWidget(cw);
+    layout->addWidget(wrapWidget);
+
+    IconHelper::Instance()->SetIcon(btnMenu_Close, QChar(0xf00d), 10);
+    IconHelper::Instance()->SetIcon(btnMenu_Max, QChar(0xf096), 10);
+    IconHelper::Instance()->SetIcon(btnMenu_Min, QChar(0xf068), 10);
+    IconHelper::Instance()->SetIcon(btnMenu, QChar(0xf0c9), 10);
+    IconHelper::Instance()->SetIcon(lab_Ico, QChar(0xf015), 12);
+    QMdiSubWindow::setWidget(this->wrapWidget);
+}
 
 /////////////////////////BusinessActionItem/////////////////////////////////////////////////
 BASummaryItem::BASummaryItem(const QString content,

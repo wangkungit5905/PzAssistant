@@ -241,6 +241,7 @@ private slots:
 signals:
     void showMessage(QString info, AppErrorLevel levelS=AE_OK);
     void selectedBaChanged(QList<int> rows, bool conti);
+    void rateChanged(int month);
     //void baIndexBoundaryChanged(bool first, bool last);
 private:
     void adjustTableSize();
@@ -330,10 +331,13 @@ private:
     void viewBusiactions();
     void refreshSingleBa(int row, BusiAction *ba);
     void adjustTableSize();
+    void viewRates(int y, int m);
 
     Ui::HistoryPzForm *ui;
     PingZheng* pz;
+    int curY,curM;  //当前显示的凭证所处年月
     QList<int> colWidths;  //表格列宽
+    QHash<int,QHash<Money*,Double> > rates;//汇率表，键为年月组成的混合键高四位表示年份
 };
 
 class ReadOnlyItemDelegate : public QItemDelegate{

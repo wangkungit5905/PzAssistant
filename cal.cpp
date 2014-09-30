@@ -10,11 +10,20 @@ Double::Double()
     lv = 0;
 }
 
+/**
+ * @brief Double::Double
+ *  精度只能是2位或4位
+ * @param v
+ * @param digit
+ */
 Double::Double(double v, int digit):digs(digit)
 {
-    digRate = 1;
-    for(int i = 0; i < digit; ++i)
-        digRate *= 10;
+    if(digit == 4)
+        digRate = 10000;
+    else{
+        digs=2;
+        digRate = 100;
+    }
     QString s;
     s.setNum(v*digRate,'f',0);
     lv = s.toLongLong();
@@ -22,40 +31,52 @@ Double::Double(double v, int digit):digs(digit)
 
 Double::Double(qint64 v, int digit):lv(v),digs(digit)
 {
-    digRate = 1;
-    for(int i = 0; i < digit; ++i)
-        digRate *= 10;
+    if(digit == 4)
+        digRate = 10000;
+    else{
+        digs=2;
+        digRate = 100;
+    }
 }
 
 //Double::Double(const Double &other)
 //{
-//    digs = other.getDig();
-//    digRate = other.getDigRate();
-//    lv = other.getlv();
+//    digs = other.digs;
+//    digRate = other.digRate;
+//    lv = other.lv;
 //}
 
-QString Double::toString() const
+
+/**
+ * @brief Double::toString
+ * @param zero：true：当值为零时输出“0”，否则用0填补不足的小数位
+ *              false：当值为零时输出空字符串，否则截断末尾的零
+ * @return
+ */
+QString Double::toString(bool zero) const
 {
+
     if(lv == 0)
-        return "";
-    double v = (double)lv / digRate;
-    if(lv % 100 == 0)
-        return QString::number(v,'f',0);
-    else if(lv % 10 == 0)
-        return QString::number(v,'f',1);
-    return QString::number(v,'f',2);
+        return zero?"0":"";
+    else{
+        double v = (double)lv / digRate;
+        if(zero)
+            return QString::number(v,'f',digs);
+        else{
+            int num=0;
+            for(int rate = digRate; rate > 1; rate/=10){
+                if(lv % rate == 0)
+                    return QString::number(v,'f',num);
+                num++;
+            }
+            return QString::number(v,'f',num);
+        }
+    }
 }
 
 QString Double::toString2() const
 {
-    if(lv == 0)
-        return "0";
-    double v = (double)lv / digRate;
-    if(lv % 100 == 0)
-        return QString::number(v,'f',0);
-    else if(lv % 10 == 0)
-        return QString::number(v,'f',1);
-    return QString::number(v,'f',2);
+    return toString(true);
 }
 
 //变更符号
@@ -71,32 +92,6 @@ Double Double::operator =(double v)
     QString s;
     s.setNum(v*digRate,'f',0);
     lv = s.toLongLong();
-
-    //原始的实现代码有bug，当v是负数时，会产生负余数
-    //    lv = v*1000;
-//    if(lv%10 > 4){
-//        lv/=10;
-//        lv++;
-//    }
-//    else
-//        lv/=10;
-
-    //也可以用下面的方法实现
-//    digs = 2;
-//    digRate = 100;
-//    lv = v*1000;
-//    int yd = lv%10;
-//    if(yd < 0)
-//        yd = -yd;
-//    if(yd > 4){
-//        lv/=10;
-//        if(lv > 0)
-//            lv++;
-//        else if(lv < 0)
-//            lv--;
-//    }
-//    else
-//        lv/=10;
 }
 
 Double Double::operator =(int v)
@@ -108,93 +103,223 @@ Double Double::operator =(int v)
 
 Double Double::operator +(const Double &other) const
 {
-    if(digs != other.getDig())
-        return Double((qint64)0,digs);
-    qint64 v = getlv()+other.getlv();
-    return Double(v,digs);
+    qint64 v;
+    int rate = digs - other.getDig();
+    if(rate == 0){
+        v = getlv()+other.getlv();
+        if(digs > 2)
+            v = reduce(v,digs-2);
+        return Double(v,digs);
+    }
+    else{
+        int rates=1;
+        int c = abs(rate);
+        for(int i = 0; i < c; ++i)
+            rates *= 10;
+        if(rate > 0)
+            v = getlv() + other.getlv()*rates;
+        else
+            v = lv*rates+other.getlv();
+        v = reduce(v,c);
+        return Double(v,2);
+    }
 }
 
 Double Double::operator -(const Double &other) const
 {
-    if(digs != other.getDig())
-        return Double((qint64)0,digs);
-    return Double(getlv()-other.getlv(),digs);
+    qint64 v;
+    int rate = digs - other.getDig();
+    if(rate == 0){
+        v = getlv()-other.getlv();
+        if(digs > 2)
+            v = reduce(v,digs-2);
+        return Double(v,digs);
+    }
+    else{
+        int rates=1;
+        int c = abs(rate);
+        for(int i = 0; i < c; ++i)
+            rates *= 10;
+        if(rate > 0)
+            v = getlv() - other.getlv()*rates;
+        else
+            v = lv*rates - other.getlv();
+        v = reduce(v,c);
+        return Double(v,2);
+    }
 }
 
 Double Double::operator *(const Double &other) const
 {
-    if(digs != other.getDig())
-        return Double((qint64)0,digs);
-    qint64 v = getlv() * other.getlv();
-    v = v/(digRate/10);
-    if((v % 10) > 4)
-        v = v/10 + 1;
-    else
-        v = v / 10;
-    return Double(v,digs);
+    qint64 v;
+    int rate = digs - other.getDig();
+    if(rate == 0){
+        v = getlv() * other.getlv();
+    }
+    else{
+        int rates=1;
+        int c = abs(rate);
+        for(int i = 0; i < c; ++i)
+            rates *= 10;
+        if(rate > 0)
+            v = getlv() * (other.getlv()*rates);
+        else
+            v = (lv*rates) * other.getlv();
+    }
+
+    v = reduce(v,max(digs,other.getDig())*2-2);
+    return Double(v,2);
+
+//    if(digs != other.getDig())
+//        return Double((qint64)0,digs);
+//    qint64 v = getlv() * other.getlv();
+//    v = v/(digRate/10);
+//    if((v % 10) > 4)
+//        v = v/10 + 1;
+//    else
+//        v = v / 10;
+//    return Double(v,digs);
 }
 
+/**
+ * @brief Double::operator /
+ *  为保留精度，被除数的小数位数必须比除数多3以上，这里为了尽可能保留精度，
+ *  将被除数相对于除数扩大10000倍，这样可以将商保留4位小数
+ * @param other
+ * @return
+ */
 Double Double::operator /(const Double &other) const
 {
-    if(digs != other.getDig())
-        return Double((qint64)0,digs);
-    double v = (double)getlv()/(double)other.getlv();
-    qint64 iv = v * digRate * 10;
-    if(iv%10>4)
-        iv = iv/10+1;
-    else
-        iv = iv/10;
-    return Double(iv,digs);
+    qint64 v,v1,v2;
+    int rate = digs-other.getDig();
+    v1=lv; v2=other.getlv();
+    if(rate<4){
+        for(int i = rate; i<4; ++i)
+            v1*=10;
+    }
+    v = v1/v2;
+    v = reduce(v,2);
+    return Double(v,2);
+
+//    if(digs != other.getDig())
+//        return Double((qint64)0,digs);
+//    double v = (double)getlv()/(double)other.getlv();
+//    qint64 iv = v * digRate * 10;
+//    if(iv%10>4)
+//        iv = iv/10+1;
+//    else
+//        iv = iv/10;
+//    return Double(iv,digs);
 }
 
 void Double::operator +=(const Double &other)
 {
-    if(digs != other.getDig())
-        lv = 0;
-    else
+    int rate = digs - other.getDig();
+    if(rate == 0){
         lv += other.getlv();
+        if(digs > 2){
+            lv = reduce(lv,digs-2);
+            digs=2;
+        }
+    }
+    else{
+        int rates=1;
+        int c = abs(rate);
+        for(int i = 0; i < c; ++i)
+            rates *= 10;
+        if(rate > 0)
+            lv += other.getlv()*rates;
+        else{
+            lv *= rates;
+            lv += other.getlv();
+        }
+        lv = reduce(lv,c);
+        digs = 2;
+    }
+//    if(digs != other.getDig())
+//        lv = 0;
+//    else
+//        lv += other.getlv();
 }
 
 void Double::operator -=(const Double other)
 {
-    if(digs != other.getDig())
-        lv = 0;
-    else
+    int rate = digs - other.getDig();
+    if(rate == 0){
         lv -= other.getlv();
+        if(digs > 2){
+            lv = reduce(lv,digs-2);
+            digs=2;
+        }
+    }
+    else{
+        int rates=1;
+        int c = abs(rate);
+        for(int i = 0; i < c; ++i)
+            rates *= 10;
+        if(rate > 0)
+            lv -= other.getlv()*rates;
+        else{
+            lv *= rates;
+            lv -= other.getlv();
+        }
+        lv = reduce(lv,c);
+        digs = 2;
+    }
+//    if(digs != other.getDig())
+//        lv = 0;
+//    else
+//        lv -= other.getlv();
 }
 
 void Double::operator *=(const Double other)
 {
-    if(digs != other.getDig())
-        lv = 0;
-    else{
-        lv *= other.getlv();
-        lv = lv/(digRate/10);
-        if((lv % 10) > 4)
-            lv = lv/10 + 1;
-        else
-            lv = lv / 10;
-    }
+
+    lv *= other.getlv();
+    lv = reduce(lv,digs+other.getDig()-2);
+    digs = 2;
+//    if(digs != other.getDig())
+//        lv = 0;
+//    else{
+//        lv *= other.getlv();
+//        lv = lv/(digRate/10);
+//        if((lv % 10) > 4)
+//            lv = lv/10 + 1;
+//        else
+//            lv = lv / 10;
+//    }
 }
 
 void Double::operator /=(const Double other)
 {
-    if(digs != other.getDig())
-        lv = 0;
-    else{
-        double v = (double)getlv()/(double)other.getlv();
-        lv = v * digRate * 10;
-        if(lv%10 > 4)
-            lv = lv/10+1;
-        else
-            lv = lv/10;
+    int rate = digs-other.getDig();
+    if(rate<4){
+        for(int i = rate; i<4; ++i)
+            lv*=10;
     }
+    lv /= other.getlv();
+    lv = reduce(lv,2);
+    digs=2;
+//    if(digs != other.getDig())
+//        lv = 0;
+//    else{
+//        double v = (double)getlv()/(double)other.getlv();
+//        lv = v * digRate * 10;
+//        if(lv%10 > 4)
+//            lv = lv/10+1;
+//        else
+//            lv = lv/10;
+//    }
 }
 
 bool Double::operator ==(const Double &other) const
 {
-    return (digs == other.getDig()) &&
-           (lv == other.getlv());
+    int rate = digs - other.getDig();
+    if(rate == 0)
+        return lv == other.getlv();
+    qint64 v1=lv,v2=other.getlv();
+    adjustValue(rate,v1,v2);
+    return v1==v2;
 }
 
 bool Double::operator ==(const int v) const
@@ -204,8 +329,12 @@ bool Double::operator ==(const int v) const
 
 bool Double::operator !=(const Double &other) const
 {
-    return (digs == other.getDig()) &&
-            (lv != other.getlv());
+    int rate = digs - other.getDig();
+    if(rate == 0)
+        return lv != other.getlv();
+    qint64 v1=lv,v2=other.getlv();
+    adjustValue(rate,v1,v2);
+    return v1!=v2;
 }
 
 bool Double::operator !=(const int v) const
@@ -215,9 +344,12 @@ bool Double::operator !=(const int v) const
 
 bool Double::operator >(const Double &other)
 {
-    if(digs != other.getDig())
-        return false;
-    return lv > other.getlv();
+    int rate = digs - other.getDig();
+    if(rate == 0)
+        return lv > other.getlv();
+    qint64 v1=lv,v2=other.getlv();
+    adjustValue(rate,v1,v2);
+    return v1>v2;
 }
 
 bool Double::operator >(const int v) const
@@ -227,9 +359,12 @@ bool Double::operator >(const int v) const
 
 bool Double::operator <(const Double &other) const
 {
-    if(digs != other.getDig())
-        return false;
-    return lv < other.getlv();
+    int rate = digs - other.getDig();
+    if(rate == 0)
+        return lv < other.getlv();
+    qint64 v1=lv,v2=other.getlv();
+    adjustValue(rate,v1,v2);
+    return v1<v2;
 }
 bool Double::operator <(const int v)
 {
@@ -238,9 +373,12 @@ bool Double::operator <(const int v)
 
 bool Double::operator >=(const Double &other) const
 {
-    if(digs != other.getDig())
-        return false;
-    return lv >= other.getlv();
+    int rate = digs - other.getDig();
+    if(rate == 0)
+        return lv >= other.getlv();
+    qint64 v1=lv,v2=other.getlv();
+    adjustValue(rate,v1,v2);
+    return v1>=v2;
 }
 
 bool Double::operator >=(const int v) const
@@ -250,15 +388,66 @@ bool Double::operator >=(const int v) const
 
 bool Double::operator <=(const Double &other) const
 {
-    if(digs != other.getDig())
-        return false;
-    return lv <= other.getlv();
+    int rate = digs - other.getDig();
+    if(rate == 0)
+        return lv <= other.getlv();
+    qint64 v1=lv,v2=other.getlv();
+    adjustValue(rate,v1,v2);
+    return v1<=v2;
 }
 
 bool Double::operator <=(const int v) const
 {
     return lv <= v * digRate;
 }
+
+/**
+ * @brief Double::reduce
+ *  按四舍五入的规则，缩小sv的值（小数点向左移动rate位）
+ * @param sv
+ * @param rate
+ * @return
+ */
+qint64 Double::reduce(qint64 sv, int rate)
+{
+
+    if(sv == 0 || rate < 0)
+        return sv;
+    int yd,rates=1;
+    for(int i = 1; i <= rate; ++i)
+        rates *= 10;
+    int rates2 = rates/10;
+    if(rates2==0)
+        rates2=1;
+    qint64 v = sv/rates;
+    yd = abs((sv/rates2)%10);
+    if(yd > 4){
+        if(v>=0)
+            v++;
+        else
+            v--;
+    }
+    return v;
+}
+
+/**
+ * @brief Double::adjustValue
+ *  将值调整到相同的精度表示
+ * @param rate：精度相差位数（正表示前一个数的精度高于后一个数）
+ * @param v1
+ * @param v2
+ */
+void Double::adjustValue(int rate, qint64 &v1, qint64 &v2) const
+{
+    int rates=1;
+    for(int i = 0; i < abs(rate); ++i)
+        rates *= 10;
+    if(rate>0)
+        v2 *= rates;
+    else
+        v1 *= rates;
+}
+
 
 
 ///////////////////////Money class/////////////////////////////////////

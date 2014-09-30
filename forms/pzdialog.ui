@@ -225,6 +225,9 @@
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
      </property>
+     <property name="cornerButtonEnabled">
+      <bool>false</bool>
+     </property>
      <column>
       <property name="text">
        <string>摘要</string>
@@ -367,7 +370,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QPlainTextEdit" name="edtComment"/>
+      <widget class="QPlainTextEdit" name="edtComment">
+       <property name="styleSheet">
+        <string notr="true"/>
+       </property>
+      </widget>
      </item>
      <item>
       <layout class="QVBoxLayout" name="verticalLayout">

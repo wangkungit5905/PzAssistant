@@ -393,6 +393,8 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     //        this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
 
     actModifyRate = new QAction(tr("修改汇率"),this);
+    if(pzMgr->isSuiteClosed() || pzMgr->getState() == Ps_Jzed)
+        actModifyRate->setEnabled(false);
     ui->edtRate->setContextMenuPolicy(Qt::ActionsContextMenu);
     ui->edtRate->addAction(actModifyRate);
     connect(actModifyRate,SIGNAL(triggered()),this,SLOT(modifyRate()));
@@ -1579,16 +1581,23 @@ void PzDialog::modifyRate()
     double oldRate = ui->edtRate->text().toDouble();
     bool ok;
     double newRate = QInputDialog::getDouble(this,tr("信息录入"),tr("请输入新的%1年%2月的汇率").arg(pzMgr->year()).arg(pzMgr->month()),
-                                             oldRate,0,100,2,&ok);
+                                             oldRate,0,100,4,&ok);
     if(!ok)
         return;
-    Double rate = Double(newRate);
+    Double rate = Double(newRate,4);
     if(rates.value(money->code()) == rate)
         return;
     rates[money->code()] = rate;
     ui->edtRate->setText(rate.toString());
     if(!account->setRates(pzMgr->year(),pzMgr->month(), rates))
         QMessageBox::critical(this,tr("出错信息"),tr("在保存%1年%2月的汇率时出错！"));
+    pzMgr->rateChanged();
+    if(curPz){
+        ui->tview->setJSum(curPz->jsum());
+        ui->tview->setDSum(curPz->dsum());
+        pzBalanceStateChanged(curPz->isBalance());
+        emit rateChanged(pzMgr->month());
+    }
 }
 
 /**
@@ -2049,6 +2058,8 @@ HistoryPzForm::HistoryPzForm(PingZheng *pz, QByteArray *sinfo, QWidget *parent) 
     setState(sinfo);
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(colWidthChanged(int,int,int)));
+    curY = 0;
+    curM = 0;
     viewPzContent();
 }
 
@@ -2159,6 +2170,12 @@ void HistoryPzForm::viewPzContent()
         ui->edtMem->clear();
     }
     else{
+        int y = pz->getDate2().year();
+        int m = pz->getDate2().month();
+        if((curY != y) ||(curM != m)){
+            curY = y; curM = m;
+            viewRates(y,m);
+        }
         ui->edtDate->setText(pz->getDate());
         ui->edtNumber->setText(QString::number(pz->number()));
         ui->edtEncNum->setText(QString::number(pz->encNumber()));
@@ -2176,8 +2193,6 @@ void HistoryPzForm::viewBusiactions()
     if(!pz)
         return;
     ui->tview->clearContents();
-    ui->tview->setRowCount(pz->baCount());
-    //ui->tview->setValidRows(pz->baCount());
     for(int i = 0; i < pz->baCount(); ++i)
         refreshSingleBa(i,pz->getBusiAction(i));
     ui->tview->setBalance(pz->isBalance());
@@ -2213,37 +2228,34 @@ void HistoryPzForm::refreshSingleBa(int row, BusiAction *ba)
     }
     ui->tview->setItem(row,BaTableWidget::JVALUE,item);
     ui->tview->setItem(row,BaTableWidget::DVALUE,item2);
-
-//    BASummaryItem_new* smItem = new BASummaryItem_new(ba->getSummary(), subMgr);
-//    ui->tview->setItem(row,BaTableWidget::SUMMARY,smItem);
-//    BAFstSubItem_new* fstItem = new BAFstSubItem_new(ba->getFirstSubject(), subMgr);
-//    QVariant v;
-//    v.setValue(ba->getFirstSubject());
-//    fstItem->setData(Qt::EditRole, v);
-//    ui->tview->setItem(row,BaTableWidget::FSTSUB,fstItem);
-//    BASndSubItem_new* sndItem = new BASndSubItem_new(ba->getSecondSubject(), subMgr);
-//    v.setValue(ba->getSecondSubject());
-//    sndItem->setData(Qt::EditRole,v);
-//    ui->tview->setItem(row,BaTableWidget::SNDSUB,sndItem);
-//    BAMoneyTypeItem_new* mtItem = new BAMoneyTypeItem_new(ba->getMt());
-//    v.setValue(ba->getMt());
-//    mtItem->setData(Qt::EditRole, v);
-//    ui->tview->setItem(row,BaTableWidget::MONEYTYPE,mtItem);
-//    BAMoneyValueItem_new* jItem,*dItem;
-//    if(ba->getDir() == DIR_J){
-//        jItem = new BAMoneyValueItem_new(DIR_J, ba->getValue());
-//        dItem = new BAMoneyValueItem_new(DIR_D, 0);
-//    }
-//    else{
-//        jItem = new BAMoneyValueItem_new(DIR_J, 0);
-//        dItem = new BAMoneyValueItem_new(DIR_D, ba->getValue());
-//    }
-//    ui->tview->setItem(row,BaTableWidget::JVALUE,jItem);
-    //    ui->tview->setItem(row,BaTableWidget::DVALUE,dItem);
 }
 
 void HistoryPzForm::adjustTableSize()
 {
+}
+
+void HistoryPzForm::viewRates(int y, int m)
+{
+    if(!pz)
+        return;
+    ui->cmbRates->clear();
+    ui->edtRate->clear();
+    int key = y*100+m;
+    if(!rates.contains(key)){
+        rates[key] = QHash<Money*,Double>();
+        pz->parent()->getAccount()->getRates(y,m,rates[key]);
+    }
+    QHashIterator<Money*,Double> it(rates[key]);
+    while(it.hasNext()){
+        it.next();
+        QVariant v;
+        v.setValue<Money*>(it.key());
+        ui->cmbRates->addItem(it.key()->name(),v);
+    }
+    if(ui->cmbRates->count() != 0){
+        Money* mt = ui->cmbRates->itemData(ui->cmbRates->currentIndex()).value<Money*>();
+        ui->edtRate->setText(rates.value(key).value(mt).toString(true));
+    }
 }
 
 void PzDialog::on_btnOk_clicked()

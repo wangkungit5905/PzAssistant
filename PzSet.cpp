@@ -2087,6 +2087,23 @@ QList<PingZheng *> AccountSuiteManager::getHistoryPzSet(int m)
 }
 
 /**
+ * @brief 指定月份的汇率发生了改变，需要重新统计（凭证集的统计和凭证集内每个凭证的借贷方合计值）
+ * @param month
+ */
+void AccountSuiteManager::rateChanged(int month)
+{
+    if((month==0 && curM != 0) || (month!=0 && curM == month)){
+        if(pzs->isEmpty())
+            return;
+        foreach(PingZheng* pz, pzSetHash[curM])
+            pz->reCalSums();
+        statUtil->stat();
+        dirty = true;
+        emit pzSetChanged();
+    }
+}
+
+/**
  * @brief PzSetMgr::needRestat
  *  由于凭证集内的凭证数值的改变，需要进行重新统计来得到正确的余额
  */

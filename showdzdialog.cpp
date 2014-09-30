@@ -31,9 +31,22 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
     preview = NULL;
     pt = NULL;
 
-    row_bk_data = QBrush(QColor(200,200,255));
-    row_bk_month = QBrush(QColor(150,150,255));
-    row_bk_year = QBrush(QColor(100,100,255));
+    QString cssName = AppConfig::getInstance()->getAppStyleName();
+    if(cssName == "navy"){
+        row_bk_data = QBrush(QColor(0xC8C8FF));
+        row_bk_month = QBrush(QColor(0x9696FF));
+        row_bk_year = QBrush(QColor(0x6464FF));
+    }else if(cssName == "pink"){
+        row_bk_data = QBrush(QColor(0xFDD8D8));
+        row_bk_month = QBrush(QColor(0xFEBEBE));
+        row_bk_year = QBrush(QColor(0xF9A2A2));
+    }
+    else{
+        row_bk_data = QBrush(QColor(0xE8E8EA));
+        row_bk_month = QBrush(QColor(0xD9D9DC));
+        row_bk_year = QBrush(QColor(0xC7C7CD));
+    }
+
 
     actMoveTo = new QAction(tr("转到该凭证"), ui->tview);
     ui->tview->addAction(actMoveTo);

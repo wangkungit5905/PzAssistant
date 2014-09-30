@@ -73,6 +73,14 @@ void NoteMgrForm::titleListContextMenuRequested(const QPoint &pos)
     menu.exec(mapToGlobal(pos));
 }
 
+/**
+ * @brief 笔记内容被改变
+ */
+void NoteMgrForm::noteContentChanged()
+{
+    ui->btnSave->setEnabled(true);
+}
+
 void NoteMgrForm::on_btnReturn_clicked()
 {
     bool isNote = ui->stackedWidget->currentIndex() == 1;
@@ -104,6 +112,8 @@ void NoteMgrForm::on_btnReturn_clicked()
 
 void NoteMgrForm::on_lwTitles_itemDoubleClicked(QListWidgetItem *item)
 {
+    disconnect(ui->edtTitle,SIGNAL(textEdited(QString)),this,SLOT(noteContentChanged()));
+    disconnect(ui->NoteTexts,SIGNAL(textChanged()),this,SLOT(noteContentChanged()));
     ui->stackedWidget->setCurrentIndex(1);
     NoteStruct* note = item->data(NDR_OBJECT).value<NoteStruct*>();
     ui->NoteTexts->document()->setHtml(note->content);
@@ -114,6 +124,8 @@ void NoteMgrForm::on_lwTitles_itemDoubleClicked(QListWidgetItem *item)
     ui->edtCrtTime->setText(tr("创建：%1").arg(ds));
     ds = QDateTime::fromMSecsSinceEpoch(note->lastEditTime).toString("yyyy-M-d h:m:s");
     ui->edtLastTime->setText(tr("修改：%1").arg(ds));
+    connect(ui->edtTitle,SIGNAL(textEdited(QString)),this,SLOT(noteContentChanged()));
+    connect(ui->NoteTexts,SIGNAL(textChanged()),this,SLOT(noteContentChanged()));
 }
 
 void NoteMgrForm::on_actAddNote_triggered()

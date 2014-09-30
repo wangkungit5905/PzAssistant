@@ -8,6 +8,7 @@
 #include <QDir>
 #include <QLibraryInfo>
 #include <QDesktopWidget>
+//#include <QStyleFactory>
 
 #include <QtDebug>
 
@@ -16,6 +17,7 @@
 #include "mainwindow.h"
 #include "connection.h"
 #include "logs/FileAppender.h"
+#include "myhelper.h"
 
 /**
  * @brief showErrorInfo
@@ -69,13 +71,19 @@ int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
-    //QTextCodec::setCodecForTr(QTextCodec::codecForName("utf-8"));
-    QTextCodec::setCodecForLocale(QTextCodec::codecForName("utf-8"));
+    //QTextCodec::setCodecForLocale(QTextCodec::codecForName("utf-8"));
+    myHelper::SetUTF8Code();
+    //myHelper::SetStyle("navy");//天蓝色风格
+    //myHelper::SetStyle("black");
+    AppConfig* cfg = AppConfig::getInstance();
+    QString style = cfg->getAppStyleName();
+    if(style.isEmpty()){
+        style = "navy";
+        cfg->setAppStyleName(style);
+    }
+    myHelper::SetStyle(style);
+    myHelper::SetChinese();
     appTitle = QObject::tr("凭证辅助处理系统");
-    QTranslator translator; //汉化标准对话框、标准上下文菜单等
-    translator.load("qt_zh_CN.qm","./translations");
-    //translator.load("i18n_zh"); //这个不行
-    app.installTranslator(&translator );
 
 	int errNum = appInit();
     if(errNum != 0){

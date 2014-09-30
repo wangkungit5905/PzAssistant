@@ -2,6 +2,7 @@
 #define OPTIONFORM_H
 
 #include "ui_specsubcodecfgform.h"
+#include "ui_appcommcfgpanel.h"
 #include "commdatastruct.h"
 #include "config.h"
 #include "widgets/configpanels.h"
@@ -10,6 +11,27 @@ namespace Ui {
 class PzTemplateOptionForm;
 }
 
+/**
+ * @brief 应用通用配置面板类
+ */
+class AppCommCfgPanel : public ConfigPanelBase
+{
+    Q_OBJECT
+
+public:
+    explicit AppCommCfgPanel(QWidget *parent = 0);
+    ~AppCommCfgPanel();
+    bool isDirty();
+    bool save();
+    QString panelName(){return tr("通用配置");}
+
+private slots:
+    void styleChanged(bool checked);
+
+private:
+    void init();
+    Ui::AppCommCfgPanel *ui;
+};
 
 /**
  * @brief 凭证模板配置面板类
@@ -53,6 +75,8 @@ private:
 //    QHash<AppConfig::SpecSubCode, QString> names;
 
 //};
+
+/////////////////////AppCommCfgPanel/////////////////////
 
 ///////////////////////////////
 class TestPanel : public ConfigPanelBase

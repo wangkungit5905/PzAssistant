@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>登录</string>
   </property>
   <property name="modal">
    <bool>true</bool>
@@ -36,6 +36,9 @@
          <family>Andale Mono</family>
          <pointsize>16</pointsize>
         </font>
+       </property>
+       <property name="styleSheet">
+        <string notr="true"/>
        </property>
        <property name="text">
         <string>登录用户名：</string>

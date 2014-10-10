@@ -154,8 +154,7 @@
        <enum>Qt::ActionsContextMenu</enum>
       </property>
       <property name="styleSheet">
-       <string notr="true">gridline-color: rgb(15, 5, 6);
-selection-color: rgb(19, 9, 9);</string>
+       <string notr="true"/>
       </property>
       <property name="selectionBehavior">
        <enum>QAbstractItemView::SelectRows</enum>

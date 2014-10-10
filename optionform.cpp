@@ -47,15 +47,25 @@ void AppCommCfgPanel::styleChanged(bool checked)
     }
 }
 
+void AppCommCfgPanel::styleFromChanged(bool checked)
+{
+    AppConfig::getInstance()->setStyleFrom(checked);
+}
+
 void AppCommCfgPanel::init()
 {
-    QString styleName = AppConfig::getInstance()->getAppStyleName();
+    AppConfig* appCfg = AppConfig::getInstance();
+    QString styleName = appCfg->getAppStyleName();
     if(styleName == "navy")
         ui->rdoNavy->setChecked(true);
     else if(styleName == "black")
         ui->rdoBlack->setChecked(true);
     else
         ui->rdoPink->setChecked(true);
+    if(appCfg->getStyleFrom())
+        ui->rdoRes->setChecked(true);
+    else
+        ui->rdoDir->setChecked(true);
 }
 
 //////////////////////PzTemplateOptionForm//////////////////////////////////

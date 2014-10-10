@@ -75,14 +75,10 @@ class BAMoneyValueItem_new : public QTableWidgetItem
 public:
     BAMoneyValueItem_new(int witch, double v = 0,
                      QColor forColor = QColor(Qt::black),
-                     int type = QTableWidgetItem::UserType + 4):
-        QTableWidgetItem(type),witch(witch),v(Double(v)),outCon(false),
-        forColor(forColor){}
+                     int type = QTableWidgetItem::UserType + 4);
     BAMoneyValueItem_new(int witch, Double v = 0.00,
                      QColor forColor = QColor(Qt::black),
-                     int type = QTableWidgetItem::UserType + 4):
-        QTableWidgetItem(type),witch(witch),v(v),outCon(false),
-        forColor(forColor){}
+                     int type = QTableWidgetItem::UserType + 4);
     void setOutControl(bool con){outCon = con;}
     void setForeColor(QColor color){forColor = color;}
     void setDir(int dir);

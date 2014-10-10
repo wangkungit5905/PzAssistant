@@ -105,6 +105,8 @@ public:
     void setLogLevel(Logger::LogLevel level);
     QString getAppStyleName();
     void setAppStyleName(QString styleName);
+    bool getStyleFrom();
+    void setStyleFrom(bool fromRes=true);
     bool readPingzhenClass(QHash<PzClass,QString>& pzClasses);
     bool readPzStates(QHash<PzState, QString> &names);
     bool readPzSetStates(QHash<PzsState,QString>& snames, QHash<PzsState,QString>& lnames);

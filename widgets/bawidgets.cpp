@@ -254,6 +254,22 @@ void BAMoneyTypeItem_new::setData(int role, const QVariant &value)
 
 //////////////////////////////////BAMoneyValueItem////////////////////////
 //设置金额的借贷方向
+BAMoneyValueItem_new::BAMoneyValueItem_new(int witch, double v, QColor forColor, int type):
+    QTableWidgetItem(type),witch(witch),v(Double(v)),outCon(false),forColor(forColor)
+{
+//    QFont f = font();
+//    f.setBold(true);
+//    setFont(f);
+}
+
+BAMoneyValueItem_new::BAMoneyValueItem_new(int witch, Double v, QColor forColor, int type):
+    QTableWidgetItem(type),witch(witch),v(v),outCon(false),forColor(forColor)
+{
+//    QFont f = font();
+//    f.setBold(true);
+//    setFont(f);
+}
+
 void BAMoneyValueItem_new::setDir(int dir)
 {
     if((dir == DIR_J) || (dir == DIR_P) || (dir == DIR_D))

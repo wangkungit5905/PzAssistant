@@ -43,13 +43,15 @@ BaTableWidget::BaTableWidget(QWidget *parent):QTableWidget(parent)
     sumTable->setItem(0,1,item);
 
     jSumItem = new BAMoneyValueItem_new(DIR_J,0.00,QColor(Qt::red));
+    QFont font = jSumItem->font();
+    font.setBold(true);
+    jSumItem->setFont(font);
     jSumItem->setForeColor(QColor("red"));
-    //jSumItem->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
     jSumItem->setFlags(falgs);
     sumTable->setItem(0,2,jSumItem);
     dSumItem = new BAMoneyValueItem_new(DIR_D,0.00,QColor(Qt::red));
+    dSumItem->setFont(font);
     dSumItem->setForeColor(QColor("red"));
-    //dSumItem->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
     dSumItem->setFlags(falgs);
     sumTable->setItem(0,3,dSumItem);
     viewport()->stackUnder(sumTable);

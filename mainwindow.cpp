@@ -75,42 +75,36 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
 {
     timer = NULL;
     QLabel *l = new QLabel(tr("当前帐套:"),this);
-    curSuite.setFrameShape(QFrame::StyledPanel);
-    curSuite.setFrameShadow(QFrame::Sunken);
     curSuite.setText("         ");
+    curSuite.setObjectName("InfoSecInStatus");
     QHBoxLayout* hl1 = new QHBoxLayout(this);
     hl1->addWidget(l);
     hl1->addWidget(&curSuite);
     l = new QLabel(tr("日期:"),this);
-    pzSetDate.setFrameShape(QFrame::StyledPanel);
-    pzSetDate.setFrameShadow(QFrame::Sunken);
+    pzSetDate.setObjectName("InfoSecInStatus");
     pzSetDate.setText("                       ");    
     hl1->addWidget(l);
     hl1->addWidget(&pzSetDate);
     l = new QLabel(tr("凭证集状态："),this);
-    pzSetState.setFrameShape(QFrame::StyledPanel);
-    pzSetState.setFrameShadow(QFrame::Sunken);
+    pzSetState.setObjectName("InfoSecInStatus");
     pzSetState.setText("              ");
 
     QHBoxLayout* hl2 = new QHBoxLayout(this);
     hl2->addWidget(l);    hl2->addWidget(&pzSetState);
     l = new QLabel(tr("余额状态："),this);
-    extraState.setFrameShape(QFrame::StyledPanel);
-    extraState.setFrameShadow(QFrame::Sunken);
+    extraState.setObjectName("InfoSecInStatus");
     hl2->addWidget(l);    hl2->addWidget(&extraState);
 
     l = new QLabel(tr("凭证总数:"),this);
     pzCount.setAttribute(Qt::WA_AlwaysShowToolTips,true);
-    pzCount.setFrameShadow(QFrame::Sunken);
-    pzCount.setFrameShape(QFrame::StyledPanel);
+    pzCount.setObjectName("InfoSecInStatus");
     pzCount.setText("   ");
     QHBoxLayout* hl3 = new QHBoxLayout(this);
     hl3->addWidget(l);
     hl3->addWidget(&pzCount);
 
     l = new QLabel(tr("登录用户:"),this);
-    lblUser.setFrameShadow(QFrame::Sunken);
-    lblUser.setFrameShape(QFrame::StyledPanel);
+    lblUser.setObjectName("InfoSecInStatus");
     lblUser.setText("           ");
     QHBoxLayout* hl4 = new QHBoxLayout(this);
     hl4->addWidget(l);   hl4->addWidget(&lblUser);
@@ -119,6 +113,7 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     ml->addLayout(hl1);ml->addLayout(hl2);
     ml->addLayout(hl3);ml->addLayout(hl4);
     QFrame *f = new QFrame(this);
+    f->setObjectName("FrameInStatus");
     f->setFrameShape(QFrame::StyledPanel);
     f->setLayout(ml);
     f->setFrameShadow(QFrame::Sunken);
@@ -632,6 +627,8 @@ void MainWindow::initToolBar()
     btnPrint->addAction(actPrintToPDF);
     btnPrint->addAction(actOutputToExcel);
     ui->tbrMain->addWidget(btnPrint);
+
+    //ui->tbrMain->setStyleSheet("{background: red;spacing: 20px;}");
 }
 
 /**
@@ -3793,11 +3790,18 @@ void MainWindow::allPzToRecording(int year, int month)
 
 void MainWindow::on_actViewLog_triggered()
 {
-    LogView* lv = new LogView(this);
-    QMdiSubWindow* sw = ui->mdiArea->addSubWindow(lv);
-    sw->setAttribute(Qt::WA_DeleteOnClose);
-    connect(lv,SIGNAL(onClose()),sw,SLOT(close()));
-    sw->show();
+    QByteArray* sinfo = NULL;
+    SubWindowDim* winfo = NULL;
+    LogView* form = NULL;
+    if(!commonGroups.contains(SUBWIN_LOGVIEW)){
+        dbUtil->getSubWinInfo(SUBWIN_LOGVIEW,winfo,sinfo);
+        form = new LogView;
+    }
+    showCommonSubWin(SUBWIN_NOTEMGR,form,winfo);
+    if(sinfo)
+        delete sinfo;
+    if(winfo)
+        delete winfo;
 }
 
 //#include <QToolTip>
@@ -3924,9 +3928,7 @@ bool MainWindow::impTestDatas()
 //    pt.factor[4] = 0.11;
 //    r = config->savePzTemplateParameter(&pt);
 
-    MyMdiSubWindow* win = new MyMdiSubWindow();
-    ui->mdiArea->addSubWindow(win);
-    win->show();
+
     int i = 0;
 }
 

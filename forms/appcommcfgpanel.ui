@@ -50,6 +50,32 @@
       </widget>
      </item>
      <item>
+      <widget class="QGroupBox" name="groupBox_2">
+       <property name="title">
+        <string>样式文件来自于</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout_3">
+        <item>
+         <widget class="QRadioButton" name="rdoRes">
+          <property name="text">
+           <string>资源</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QRadioButton" name="rdoDir">
+          <property name="text">
+           <string>目录</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -129,8 +155,25 @@
     </hint>
    </hints>
   </connection>
+  <connection>
+   <sender>rdoRes</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>AppCommCfgPanel</receiver>
+   <slot>styleFromChanged(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>167</x>
+     <y>56</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>489</x>
+     <y>131</y>
+    </hint>
+   </hints>
+  </connection>
  </connections>
  <slots>
   <slot>styleChanged(bool)</slot>
+  <slot>styleFromChanged(bool)</slot>
  </slots>
 </ui>

@@ -588,7 +588,8 @@ enum subWindowType{
     SUBWIN_TAXCOMPARE = 20,     //税金比对
     SUBWIN_SECURITY = 21,       //安全模块配置窗口
     SUBWIN_NOTEMGR = 22,        //笔记管理
-    SUBWIN_EXTERNALTOOLS = 23   //外部工具
+    SUBWIN_EXTERNALTOOLS = 23,  //外部工具
+    SUBWIN_LOGVIEW = 24         //日志视图
     //设置期初余额的窗口
     //科目配置窗口
 };

@@ -492,6 +492,7 @@ private:
     BeginCfgItemDelegate *delegate,*delegate_fsub;
     bool readOnly;              //期初余额是否可编辑
     QBrush bg_red;              //当二级科目有余额项时所采用的前景色
+    QFont boldFont;
     bool extraCfg;              //是期初余额配置（true：默认），还是余额显示
 };
 

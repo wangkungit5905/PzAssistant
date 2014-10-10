@@ -104,6 +104,34 @@ void AppConfig::setAppStyleName(QString styleName)
     appIni->sync();
 }
 
+/**
+ * @brief AppConfig::getStyleFrom
+ * 样式表文件来自于哪里
+ * @return true：从应用程序的资源中获取，否则从应用的子目录“styles”获取
+ */
+bool AppConfig::getStyleFrom()
+{
+    appIni->beginGroup("AppStyle");
+    bool fromRes = true;
+    QVariant v = appIni->value("styleFrom");
+    appIni->endGroup();
+    if(v.isValid())
+        fromRes = v.toBool();
+    else{
+        appIni->setValue("AppStyle/styleFrom",true);
+        appIni->sync();
+    }
+    return fromRes;
+}
+
+void AppConfig::setStyleFrom(bool fromRes)
+{
+    appIni->beginGroup("AppStyle");
+    appIni->setValue("styleFrom",fromRes);
+    appIni->endGroup();
+    appIni->sync();
+}
+
 
 /**
  * @brief AppConfig::getBaseDbConnect

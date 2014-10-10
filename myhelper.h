@@ -5,6 +5,7 @@
 #include <QtGui>
 #include <QDesktopWidget>
 #include "frmmessagebox.h"
+#include "config.h"
 
 class myHelper: public QObject
 {
@@ -39,9 +40,12 @@ public:
     //设置皮肤样式
     static void SetStyle(const QString &styleName)
     {
-        //因为每次修改样式后，都需要删除资源的编译目标文件后才会更新为最新的。待样式大体调试完成后，将样式定义加入到资源文件中
-        QFile file(QString(":/styles/%1.css").arg(styleName));
-        //QFile file(QString("./styles/%1.css").arg(styleName));
+        QString fileName;
+        if(AppConfig::getInstance()->getStyleFrom())
+            fileName = QString(":/styles/%1.css").arg(styleName);
+        else
+            fileName = QString("./styles/%1.css").arg(styleName);
+        QFile file(fileName);
         if(!file.open(QFile::ReadOnly)){
             ShowMessageBoxError(tr("无法打开样式表文件“%1.css”").arg(styleName));
             return;

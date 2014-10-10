@@ -27,6 +27,7 @@ public:
 
 private slots:
     void styleChanged(bool checked);
+    void styleFromChanged(bool checked);
 
 private:
     void init();

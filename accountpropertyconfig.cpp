@@ -2905,7 +2905,8 @@ ApcData::ApcData(Account *account, bool isCfg, QWidget *parent) :
     curFSub=NULL;
     curSSub=NULL;
     readOnly = false;
-    bg_red.setColor(QColor(Qt::red));
+    boldFont = ui->ssubs->font();
+    boldFont.setBold(true);
     if(!isCfg)
         init();
 }
@@ -3051,13 +3052,13 @@ void ApcData::curFSubChanged(int index)
     disconnect(ui->ssubs,SIGNAL(currentRowChanged(int)),this,SLOT(curSSubChanged(int)));
     ui->ssubs->clear();
     QVariant v;
-    QListWidgetItem* item;    
+    QListWidgetItem* item;
     foreach(SecondSubject* ssub, curFSub->getChildSubs(SORTMODE_NAME)){
         v.setValue<SecondSubject*>(ssub);
         item = new QListWidgetItem(ssub->getName());
         item->setData(Qt::UserRole,v);
         if(exist(ssub->getId()))
-            item->setForeground(bg_red);
+            item->setFont(boldFont);
         ui->ssubs->addItem(item);
     }    
     connect(ui->ssubs,SIGNAL(currentRowChanged(int)),this,SLOT(curSSubChanged(int)));
@@ -3240,7 +3241,7 @@ void ApcData::on_add_clicked()
         mt = curFSub->parent()->getSubMatchMt(curSSub);
     }
     if(row == 0)
-        ui->ssubs->currentItem()->setForeground(bg_red);
+        ui->ssubs->currentItem()->setFont(boldFont);
     watchDataChanged(false);
     ui->etables->insertRow(row);
     if(!mt)

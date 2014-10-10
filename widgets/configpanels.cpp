@@ -10,6 +10,7 @@
 ConfigPanels::ConfigPanels(QWidget *parent) : ConfigPanelBase(parent)
 {
     reason = R_UNCERTAIN;
+    setWindowTitle(tr("应用选项配置"));
     contentsWidget = new QListWidget(this);
     contentsWidget->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     contentsWidget->setViewMode(QListView::IconMode);

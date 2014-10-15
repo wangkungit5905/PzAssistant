@@ -92,7 +92,7 @@ private slots:
 
 signals:
     void infomation(QString info);       //向主窗口发送要在状态条上显示的信息
-    //void pzsExtraSaved();
+    void extraValided();    //向主窗口报告余额已经保存，有效了
 
 private:
     void init(Account* acc);

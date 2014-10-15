@@ -150,6 +150,7 @@ void NoteMgrForm::on_actDelNote_triggered()
     QListWidgetItem* item = ui->lwTitles->currentItem();
     if(item){
         NoteStruct* note = item->data(NDR_OBJECT).value<NoteStruct*>();
+        delNotes<<note;
         notes.removeOne(note);
         delete ui->lwTitles->takeItem(row);
         ui->btnSave->setEnabled(true);

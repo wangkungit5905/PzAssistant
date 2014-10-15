@@ -190,6 +190,7 @@ Double Double::operator *(const Double &other) const
  */
 Double Double::operator /(const Double &other) const
 {
+    Q_ASSERT(other != 0);
     qint64 v,v1,v2;
     int rate = digs-other.getDig();
     v1=lv; v2=other.getlv();
@@ -292,6 +293,7 @@ void Double::operator *=(const Double other)
 
 void Double::operator /=(const Double other)
 {
+    Q_ASSERT(other != 0);
     int rate = digs-other.getDig();
     if(rate<4){
         for(int i = rate; i<4; ++i)

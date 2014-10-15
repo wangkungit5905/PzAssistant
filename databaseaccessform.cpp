@@ -4,6 +4,7 @@
 #include "account.h"
 #include "dbutil.h"
 #include "config.h"
+#include "tables.h"
 
 #include <QSqlRecord>
 #include <QSqlField>
@@ -25,6 +26,9 @@ DatabaseAccessForm::DatabaseAccessForm(Account *account, AppConfig *config, QWid
         ui->rdo_base->setChecked(true);
     }
     bdb = config->getBaseDbConnect();
+    defDelegate = ui->tw->itemDelegate();
+    QSet<int> cols; cols.insert(RT_MONTH+1);
+    delegate = new FourDecimalDoubleDelegate(cols,this);
     init();
 }
 
@@ -200,6 +204,10 @@ void DatabaseAccessForm::tableDoubleClicked(QListWidgetItem *item)
     enWidget(true);
     connect(ui->tw->selectionModel(), SIGNAL(currentRowChanged(QModelIndex,QModelIndex)),
                 this, SLOT(currentChanged()));
+    if(item->text() == tbl_rateTable)
+        ui->tw->setItemDelegateForColumn(RT_MONTH+1,delegate);
+    else
+        ui->tw->setItemDelegateForColumn(RT_MONTH+1,defDelegate);
     updateActions();
 }
 
@@ -231,6 +239,10 @@ void DatabaseAccessForm::enWidget(bool en)
     ui->lwTables->setEnabled(!en);
     ui->btnCommit->setEnabled(en);
     ui->btnRevert->setEnabled(en);
+    if(en)
+        ui->tw->setEditTriggers(QAbstractItemView::DoubleClicked|QAbstractItemView::EditKeyPressed);
+    else
+        ui->tw->setEditTriggers(QAbstractItemView::NoEditTriggers);
 }
 
 /**

@@ -7,6 +7,8 @@
 #include <QSqlTableModel>
 #include <QListWidgetItem>
 
+#include "delegates.h"
+
 namespace Ui {
 class DatabaseAccessForm;
 }
@@ -72,6 +74,9 @@ private:
     QSqlTableModel* tModel;
     bool editMode;  //true：编辑模式，false：浏览模式
     QSqlDatabase adb,bdb;
+
+    QAbstractItemDelegate* defDelegate;
+    FourDecimalDoubleDelegate* delegate;
 };
 
 #endif // DATABASEACCESSFORM_H

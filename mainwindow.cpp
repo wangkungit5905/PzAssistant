@@ -1,4 +1,4 @@
-#include <QDir>
+﻿#include <QDir>
 #include <QDebug>
 #include <QPrinter>
 #include <QPrintDialog>
@@ -2475,7 +2475,7 @@ void MainWindow::on_actSave_triggered()
             w->save();
     }
     ui->actSave->setEnabled(false);
-
+    rfPzSetStateAct();
 }
 
 //显示权限不足警告窗口
@@ -2561,6 +2561,7 @@ void MainWindow::extraValid()
 {
     //isExtraVolid = true;
     refreshShowPzsState();
+    rfPzSetStateAct();
     //refreshActEnanble();
 }
 
@@ -2647,6 +2648,7 @@ void MainWindow::on_actCurStatNew_triggered()
         dbUtil->getSubWinInfo(SUBWIN_PZSTAT,winfo,sinfo);
         dlg = new CurStatDialog(curSuiteMgr->getStatUtil(), sinfo, this);
         connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
+        connect(dlg,SIGNAL(extraValided()),this,SLOT(extraValid()));
     }
     else{
         dlg = static_cast<CurStatDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZSTAT));
@@ -2781,7 +2783,18 @@ void MainWindow::on_actAllVerify_triggered()
     int affected = curSuiteMgr->verifyAll(curUser);
     showPzNumsAffected(affected);
     //刷新凭证集状态、各种状态的凭证数和余额状态
+
     //如果当前显示在凭证编辑窗口的凭证受到影响、也刷新之
+    int key = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
+        return;
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
+    if(w){
+        w->setPzState(Pzs_Instat);
+        ui->actVerifyPz->setEnabled(false);
+        ui->actInStatPz->setEnabled(true);
+        ui->actAntiVerify->setEnabled(true);
+    }
 }
 
 //全部凭证入账
@@ -2800,6 +2813,16 @@ void MainWindow::on_actAllInstat_triggered()
     showPzNumsAffected(affected);
     //刷新凭证集状态、各种状态的凭证数和余额状态
     //如果当前显示在凭证编辑窗口的凭证受到影响、也刷新之
+    int key = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
+        return;
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
+    if(w){
+        w->setPzState(Pzs_Instat);
+        ui->actInStatPz->setEnabled(false);
+        ui->actVerifyPz->setEnabled(false);
+        ui->actAntiVerify->setEnabled(true);
+    }
 }
 
 
@@ -3138,7 +3161,7 @@ void MainWindow::on_actDetailView_triggered()
 
 /**
  * @brief MainWindow::on_actInStatPz_triggered
- *  是当前凭证入账
+ *  使当前凭证入账
  */
 void MainWindow::on_actInStatPz_triggered()
 {
@@ -3152,6 +3175,7 @@ void MainWindow::on_actInStatPz_triggered()
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w){
         w->setPzState(Pzs_Instat);
+        ui->actVerifyPz->setEnabled(false);
         ui->actInStatPz->setEnabled(false);
         ui->actAntiVerify->setEnabled(true);
     }
@@ -3928,7 +3952,14 @@ bool MainWindow::impTestDatas()
 //    pt.factor[4] = 0.11;
 //    r = config->savePzTemplateParameter(&pt);
 
-
+    bool a = true,b = false;
+    bool r = a^b;
+    b = true;
+    r = a^b;
+    a = false;b = false;
+    r = a^b;
+    a = false; b = true;
+    r = a^b;
     int i = 0;
 }
 

@@ -2382,9 +2382,10 @@ bool DbUtil::isUsedWbForFSub(FirstSubject *fsub, bool& isExist)
     d.setDate(ey,em,d.daysInMonth());
     QString et = d.toString(Qt::ISODate);
     s = QString("select %1.id from %1 join %2 on %1.%3=%2.id where %2.%4>='%5' "
-                "and %2.%4<='%6' and %1.%7 !=%8")
+                "and %2.%4<='%6' and %1.%7 = %8 and %1.%9 !=%10")
             .arg(tbl_ba).arg(tbl_pz).arg(fld_ba_pid).arg(fld_pz_date)
-            .arg(st).arg(et).arg(fld_ba_mt).arg(masterMt);
+            .arg(st).arg(et).arg(fld_ba_fid).arg(fsub->getId())
+            .arg(fld_ba_mt).arg(masterMt);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;

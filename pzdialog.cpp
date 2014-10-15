@@ -500,7 +500,7 @@ void PzDialog::setMonth(int month)
 void PzDialog::setReadonly()
 {
     //综合凭证集状态和凭证状态决定凭证是否可编辑
-    bool b = curPz->getPzState() != Pzs_Recording;
+    bool b = (curPz->getPzState() != Pzs_Recording) && (curPz->getPzState() != Pzs_Repeal);
     ui->dateEdit->setReadOnly(b);
     ui->spnZbNum->setReadOnly(b);
     ui->spnEncNum->setReadOnly(b);
@@ -708,7 +708,7 @@ bool PzDialog::crtJzhdPz()
     account->getRates(yy,mm,endRates);
     QString tip = tr("请确认汇率是否正确：%1年%2月美金汇率：").arg(yy).arg(mm);
     bool ok;
-    double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,endRates.value(USD).getv(),0,100,2,&ok);
+    double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,endRates.value(USD).getv(),0,100,4,&ok);
     if(!ok)
         return true;
     endRates[USD] = Double(rate);
@@ -1109,6 +1109,7 @@ void PzDialog::setPzState(PzState state)
 {
     ModifyPzVStateCmd* cmd = new ModifyPzVStateCmd(pzMgr,curPz,state);
     pzMgr->getUndoStack()->push(cmd);
+    setReadonly();
 }
 
 /**
@@ -1313,9 +1314,9 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             if(mt == curBa->getMt())
                 v = curBa->getValue();
             else if(curBa->getMt()){
-                if(mt == account->getMasterMt())
+                if(mt == account->getMasterMt() && rates.contains(curBa->getMt()->code()))
                     v = curBa->getValue() * rates.value(curBa->getMt()->code());
-                else
+                else if(rates.contains(mt->code()))
                     v = curBa->getValue() / rates.value(mt->code());
                 updateCols |= BUC_MTYPE;
                 updateCols |= BUC_VALUE;
@@ -1350,10 +1351,12 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                 break;
             Money* curMt = curBa->getMt();
             if(curMt && mt != curMt){
-                if(mt != account->getMasterMt())
+                if(mt != account->getMasterMt() && rates.contains(mt->code()))
                     v = curBa->getValue() / rates.value(mt->code());
-                else
+                else if(rates.contains(curMt->code()))
                     v = curBa->getValue() * rates.value(curMt->code());
+                else
+                    v = curBa->getValue();
                 updateCols |= BUC_MTYPE;
             }
             updateCols |= BUC_VALUE;
@@ -1384,12 +1387,12 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         if(curBa->getValue() != 0){
             //如果从外币转到本币
             if(mt == account->getMasterMt())
-                v = curBa->getValue() * rates.value(curBa->getMt()->code());
+                v = curBa->getValue() * rates.value(curBa->getMt()->code(),1.0);
             //从甲外币转到乙外币（先将甲外币转到本币，再转到乙外币）
             else if(mt != account->getMasterMt() && curBa->getMt() != account->getMasterMt())
-                v = curBa->getValue() * rates.value(curBa->getMt()->code()) / rates.value(mt->code());
+                v = curBa->getValue() * rates.value(curBa->getMt()->code(),1.0) / rates.value(mt->code(),1.0);
             else   //从本币转到外币
-                v = curBa->getValue() / rates.value(mt->code());
+                v = curBa->getValue() / rates.value(mt->code(),1.0);
             updateCols |= BUC_VALUE;
         }
         else

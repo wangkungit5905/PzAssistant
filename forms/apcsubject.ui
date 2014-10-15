@@ -91,7 +91,7 @@
       <attribute name="title">
        <string>科目</string>
       </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2,1,2">
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2,2,1">
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
@@ -473,73 +473,17 @@
        </item>
        <item>
         <layout class="QGridLayout" name="gridLayout_3">
-         <item row="8" column="0">
-          <widget class="QLabel" name="label_23">
+         <item row="0" column="0">
+          <widget class="QLabel" name="label_32">
            <property name="text">
-            <string>创建者</string>
+            <string>ID</string>
            </property>
           </widget>
          </item>
-         <item row="6" column="1">
-          <widget class="QLineEdit" name="ssubRemCode">
+         <item row="0" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubID">
            <property name="readOnly">
             <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="1">
-          <widget class="QLineEdit" name="ssubName">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="0">
-          <widget class="QLabel" name="label_22">
-           <property name="text">
-            <string>禁用时间</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QLineEdit" name="ssubWeight">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="7" column="1">
-          <widget class="QLineEdit" name="ssubDisTime">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="6" column="0">
-          <widget class="QLabel" name="label_31">
-           <property name="text">
-            <string>助记符</string>
-           </property>
-          </widget>
-         </item>
-         <item row="9" column="0">
-          <widget class="QLabel" name="label_24">
-           <property name="text">
-            <string>创建时间</string>
-           </property>
-          </widget>
-         </item>
-         <item row="8" column="1">
-          <widget class="QLineEdit" name="ssubCreator">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="4" column="0">
-          <widget class="QLabel" name="label_29">
-           <property name="text">
-            <string>简称</string>
            </property>
           </widget>
          </item>
@@ -550,6 +494,13 @@
            </property>
           </widget>
          </item>
+         <item row="1" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubCode">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
          <item row="2" column="0">
           <widget class="QLabel" name="label_20">
            <property name="text">
@@ -557,15 +508,8 @@
            </property>
           </widget>
          </item>
-         <item row="0" column="1">
-          <widget class="QLineEdit" name="ssubID">
-           <property name="readOnly">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-         <item row="1" column="1">
-          <widget class="QLineEdit" name="ssubCode">
+         <item row="2" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubWeight">
            <property name="readOnly">
             <bool>true</bool>
            </property>
@@ -575,13 +519,6 @@
           <widget class="QLabel" name="label_21">
            <property name="text">
             <string>是否启用</string>
-           </property>
-          </widget>
-         </item>
-         <item row="5" column="0">
-          <widget class="QLabel" name="label_30">
-           <property name="text">
-            <string>全称</string>
            </property>
           </widget>
          </item>
@@ -595,35 +532,99 @@
            </property>
           </widget>
          </item>
-         <item row="11" column="0">
-          <spacer name="verticalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Vertical</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>20</width>
-             <height>40</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item row="0" column="0">
-          <widget class="QLabel" name="label_32">
+         <item row="3" column="2">
+          <widget class="QLabel" name="label_36">
            <property name="text">
-            <string>ID</string>
+            <string>名称id：</string>
            </property>
           </widget>
          </item>
-         <item row="9" column="1">
-          <widget class="QLineEdit" name="ssubCrtTime">
+         <item row="3" column="3">
+          <widget class="QLineEdit" name="ssubNIID">
            <property name="readOnly">
             <bool>true</bool>
            </property>
           </widget>
          </item>
-         <item row="5" column="1">
+         <item row="4" column="0">
+          <widget class="QLabel" name="label_29">
+           <property name="text">
+            <string>简称</string>
+           </property>
+          </widget>
+         </item>
+         <item row="4" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubName">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="0">
+          <widget class="QLabel" name="label_30">
+           <property name="text">
+            <string>全称</string>
+           </property>
+          </widget>
+         </item>
+         <item row="5" column="1" colspan="3">
           <widget class="QLineEdit" name="ssubLName">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="0">
+          <widget class="QLabel" name="label_31">
+           <property name="text">
+            <string>助记符</string>
+           </property>
+          </widget>
+         </item>
+         <item row="6" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubRemCode">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="0">
+          <widget class="QLabel" name="label_22">
+           <property name="text">
+            <string>禁用时间</string>
+           </property>
+          </widget>
+         </item>
+         <item row="7" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubDisTime">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="0">
+          <widget class="QLabel" name="label_23">
+           <property name="text">
+            <string>创建者</string>
+           </property>
+          </widget>
+         </item>
+         <item row="8" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubCreator">
+           <property name="readOnly">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item row="9" column="0">
+          <widget class="QLabel" name="label_24">
+           <property name="text">
+            <string>创建时间</string>
+           </property>
+          </widget>
+         </item>
+         <item row="9" column="1" colspan="3">
+          <widget class="QLineEdit" name="ssubCrtTime">
            <property name="readOnly">
             <bool>true</bool>
            </property>
@@ -645,6 +646,19 @@
             <string/>
            </property>
           </widget>
+         </item>
+         <item row="11" column="0">
+          <spacer name="verticalSpacer_2">
+           <property name="orientation">
+            <enum>Qt::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
          </item>
         </layout>
        </item>

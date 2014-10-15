@@ -10,6 +10,7 @@
 #include <QLineEdit>
 #include <QShortcut>
 #include <QCheckBox>
+#include <QDoubleSpinBox>
 
 #include "commdatastruct.h"
 #include "cal.h"
@@ -303,6 +304,56 @@ private:
     QHash<QString,QString> subNames;
     QStringList slSigns,slDisps;
     bool readOnly;
+};
+
+/**
+ * @brief 支持4位小数编辑
+ * 可指定哪些列支持4位小数
+ */
+class FourDecimalDoubleDelegate : public QItemDelegate
+{
+    Q_OBJECT
+public:
+    FourDecimalDoubleDelegate(QSet<int> cols, QObject *parent = 0):
+            QItemDelegate(parent){columns=cols;}
+    QList<int> getColumn(){return columns.toList();}
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                               const QModelIndex &index) const
+    {
+        if(columns.contains(index.column())){
+            QDoubleSpinBox* editor = new QDoubleSpinBox(parent);
+            editor->setDecimals(4);
+            return editor;
+        }
+        else
+            return 0;
+    }
+
+    void setEditorData(QWidget *editor, const QModelIndex &index) const
+    {
+        double value = index.model()->data(index, Qt::EditRole).toDouble();
+        QDoubleSpinBox* ed = static_cast<QDoubleSpinBox*>(editor);
+        if(ed)
+            ed->setValue(value);
+    }
+
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                   const QModelIndex &index) const
+    {
+        QDoubleSpinBox* ed = static_cast<QDoubleSpinBox*>(editor);
+        if(ed){
+            double value = ed->value();
+            model->setData(index, value, Qt::EditRole);
+        }
+    }
+
+    void updateEditorGeometry(QWidget *editor,
+        const QStyleOptionViewItem &option, const QModelIndex &index) const
+    {
+        editor->setGeometry(option.rect);
+    }
+private:
+    QSet<int> columns;  //支持4位小数编辑的列
 };
 
 #endif // DELEGATES3_H

@@ -236,7 +236,7 @@ OTHER_FILES += \
     PrjExplain/数据库移植注意事txt \
     PrjExplain/配置变量.txt \
     PrjExplain/操作指南.txt \
-    PrjExplain/revisionHistorys \
+    revisionHistorys \
     账户文本版本说明.txt \
     ini/revisionHistorys.ini \
     PrjExplain/任务需求分析.txt \

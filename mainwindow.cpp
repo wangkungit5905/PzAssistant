@@ -3952,14 +3952,9 @@ bool MainWindow::impTestDatas()
 //    pt.factor[4] = 0.11;
 //    r = config->savePzTemplateParameter(&pt);
 
-    bool a = true,b = false;
-    bool r = a^b;
-    b = true;
-    r = a^b;
-    a = false;b = false;
-    r = a^b;
-    a = false; b = true;
-    r = a^b;
+    Double v1(6.16,4),v2(6.1525,4);
+    Double v(14128.01);
+    v = (v1-v2)*v;
     int i = 0;
 }
 

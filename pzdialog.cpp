@@ -497,7 +497,7 @@ void PzDialog::setMonth(int month)
  * 根据当前凭证的审核状态和凭证集的状态，设置凭证内容显示部件的只读属性
  * @param r
  */
-void PzDialog::setReadonly()
+void PzDialog::adjustViewReadonly()
 {
     //综合凭证集状态和凭证状态决定凭证是否可编辑
     bool b = (curPz->getPzState() != Pzs_Recording) && (curPz->getPzState() != Pzs_Repeal);
@@ -711,7 +711,7 @@ bool PzDialog::crtJzhdPz()
     double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,endRates.value(USD).getv(),0,100,4,&ok);
     if(!ok)
         return true;
-    endRates[USD] = Double(rate);
+    endRates[USD] = Double(rate,4);
     account->setRates(yy,mm,endRates);   
     //创建移除原先存在的结转汇兑损益的凭证的命令
     QList<PingZheng*> pzLst = pzMgr->getAllJzhdPzs();
@@ -1109,7 +1109,7 @@ void PzDialog::setPzState(PzState state)
 {
     ModifyPzVStateCmd* cmd = new ModifyPzVStateCmd(pzMgr,curPz,state);
     pzMgr->getUndoStack()->push(cmd);
-    setReadonly();
+    adjustViewReadonly();
 }
 
 /**
@@ -1385,15 +1385,19 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         updateCols |= BUC_MTYPE;
         //如果金额为0，则不必调整金额，否则，必须调整金额
         if(curBa->getValue() != 0){
-            //如果从外币转到本币
-            if(mt == account->getMasterMt())
-                v = curBa->getValue() * rates.value(curBa->getMt()->code(),1.0);
-            //从甲外币转到乙外币（先将甲外币转到本币，再转到乙外币）
-            else if(mt != account->getMasterMt() && curBa->getMt() != account->getMasterMt())
-                v = curBa->getValue() * rates.value(curBa->getMt()->code(),1.0) / rates.value(mt->code(),1.0);
-            else   //从本币转到外币
-                v = curBa->getValue() / rates.value(mt->code(),1.0);
-            updateCols |= BUC_VALUE;
+            if(curBa->getMt()){
+                //如果从外币转到本币
+                if(mt == account->getMasterMt())
+                    v = curBa->getValue() * rates.value(curBa->getMt()->code(),1.0);
+                //从甲外币转到乙外币（先将甲外币转到本币，再转到乙外币）
+                else if(mt != account->getMasterMt() && curBa->getMt() != account->getMasterMt())
+                    v = curBa->getValue() * rates.value(curBa->getMt()->code(),1.0) / rates.value(mt->code(),1.0);
+                else   //从本币转到外币
+                    v = curBa->getValue() / rates.value(mt->code(),1.0);
+                updateCols |= BUC_VALUE;
+            }
+            else
+                v = curBa->getValue();
         }
         else
             v = 0.0;
@@ -1403,14 +1407,20 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
     case BT_JV:
         v = item->data(Qt::EditRole).value<Double>();
         dir = MDIR_J;
-        multiCmd = new ModifyMultiPropertyOnBa(curBa,curBa->getFirstSubject(),curBa->getSecondSubject(),curBa->getMt(),v,dir);
+        mt = curBa->getMt();
+        if(!mt)
+            mt = account->getMasterMt();
+        multiCmd = new ModifyMultiPropertyOnBa(curBa,curBa->getFirstSubject(),curBa->getSecondSubject(),mt,v,dir);
         pzMgr->getUndoStack()->push(multiCmd);
         updateCols |= BUC_VALUE;
         break;
     case BT_DV:
         v = item->data(Qt::EditRole).value<Double>();
         dir = MDIR_D;
-        multiCmd = new ModifyMultiPropertyOnBa(curBa,curBa->getFirstSubject(),curBa->getSecondSubject(),curBa->getMt(),v,dir);
+        mt = curBa->getMt();
+        if(!mt)
+            mt = account->getMasterMt();
+        multiCmd = new ModifyMultiPropertyOnBa(curBa,curBa->getFirstSubject(),curBa->getSecondSubject(),mt,v,dir);
         pzMgr->getUndoStack()->push(multiCmd);
         updateCols |= BUC_VALUE;
         break;
@@ -1704,7 +1714,7 @@ void PzDialog::refreshPzContent()
         //ui->edtComment->document()->setModified(true);
         ui->lblClass->setPixmap(icons_pzcls.value(curPz->getPzClass()));
         ui->lblState->setPixmap(icons_pzstate.value(curPz->getPzState()));        
-        setReadonly();
+        adjustViewReadonly();
     }
     refreshActions();
     installInfoWatch();

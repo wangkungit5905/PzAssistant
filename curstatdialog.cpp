@@ -1,6 +1,7 @@
 #include <QBuffer>
 #include <QMenu>
 #include <QDebug>
+#include <QUndoStack>
 
 #include "curstatdialog.h"
 #include "ui_curstatdialog.h"
@@ -11,12 +12,13 @@
 #include "PzSet.h"
 #include "previewdialog.h"
 #include "outputexceldlg.h"
+#include "myhelper.h"
 
 CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *parent)
     :DialogWithPrint(parent),ui(new Ui::CurStatDialog),statUtil(statUtil)
 {
     ui->setupUi(this);
-    init(account);
+    init();
 
     headerModel = NULL;
     dataModel = NULL;
@@ -289,8 +291,14 @@ void CurStatDialog::save()
 {
     if(curAccount->isReadOnly())
         return;
+    AccountSuiteManager* sm = account->getSuiteMgr();
+    //如果存在未保存的凭证，则为了保持余额与对应凭证集的一致性，需要连同保存凭证集
+    if(!sm->getUndoStack()->isClean() && !sm->save(AccountSuiteManager::SW_PZS)){
+        myHelper::ShowMessageBoxError(tr("保存凭证集时出错！"));
+        return;
+    }
     if(!statUtil->save()){
-        QMessageBox::critical(this,tr("错误提示"),tr("保存余额时，发生错误！"));
+        myHelper::ShowMessageBoxError(tr("保存余额时，发生错误！"));
         return;
     }
     //emit pzsExtraSaved();
@@ -379,7 +387,7 @@ void CurStatDialog::onDetViewChanged(bool checked)
     viewTable();
 }
 
-void CurStatDialog::init(Account *acc)
+void CurStatDialog::init()
 {
     account = statUtil->getAccount();
     //smg = account->getSubjectManager();

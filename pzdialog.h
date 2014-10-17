@@ -120,7 +120,7 @@ public:
     QByteArray* getState();
     void setMonth(int month);
 
-    void setReadonly();
+    void adjustViewReadonly();
     bool isDirty();
 
     //状态获取和恢复方法

@@ -266,10 +266,10 @@ PrintTemplateDz::PrintTemplateDz(MyWithHeaderModels* model,
     this->model = model;
     hv = headView;    
     this->colWidths = colWidths;
-    ui->tview->setHorizontalHeader(hv);
-    hv->setStyleSheet("QHeaderView {background-color:white;}"
-                      "QHeaderView::section {background-color:white;}");//表头背景色为白色
+    ui->tview->setHorizontalHeader(hv);    
     ui->tview->setModel(model);
+    ui->tview->setProperty("TableForPrint",true);
+    ui->tview->horizontalHeader()->setProperty("TableForPrint",true);
     //设置列宽
     for(int i = 0; i < colWidths->count(); ++i)
         ui->tview->setColumnWidth(i,colWidths->value(i));
@@ -379,9 +379,11 @@ PrintTemplateTz::PrintTemplateTz(MyWithHeaderModels *model,
     hv = headView;
     this->colWidths = colWidths;
     ui->tview->setHorizontalHeader(hv);
-    hv->setStyleSheet("QHeaderView {background-color:white;}"
-                      "QHeaderView::section {background-color:white;}");//表头背景色为白色
+    //hv->setStyleSheet("QHeaderView {background-color:white;}"
+    //                  "QHeaderView::section {background-color:white;}");//表头背景色为白色
     ui->tview->setModel(model);
+    ui->tview->setProperty("TableForPrint",true);
+    ui->tview->horizontalHeader()->setProperty("TableForPrint",true);
     //设置列宽
     for(int i = 0; i < colWidths->count(); ++i)
         ui->tview->setColumnWidth(i,colWidths->value(i));
@@ -455,9 +457,9 @@ PrintTemplateStat::PrintTemplateStat(MyWithHeaderModels *model,
     hv = headView;
     this->colWidths = colWidths;
     ui->tview->setHorizontalHeader(hv);
-    hv->setStyleSheet("QHeaderView {background-color:white;}"
-                      "QHeaderView::section {background-color:white;}");//表头背景色为白色
     ui->tview->setModel(model);
+    ui->tview->setProperty("TableForPrint",true);
+    ui->tview->horizontalHeader()->setProperty("TableForPrint",true);
     //设置列宽
     for(int i = 0; i < colWidths->count(); ++i)
         ui->tview->setColumnWidth(i,colWidths->value(i));

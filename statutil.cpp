@@ -30,10 +30,11 @@ bool StatUtil::stat()
         QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在未打开凭证集时不能进行本期统计！"));
         return false;
     }
-    if(sm->isDirty()){
-        QMessageBox::warning(0,"",QObject::tr("请先保存，再统计！"));
-        return false;
-    }
+    //因为统计的是已装载到内存中的凭证，如下检测多此一举
+    //if(sm->isDirty()){
+    //    QMessageBox::warning(0,"",QObject::tr("请先保存，再统计！"));
+    //    return false;
+    //}
     y = sm->year();
     m = sm->month();
     account->getRates(y,m,rates);

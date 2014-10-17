@@ -1191,6 +1191,8 @@ void PingZheng::_recalSumForValueChanged(Money* oldMt,Double &oldValue,MoneyDire
     MoneyDirection newDir = ba->getDir();
     if(!newMt)
         return;
+    if(!oldMt)
+        oldMt = p->getAccount()->getMasterMt();
     if(oldMt==newMt && oldValue==newValue && oldDir==newDir)
         return;
     QHash<int,Double> rates;
@@ -1211,7 +1213,7 @@ void PingZheng::_recalSumForValueChanged(Money* oldMt,Double &oldValue,MoneyDire
             setEditState(ES_PZ_DSUM);
         }
     }
-    else{
+    else{        
         Double v_sub = oldValue * rates.value(oldMt->code(),1.0);
         Double v_add = newValue * rates.value(newMt->code(),1.0);
         if(newDir == MDIR_J){

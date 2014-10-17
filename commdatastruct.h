@@ -20,7 +20,7 @@ const int ALLCLASS  = 0;    //所有类别
 
 //变量值类型枚举
 enum VariableType{
-    VT_BOOL    = 1, //布尔型
+    VT_BOOLEAN    = 1, //布尔型
     VT_INTEGER = 2, //整形
     VT_FLOAT   = 3, //浮点型
     VT_STRING  = 4  //字符串

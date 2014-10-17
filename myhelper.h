@@ -53,6 +53,7 @@ public:
         QString qss = QLatin1String(file.readAll());
         qApp->setStyleSheet(qss);
         qApp->setPalette(QPalette(QColor("#F0F0F0")));
+        file.close();
     }
 
     //加载中文字符

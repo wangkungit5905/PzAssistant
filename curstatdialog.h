@@ -95,7 +95,7 @@ signals:
     void extraValided();    //向主窗口报告余额已经保存，有效了
 
 private:
-    void init(Account* acc);
+    void init();
     void initHashs();
     void viewRates();
     void viewTable();

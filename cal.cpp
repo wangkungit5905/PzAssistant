@@ -107,8 +107,6 @@ Double Double::operator +(const Double &other) const
     int rate = digs - other.getDig();
     if(rate == 0){
         v = getlv()+other.getlv();
-        if(digs > 2)
-            v = reduce(v,digs-2);
         return Double(v,digs);
     }
     else{
@@ -120,8 +118,8 @@ Double Double::operator +(const Double &other) const
             v = getlv() + other.getlv()*rates;
         else
             v = lv*rates+other.getlv();
-        v = reduce(v,c);
-        return Double(v,2);
+        //v = reduce(v,c);
+        return Double(v,4);
     }
 }
 
@@ -131,8 +129,6 @@ Double Double::operator -(const Double &other) const
     int rate = digs - other.getDig();
     if(rate == 0){
         v = getlv()-other.getlv();
-        if(digs > 2)
-            v = reduce(v,digs-2);
         return Double(v,digs);
     }
     else{
@@ -144,8 +140,8 @@ Double Double::operator -(const Double &other) const
             v = getlv() - other.getlv()*rates;
         else
             v = lv*rates - other.getlv();
-        v = reduce(v,c);
-        return Double(v,2);
+        //v = reduce(v,c);
+        return Double(v,4);
     }
 }
 
@@ -169,16 +165,6 @@ Double Double::operator *(const Double &other) const
 
     v = reduce(v,max(digs,other.getDig())*2-2);
     return Double(v,2);
-
-//    if(digs != other.getDig())
-//        return Double((qint64)0,digs);
-//    qint64 v = getlv() * other.getlv();
-//    v = v/(digRate/10);
-//    if((v % 10) > 4)
-//        v = v/10 + 1;
-//    else
-//        v = v / 10;
-//    return Double(v,digs);
 }
 
 /**
@@ -201,16 +187,6 @@ Double Double::operator /(const Double &other) const
     v = v1/v2;
     v = reduce(v,2);
     return Double(v,2);
-
-//    if(digs != other.getDig())
-//        return Double((qint64)0,digs);
-//    double v = (double)getlv()/(double)other.getlv();
-//    qint64 iv = v * digRate * 10;
-//    if(iv%10>4)
-//        iv = iv/10+1;
-//    else
-//        iv = iv/10;
-//    return Double(iv,digs);
 }
 
 void Double::operator +=(const Double &other)
@@ -218,10 +194,10 @@ void Double::operator +=(const Double &other)
     int rate = digs - other.getDig();
     if(rate == 0){
         lv += other.getlv();
-        if(digs > 2){
-            lv = reduce(lv,digs-2);
-            digs=2;
-        }
+//        if(digs > 2){
+//            lv = reduce(lv,digs-2);
+//            digs=2;
+//        }
     }
     else{
         int rates=1;
@@ -234,13 +210,9 @@ void Double::operator +=(const Double &other)
             lv *= rates;
             lv += other.getlv();
         }
-        lv = reduce(lv,c);
-        digs = 2;
+        //lv = reduce(lv,c);
+        digs = max(digs,other.getDig());
     }
-//    if(digs != other.getDig())
-//        lv = 0;
-//    else
-//        lv += other.getlv();
 }
 
 void Double::operator -=(const Double other)
@@ -248,10 +220,10 @@ void Double::operator -=(const Double other)
     int rate = digs - other.getDig();
     if(rate == 0){
         lv -= other.getlv();
-        if(digs > 2){
-            lv = reduce(lv,digs-2);
-            digs=2;
-        }
+//        if(digs > 2){
+//            lv = reduce(lv,digs-2);
+//            digs=2;
+//        }
     }
     else{
         int rates=1;
@@ -264,13 +236,9 @@ void Double::operator -=(const Double other)
             lv *= rates;
             lv -= other.getlv();
         }
-        lv = reduce(lv,c);
-        digs = 2;
+        //lv = reduce(lv,c);
+        digs = max(digs,other.getDig());
     }
-//    if(digs != other.getDig())
-//        lv = 0;
-//    else
-//        lv -= other.getlv();
 }
 
 void Double::operator *=(const Double other)
@@ -279,16 +247,6 @@ void Double::operator *=(const Double other)
     lv *= other.getlv();
     lv = reduce(lv,digs+other.getDig()-2);
     digs = 2;
-//    if(digs != other.getDig())
-//        lv = 0;
-//    else{
-//        lv *= other.getlv();
-//        lv = lv/(digRate/10);
-//        if((lv % 10) > 4)
-//            lv = lv/10 + 1;
-//        else
-//            lv = lv / 10;
-//    }
 }
 
 void Double::operator /=(const Double other)
@@ -302,16 +260,6 @@ void Double::operator /=(const Double other)
     lv /= other.getlv();
     lv = reduce(lv,2);
     digs=2;
-//    if(digs != other.getDig())
-//        lv = 0;
-//    else{
-//        double v = (double)getlv()/(double)other.getlv();
-//        lv = v * digRate * 10;
-//        if(lv%10 > 4)
-//            lv = lv/10+1;
-//        else
-//            lv = lv/10;
-//    }
 }
 
 bool Double::operator ==(const Double &other) const

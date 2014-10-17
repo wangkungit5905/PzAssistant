@@ -288,7 +288,7 @@ void SndSubComboBox::setSndSub(SecondSubject *sub)
     QVariant v;
     v.setValue(ssub);
     com->setCurrentIndex(com->findData(v,Qt::UserRole));
-    //com->lineEdit()->setFocus();
+    com->lineEdit()->setFocus();
     //com->lineEdit()->setCursorPosition(1);
 }
 

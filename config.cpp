@@ -2046,8 +2046,8 @@ bool AppConfig::getPzTemplateParameter(PzTemplateParameter *parameter)
     if(!parameter)
         return false;
     appIni->beginGroup(SEGMENT_PZ_TEMPLATE);
-    parameter->baRowHeight = appIni->value(KEY_PZT_BAROWHEIGHT,10.5).toFloat();
-    parameter->titleHeight = appIni->value(KEY_PZT_BATITLEHEIGHT,10).toFloat();
+    parameter->baRowHeight = appIni->value(KEY_PZT_BAROWHEIGHT,10.5).toDouble();
+    parameter->titleHeight = appIni->value(KEY_PZT_BATITLEHEIGHT,10).toDouble();
     parameter->baRows = appIni->value(KEY_PZT_BAROWNUM,8).toInt();
     parameter->cutAreaHeight = appIni->value(KEY_PZT_CUTAREA,14).toInt();
     parameter->leftRightMargin = appIni->value(KEY_PZT_LR_MARGIN,8).toInt();
@@ -2100,7 +2100,7 @@ bool AppConfig::savePzTemplateParameter(PzTemplateParameter *parameter)
     appIni->setValue(KEY_PZT_ISPRINTMIDLINE,parameter->isPrintMidLine);
     QStringList factors;
     for(int i = 0; i < 5; ++i){
-        factors<<QString::number(parameter->factor[i],'f',2);
+        factors<<QString::number(parameter->factor[i],'f',3);
     }
     appIni->setValue(KEY_PZT_BATABLE_FACTOR,factors.join(","));
     appIni->endGroup();

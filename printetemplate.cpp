@@ -122,9 +122,15 @@ void PzPrintTemplate::setBaList(QList<BusiAction*>& bas)
     Double v; //借贷金额及合计数
     ui->tview->clearContents();
 
-    //绘制表头
+    //恢复分录的字体尺寸到配置的尺寸
+    QFont font = ui->tview->font();
+    if(ui->tview->font().pointSize() != parameter->fontSize){
+        font.setPointSize(parameter->fontSize);
+        ui->tview->setFont(font);
+    }
+    //绘制表头    
     item = new QTableWidgetItem(tr("摘    要"));
-    item->setTextAlignment(Qt::AlignCenter);
+    item->setTextAlignment(Qt::AlignCenter);    
     ui->tview->setItem(0,0,item);
     item = new QTableWidgetItem(tr("科    目"));
     item->setTextAlignment(Qt::AlignCenter);
@@ -141,16 +147,14 @@ void PzPrintTemplate::setBaList(QList<BusiAction*>& bas)
     item = new QTableWidgetItem(tr("汇率"));
     item->setTextAlignment(Qt::AlignCenter);
     ui->tview->setItem(0,5,item);
+    for(int i = 0; i < 6; ++i){
+        font.setBold(true);
+        ui->tview->item(0,i)->setFont(font);
+    }
 
     //填制业务活动数据
     BusiAction* ba;
     QString str;
-    //恢复分录的字体尺寸到配置的尺寸
-    QFont font = ui->tview->font();
-    if(ui->tview->font().pointSize() != parameter->fontSize){
-        font.setPointSize(parameter->fontSize);
-        ui->tview->setFont(font);
-    }
     //找出分录中最长的字符串，当前的行高和字体尺寸是否可以满足其折行要求，如果不行，则尝试缩小字体直至满足或到最小字体为止
     int maxSize =0;
     QString maxStr;

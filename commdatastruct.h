@@ -613,8 +613,8 @@ struct MixedJoinCfg{
  * @brief 凭证打印模板参数
  */
 struct PzTemplateParameter{
-    float titleHeight;        //分录表标题条高度（高度单位是毫米）
-    float baRowHeight;        //分录行高度（所有行高总和）
+    double titleHeight;        //分录表标题条高度（高度单位是毫米）
+    double baRowHeight;        //分录行高度（所有行高总和）
     int baRows;             //分录最大行数
     double factor[5];       //分录表格列宽分配因子（从左到右分别是摘要栏、科目栏、借贷方、外币、汇率列）
     int cutAreaHeight;      //两张凭证之间的裁剪区域高度

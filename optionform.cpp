@@ -2,9 +2,12 @@
 #include "widgets.h"
 #include "subject.h"
 #include "myhelper.h"
+#include "ui_appcommcfgpanel.h"
 #include "ui_pztemplateoptionform.h"
+#include "ui_stationcfgform.h"
 
 #include <QHBoxLayout>
+#include <QMenu>
 
 
 ////////////////////AppCommCfgPanel//////////////////////////////
@@ -163,6 +166,240 @@ bool PzTemplateOptionForm::save()
     return AppConfig::getInstance()->savePzTemplateParameter(&parameter);
 }
 
+///////////////////////StationCfgForm////////////////////////////////////
+StationCfgForm::StationCfgForm(QWidget *parent) : ConfigPanelBase(parent), ui(new Ui::StationCfgForm)
+{
+    ui->setupUi(this);
+    readonly = true;
+    loadStations();
+    connect(ui->lwStations,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
+            this,SLOT(currentStationChanged(QListWidgetItem*,QListWidgetItem*)));
+    connect(ui->lwStations,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(editStation(QListWidgetItem*)));
+    connect(ui->lwStations,SIGNAL(customContextMenuRequested(QPoint)),this,SLOT(customContextMenuRequested(QPoint)));
+    setEditState();
+}
+
+StationCfgForm::~StationCfgForm()
+{
+    delete ui;
+}
+
+bool StationCfgForm::isDirty()
+{
+    if(ui->lwStations->currentItem())
+        collectData(ui->lwStations->currentItem());
+    if(!msDels.isEmpty())
+        return true;
+    for(int i = 0; i < ui->lwStations->count(); ++i){
+        if(ui->lwStations->item(i)->data(DR_ES).toBool())
+            return true;
+    }
+    return false;
+}
+
+bool StationCfgForm::save()
+{
+    QList<Machine*> ms;
+    for(int i = 0; i < ui->lwStations->count(); ++i){
+        QListWidgetItem* item = ui->lwStations->item(i);
+        if(item->data(DR_ES).toBool())
+            ms<<item->data(DR_OBJ).value<Machine*>();
+    }
+    AppConfig* acfg = AppConfig::getInstance();
+    if(!acfg->saveMachines(ms)){
+        myHelper::ShowMessageBoxError(tr("保存工作站信息时出错，请查看日志！"));
+        return false;
+    }
+    if(!msDels.isEmpty()){
+        foreach(Machine* mac, msDels){
+            if(!acfg->removeMachine(mac)){
+                myHelper::ShowMessageBoxError(tr("保存工作站信息时出错，请查看日志！"));
+                return false;
+            }
+        }
+        msDels.clear();
+    }
+    return true;
+}
+
+void StationCfgForm::customContextMenuRequested(const QPoint &pos)
+{
+    if(curUser->isSuperUser()){
+        QMenu menu;
+        QListWidgetItem* item = ui->lwStations->itemAt(pos);
+        menu.addAction(ui->actAdd);
+        if(item){
+            menu.addAction(ui->actEdit);
+            menu.addAction(ui->actDel);
+        }
+        menu.exec(ui->lwStations->mapToGlobal(pos));
+    }
+}
+
+void StationCfgForm::currentStationChanged(QListWidgetItem *current, QListWidgetItem *previous)
+{
+    if(previous)
+        collectData(previous);
+    Machine* m = current->data(DR_OBJ).value<Machine*>();
+    showStation(m);
+}
+
+void StationCfgForm::editStation(QListWidgetItem *item)
+{
+    if(curUser->isSuperUser()){
+        readonly = false;
+        setEditState();
+    }
+}
+
+void StationCfgForm::loadStations()
+{
+    AppConfig* acfg = AppConfig::getInstance();
+    acfg->getOsTypes(osTypes);
+    QList<int> codes = osTypes.keys();
+    qSort(codes.begin(),codes.end());
+    foreach(int code, codes)
+        ui->cmbOsTypes->addItem(osTypes.value(code),code);
+    ms = acfg->getAllMachines().values();
+    qSort(ms.begin(),ms.end(),byMacMID);
+    foreach(Machine* m, ms){
+        QListWidgetItem* item = new QListWidgetItem(m->name(),ui->lwStations);
+        QVariant v; v.setValue<Machine*>(m);
+        item->setData(DR_OBJ,v);
+        item->setData(DR_ES,false);
+    }
+}
+
+void StationCfgForm::showStation(Machine* m)
+{
+    if(m){
+        ui->edtMid->setText(QString::number(m->getMID()));
+        ui->edtName->setText(m->name());
+        ui->edtDesc->setText(m->description());
+        ui->chkIsLocal->setChecked(m->isLocalStation());
+        if(m->getType() == MT_COMPUTER)
+            ui->rdoPc->setChecked(true);
+        else
+            ui->rdoCloud->setChecked(true);
+        int index = ui->cmbOsTypes->findData(m->osType());
+        ui->cmbOsTypes->setCurrentIndex(index);
+    }
+    else{
+        ui->edtMid->clear();
+        ui->edtName->clear();
+        ui->edtDesc->clear();
+        ui->chkIsLocal->setChecked(false);
+        ui->rdoPc->setChecked(true);
+        ui->cmbOsTypes->setCurrentIndex(-1);
+    }
+}
+
+void StationCfgForm::setEditState()
+{
+    ui->edtName->setReadOnly(readonly);
+    if(!readonly)
+        ui->edtName->setFocus();
+    ui->edtDesc->setReadOnly(readonly);
+    ui->rdoPc->setEnabled(!readonly);
+    ui->rdoCloud->setEnabled(!readonly);
+    ui->chkIsLocal->setEnabled(!readonly);
+    ui->cmbOsTypes->setEnabled(!readonly);
+}
+
+/**
+ * @brief 收集当前编辑界面的数据，将改变部分保存到对象中
+ */
+void StationCfgForm::collectData(QListWidgetItem* item)
+{
+    if(item && !readonly){
+        Machine* m = item->data(DR_OBJ).value<Machine*>();
+        if(m->getId()==0)
+            ui->edtMid->setReadOnly(true);
+        bool isChanged = false;
+        int mid = ui->edtMid->text().toInt();
+        if(m->getMID() != mid){
+            m->setMID(mid);
+            isChanged = true;
+        }
+        if(m->name() != ui->edtName->text()){
+            m->setName(ui->edtName->text());
+            isChanged = true;
+        }
+        if(m->description() != ui->edtDesc->text()){
+            m->setDescription(ui->edtDesc->text());
+            isChanged = true;
+        }
+        if(m->isLocalStation() ^ ui->chkIsLocal->isChecked()){
+            //本站设置是排他性的，要么都不设置，要么只能设置一个
+            if(!m->isLocalStation() && ui->chkIsLocal->isChecked()){
+                for(int i = 0; i < ui->lwStations->count(); ++i){
+                    QListWidgetItem* li = ui->lwStations->item(i);
+                    if(li == item)
+                        continue;
+                    if(ms.at(i)->isLocalStation()){
+                        ms.at(i)->setLocalMachine(false);
+                        li->setData(DR_ES,true);
+                        break;
+                    }
+                }
+            }
+            m->setLocalMachine(ui->chkIsLocal->isChecked());
+            isChanged = true;
+        }
+        if(m->getType() == MT_COMPUTER && !ui->rdoPc->isChecked()){
+            m->setType(MT_CLOUDY);
+            isChanged = true;
+        }
+        else if(m->getType() == MT_CLOUDY && !ui->rdoCloud->isChecked()){
+            m->setType(MT_COMPUTER);
+            isChanged = true;
+        }
+        int osType = ui->cmbOsTypes->currentData().toInt();
+        if(osType != m->osType()){
+            m->setOsType(osType);
+            isChanged = true;
+        }
+        if(isChanged)
+            item->setData(DR_ES,true);//需要保存
+        readonly = true;
+    }
+}
+
+void StationCfgForm::on_actAdd_triggered()
+{
+    int mid = 1;
+    if(!ms.isEmpty())
+        mid = ms.last()->getMID()+1;
+    Machine* m = new Machine(UNID,MT_COMPUTER,mid,false,tr("新工作站"),"");
+    ms<<m;
+    QListWidgetItem* item = new QListWidgetItem(m->name(),ui->lwStations);
+    QVariant v; v.setValue<Machine*>(m);
+    item->setData(DR_OBJ,v);
+    item->setData(DR_ES,true);
+    ui->lwStations->setCurrentItem(item);
+    showStation(m);
+    readonly = false;
+    setEditState();
+    ui->edtName->setFocus();
+}
+
+void StationCfgForm::on_actEdit_triggered()
+{
+    editStation(ui->lwStations->currentItem());
+}
+
+void StationCfgForm::on_actDel_triggered()
+{
+    int index = ui->lwStations->currentRow();
+    ui->lwStations->takeItem(index);
+    msDels<<ms.takeAt(index);
+    if(ui->lwStations->currentItem())
+        showStation(ms.at(ui->lwStations->currentRow()));
+    else
+        showStation(0);
+}
+
+
 ///////////////////////SpecSubCodeCfgform//////////////////////////////////
 
 
@@ -245,3 +482,7 @@ TestPanel::TestPanel(QWidget *parent):ConfigPanelBase(parent)
     ly->addWidget(l);
     setLayout(ly);
 }
+
+
+
+

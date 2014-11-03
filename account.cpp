@@ -114,7 +114,7 @@ bool Account::createNewAccount(QString fileName, QString code, QString name, QSt
     }
 
     //7、创建首条转移记录
-    int mid = AppConfig::getInstance()->getLocalMachine()->getMID();
+    int mid = AppConfig::getInstance()->getLocalStation()->getMID();
     QString curTime = QDateTime::currentDateTime().toString(Qt::ISODate);
     s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,%9,'%10','%11')")
             .arg(tbl_transfer).arg(fld_trans_smid).arg(fld_trans_dmid).arg(fld_trans_state)
@@ -128,8 +128,8 @@ bool Account::createNewAccount(QString fileName, QString code, QString name, QSt
     if(!q.exec(s) || !q.first())
         return false;
     int tid = q.value(0).toInt();
-    QString outDesc = tr("默认初始由本机转出");
-    QString inDesc = tr("默认初始由本机转入");
+    QString outDesc = tr("默认初始由本站转出");
+    QString inDesc = tr("默认初始由本站转入");
     s = QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')")
             .arg(tbl_transferDesc).arg(fld_transDesc_tid).arg(fld_transDesc_out)
             .arg(fld_transDesc_in).arg(tid).arg(outDesc).arg(inDesc);
@@ -258,6 +258,18 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
             return false;
         }
     }
+    //默认只允许银行存款科目使用外币
+    s = QString("update %1 set %2=0").arg(tname).arg(fld_fsub_isUseWb);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=1 where %3='1002'").arg(tname)
+            .arg(fld_fsub_isUseWb).arg(fld_fsub_subcode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
     //2、导入常用名称条目及其类别
     s = QString("select * from %1").arg(tbl_base_nic);
     if(!qb.exec(s)){
@@ -319,7 +331,7 @@ bool Account::importSubjectForNewAccount(int subSys,QSqlDatabase db, QString& er
     }
 
 
-    //3、设置本币
+    //3、设置货币（本币和外币）
     s = QString("insert into %1(%2,%3,%4,%5) values(:code,:name,:sign,0)")
             .arg(tbl_moneyType).arg(fld_mt_code).arg(fld_mt_name).arg(fld_mt_sign)
             .arg(fld_mt_isMaster);

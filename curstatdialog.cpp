@@ -571,8 +571,10 @@ void CurStatDialog::viewRates()
     ui->cmbStartRate->setCurrentIndex(0);
     ui->cmbEndRate->setCurrentIndex(0);
     mt = ui->cmbStartRate->itemData(0).value<Money*>();
-    ui->edtStartRate->setText(sRates.value(mt->code()).toString());
-    ui->edtEndRate->setText(eRates.value(mt->code()).toString());
+    if(mt){
+        ui->edtStartRate->setText(sRates.value(mt->code()).toString());
+        ui->edtEndRate->setText(eRates.value(mt->code()).toString());
+    }
 }
 
 /**

@@ -499,7 +499,7 @@ struct AccountCacheItem{
     QString fileName;   //账户数据库文件名
     QString accName;    //账户简称
     QString accLName;   //账户全称
-    QDateTime inTime;   //转入时间（最近一次转入账户到本主机的时间，三种转移状态下都有意义）
+    QDateTime inTime;   //转入时间（最近一次转入账户到本主站的时间，三种转移状态下都有意义）
     QDateTime outTime;  //转出时间（已转出时有意义，其他状态无意义）
     Machine* mac;    //要转入的目的主机（已转出），转出此账户的源主机（转入到目的机或其他机）
     AccountTransferState tState; //转移状态

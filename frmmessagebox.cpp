@@ -3,6 +3,8 @@
 #include "iconhelper.h"
 #include "myhelper.h"
 
+#include <QPixmap>
+
 frmMessageBox::frmMessageBox(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::frmMessageBox)
@@ -22,7 +24,6 @@ frmMessageBox::frmMessageBox(QWidget *parent) :
     connect(ui->btnCancel, SIGNAL(clicked()), this, SLOT(close()));
     //窗体居中显示
     myHelper::FormInCenter(this);
-
 }
 
 frmMessageBox::~frmMessageBox()
@@ -33,18 +34,31 @@ frmMessageBox::~frmMessageBox()
 void frmMessageBox::SetMessage(const QString &msg, int type)
 {
     if (type == 0) {
-        ui->labIcoMain->setStyleSheet("border-image: url(:/image/info.png);");
+        //在没有在应用层面应用样式的情况下，下面的语句才起作用，不知为啥？
+        //ui->labIcoMain->setStyleSheet("border-image: url(:/images/info.png);");
+        QPixmap icon(":/images/info.png");
+        ui->labIcoMain->setPixmap(icon);
         ui->btnCancel->setVisible(false);
         ui->lab_Title->setText("提示");
     } else if (type == 1) {
-        ui->labIcoMain->setStyleSheet("border-image: url(:/image/question.png);");
+        //ui->labIcoMain->setStyleSheet("border-image: url(:/images/question.png);");
+        QPixmap icon(":/images/question.png");
+        ui->labIcoMain->setPixmap(icon);
         ui->lab_Title->setText("询问");
-    } else if (type == 2) {
-        ui->labIcoMain->setStyleSheet("border-image: url(:/image/error.png);");
+    } else if(type == 2){
+        //ui->labIcoMain->setStyleSheet("border-image: url(:/images/question.png);");
+        QPixmap icon(":/images/question.png");
+        ui->labIcoMain->setPixmap(icon);
+        ui->lab_Title->setText("警告");
+        ui->btnCancel->setVisible(false);
+    }
+    else if (type == 3) {
+        //ui->labIcoMain->setStyleSheet("border-image: url(:/images/error.png);");
+        QPixmap icon(":/images/error.png");
+        ui->labIcoMain->setPixmap(icon);
         ui->btnCancel->setVisible(false);
         ui->lab_Title->setText("错误");
     }
-
     ui->labInfo->setText(msg);
 }
 

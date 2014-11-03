@@ -368,7 +368,16 @@ protected:
     virtual QValidator::State	validate(QString & text, int & pos) const;
 //private:
 
+};
 
+class StyledWidget : public QWidget
+{
+    Q_OBJECT
+public:
+    StyledWidget(QWidget* parent=0):QWidget(parent){}
+
+protected:
+    virtual void paintEvent(QPaintEvent * event);
 };
 
 #endif // WIDGETS_H

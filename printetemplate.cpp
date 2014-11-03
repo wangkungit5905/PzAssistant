@@ -208,18 +208,25 @@ void PzPrintTemplate::setBaList(QList<BusiAction*>& bas)
         item = new QTableWidgetItem(str);
         ui->tview->setItem(i+1,1,item); //科目
         if(ba->getMt() != mmt){
-            ui->tview->setItem(i+1,4,new QTableWidgetItem(ba->getValue().toString())); //外币金额
-            ui->tview->setItem(i+1,5,new QTableWidgetItem(rates.value(ba->getMt()->code()).toString())); //汇率
+            item = new QTableWidgetItem(ba->getValue().toString());
+            item->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
+            ui->tview->setItem(i+1,4,item); //外币金额
+            item = new QTableWidgetItem(rates.value(ba->getMt()->code()).toString());
+            item->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
+            ui->tview->setItem(i+1,5,item); //汇率
             v = ba->getValue() * rates.value(ba->getMt()->code());
         }
         else
             v = ba->getValue();
-
-        if(ba->getDir() == MDIR_J) //借方
-            ui->tview->setItem(i+1,2,new QTableWidgetItem(v.toString()));//借方金额
-        else
-            ui->tview->setItem(i+1,3,new QTableWidgetItem(v.toString()));//贷方金额
-
+        if(ba->getDir() == MDIR_J){ //借方
+            item = new QTableWidgetItem(v.toString());
+            ui->tview->setItem(i+1,2,item);//借方金额
+        }
+        else{
+            item = new QTableWidgetItem(v.toString());
+            ui->tview->setItem(i+1,3,item);//贷方金额
+        }
+        item->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
     }
 }
 
@@ -232,10 +239,10 @@ void PzPrintTemplate::setJDSums(Double jsum, Double dsum)
     item->setTextAlignment(Qt::AlignCenter);
     ui->tview->setItem(parameter->baRows+1,0,item);
     item = new QTableWidgetItem(jsum.toString());
-    item->setTextAlignment(Qt::AlignCenter);
+    item->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
     ui->tview->setItem(parameter->baRows+1,2,item);//借方合计
     item = new QTableWidgetItem(dsum.toString());
-    item->setTextAlignment(Qt::AlignCenter);
+    item->setTextAlignment(Qt::AlignVCenter|Qt::AlignRight);
     ui->tview->setItem(parameter->baRows+1,3,item);//贷方合计
 }
 

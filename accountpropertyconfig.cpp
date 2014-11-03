@@ -9,6 +9,7 @@
 #include "version.h"
 #include "newsndsubdialog.h"
 #include "PzSet.h"
+#include "myhelper.h"
 
 
 #include <QListWidget>
@@ -154,7 +155,7 @@ void ApcBase::on_addWb_clicked()
     }
 
     if(mts.isEmpty()){
-        QMessageBox::information(this,tr("提示信息"),tr("应用支持的所有货币类型已全部被账户利用，已没有新的可用的外币类型！"));
+        myHelper::ShowMessageBoxInfo(tr("应用支持的所有货币类型已全部被账户利用，已没有新的可用的外币类型！"));
         return;
     }
     QDialog dlg;
@@ -199,7 +200,7 @@ void ApcBase::on_delWb_clicked()
     bool used;
     account->getDbUtil()->moneyIsUsed(mt,used);
     if(used){
-        QMessageBox::warning(this,tr("警告信息"),tr("该货币已被账户使用了，不能删除！"));
+        myHelper::ShowMessageBoxWarning(tr("该货币已被账户使用了，不能删除！"));
         return;
     }
     ui->lstWMt->takeItem(ui->lstWMt->currentRow());
@@ -222,7 +223,7 @@ void ApcBase::on_addUser_clicked()
         users.removeOne(u);
     }
     if(users.isEmpty()){
-        QMessageBox::warning(this,"",tr("没有可作为专属用户的用户！"));
+        myHelper::ShowMessageBoxWarning(tr("没有可作为专属用户的用户！"));
         return;
     }
     QDialog dlg(this);
@@ -467,7 +468,7 @@ void ApcSuite::on_btnCommit_clicked()
     if(editAction == EA_NEW)
         account->addSuite(as);
     if(!account->saveSuite(as))
-        QMessageBox::critical(this,tr("出错信息"),tr("在保存帐套时发生错误！"));
+        myHelper::ShowMessageBoxError(tr("在保存帐套时发生错误！"));
     SubjectManager* sm = account->getSubjectManager(as->subSys);
     sm->setEndDate(QDate(as->year,12,31));
     stack_i.clear();
@@ -511,7 +512,7 @@ void ApcSuite::on_btnUpgrade_clicked()
     QString df = QString("%1/%2/%3")
             .arg(DATABASE_PATH).arg(VM_ACC_BACKDIR).arg(fname);
     if(!QFile::copy(sf,df)){
-        QMessageBox::critical(this,tr("错误提示"),tr("在升级科目系统前，执行账户文件的备份时出错"));
+        myHelper::ShowMessageBoxError(tr("在升级科目系统前，执行账户文件的备份时出错"));
         return;
     }
 
@@ -519,7 +520,7 @@ void ApcSuite::on_btnUpgrade_clicked()
     int dc = items.at(index)->code;
     QList<MixedJoinCfg*> cfgs;
     if(!account->getDbUtil()->getMixJoinInfo(sc,dc,cfgs)){
-        QMessageBox::critical(this,tr("错误提示"),tr("在升级科目系统前，获取混合科目对接条目时出错"));
+        myHelper::ShowMessageBoxError(tr("在升级科目系统前，获取混合科目对接条目时出错"));
     }
     QHash<int,int> fMaps,sMaps;//主目和子目id对接映射表
     int fid = 0;
@@ -532,21 +533,21 @@ void ApcSuite::on_btnUpgrade_clicked()
     }
 
     if(!account->getDbUtil()->convertExtraInYear(as->year,fMaps)){
-        QMessageBox::critical(this,tr("错误提示"),tr("在转换帐套（%1年）内的一级科目余额表项时出错").arg(as->year));
+        myHelper::ShowMessageBoxError(tr("在转换帐套（%1年）内的一级科目余额表项时出错").arg(as->year));
         return;
     }
     if(!account->getDbUtil()->convertExtraInYear(as->year,sMaps,false)){
-        QMessageBox::critical(this,tr("错误提示"),tr("在转换帐套（%1年）内的二级科目余额表项时出错").arg(as->year));
+        myHelper::ShowMessageBoxError(tr("在转换帐套（%1年）内的二级科目余额表项时出错").arg(as->year));
         return;
     }
     if(!account->getDbUtil()->convertPzInYear(as->year,fMaps,sMaps)){
-        QMessageBox::critical(this,tr("错误提示"),tr("在转换帐套（%1年）内的会计分录时出错").arg(as->year));
+        myHelper::ShowMessageBoxError(tr("在转换帐套（%1年）内的会计分录时出错").arg(as->year));
         return;
     }
 
     as->subSys = dc;
     if(!account->saveSuite(as))
-        QMessageBox::critical(this,tr("错误提示"),tr("在保存升级后的帐套时发生错误"));
+        myHelper::ShowMessageBoxError(tr("在保存升级后的帐套时发生错误"));
     SubjectManager* sm = account->getSubjectManager(dc);
     sm->setStartDate(QDate(as->year,1,1));
     ui->lblSubSys->setText(subSystems.value(dc)->name);
@@ -981,7 +982,7 @@ void ApcBank::on_delBank_clicked()
     if(curBank->id != UNID){
         foreach(BankAccount* ba, curBank->bas){
             if(ba->niObj && account->getDbUtil()->nameItemIsUsed(ba->niObj)){
-                QMessageBox::warning(this,tr("警告信息"),tr("该银行关联的科目已被采用，不能删除！"));
+                myHelper::ShowMessageBoxWarning(tr("该银行关联的科目已被采用，不能删除！"));
                 return;
             }
         }
@@ -1014,7 +1015,7 @@ void ApcBank::on_delAcc_clicked()
     if(id != UNID){
         BankAccount* ba = fondBankAccount(id);
         if(ba->niObj && account->getDbUtil()->nameItemIsUsed(ba->niObj)){
-            QMessageBox::warning(this,tr("警告信息"),tr("该银行帐号关联的科目已被采用，不能删除！"));
+            myHelper::ShowMessageBoxWarning(tr("该银行帐号关联的科目已被采用，不能删除！"));
             return;
         }
         curBank->bas.removeOne(ba);
@@ -1089,7 +1090,7 @@ void ApcBank::enWidget(bool en)
     ui->delAcc->setEnabled(en && ui->tvAccList->currentRow() != -1);
     ui->submit->setEnabled(en);
     ui->editBank->setText(en?tr("取消"):tr("编辑"));
-    ui->newBank->setEnabled(!en);
+    ui->newBank->setEnabled(!en && !account->isReadOnly());
     if(en)
         ui->delBank->setEnabled(false);
     else
@@ -1160,7 +1161,7 @@ void ApcSubject::save()
 {
     foreach(SubSysNameItem* item, subSysNames){
         if(!account->getSubjectManager(item->code)->save()){
-            QMessageBox::critical(this,tr("出错信息"),tr("在保存科目时发生错误！"));
+            myHelper::ShowMessageBoxError(tr("在保存科目时发生错误！"));
             return;
         }
     }
@@ -1206,7 +1207,7 @@ void ApcSubject::importBtnClicked()
         if(btn == w){
             int subSys = subSysNames.at(i)->code;
             if(!account->importNewSubSys(subSys)){
-                QMessageBox::critical(this,tr("出错信息"),tr("在导入新科目系统到当前账户时发生错误"));
+                myHelper::ShowMessageBoxError(tr("在导入新科目系统到当前账户时发生错误"));
                 return;
             }
             ui->tv_subsys->setCellWidget(i,3,NULL);
@@ -1557,6 +1558,11 @@ void ApcSubject::init_subs()
     connect(ui->lwSSub,SIGNAL(currentRowChanged(int)),SLOT(curSSubChanged(int)));    
     connect(ui->cmbFSubCls,SIGNAL(currentIndexChanged(int)),this,SLOT(curFSubClsChanged(int)));    
     connect(ui->lwSSub,SIGNAL(itemSelectionChanged()),this,SLOT(SelectedSSubChanged()));
+    if(account->isReadOnly()){
+        ui->btnInspectDup->setEnabled(false);
+        ui->btnInspectNameConflit->setEnabled(false);
+        ui->btnSSubAdd->setEnabled(false);
+    }
 }
 
 /**
@@ -1781,7 +1787,7 @@ void ApcSubject::enFSubWidget(bool en)
     ui->jdDir_P->setEnabled(en);
     ui->btnFSubEdit->setText(en?tr("取消"):tr("编辑"));
     ui->btnFSubCommit->setEnabled(en);
-    ui->btnSSubAdd->setEnabled(en);
+    ui->btnSSubAdd->setEnabled(en && !account->isReadOnly());
     ui->btnSSubDel->setEnabled(en && (ui->lwSSub->currentRow() != -1));
     QApplication::processEvents();
 }
@@ -1915,7 +1921,7 @@ void ApcSubject::on_btnNiCommit_clicked()
         ui->lwNI->setCurrentItem(item);
     }
     if(!account->getDbUtil()->saveNameItem(curNI))
-        QMessageBox::critical(this,tr("出错信息"),tr("在将名称条目保存到账户数据库中时出错！"));
+        myHelper::ShowMessageBoxError(tr("在将名称条目保存到账户数据库中时出错！"));
     editAction = APCEA_NONE;
     enNiWidget(false);
 }
@@ -1945,7 +1951,7 @@ void ApcSubject::on_btnDelNI_clicked()
     if(!curNI)
         return;
     if(curSubMgr->nameItemIsUsed(curNI)){
-        QMessageBox::warning(this,tr("警告信息"),tr("该名称条目已被某些二级科目引用，不能删除！"));
+        myHelper::ShowMessageBoxWarning(tr("该名称条目已被某些二级科目引用，不能删除！"));
         return;
     }
     SubjectNameItem* ni = curNI;
@@ -2026,7 +2032,7 @@ void ApcSubject::on_btnNiClsCommit_clicked()
         ui->lwNiCls->currentItem()->setText(ui->niClsName->text());
     }
     if(!account->getDbUtil()->saveNameItemClass(curNiCls,NiClasses.value(curNiCls).first(),NiClasses.value(curNiCls).last()))
-        QMessageBox::critical(this, tr("出错信息"),tr("在将名称条目类别保存到账户数据库中时发生错误！"));
+        myHelper::ShowMessageBoxError(tr("在将名称条目类别保存到账户数据库中时发生错误！"));
     editAction = APCEA_NONE;
     enNiClsWidget(false);
 }
@@ -2037,7 +2043,7 @@ void ApcSubject::on_btnNiClsCommit_clicked()
 void ApcSubject::on_btnDelNiCls_clicked()
 {
     if(SubjectManager::isUsedNiCls(curNiCls)){
-        QMessageBox::warning(this, tr("警告信息"),tr("该名称条目类别已被使用，不能删除！"));
+        myHelper::ShowMessageBoxWarning(tr("该名称条目类别已被使用，不能删除！"));
         return ;
     }
     QListWidgetItem* item = ui->lwNiCls->takeItem(ui->lwNiCls->currentRow());
@@ -2124,7 +2130,7 @@ void ApcSubject::on_btnFSubCommit_clicked()
             bool isExist = true;
             account->getDbUtil()->isUsedWbForFSub(curFSub,isExist);
             if(isExist){
-                QMessageBox::warning(this,"",tr("科目“%1”的存在外币余额且不为0，不能改变该科目是否使用外币的属性！").arg(curFSub->getName()));
+                myHelper::ShowMessageBoxWarning(tr("科目“%1”的存在外币余额且不为0，不能改变该科目是否使用外币的属性！").arg(curFSub->getName()));
                 ui->isUseWb->setChecked(true);
             }
             else
@@ -2154,7 +2160,7 @@ void ApcSubject::on_btnFSubCommit_clicked()
             curFSub->removeChildSubForId(id);
     }
     if(!curSubMgr->saveFS(curFSub))
-        QMessageBox::critical(this,tr("出错信息"),tr("在保存一级科目时发生错误！"));
+        myHelper::ShowMessageBoxError(tr("在保存一级科目时发生错误！"));
     editAction = APCEA_NONE;
     if(enableChanged){
         if(curFSub->isEnabled())
@@ -2205,10 +2211,10 @@ void ApcSubject::on_btnSSubCommit_clicked()
     if(ui->ssubIsDef->isChecked() && !stack_ints.at(2)){
         curFSub->setDefaultSubject(curSSub);
         if(!curSubMgr->saveFS(curFSub))
-            QMessageBox::critical(this,tr("出错信息"),tr("在将当前二级科目保存为当前一级科目的默认科目时出错！"));
+            myHelper::ShowMessageBoxError(tr("在将当前二级科目保存为当前一级科目的默认科目时出错！"));
     }
     if(!curSubMgr->saveSS(curSSub))
-        QMessageBox::critical(this,tr("出错信息"),tr("在将二级科目保存到账户数据库中时出错！"));
+        myHelper::ShowMessageBoxError(tr("在将二级科目保存到账户数据库中时出错！"));
     editAction = APCEA_NONE;
     if(enableChanged){
         if(curSSub->isEnabled())
@@ -2225,7 +2231,7 @@ void ApcSubject::on_btnSSubCommit_clicked()
 void ApcSubject::on_btnSSubDel_clicked()
 {
     if(curSubMgr->isUsedSSub(curSSub)){
-        QMessageBox::warning(this,tr("警告信息"),tr("二级科目“%1”已在账户中被采用，不能删除！").arg(curSSub->getName()));
+        myHelper::ShowMessageBoxWarning(tr("二级科目“%1”已在账户中被采用，不能删除！").arg(curSSub->getName()));
         return;
     }
     //curFSub->removeChildSub(curSSub);
@@ -2269,7 +2275,7 @@ void ApcSubject::on_btnInspectNameConflit_clicked()
             if(!items.isEmpty()){
                 foreach(QListWidgetItem* item, items)
                     item->setSelected(true);
-                QMessageBox::warning(this,tr("名称冲突"),tr("名称条目“%1”有重复！").arg(ni->getShortName()));
+                myHelper::ShowMessageBoxWarning(tr("名称条目“%1”有重复！").arg(ni->getShortName()));
                 if(!account->isReadOnly())
                     ui->btnNIMerge->setEnabled(true);
                 else
@@ -2283,6 +2289,8 @@ void ApcSubject::on_btnInspectNameConflit_clicked()
             names<<ni->getShortName();
         }
     }
+    myHelper::ShowMessageBoxInfo(tr("未发现重复的名称条目！"));
+    ui->btnInspectNameConflit->setEnabled(false);
     ui->btnNIMerge->setEnabled(false);
 }
 
@@ -2335,7 +2343,7 @@ void ApcSubject::on_btnNIMerge_clicked()
     SubjectNameItem* preNI = tv.currentItem()->data(0,Qt::UserRole).value<SubjectNameItem*>();
     nameItems.removeOne(preNI);
     if(!mergeNameItem(preNI,nameItems))
-        QMessageBox::critical(this,"",tr("合并过程发生错误，请查看日志！"));
+        myHelper::ShowMessageBoxError(tr("合并过程发生错误，请查看日志！"));
     foreach(QListWidgetItem* item, items)
         delete ui->lwNI->takeItem(ui->lwNI->row(item));
 }
@@ -2357,7 +2365,7 @@ void ApcSubject::on_rdoSortbyName_toggled(bool checked)
  */
 void ApcSubject::on_btnSSubMerge_clicked()
 {
-    QMessageBox::warning(this,"",tr("科目合并功能实现还欠考虑，待完善后执行！"));
+    myHelper::ShowMessageBoxInfo(tr("科目合并功能实现还欠考虑，待完善后执行！"));
     return;
 
     QList<QListWidgetItem*> items = ui->lwSSub->selectedItems();
@@ -2370,7 +2378,7 @@ void ApcSubject::on_btnSSubMerge_clicked()
     }
     int preSubIndex = -1;
     if(!mergeSndSubject(subjects,preSubIndex))
-        QMessageBox::critical(this,"",tr("合并科目过程出错！"));
+        myHelper::ShowMessageBoxError(tr("合并科目过程出错！"));
     QListWidgetItem* preItem = items.at(preSubIndex);
     foreach(QListWidgetItem* item, items){
         if(item == preItem)
@@ -2384,21 +2392,16 @@ void ApcSubject::on_btnSSubMerge_clicked()
  */
 void ApcSubject::on_btnInspectDup_clicked()
 {
-    bool fonded = false;    //是否找到第一个冲突科目
     QList<int> usedNiIds;
-    //QList<SecondSubject*> subs;
     SubjectNameItem* ni=NULL;
     for(int i = 0; i < ui->lwSSub->count(); ++i){
         SecondSubject* ssub = ui->lwSSub->item(i)->data(Qt::UserRole).value<SecondSubject*>();
-        //subs<<ssub;
-        if(!fonded){
-            int nid = ssub->getNameItem()->getId();
-            if(!usedNiIds.contains(nid))
-                usedNiIds<<nid;
-            else{
-                fonded = true;
-                ni = ssub->getNameItem();
-            }
+        int nid = ssub->getNameItem()->getId();
+        if(!usedNiIds.contains(nid))
+            usedNiIds<<nid;
+        else{
+            ni = ssub->getNameItem();
+            break;
         }
     }
     if(ni){
@@ -2411,10 +2414,14 @@ void ApcSubject::on_btnInspectDup_clicked()
             subjects<<ssub;
         }
         ui->lwSSub->scrollToItem(items.first());
-        QMessageBox::warning(this,tr("二级科目名称冲突")
-                             ,tr("发现%1处使用名称“%2”的二级科目").arg(items.count()).arg(ni->getShortName()));
+        myHelper::ShowMessageBoxWarning(tr("发现%1处使用名称“%2”的二级科目").arg(items.count()).arg(ni->getShortName()));
         if(!account->isReadOnly() && editAction == APCEA_EDIT_FSUB)
             ui->btnSSubMerge->setEnabled(true);
+    }
+    else{
+        myHelper::ShowMessageBoxInfo(tr("未发现重复子目！"));
+        ui->btnSSubMerge->setEnabled(false);
+        ui->btnInspectDup->setEnabled(false);
     }
 }
 
@@ -2542,16 +2549,16 @@ bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubInd
         endMonth = asr->endMonth;
     }
     if(startYear == 0 || endYear == 0){
-        QMessageBox::warning(this,"",tr("无法界定时间范围！"));
+        myHelper::ShowMessageBoxWarning(tr("无法界定时间范围！"));
         return false;
     }
     if(!account->getDbUtil()->mergeSecondSubject(startYear,startMonth,endYear,endMonth,preserveSub,subjects)){
-        QMessageBox::critical(this,"",tr("合并过程发生错误，请查看日志！"));
+        myHelper::ShowMessageBoxError(tr("合并过程发生错误，请查看日志！"));
         return false;
     }
     if(!replaceSubs.isEmpty() &&
             !account->getDbUtil()->replaceMapSidWithReserved(preserveSub,replaceSubs)){
-        QMessageBox::critical(this,"",tr("合并过程中在科目衔接配置表中替换科目id时发生错误，请查看日志！"));
+        myHelper::ShowMessageBoxError(tr("合并过程中在科目衔接配置表中替换科目id时发生错误，请查看日志！"));
         return false;
     }
 
@@ -2582,7 +2589,7 @@ bool ApcSubject::notCommitWarning()
         break;
     }
     if(!info.isEmpty()){
-        QMessageBox::warning(this,tr("警告信息"),info);
+        myHelper::ShowMessageBoxWarning(info);
         return false;
     }
     return true;
@@ -2618,7 +2625,7 @@ bool SubSysJoinCfgForm::save()
             editedItems<<ssjs.at(i);
         }
         if(!account->saveSubSysJoinCfgInfo(sSmg->getSubSysCode(),subSys,editedItems))
-            QMessageBox::critical(this,tr("出错信息"),tr("在保存科目系统衔接配置信息时出错！"));
+            myHelper::ShowMessageBoxError(tr("在保存科目系统衔接配置信息时出错！"));
         if(determineAllComplete() && (QMessageBox::Yes ==
                 QMessageBox::warning(this,"",
                                      tr("如果确定所有科目都已正确对接，则单击是"),
@@ -2665,11 +2672,11 @@ void SubSysJoinCfgForm::init()
     ui->sSubSys->setText(names.value(sSmg->getSubSysCode()));
     ui->dSubSys->setText(names.value(subSys));
     if(!account->getSubSysJoinCfgInfo(sSmg->getSubSysCode(),subSys,ssjs)){
-        QMessageBox::critical(this,tr("出错信息"),tr("在读取科目系统衔接配置信息时出错！"));
+        myHelper::ShowMessageBoxError(tr("在读取科目系统衔接配置信息时出错！"));
         return;
     }
     if(!AppConfig::getInstance()->getSubCodeToNameHash(subSys,subNames)){
-        QMessageBox::critical(this,tr("出错信息"),tr("在读取对接的科目系统的科目时发生错误！"));
+        myHelper::ShowMessageBoxError(tr("在读取对接的科目系统的科目时发生错误！"));
         return;
     }
     for(int i = 0; i < ssjs.count(); ++i)
@@ -2911,7 +2918,7 @@ ApcData::ApcData(Account *account, bool isCfg, QWidget *parent) :
     iniTag = false;
     curFSub=NULL;
     curSSub=NULL;
-    readOnly = false;
+    readOnly = account->isReadOnly();
     boldFont = ui->ssubs->font();
     boldFont.setBold(true);
     if(!isCfg)
@@ -2931,8 +2938,8 @@ void ApcData::init()
     AccountSuiteRecord* asr;
     if(extraCfg){  //期初余额配置模式
         asr = account->getStartSuiteRecord();
-        if(!asr){
-            QMessageBox::warning(this,tr("警告信息"),tr("该账户还没有设置任何帐套，无法设置期初值"));
+        if(!asr && !readOnly){
+            myHelper::ShowMessageBoxWarning(tr("该账户还没有设置任何帐套，无法设置期初值"));
             return;
         }
         if(asr->startMonth == 1){
@@ -2946,16 +2953,14 @@ void ApcData::init()
 
         ui->year->setText(QString::number(y));
         ui->month->setValue(m);
-        if(account->isReadOnly())
-            readOnly = true;
-        else{
+        if(!readOnly){
             //确定期初余额是否可编辑（这里如果账户的第一个月份还未结账，则视为可编辑）
             PzsState state;
             if(!account->getDbUtil()->getPzsState(asr->year,asr->startMonth,state)){
-                QMessageBox::critical(this,tr("警告信息"),tr("在读取首期凭证集状态时发生错误"));
+                myHelper::ShowMessageBoxError(tr("在读取首期凭证集状态时发生错误"));
                 return;
             }
-            readOnly = (state == Ps_Jzed);
+            readOnly = readOnly || (state == Ps_Jzed);
             ui->edtRate->addAction(ui->actSetRate,QLineEdit::TrailingPosition);
         }
         ui->month->setReadOnly(true);        
@@ -2963,7 +2968,7 @@ void ApcData::init()
     else{   //余额显示模式
         asr = account->getCurSuiteRecord();
         if(!asr){
-            QMessageBox::warning(this,tr("警告信息"), tr("没有“”年的对应账套！"));
+            myHelper::ShowMessageBoxWarning(tr("没有任何账套！"));
             return;
         }
         y = asr->year; m = asr->startMonth;
@@ -3051,7 +3056,7 @@ void ApcData::curFSubChanged(int index)
     pvs.clear(); mvs.clear(); dirs.clear();
     curFSub = ui->fsubs->currentItem()->data(Qt::UserRole).value<FirstSubject*>();
     if(!account->getDbUtil()->readExtraForAllSSubInFSub(y,m,curFSub,pvs,dirs,mvs)){
-        QMessageBox::critical(this,tr("出错信息"),tr("在读取一级科目“%1”的期初余额是发生错误（%2年%3月）！")
+        myHelper::ShowMessageBoxError(tr("在读取一级科目“%1”的期初余额是发生错误（%2年%3月）！")
                               .arg(curFSub->getName()).arg(y).arg(m));
         return;
     }
@@ -3278,7 +3283,7 @@ void ApcData::on_save_clicked()
     if(!curFSub)
         return;
     if(!account->getDbUtil()->saveExtraForAllSSubInFSub(y,m,curFSub,pvs_f,mvs_f,dir_f,pvs,mvs,dirs))
-        QMessageBox::critical(this,tr("出错信息"),tr("在保存科目“%1”的期初余额时出错！").arg(curSSub->getName()));
+        myHelper::ShowMessageBoxError(tr("在保存科目“%1”的期初余额时出错！").arg(curSSub->getName()));
     ui->save->setEnabled(false);
 }
 
@@ -3325,7 +3330,7 @@ void ApcData::on_actSetRate_triggered()
         }
         if(changed){
             if(!account->setRates(y,m,rates)){
-                QMessageBox::critical(this,"",tr("保存期初汇率时出错！"));
+                myHelper::ShowMessageBoxError(tr("保存期初汇率时出错！"));
                 return;
             }
             ui->cmbRate->clear();
@@ -3358,27 +3363,28 @@ bool ApcData::viewRates()
     ui->cmbRate->clear();
     ui->edtRate->clear();
     if(!account->getRates(y,m,rates)){
-        QMessageBox::critical(this,tr("出错信息"),tr("在读取期初汇率时出错（%1年%2月）").arg(y).arg(m));
+        myHelper::ShowMessageBoxError(tr("在读取期初汇率时出错（%1年%2月）").arg(y).arg(m));
         return false;
     }
-    if(rates.isEmpty()){
-        QMessageBox::warning(this,tr("警告信息"),tr("在输入期初余额前，如果要涉及到外币，则必须首先设置期初汇率！"));
-
+    if(rates.isEmpty() && !readOnly){
+        myHelper::ShowMessageBoxWarning(tr("在输入期初余额前，如果要涉及到外币，则必须首先设置期初汇率！"));
         bool ok;
         double rate;
-        rate = QInputDialog::getDouble(this,tr("汇率输入"),tr("请输入期初美金（%1年%2月）汇率：").arg(y).arg(m),1,0,100,2,&ok);
+        rate = QInputDialog::getDouble(this,tr("汇率输入"),tr("请输入期初美金（%1年%2月）汇率：").arg(y).arg(m),1,0,100,4,&ok);
         if(!ok){
             readOnly = true;
             return false;
         }
-        rates[USD] = Double(rate);
+        rates[USD] = Double(rate,4);
         if(!account->setRates(y,m,rates)){
-            QMessageBox::critical(this,tr("出错信息"),tr("在保存期初汇率时出错（%1年%2月）").arg(y).arg(m));
+            myHelper::ShowMessageBoxError(tr("在保存期初汇率时出错（%1年%2月）").arg(y).arg(m));
             readOnly = true;
             return false;
         }
         readOnly = false;
     }    
+    else if(rates.isEmpty() && readOnly)
+        myHelper::ShowMessageBoxWarning(tr("期初汇率未设置！"));
     QHashIterator<int,Double> it(rates);
     while(it.hasNext()){
         it.next();
@@ -3386,7 +3392,6 @@ bool ApcData::viewRates()
     }
     connect(ui->cmbRate,SIGNAL(currentIndexChanged(int)),this,SLOT(curMtChanged(int)));
     curMtChanged(0);
-
     return true;
 }
 

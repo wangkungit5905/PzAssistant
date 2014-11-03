@@ -233,13 +233,14 @@ void SuiteSwitchPanel::init()
 void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
 {
     QTableWidget* tw = new QTableWidget(this);
-    tw->setMaximumWidth(130);
+    //tw->setMaximumWidth(150);
     tw->setShowGrid(false);
     tw->horizontalHeader()->setVisible(false);
     tw->verticalHeader()->setVisible(false);
     tw->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     tw->setRowCount(as->endMonth - as->startMonth + 1);
     tw->setColumnCount(3);
+    tw->horizontalHeader()->setStretchLastSection(true);
     tw->setColumnWidth(COL_MONTH,40);
     tw->setColumnWidth(COL_OPEN,40);
     tw->setColumnWidth(COL_VIEW,40);
@@ -282,7 +283,7 @@ void SuiteSwitchPanel::crtTableRow(int row, int m, QTableWidget* tw,bool viewAnd
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
     tw->setCellWidget(row,COL_VIEW,btn);
     connect(btn,SIGNAL(clicked()),this,SLOT(viewBtnClicked()));
-    btn = new QToolButton(this);
+    btn = new QToolButton(tw);
     btn->setCheckable(true);
     setBtnIcon(btn,false);
     btn->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);

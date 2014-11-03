@@ -94,6 +94,35 @@ bool AccountSuiteManager::open(int m)
 }
 
 /**
+ * @brief AccountSuiteManager::isSuiteEditable
+ *  帐套是否可编辑
+ * @return
+ */
+bool AccountSuiteManager::isSuiteEditable()
+{
+    if(account->isReadOnly() || suiteRecord->isClosed)
+        return false;
+    return true;
+}
+
+/**
+ * @brief AccountSuiteManager::isEditable
+ *  凭证集是否可编辑
+ * @param m
+ * @return
+ */
+bool AccountSuiteManager::isPzSetEditable(int m)
+{
+    if(account->isReadOnly() || isSuiteClosed())
+        return false;
+    if(m<0 || m>12)
+        return false;
+    if(curM == 0 || m!=0 && curM != m)
+        return false;
+    return !(getState() == Ps_Jzed);
+}
+
+/**
  * @brief PzSetMgr::isOpen
  *  凭证集是否已被打开
  * @return

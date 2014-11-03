@@ -83,7 +83,7 @@ public:
     static void ShowMessageBoxError(QString info)
     {
         frmMessageBox *msg = new frmMessageBox;
-        msg->SetMessage(info, 2);
+        msg->SetMessage(info, 3);
         msg->exec();
     }
 
@@ -92,6 +92,14 @@ public:
     {
         frmMessageBox *msg = new frmMessageBox;
         msg->SetMessage(info, 1);
+        return msg->exec();
+    }
+
+    //显示警告框，仅确定按钮
+    static int ShowMessageBoxWarning(QString info)
+    {
+        frmMessageBox *msg = new frmMessageBox;
+        msg->SetMessage(info, 2);
         return msg->exec();
     }
 

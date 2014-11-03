@@ -11,9 +11,9 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>转出账户</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,4,1,2,1,1,10,1">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,3,1,2,1,1,10,1">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2,0,1,2,0">
      <item>
@@ -143,7 +143,7 @@
         <item row="1" column="0">
          <widget class="QLabel" name="label_4">
           <property name="text">
-           <string>主机类型：</string>
+           <string>工作站类型：</string>
           </property>
          </widget>
         </item>
@@ -157,7 +157,7 @@
         <item row="2" column="0">
          <widget class="QLabel" name="label_3">
           <property name="text">
-           <string>主机描述：</string>
+           <string>工作站描述：</string>
           </property>
          </widget>
         </item>
@@ -171,7 +171,7 @@
         <item row="0" column="0">
          <widget class="QLabel" name="label_2">
           <property name="text">
-           <string>主机标识：</string>
+           <string>工作站标识：</string>
           </property>
          </widget>
         </item>
@@ -185,7 +185,7 @@
         <item row="3" column="0">
          <widget class="QLabel" name="label_13">
           <property name="text">
-           <string>本机</string>
+           <string>本地工作站</string>
           </property>
          </widget>
         </item>
@@ -237,11 +237,24 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="1,0,0">
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <widget class="QCheckBox" name="chkTake">
+       <property name="toolTip">
+        <string>当工作站发生变更（加入或变更工作站信息），希望告诉其他工作站时选取</string>
+       </property>
        <property name="text">
-        <string>是否捎带主机更新条目</string>
+        <string>是否捎带工作站更新条目</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnTakeUser">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="text">
+        <string>捎带用户信息</string>
        </property>
       </widget>
      </item>
@@ -258,20 +271,6 @@
        </property>
       </spacer>
      </item>
-     <item>
-      <widget class="QLabel" name="label_6">
-       <property name="styleSheet">
-        <string notr="true">background-color: rgb(216, 216, 216);
-color: rgb(255, 96, 112);</string>
-       </property>
-       <property name="text">
-        <string>当主机发生变更（加入或变更主机信息），希望告诉其他主机时选取</string>
-       </property>
-       <property name="textFormat">
-        <enum>Qt::PlainText</enum>
-       </property>
-      </widget>
-     </item>
     </layout>
    </item>
    <item>
@@ -285,27 +284,35 @@ color: rgb(255, 96, 112);</string>
      <property name="selectionBehavior">
       <enum>QAbstractItemView::SelectRows</enum>
      </property>
+     <property name="columnCount">
+      <number>5</number>
+     </property>
      <attribute name="horizontalHeaderStretchLastSection">
       <bool>true</bool>
      </attribute>
      <column>
       <property name="text">
-       <string>主机ID</string>
+       <string>工作站ID</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>主机类型</string>
+       <string>工作站类型</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>主机名</string>
+       <string>宿主系统</string>
       </property>
      </column>
      <column>
       <property name="text">
-       <string>主机描述</string>
+       <string>工作站名</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>工作站描述</string>
       </property>
      </column>
     </widget>

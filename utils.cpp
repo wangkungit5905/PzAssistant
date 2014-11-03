@@ -5439,7 +5439,7 @@ bool VariousUtils::getSubWinInfo3(int winEnum,QByteArray*& ba)
 
     s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
     if(q.exec(s) && q.first()){
-        ba = new QByteArray(q.value(SWI_TBL).toByteArray());
+        ba = new QByteArray(q.value(FI_BASE_SWI_TBL).toByteArray());
         return true;
     }
     return false;

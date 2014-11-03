@@ -4,12 +4,13 @@
 #include <QWidget>
 #include <QSqlDatabase>
 #include <QSqlQueryModel>
+#include "widgets.h"
 
 namespace Ui {
 class SubjectSearchForm;
 }
 
-class SubjectSearchForm : public QWidget
+class SubjectSearchForm : public StyledWidget
 {
     Q_OBJECT
     

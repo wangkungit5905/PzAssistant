@@ -3,6 +3,7 @@
 #include <QAbstractItemModel>
 #include <QPrinter>
 #include <QDomDocument>
+#include <QPainter>
 
 #include "iconhelper.h"
 #include "widgets.h"
@@ -1056,3 +1057,12 @@ QValidator::State LetterSpinBox::validate(QString &text, int &pos) const
 }
 
 
+
+////////////////////////////////StyledWidget///////////////////////////////////
+void StyledWidget::paintEvent(QPaintEvent *event)
+{
+    QStyleOption opt;
+    opt.init(this);
+    QPainter p(this);
+    style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
+}

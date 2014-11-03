@@ -881,7 +881,7 @@ bool VMAccount::updateTo1_3()
         return false;
     }
 
-    s = QString("delete from %1").arg(tbl_subWinInfo);
+    s = QString("delete from %1").arg(tbl_base_subWinInfo);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("在删除子窗口信息表内容时发送错误"),VUR_ERROR);
         return false;
@@ -1266,7 +1266,7 @@ bool VMAccount::updateTo1_7()
         return false;
     }
     emit upgradeStep(verNum,tr("第二步：初始化首条转移记录！"),VUR_OK);
-    int mid = AppConfig::getInstance()->getLocalMachine()->getMID();
+    int mid = AppConfig::getInstance()->getLocalStation()->getMID();
     QString curTime = QDateTime::currentDateTime().toString(Qt::ISODate);
     s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,%9,'%10','%11')")
             .arg(tbl_transfer).arg(fld_trans_smid).arg(fld_trans_dmid).arg(fld_trans_state)
@@ -1634,9 +1634,9 @@ bool VMAccount::updateTo1_6()
 //    }
 
     //2、清空子窗口状态信息表
-    s = QString("delete from %1").arg(tbl_subWinInfo);
+    s = QString("delete from %1").arg(tbl_base_subWinInfo);
     if(!q.exec(s)){
-        emit upgradeStep(verNum,tr("清空子窗口状态信息表（%1）时出错！").arg(tbl_subWinInfo),VUR_ERROR);
+        emit upgradeStep(verNum,tr("清空子窗口状态信息表（%1）时出错！").arg(tbl_base_subWinInfo),VUR_ERROR);
         return false;
     }
     endUpgrade(verNum,tr("成功升级到版本1.6"),VUR_OK);
@@ -1729,6 +1729,7 @@ VMAppConfig::VMAppConfig(QString fileName)
     appendVersion(1,5,&VMAppConfig::updateTo1_5);
     appendVersion(1,6,&VMAppConfig::updateTo1_6);
     appendVersion(1,7,&VMAppConfig::updateTo1_7);
+    appendVersion(1,8,&VMAppConfig::updateTo1_8);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1913,6 +1914,78 @@ bool VMAppConfig::updateTo1_2()
     appIni->endGroup();
     return setCurVersion(1,2);
 }
+
+/**
+ * @brief VMAppConfig::updateTo1_3
+ *  1、在基本库中添加本地账户缓存表，替换原先的AccountInfos表
+ *  2、删除原先的本地账户缓存信息表“AccountInfos”
+ *  3、移除全局变量“RecentOpenAccId”
+ *  4、添加科目系统名称表
+ * @return
+ */
+bool VMAppConfig::updateTo1_3()
+{
+    QSqlQuery q(db);
+    int verNum = 103;
+    emit startUpgrade(verNum, tr("开始更新到版本“1.3”..."));
+    emit upgradeStep(verNum,tr("第一步：在基本库中添加本地账户缓存表"),VUR_OK);
+    QString s = QString("create table %1(id integer primary key,%2 text,%3 text,%4 text,"
+                "%5 text,%6 integer,%7 integer,%8 text,%9 integer,%10 text)")
+            .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
+            .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
+            .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
+            .arg(fld_lac_tranOutTime);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("创建本地账户缓存表“%1”时发生错误！").arg(tbl_localAccountCache),VUR_ERROR);
+        return false;
+    }
+
+    emit upgradeStep(verNum,tr("第二步：删除原先的本地账户缓存信息表“AccountInfos”"),VUR_OK);
+    s = QString("drop table AccountInfos");
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在删除原先的本地账户缓存信息表“AccountInfos”时发生错误！"),VUR_ERROR);
+        return false;
+    }
+
+    //应用配置变量表已经改变，以下代码不能执行
+//    emit upgradeStep(verNum,tr("第三步：移除全局变量“RecentOpenAccId”"),VUR_OK);
+//    s = QString("delete from %1 where %2='RecentOpenAccId'")
+//            .arg(tbl_base_Cfg).arg(fld_bconf_name);
+//    if(!q.exec(s)){
+//        LOG_SQLERROR(s);
+//        emit upgradeStep(verNum,tr("在移除全局变量“RecentOpenAccId”时发生错误"),VUR_ERROR);
+//        return false;
+//    }
+
+    emit upgradeStep(verNum,tr("第三步：添加科目系统名称表"),VUR_OK);
+    s = QString("create table %1(id integer primary key,%2 integer,%3 text,%4 text,%5 TEXT)")
+            .arg(tbl_subSys).arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_startTime)
+            .arg(fld_ss_explain);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建科目系统名称表“%1”时发生错误！").arg(tbl_subSys),VUR_ERROR);
+        return false;
+    }
+    QStringList statments;
+    statments<<QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')").arg(tbl_subSys)
+               .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain).arg(DEFAULT_SUBSYS_CODE)
+               .arg(tr("科目系统1")).arg(tr("2013年前使用的老科目系统"))
+               <<QString("insert into %1(%2,%3,%4,%5) values(%6,'%6','%7','*8')").arg(tbl_subSys)
+                 .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_startTime).arg(fld_ss_explain)
+                 .arg(2).arg(tr("科目系统2")).arg("2014-01-01").arg(tr("2013年后使用的新科目系统"));
+    for(int i = 0; i < statments.count(); ++i){
+        if(!q.exec(statments.at(i))){
+            LOG_SQLERROR(statments.at(i));
+            emit upgradeStep(verNum,tr("在初始化科目系统名称表时发生错误！"),VUR_ERROR);
+            return false;
+        }
+    }
+    endUpgrade(verNum,tr("成功升级到版本1.3"),true);
+    return setCurVersion(1,3);
+}
+
 
 /**
  * @brief VMAppConfig::updateTo1_4
@@ -2251,75 +2324,61 @@ bool VMAppConfig::updateTo1_7()
 }
 
 /**
- * @brief VMAppConfig::updateTo1_3
- *  1、在基本库中添加本地账户缓存表，替换原先的AccountInfos表
- *  2、删除原先的本地账户缓存信息表“AccountInfos”
- *  3、移除全局变量“RecentOpenAccId”
- *  4、添加科目系统名称表
+ * @brief VMAppConfig::updateTo1_8
+ * 1、给Machines表添加表示操作系统类型的字段“osType”，并添加表格osTypes，初始化（windows和linux）
+ * 2、将子窗口信息（位置、尺寸和自定义状态信息）挪到基本库中
  * @return
  */
-bool VMAppConfig::updateTo1_3()
+bool VMAppConfig::updateTo1_8()
 {
     QSqlQuery q(db);
-    int verNum = 103;
-    emit startUpgrade(verNum, tr("开始更新到版本“1.3”..."));
-    emit upgradeStep(verNum,tr("第一步：在基本库中添加本地账户缓存表"),VUR_OK);
-    QString s = QString("create table %1(id integer primary key,%2 text,%3 text,%4 text,"
-                "%5 text,%6 integer,%7 integer,%8 text,%9 integer,%10 text)")
-            .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
-            .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
-            .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
-            .arg(fld_lac_tranOutTime);
+    int verNum = 108;
+    emit startUpgrade(verNum, tr("开始更新到版本“1.8”..."));
+
+    //1
+    QString s = QString("alter table %1 add column  %2 INTEGER")
+            .arg(tbl_machines).arg(fld_mac_ostype);
     if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        emit upgradeStep(verNum,tr("创建本地账户缓存表“%1”时发生错误！").arg(tbl_localAccountCache),VUR_ERROR);
+        upgradeStep(verNum,tr("在给%1表添加操作系统类型字段时发生错误！").arg(tbl_machines),VUR_ERROR);
         return false;
     }
-
-    emit upgradeStep(verNum,tr("第二步：删除原先的本地账户缓存信息表“AccountInfos”"),VUR_OK);
-    s = QString("drop table AccountInfos");
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 TEXT, %4 TEXT)")
+            .arg(tbl_base_osTypes).arg(fld_base_osTypes_code)
+            .arg(fld_base_osTypes_mName).arg(fld_base_osTypes_sName);
     if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        emit upgradeStep(verNum,tr("在删除原先的本地账户缓存信息表“AccountInfos”时发生错误！"),VUR_ERROR);
+        upgradeStep(verNum,tr("在创建表“%1”是发生错误！").arg(tbl_base_osTypes),VUR_ERROR);
         return false;
     }
-
-    //应用配置变量表已经改变，以下代码不能执行
-//    emit upgradeStep(verNum,tr("第三步：移除全局变量“RecentOpenAccId”"),VUR_OK);
-//    s = QString("delete from %1 where %2='RecentOpenAccId'")
-//            .arg(tbl_base_Cfg).arg(fld_bconf_name);
-//    if(!q.exec(s)){
-//        LOG_SQLERROR(s);
-//        emit upgradeStep(verNum,tr("在移除全局变量“RecentOpenAccId”时发生错误"),VUR_ERROR);
-//        return false;
-//    }
-
-    emit upgradeStep(verNum,tr("第三步：添加科目系统名称表"),VUR_OK);
-    s = QString("create table %1(id integer primary key,%2 integer,%3 text,%4 text,%5 TEXT)")
-            .arg(tbl_subSys).arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_startTime)
-            .arg(fld_ss_explain);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        emit upgradeStep(verNum,tr("在创建科目系统名称表“%1”时发生错误！").arg(tbl_subSys),VUR_ERROR);
+    QList<int> codes;
+    codes<<1<<2<<11;
+    QStringList names,versions;
+    names<<"Windows"<<"Windows"<<"Linux";
+    versions<<"xp"<<"7"<<"Ubuntu";
+    s = QString("insert into %1(%2,%3,%4) values(:code,:name,:version)").arg(tbl_base_osTypes)
+            .arg(fld_base_osTypes_code).arg(fld_base_osTypes_mName).arg(fld_base_osTypes_sName);
+    if(!q.prepare(s)){
+        upgradeStep(verNum,tr("初始化操作系统类型表时发生错误！"),VUR_ERROR);
         return false;
     }
-    QStringList statments;
-    statments<<QString("insert into %1(%2,%3,%4) values(%5,'%6','%7')").arg(tbl_subSys)
-               .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_explain).arg(DEFAULT_SUBSYS_CODE)
-               .arg(tr("科目系统1")).arg(tr("2013年前使用的老科目系统"))
-               <<QString("insert into %1(%2,%3,%4,%5) values(%6,'%6','%7','*8')").arg(tbl_subSys)
-                 .arg(fld_ss_code).arg(fld_ss_name).arg(fld_ss_startTime).arg(fld_ss_explain)
-                 .arg(2).arg(tr("科目系统2")).arg("2014-01-01").arg(tr("2013年后使用的新科目系统"));
-    for(int i = 0; i < statments.count(); ++i){
-        if(!q.exec(statments.at(i))){
-            LOG_SQLERROR(statments.at(i));
-            emit upgradeStep(verNum,tr("在初始化科目系统名称表时发生错误！"),VUR_ERROR);
-            return false;
-        }
+    for(int i = 0; i < codes.count(); ++i){
+        q.bindValue(":code",codes.at(i));
+        q.bindValue(":name",names.at(i));
+        q.bindValue(":version",versions.at(i));
+        q.exec();
     }
-    endUpgrade(verNum,tr("成功升级到版本1.3"),true);
-    return setCurVersion(1,3);
+
+    //2
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 INTEGER,%4 INTEGER,%5 INTEGER,%6 INTEGER,%7 BLOB)")
+            .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(fld_base_swi_x).arg(fld_base_swi_y)
+            .arg(fld_base_swi_width).arg(fld_base_swi_height).arg(fld_base_swi_stateInfo);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("创建子窗口信息表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    endUpgrade(verNum,"基本库成功升级到1.8版",VUR_OK);
+    return setCurVersion(1,8);
 }
+
 
 bool VMAppConfig::updateTo2_0()
 {

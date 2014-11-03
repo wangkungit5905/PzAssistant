@@ -311,6 +311,7 @@ private slots:
     void on_actNoteMgr_triggered();
 
 private:
+    bool isExecAccountTransform();
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
     void allPzToRecording(int year, int month);

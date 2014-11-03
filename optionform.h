@@ -2,14 +2,17 @@
 #define OPTIONFORM_H
 
 #include "ui_specsubcodecfgform.h"
-#include "ui_appcommcfgpanel.h"
 #include "commdatastruct.h"
 #include "config.h"
 #include "widgets/configpanels.h"
 
 namespace Ui {
-class PzTemplateOptionForm;
+    class PzTemplateOptionForm;
+    class StationCfgForm;
+    class AppCommCfgPanel;
 }
+
+class QListWidgetItem;
 
 /**
  * @brief 应用通用配置面板类
@@ -54,7 +57,49 @@ private:
     PzTemplateParameter parameter;
 };
 
-/////////////////////////////////////////////////////////////////
+/////////////////////////StationCfgForm ////////////////////////////////////////
+class StationCfgForm : public ConfigPanelBase
+{
+    Q_OBJECT
+
+    enum DataRole{
+        DR_OBJ  = Qt::UserRole+1,    //保存对象
+        DR_ES   = Qt::UserRole+2     //保存编辑状态
+    };
+
+public:
+    explicit StationCfgForm(QWidget *parent = 0);
+    ~StationCfgForm();
+
+    bool isDirty();
+    bool save();
+    QString panelName(){return tr("工作站配置");}
+
+private slots:
+    void customContextMenuRequested(const QPoint & pos);
+    void currentStationChanged(QListWidgetItem * current, QListWidgetItem * previous);
+    void editStation(QListWidgetItem * item);
+
+    void on_actAdd_triggered();
+
+    void on_actEdit_triggered();
+
+    void on_actDel_triggered();
+
+private:
+    void loadStations();
+    void showStation(Machine *m);
+    void setEditState();
+    void collectData(QListWidgetItem *item);
+
+    Ui::StationCfgForm *ui;
+    QList<Machine*> ms,msDels;
+    bool readonly;
+    QHash<int,QString> osTypes;
+};
+
+
+
 //对此类的是否要提供的必要性，还存在争议，暂且不作深入实现
 //class SpecSubCodeCfgform : public ConfigPanelBase
 //{

@@ -16,6 +16,7 @@ ConfigPanels::ConfigPanels(QWidget *parent) : ConfigPanelBase(parent)
     contentsWidget->setViewMode(QListView::IconMode);
     contentsWidget->setIconSize(QSize(48, 48));
     contentsWidget->setMovement(QListView::Static);
+    contentsWidget->setMinimumWidth(96);
     contentsWidget->setMaximumWidth(96);
     contentsWidget->setSpacing(12);
 
@@ -64,11 +65,6 @@ void ConfigPanels::closeEvent(QCloseEvent *event)
         save();
     event->accept();
 }
-
-//void ConfigPanels::pageChanged(int index)
-//{
-//    pagesWidget->setCurrentIndex(index);
-//}
 
 void ConfigPanels::btnOkClicked()
 {

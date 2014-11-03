@@ -24,7 +24,7 @@ class SubjectManager;
 struct AccontTranferInfo{
     int id;
     AccountTransferState tState;    //转移状态
-    Machine *m_out, *m_in;          //转出（源）/转入（目的）主机
+    Machine *m_out, *m_in;          //转出（源）/转入（目的）工作站
     QDateTime t_out, t_in;          //转出/转入时间
     QString desc_out,desc_in;       //转出/转入描述
 };

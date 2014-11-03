@@ -1,4 +1,4 @@
-#ifndef CONFIG_H
+﻿#ifndef CONFIG_H
 #define CONFIG_H
 
 #include <QMap>
@@ -93,7 +93,16 @@ public:
     const QString KEY_PZT_ISPRINTCUTLINE = "IsPrintCutLine";
     const QString KEY_PZT_ISPRINTMIDLINE = "IsPrintMidLine";
 
+    //各种目录记录键名
+    const QString SEGMENT_DIR = "Directorys";
+    enum DirectoryName{
+        DIR_TRANSOUT    = 1,    //最近转出账户操作时所选择的目录
+        DIR_TRANSIN     = 2     //最近转入账户操作时所选择的目录
+    };
 
+    //记录站点信息
+    const QString SEGMENT_STATIONS = "Stations";
+    const QString KEY_STATION_MSID = "masterStationId";
 
     ~AppConfig();
 
@@ -121,16 +130,25 @@ public:
     bool setSpecSubCode(int subSys, SpecSubCode witch, QString code);
     QHash<int,SubjectClass> getSubjectClassMaps(int subSys);
 
+    Machine* getMasterStation();
     QHash<MachineType,QString> getMachineTypes();
-    Machine* getLocalMachine();
+    Machine* getLocalStation();
     Machine* getMachine(int id){return machines.value(id);}
     QHash<int,Machine*> getAllMachines(){return machines;}
     bool saveMachine(Machine* mac);
     bool saveMachines(QList<Machine*> macs);
+    bool removeMachine(Machine* mac);
+    bool getOsTypes(QHash<int, QString> &types);
+
     bool getPzTemplateParameter(PzTemplateParameter* parameter);
     bool savePzTemplateParameter(PzTemplateParameter* parameter);
 
+    QString getDirName(DirectoryName witch);
+    void saveDirName(DirectoryName witch,QString dir);
+
     //子窗口状态信息存取方法
+    bool getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *&otherInfo);
+    bool saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *otherInfo);
     bool readPzEwTableState(QList<int> &infos);
 
     //获取或设置配置变量的值
@@ -147,7 +165,7 @@ public:
     bool clearAccountCache();
     bool isExist(QString code);
     bool refreshLocalAccount(int& count);
-    bool addAccountCacheItem(AccountCacheItem* accItem);
+    //bool addAccountCacheItem(AccountCacheItem* accItem);
     bool saveAccountCacheItem(AccountCacheItem* accInfo);
     bool saveAllAccountCaches();
     bool removeAccountCache(AccountCacheItem* accInfo);
@@ -200,10 +218,12 @@ private:
     bool _initSpecSubCodes();
     bool _initSpecNameItemClses();
     bool _saveMachine(Machine* mac);
+    QString _getKeyNameForDir(DirectoryName witch);
     AppConfig();
 
     QHash<int, Money*> moneyTypes;
     QHash<int, Machine*> machines;
+    int msId;   //主站标识
     QHash<int, SubSysNameItem*> subSysNames;
     QList<AccountCacheItem*> accountCaches;
     QHash<int, QHash<SpecSubCode,QString> > specCodes; //特定科目代码表

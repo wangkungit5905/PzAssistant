@@ -77,7 +77,7 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     QLabel *l = new QLabel(tr("当前帐套:"),this);
     curSuite.setText("         ");
     curSuite.setObjectName("InfoSecInStatus");
-    QHBoxLayout* hl1 = new QHBoxLayout(this);
+    QHBoxLayout* hl1 = new QHBoxLayout;
     hl1->addWidget(l);
     hl1->addWidget(&curSuite);
     l = new QLabel(tr("日期:"),this);
@@ -89,7 +89,7 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     pzSetState.setObjectName("InfoSecInStatus");
     pzSetState.setText("              ");
 
-    QHBoxLayout* hl2 = new QHBoxLayout(this);
+    QHBoxLayout* hl2 = new QHBoxLayout;
     hl2->addWidget(l);    hl2->addWidget(&pzSetState);
     l = new QLabel(tr("余额状态："),this);
     extraState.setObjectName("InfoSecInStatus");
@@ -99,24 +99,24 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     pzCount.setAttribute(Qt::WA_AlwaysShowToolTips,true);
     pzCount.setObjectName("InfoSecInStatus");
     pzCount.setText("   ");
-    QHBoxLayout* hl3 = new QHBoxLayout(this);
+    QHBoxLayout* hl3 = new QHBoxLayout;
     hl3->addWidget(l);
     hl3->addWidget(&pzCount);
 
     l = new QLabel(tr("登录用户:"),this);
     lblUser.setObjectName("InfoSecInStatus");
     lblUser.setText("           ");
-    QHBoxLayout* hl4 = new QHBoxLayout(this);
+    QHBoxLayout* hl4 = new QHBoxLayout;
     hl4->addWidget(l);   hl4->addWidget(&lblUser);
 
-    QHBoxLayout* ml = new QHBoxLayout(this);
-    ml->addLayout(hl1);ml->addLayout(hl2);
-    ml->addLayout(hl3);ml->addLayout(hl4);
+
     QFrame *f = new QFrame(this);
     f->setObjectName("FrameInStatus");
     f->setFrameShape(QFrame::StyledPanel);
-    f->setLayout(ml);
     f->setFrameShadow(QFrame::Sunken);
+    QHBoxLayout* ml = new QHBoxLayout(f);
+    ml->addLayout(hl1);ml->addLayout(hl2);
+    ml->addLayout(hl3);ml->addLayout(hl4);
 
     lblRuntime = new QLabel;
     lblRuntime->setFrameShadow(QFrame::Sunken);
@@ -426,8 +426,7 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         disconnect(w,SIGNAL(reqLoation(int,int)),this,SLOT(openSpecPz(int,int)));
         delete w;
     }
-    if(curAccount)
-        curAccount->getDbUtil()->saveSubWinInfo(t,dim,state);
+    AppConfig::getInstance()->saveSubWinInfo(t,dim,state);
     subWinHashs.remove(subWin->getWindowType());
     delete dim;
     if(state)
@@ -491,11 +490,11 @@ MainWindow::MainWindow(QWidget *parent) :
         }        
         curAccount = new Account(ci->fileName);
         if(!curAccount->isValid()){
-            QMessageBox::warning(this,"",tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
+            myHelper::ShowMessageBoxQuesion(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
             ok = false;
         }
         else if(!curAccount->canAccess(curUser)){
-            QMessageBox::warning(this,"",tr("当前登录用户不能访问账户（%1），请以合适的用户登录！").arg(curAccount->getSName()));
+            myHelper::ShowMessageBoxQuesion(tr("当前登录用户不能访问账户（%1），请以合适的用户登录！").arg(curAccount->getSName()));
             ok = false;
         }
     }
@@ -542,15 +541,13 @@ bool MainWindow::AccountVersionMaintain(QString fname)
     bool exec = false;
     switch(result){
     case VUIR_CANT:
-        QMessageBox::warning(this,tr("出错信息"),
-                             tr("该账户数据库版本不能归集到初始版本！"));
+        myHelper::ShowMessageBoxWarning(tr("该账户数据库版本不能归集到初始版本！"));
         return false;
     case VUIR_DONT:
         exec = false;
         break;
     case VUIR_LOW:
-        QMessageBox::warning(this,tr("出错信息"),
-                             tr("当前程序版本太低，必须要用更新版本的程序打开此账户！"));
+        myHelper::ShowMessageBoxWarning(tr("当前程序版本太低，必须要用更新版本的程序打开此账户！"));
         return false;
     case VUIR_MUST:
         exec = true;
@@ -558,8 +555,7 @@ bool MainWindow::AccountVersionMaintain(QString fname)
     }
     if(exec){
         if(vm.exec() == QDialog::Rejected){
-            QMessageBox::warning(this,tr("出错信息"),
-                                      tr("该账户数据库版本过低，必须先升级！"));
+            myHelper::ShowMessageBoxWarning(tr("该账户数据库版本过低，必须先升级！"));
             return false;
         }
         else if(!vm.getUpgradeResult())
@@ -643,7 +639,7 @@ void MainWindow::initSearchClientToolView()
         SubjectSearchForm* sfm = new SubjectSearchForm(dw);
         sfm->attachDb(&curAccount->getDbUtil()->getDb());
         dw->setWidget(sfm);
-        addDockWidget(Qt::LeftDockWidgetArea, dw);
+        addDockWidget(Qt::RightDockWidgetArea, dw);
         dockWindows[TV_SEARCHCLIENT] = dw;
         tvMapper->removeMappings(tvActions.value(TV_SEARCHCLIENT));
     }
@@ -721,15 +717,22 @@ void MainWindow::accountInit(AccountCacheItem* ci)
 {
     dbUtil = curAccount->getDbUtil();
     curSuiteMgr = curAccount->getSuiteMgr();
-    if(ci->tState != ATS_TRANSINDES)
+    if(ci->tState != ATS_TRANSINDES){
         curAccount->setReadOnly(true);
+        QString info;
+        if(ci->tState == ATS_TRANSOUTED)
+            info = tr("账户已转出至“%1”").arg(ci->mac->name());
+        else if(ci->tState == ATS_TRANSINOTHER)
+            info = tr("由“%1”转出，但不是转入至本站！").arg(ci->mac->name());
+        myHelper::ShowMessageBoxInfo(tr("当前账户以只读模式打开！\n%1").arg(info));
+    }
     if(!curSuiteMgr)
-        QMessageBox::warning(this,tr("友情提示"),tr("本账户还没有设置任何帐套，请在账户属性设置窗口的帐套页添加一个帐套以供帐务处理！"));
+        myHelper::ShowMessageBoxInfo(tr("本账户还没有设置任何帐套，请在账户属性设置窗口的帐套页添加一个帐套以供帐务处理！"));
     else
         suiteViewSwitched(NULL,curSuiteMgr);    
     undoStack = curSuiteMgr?curSuiteMgr->getUndoStack():NULL;
     if(!BusiUtil::init(curAccount->getDbUtil()->getDb()))
-        QMessageBox::critical(this,tr("错误信息"),tr("BusiUtil对象初始化阶段发生错误！"));
+        myHelper::ShowMessageBoxError(tr("BusiUtil对象初始化阶段发生错误！"));
     AccountSuiteRecord* curSuite = curAccount->getCurSuiteRecord();
     if(curSuite && !subWinGroups.contains(curSuite->id)){
         SubWinGroupMgr* grpMgr = new SubWinGroupMgr(curSuite->id,ui->mdiArea);
@@ -804,8 +807,7 @@ bool MainWindow::isSuiteEditable()
         return false;
     if(!curSuiteMgr)
         return false;
-    bool readOnly = curAccount->isReadOnly() || curSuiteMgr->isSuiteClosed();
-    return !readOnly;
+    return curSuiteMgr->isSuiteEditable();
 }
 
 /**
@@ -814,10 +816,9 @@ bool MainWindow::isSuiteEditable()
  */
 bool MainWindow::isPzSetEditable()
 {
-    if(!isSuiteEditable())
+    if(!curSuiteMgr)
         return false;
-    PzsState state = curSuiteMgr->getState();
-    return (state == Ps_Rec) || (state == Ps_AllVerified);
+    return curSuiteMgr->isPzSetEditable();
 }
 
 /**
@@ -1068,11 +1069,11 @@ void MainWindow::openAccount()
     bool ok = true;
     curAccount = new Account(ci->fileName);
     if(!curAccount->isValid()){
-        QMessageBox::warning(this,"",tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
+        myHelper::ShowMessageBoxWarning(tr("账户文件无效，请检查账户文件内信息是否齐全！！"));
         ok = false;
     }
     else if(!curAccount->canAccess(curUser)){
-        QMessageBox::warning(this,"",tr("当前登录用户不能访问该账户（%1），请以合适的用户登录！").arg(curAccount->getSName()));
+        myHelper::ShowMessageBoxWarning(tr("当前登录用户不能访问该账户（%1），请以合适的用户登录！").arg(curAccount->getSName()));
         ok = false;
     }
     if(!ok){
@@ -1200,13 +1201,13 @@ void MainWindow::on_actDelAcc_triggered()
             return;
         AccountCacheItem* accItem = accItems.at(index);
         if(!appCfg->removeAccountCache(accItem)){
-            QMessageBox::critical(this,tr("出错信息"),tr("在删除该账户的缓存记录时发生错误！"));
+            myHelper::ShowMessageBoxError(tr("在删除该账户的缓存记录时发生错误！"));
             return;
         }
         //将账户文件重命名后拷贝到备份目录中
         BackupUtil backup;
         if(!backup.backup(accItem->fileName,BackupUtil::BR_REMOVE))
-            QMessageBox::warning(this,"",tr("将账户转移至备份目录时发生错误！"));
+            myHelper::ShowMessageBoxWarning(tr("将账户转移至备份目录时发生错误！"));
         QString sname = QString("%1%2").arg(DATABASE_PATH).arg(accItem->fileName);
         QFile::remove(sname);
 
@@ -1264,7 +1265,7 @@ void MainWindow::on_actUpdateSql_triggered()
 void MainWindow::on_actExtComSndSub_triggered()
 {
     if(!exportCommonSubject())
-        QMessageBox::warning(this,"",tr("导出过程出错，请查看日志！"));
+        myHelper::ShowMessageBoxWarning(tr("导出过程出错，请查看日志！"));
 }
 
 /**
@@ -1276,7 +1277,7 @@ void MainWindow::on_actOption_triggered()
     SubWindowDim* winfo = NULL;
     ConfigPanels* form = NULL;
     if(!commonGroups.contains(SUBWIN_OPTION)){
-        dbUtil->getSubWinInfo(SUBWIN_OPTION,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_OPTION,winfo,sinfo);
         form = new ConfigPanels();
         AppCommCfgPanel* comPanel = new AppCommCfgPanel(form);
         form->addPanel(comPanel,QIcon(":/images/Options/common.png"));
@@ -1284,6 +1285,8 @@ void MainWindow::on_actOption_triggered()
         form->addPanel(panel,QIcon(":/images/Options/pzTemplate.png"));        
         //SpecSubCodeCfgform* ssccPanel = new SpecSubCodeCfgform(form);
         //form->addPanel(ssccPanel,QIcon(":/images/Options/test1.png"));
+        StationCfgForm* sf = new StationCfgForm(form);
+        form->addPanel(sf,QIcon(":/images/Options/test1.png"));
         TestPanel* testPanel = new TestPanel(form);
         form->addPanel(testPanel,QIcon(":/images/Options/test1.png"));
 
@@ -1313,7 +1316,7 @@ void MainWindow::on_actManageExternalTool_triggered()
     SubWindowDim* winfo = NULL;
     ExternalToolConfigForm* form = NULL;
     if(!commonGroups.contains(SUBWIN_EXTERNALTOOLS)){
-        dbUtil->getSubWinInfo(SUBWIN_EXTERNALTOOLS,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_EXTERNALTOOLS,winfo,sinfo);
         form = new ExternalToolConfigForm(&eTools);
     }
     showCommonSubWin(SUBWIN_EXTERNALTOOLS,form,winfo);
@@ -1345,7 +1348,7 @@ void MainWindow::on_actTaxCompare_triggered()
     if(winfo)
         delete winfo;
 #else
-    QMessageBox::warning(this,"",tr("此功能目前仅在Windows平台下可用！"));
+    myHelper::ShowMessageBoxInfo(tr("此功能目前仅在Windows平台下可用！"));
 #endif
 }
 
@@ -1355,7 +1358,7 @@ void MainWindow::on_actNoteMgr_triggered()
     SubWindowDim* winfo = NULL;
     NoteMgrForm* form = NULL;
     if(!commonGroups.contains(SUBWIN_NOTEMGR)){
-        dbUtil->getSubWinInfo(SUBWIN_NOTEMGR,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_NOTEMGR,winfo,sinfo);
         form = new NoteMgrForm(curAccount);
     }
     showCommonSubWin(SUBWIN_NOTEMGR,form,winfo);
@@ -1363,6 +1366,24 @@ void MainWindow::on_actNoteMgr_triggered()
         delete sinfo;
     if(winfo)
         delete winfo;
+}
+
+/**
+ * @brief MainWindow::isExecAccountTransform
+ *  是否运行执行账户转移操作
+ * @return
+ */
+bool MainWindow::isExecAccountTransform()
+{
+    if(!appCon->getLocalStation()){
+        myHelper::ShowMessageBoxWarning(tr("未配置本站，禁止执行转移操作！\n在“工具-选项-工作站配置”中设置本站！"));
+        return false;
+    }
+    if(curUser && !(curUser->isAdmin() || curUser->isSuperUser())){
+        myHelper::ShowMessageBoxWarning(tr("只有“管理员”或“超级用户”才能执行账户转移操作！"));
+        return false;
+    }
+    return true;
 }
 
 
@@ -1404,7 +1425,7 @@ void MainWindow::viewSubjectExtra()
     QByteArray* sinfo = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_LOOKUPSUBEXTRA)){
-        dbUtil->getSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,winfo,sinfo);
         w = new ApcData(curAccount,false,this);
         w->setWindowTitle(tr("科目余额"));
     }
@@ -1446,7 +1467,7 @@ void MainWindow::openSpecPz(int pid,int bid)
     if(isIn){
         PzDialog* w = NULL;
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
-            dbUtil->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
+            appCon->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
             w = new PzDialog(month,curSuiteMgr,sinfo);
             w->setWindowTitle(tr("凭证窗口（新）"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
@@ -1476,7 +1497,7 @@ void MainWindow::openSpecPz(int pid,int bid)
         historyPzSetIndex[suiteId] = 0;
         HistoryPzForm* w;
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_HISTORYVIEW)){
-            dbUtil->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
+            appCon->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
             w = new HistoryPzForm(pz,sinfo);
             subWinGroups.value(suiteId)->showSubWindow(SUBWIN_HISTORYVIEW,w,winfo);
         }
@@ -1961,10 +1982,10 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
     SubWindowDim* winfo = NULL;
     bool editable = false;
 
-    if(accSmg->getSuiteRecord()->isClosed || accSmg->getState(month) == Ps_Jzed){
+    if(curAccount->isReadOnly() || accSmg->getSuiteRecord()->isClosed || accSmg->getState(month) == Ps_Jzed){
         historyPzSet[suiteId] = accSmg->getHistoryPzSet(month);
         if(historyPzSet.value(suiteId).isEmpty()){
-            QMessageBox::warning(this,tr("提示信息"),tr("没有任何凭证可显示！"));
+            myHelper::ShowMessageBoxInfo(tr("没有任何凭证可显示！"));
             historyPzSetIndex[suiteId] = -1;
         }
         else{
@@ -1972,7 +1993,7 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
             historyPzSetIndex[suiteId] = 0;
             HistoryPzForm* w;
             if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_HISTORYVIEW)){
-                dbUtil->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
+                appCon->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
                 w = new HistoryPzForm(historyPzSet.value(suiteId).first(),sinfo);
                 subWinGroups.value(suiteId)->showSubWindow(SUBWIN_HISTORYVIEW,w,winfo);
             }
@@ -1990,7 +2011,7 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
         if((curSuiteMgr != accSmg) || ((curSuiteMgr == accSmg) && (curSuiteMgr->month() != month)))
             curSuiteMgr = accSmg;
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
-            dbUtil->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
+            appCon->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
             PzDialog* w = new PzDialog(month,curSuiteMgr,sinfo);
             w->setWindowTitle(tr("凭证编辑窗口"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
@@ -2153,7 +2174,7 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
         commonGroups_multi.remove(winType,subWin);
     }
     if(dim || state)
-        dbUtil->saveSubWinInfo(winType,dim,state);
+        appCon->saveSubWinInfo(winType,dim,state);
     if(dim)
         delete dim;
     if(state)
@@ -2253,7 +2274,7 @@ void MainWindow::printProcess()
             QPrintDialog* dlg = new QPrintDialog(&printer,this); //获取所选的打印机
             if(dlg->exec() == QDialog::Accepted){
                 if(printer.pageSize() != QPrinter::A4){
-                    QMessageBox::warning(this,tr("打印纸张出错"),tr("打印凭证只支持A4纸打印，一张A4纸可以打印两张凭证！"));
+                    myHelper::ShowMessageBoxWarning(tr("打印凭证只支持A4纸打印，一张A4纸可以打印两张凭证！"));
                     return;
                 }
                 QPrintPreviewDialog* preview = NULL;
@@ -2481,15 +2502,13 @@ void MainWindow::on_actSave_triggered()
 //显示权限不足警告窗口
 void MainWindow::rightWarnning(int right)
 {
-    QMessageBox::warning(this,tr("权限缺失警告"),
-                         tr("由于缺失%1权限，此操作被拒绝！").arg(allRights.value(right)->getName()));
+    myHelper::ShowMessageBoxWarning(tr("由于缺失%1权限，此操作被拒绝！").arg(allRights.value(right)->getName()));
 }
 
 //未打开凭证集警告
 void MainWindow::pzsWarning()
 {
-    QMessageBox::warning(this,tr("凭证集未打开警告"),
-                         tr("凭证集还未打开。在执行任何账户操作前，请先打开凭证集"));
+    myHelper::ShowMessageBoxWarning(tr("凭证集还未打开。在执行任何账户操作前，请先打开凭证集"));
 }
 
 /**
@@ -2498,18 +2517,16 @@ void MainWindow::pzsWarning()
  */
 void MainWindow::sqlWarning()
 {
-    QMessageBox::critical(0,tr("错误提示"),tr("在访问账户数据库文件时，发生错误！"));
+    myHelper::ShowMessageBoxError(tr("在访问账户数据库文件时，发生错误！"));
 }
 
 //显示受影响的凭证数
 void MainWindow::showPzNumsAffected(int num)
 {
     if(num == 0)
-        QMessageBox::information(this,tr("操作成功完成"),
-                                     tr("本次操作成功完成，但没有凭证受此影响。"));
+        myHelper::ShowMessageBoxInfo(tr("本次操作成功完成，但没有凭证受此影响。"));
     else
-        QMessageBox::information(this,tr("操作成功完成"),
-                             tr("本次操作总共修改%1张凭证。").arg(num));
+        myHelper::ShowMessageBoxInfo(tr("本次操作总共修改%1张凭证。").arg(num));
 }
 
 
@@ -2603,11 +2620,13 @@ void MainWindow::on_actFordEx_triggered()
     if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT)){
+        myHelper::ShowMessageBoxInfo(tr("请先打开凭证编辑窗口，再执行结转！"));
         return;
+    }
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && !w->crtJzhdPz())
-        QMessageBox::critical(0,tr("错误信息"),tr("在创建结转汇兑损益的凭证时发生错误!"));
+        myHelper::ShowMessageBoxWarning(tr("在创建结转汇兑损益的凭证时发生错误!"));
 }
 
 //结转损益
@@ -2617,12 +2636,12 @@ void MainWindow::on_actFordPl_triggered()
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT)){
-        QMessageBox::warning(this,"",tr("请先打开凭证编辑窗口，再执行结转损益操作！"));
+        myHelper::ShowMessageBoxInfo(tr("请先打开凭证编辑窗口，再执行结转操作！"));
         return;
     }
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && !w->crtJzsyPz())
-        QMessageBox::critical(0,tr("错误信息"),tr("在创建结转损益的凭证时发生错误!"));
+        myHelper::ShowMessageBoxWarning(tr("在创建结转损益的凭证时发生错误!"));
 }
 
 
@@ -2645,7 +2664,7 @@ void MainWindow::on_actCurStatNew_triggered()
     QByteArray* sinfo = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZSTAT)){
-        dbUtil->getSubWinInfo(SUBWIN_PZSTAT,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_PZSTAT,winfo,sinfo);
         dlg = new CurStatDialog(curSuiteMgr->getStatUtil(), sinfo, this);
         connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
         connect(dlg,SIGNAL(extraValided()),this,SLOT(extraValid()));
@@ -2703,7 +2722,8 @@ void MainWindow::on_actSecCon_triggered()
     SubWindowDim* winfo = NULL;
     SecConDialog* dlg = NULL;
     if(!commonGroups.contains(SUBWIN_SECURITY)){
-        dbUtil->getSubWinInfo(SUBWIN_SECURITY,winfo,sinfo);
+        if(dbUtil)
+            appCon->getSubWinInfo(SUBWIN_SECURITY,winfo,sinfo);
         dlg = new SecConDialog(sinfo,this);
     }
     showCommonSubWin(SUBWIN_SECURITY,dlg,winfo);
@@ -2748,11 +2768,8 @@ void MainWindow::on_actNaviToPz_triggered()
         viewOrEditPzSet(curSuiteMgr, curSuiteMgr->month());
 
     if(activedMdiChild() == SUBWIN_PZEDIT){
-        if(!curSuiteMgr->seek(num)){
-            QMessageBox::question(this,tr("错误提示"),
-                                  tr("没有凭证号为%1的凭证").arg(num));
-
-        }
+        if(!curSuiteMgr->seek(num))
+            myHelper::ShowMessageBoxWarning(tr("没有凭证号为%1的凭证").arg(num));
     }
     else if(activedMdiChild() == SUBWIN_HISTORYVIEW){
         int suiteId = curSuiteMgr->getSuiteRecord()->id;
@@ -2951,15 +2968,15 @@ void MainWindow::on_actEndAcc_triggered()
         return;
     }
     if(curSuiteMgr->getState() == Ps_Jzed){
-        QMessageBox::information(this, tr("提示信息"), tr("已经结账"));
+        myHelper::ShowMessageBoxInfo(tr("已经结账"));
         return;
     }
     if(curSuiteMgr->getState() != Ps_AllVerified){
-        QMessageBox::warning(this, tr("提示信息"), tr("凭证集内存在未审核凭证，不能结账！"));
+        myHelper::ShowMessageBoxInfo(tr("凭证集内存在未审核凭证，不能结账！"));
         return;
     }
     if(!curSuiteMgr->getExtraState()){
-        QMessageBox::warning(this, tr("提示信息"), tr("当前的余额无效，不能结账！"));
+        myHelper::ShowMessageBoxInfo(tr("当前的余额无效，不能结账！"));
         return;
     }
     if(QMessageBox::Yes == QMessageBox::information(this,tr("提示信息"),
@@ -3148,7 +3165,7 @@ void MainWindow::on_actDetailView_triggered()
     ShowDZDialog* dlg = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_DETAILSVIEW)){
-        dbUtil->getSubWinInfo(SUBWIN_DETAILSVIEW,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_DETAILSVIEW,winfo,sinfo);
         dlg = new ShowDZDialog(curAccount,sinfo);
         connect(dlg,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
     }
@@ -3238,11 +3255,11 @@ void MainWindow::on_actRefreshActInfo_triggered()
     //AppConfig::getInstance()->clearRecentOpenAccount();
     int count=0;
     if(!AppConfig::getInstance()->refreshLocalAccount(count)){
-        QMessageBox::critical(this,tr("错误信息"),tr("在扫描工作目录下的账户时发生错误！"));
+        myHelper::ShowMessageBoxError(tr("在扫描工作目录下的账户时发生错误！"));
         return;
     }
     //报告发现的账户
-    QMessageBox::information(this,tr("提示信息"),tr("本次扫描共发现%1个账户！").arg(count));
+    myHelper::ShowMessageBoxInfo(tr("本次扫描共发现%1个账户！").arg(count));
 }
 
 /**
@@ -3295,7 +3312,9 @@ void MainWindow::on_actSuite_triggered()
  */
 void MainWindow::on_actEmpAccount_triggered()
 {
-    TransferOutDialog dlg;
+    if(!isExecAccountTransform())
+        return;
+    TransferOutDialog dlg(this);
     dlg.exec();
 }
 
@@ -3305,7 +3324,9 @@ void MainWindow::on_actEmpAccount_triggered()
  */
 void MainWindow::on_actInAccount_triggered()
 {
-    TransferInDialog dlg;
+    if(!isExecAccountTransform())
+        return;
+    TransferInDialog dlg(this);
     dlg.exec();
 }
 
@@ -3596,7 +3617,7 @@ void MainWindow::on_actAccProperty_triggered()
     SubWindowDim* winfo = NULL;
     AccountPropertyConfig* dlg = NULL;
     if(!commonGroups.contains(SUBWIN_ACCOUNTPROPERTY)){
-        dbUtil->getSubWinInfo(SUBWIN_ACCOUNTPROPERTY,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_ACCOUNTPROPERTY,winfo,sinfo);
         dlg = new AccountPropertyConfig(curAccount);
     }
     showCommonSubWin(SUBWIN_ACCOUNTPROPERTY,dlg,winfo);
@@ -3667,7 +3688,7 @@ void MainWindow::on_actPzErrorInspect_triggered()
     SubWindowDim* dim = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_VIEWPZSETERROR)){
-        dbUtil->getSubWinInfo(SUBWIN_VIEWPZSETERROR,dim,state);
+        appCon->getSubWinInfo(SUBWIN_VIEWPZSETERROR,dim,state);
         w = new ViewPzSetErrorForm(curSuiteMgr,state);
         if(!dim){
             dim = new SubWindowDim;
@@ -3818,7 +3839,7 @@ void MainWindow::on_actViewLog_triggered()
     SubWindowDim* winfo = NULL;
     LogView* form = NULL;
     if(!commonGroups.contains(SUBWIN_LOGVIEW)){
-        dbUtil->getSubWinInfo(SUBWIN_LOGVIEW,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_LOGVIEW,winfo,sinfo);
         form = new LogView;
     }
     showCommonSubWin(SUBWIN_NOTEMGR,form,winfo);
@@ -3952,9 +3973,12 @@ bool MainWindow::impTestDatas()
 //    pt.factor[4] = 0.11;
 //    r = config->savePzTemplateParameter(&pt);
 
-    Double v1(6.16,4),v2(6.1525,4);
-    Double v(14128.01);
-    v = (v1-v2)*v;
+//    myHelper::ShowMessageBoxInfo(tr("这是提示测试！"));
+//    myHelper::ShowMessageBoxWarning(tr("这是警告测试！"));
+//    myHelper::ShowMessageBoxError(tr("这是错误测试！"));
+//    int r = myHelper::ShowMessageBoxQuesion(tr("这是询问测试！"));
+
+    //AppConfig::getInstance()->saveDirName(AppConfig::DIR_TRANSOUT,"/media/ProgVol/5");
     int i = 0;
 }
 

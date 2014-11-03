@@ -26,11 +26,12 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 只有按退格键清除数字后，才可以）
 6、凭证编辑窗口-一级科目和二级科目的选择行为不一致（一级科目列，在选项列表中双击不能选择，但上下箭头键可以
 选择，二级科目列与此相反）
-7、
+7、如果改变了本站配置，则相应地要修改站点内缓存账户的转移信息（账户文件内的目的站）
 8、在保存了凭证集后，未能及时启用结转损益菜单项。
 9、在对当前凭证的分录进行金额合计时，曾经发生忽视外币的情况（这是在刚录入分录后出现的情况），
 在重新打开凭证集后，还是存在。在重新启动应用后，正常？
 在当分录中存在缺失未填的一二级科目时，好像汇总计算也有问题？
+10、Accountpropertyconfig.cpp，ApcData::viewRates()方法实现，如果要支持多外币，则这里必须支持多币种汇率的输入
 
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 四、基本库中存在的问题

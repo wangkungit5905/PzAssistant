@@ -25,7 +25,7 @@ bool groupByCode(UserGroup* g1, UserGroup* g2)
 
 bool userByCode(User* u1, User* u2)
 {
-    return u1->getUserId() < u2->getUserId();
+    return u1->getUserId() > u2->getUserId();
 }
 
 //初始化用户、组、权限和操作

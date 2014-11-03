@@ -9,6 +9,9 @@ namespace Ui {
 class NABaseInfoDialog;
 }
 
+/**
+ * @brief 新账户信息输入对话框类
+ */
 class NABaseInfoDialog : public QDialog
 {
     Q_OBJECT

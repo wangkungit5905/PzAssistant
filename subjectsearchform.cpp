@@ -6,7 +6,7 @@
 #include "tables.h"
 
 SubjectSearchForm::SubjectSearchForm(QWidget *parent) :
-    QWidget(parent),ui(new Ui::SubjectSearchForm),db(NULL),model(NULL)
+    StyledWidget(parent),ui(new Ui::SubjectSearchForm),db(NULL),model(NULL)
 {
     ui->setupUi(this);
 }
@@ -44,9 +44,12 @@ void SubjectSearchForm::attachDb(QSqlDatabase *db)
     connect(ui->edtKeyWord,SIGNAL(editingFinished()),
             this,SLOT(keyWordEditingFinished()));
     s = QString("select id,%1,%2,%3 from %4").arg(fld_ni_name)
-            .arg(fld_ni_lname).arg(fld_ni_remcode).arg(tbl_nameItem);
+            .arg(fld_ni_remcode).arg(fld_ni_lname).arg(tbl_nameItem);
     model->setQuery(s,*db);
-    ui->tview->setModel(model);
+    ui->tview->setModel(model);    
+    ui->tview->setColumnWidth(0,30);
+    ui->tview->setColumnWidth(1,80);
+    ui->tview->setColumnWidth(2,50);
 }
 
 void SubjectSearchForm::detachDb()

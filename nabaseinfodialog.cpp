@@ -93,8 +93,8 @@ void NABaseInfoDialog::on_btnOk_clicked()
     item->tState = ATS_TRANSINDES;
     item->inTime = QDateTime::currentDateTime();
     item->outTime = QDateTime::currentDateTime();
-    item->mac = AppConfig::getInstance()->getLocalMachine();
-    if(!AppConfig::getInstance()->addAccountCacheItem(item)){
+    item->mac = AppConfig::getInstance()->getLocalStation();
+    if(!AppConfig::getInstance()->saveAccountCacheItem(item)){
         QMessageBox::critical(this,"",tr("将新账户保存到本地缓存时发生错误！"));
         return;
     }

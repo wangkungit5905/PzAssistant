@@ -222,7 +222,8 @@ FORMS    += \
     externaltoolconfigform.ui \
     forms/specsubcodecfgform.ui \
     forms/frmmessagebox.ui \
-    forms/appcommcfgpanel.ui
+    forms/appcommcfgpanel.ui \
+    forms/stationcfgform.ui
 
 RESOURCES += \
     imgers.qrc \

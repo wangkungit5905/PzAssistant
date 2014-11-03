@@ -205,10 +205,6 @@ public:
                                   int &affected, User* user);
     //////////////////////////////////////////////////////////////////
 
-    //访问子窗口的位置、大小等信息
-    bool getSubWinInfo(int winEnum, SubWindowDim* &info, QByteArray* &otherInfo);
-    bool saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo = NULL);
-
     //笔记功能函数
     bool readNotes(QList<NoteStruct *> &notes);
     bool saveNote(NoteStruct* note, bool isDel=false);

@@ -12,6 +12,7 @@
 #include "transfers.h"
 #include "globalVarNames.h"
 #include "subject.h"
+#include "myhelper.h"
 
 
 QSettings* AppConfig::appIni=0;
@@ -451,15 +452,17 @@ bool AppConfig::refreshLocalAccount(int &count)
     return true;
 }
 
-bool AppConfig::addAccountCacheItem(AccountCacheItem *accItem)
-{
-    if(!accItem)
-        return false;
-    if(isExist(accItem->code))
-        return false;
-    accountCaches<<accItem;
-    return _saveAccountCacheItem(accItem);
-}
+//bool AppConfig::addAccountCacheItem(AccountCacheItem *accItem)
+//{
+//    if(!accItem)
+//        return false;
+//    if(isExist(accItem->code))
+//        return false;
+//    if(!_saveAccountCacheItem(accItem))
+//        return false;
+//    accountCaches<<accItem;
+//    return true;
+//}
 
 bool AppConfig::saveAccountCacheItem(AccountCacheItem *accInfo)
 {
@@ -467,7 +470,11 @@ bool AppConfig::saveAccountCacheItem(AccountCacheItem *accInfo)
         LOG_WARNING(QString("Invalid account code(%1)").arg(accInfo->code));
         return false;
     }
-    return _saveAccountCacheItem(accInfo);
+    if(!_saveAccountCacheItem(accInfo))
+        return false;
+    if(!isExist(accInfo->code))
+        accountCaches<<accInfo;
+    return true;
 }
 
 /**
@@ -597,9 +604,9 @@ QHash<AccountTransferState, QString> AppConfig::getAccTranStates()
 {
     QHash<AccountTransferState, QString> states;
     states[ATS_INVALID] = QObject::tr("无效状态");
-    states[ATS_TRANSINDES] = QObject::tr("已转入到目的主机");
-    states[ATS_TRANSINOTHER] = QObject::tr("已转入到非目标主机");
-    states[ATS_TRANSOUTED] = QObject::tr("已转出本机");
+    states[ATS_TRANSINDES] = QObject::tr("已转入到目的站");
+    states[ATS_TRANSINOTHER] = QObject::tr("已转入到非目标站");
+    states[ATS_TRANSOUTED] = QObject::tr("已转出本站");
     return states;
 }
 
@@ -1188,25 +1195,42 @@ bool AppConfig::saveUser(User *u, bool isDelete)
         }
         return true;
     }
-    if(u->getUserId() != UNID)
+    if(u->getUserId() != UNID){
         s = QString("update %1 set %2='%7',%3='%8',%4='%9',%5='%10',%6='%11' where id=%12")
                 .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
                 .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
                 .arg(u->getName()).arg(User::decryptPw(u->getPassword())).arg(u->getOwnerGroupCodeList())
                 .arg(u->getExclusiveAccounts().join(",")).arg(u->getExtraRightCodes())
                 .arg(u->getUserId());
-    else
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        if(q.numRowsAffected() == 0){
+            s = QString("insert into %1(id,%2,%3,%4,%5,%6) values(%12,'%7','%8','%9','%10','%11')")
+                    .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
+                    .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
+                    .arg(u->getName()).arg(User::decryptPw(u->getPassword()))
+                    .arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(","))
+                    .arg(u->getExtraRightCodes()).arg(u->getUserId());
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            allUsers[u->getUserId()] = u;
+        }
+    }
+    else{
         s = QString("insert into %1(%2,%3,%4,%5,%6) values('%7','%8','%9','%10','%11')")
                 .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
                 .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
                 .arg(u->getName()).arg(User::decryptPw(u->getPassword()))
                 .arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(","))
                 .arg(u->getExtraRightCodes());
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    if(u->getUserId() == UNID){
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
         q.exec("select last_insert_rowid()");
         q.first();
         int id = q.value(0).toInt();
@@ -1404,12 +1428,22 @@ bool AppConfig::restoreUserGroup(UserGroup *g)
 /**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
- *  代码不符合规定，代码为空，代码重复冲突等都视为无效
+ *  账户代码必须由大于1000的四位数组成，且不能重复
  * @param code
  * @return
  */
 bool AppConfig::_isValidAccountCode(QString code)
 {
+    if(code.count() != 4)
+        return false;
+    bool ok = false;
+    int v = code.toInt(&ok);
+    if(!ok || v < 1000)
+        return false;
+//    foreach(AccountCacheItem* item, accountCaches){
+//        if(item->code == code)
+//            return false;
+//    }
     return true;
 }
 
@@ -1536,15 +1570,23 @@ bool AppConfig::_searchAccount()
         //如果账户不存在转移记录（未升级账户文件，没有相应的转移表），则先将它视作有一条初始的本机转入本机的转移记录
         //在下次打开该账户时，升级账户时将创建相应的转移表和转移记录
         if(!q.exec(s) || !q.last()){
-            accItem->mac = getLocalMachine();
+            accItem->mac = getLocalStation();
+            if(!accItem->mac){
+                myHelper::ShowMessageBoxWarning(QObject::tr("账户文件“%1”不存在转移记录，且未配置本站信息，无法初始化转移记录，忽略此账户！"));
+                delete accItem;
+                continue;
+            }
             accItem->outTime = QDateTime::currentDateTime();
             accItem->inTime = QDateTime::currentDateTime();
             accItem->tState = ATS_TRANSINDES;
         }
         else{
             accItem->mac = machines.value(q.value(TRANS_SMID).toInt());
-            //accItem->outTime = q.value(TRANS_OUTTIME).toDateTime();
-            //accItem->inTime = q.value(TRANS_INTIME).toDateTime();
+            if(!accItem->mac){
+                myHelper::ShowMessageBoxWarning(QObject::tr("账户文件“%1”来自不明站点，忽略！").arg(accItem->fileName));
+                delete accItem;
+                continue;
+            }
             accItem->outTime = QDateTime::fromString(q.value(TRANS_OUTTIME).toString(),Qt::ISODate);
             accItem->inTime = QDateTime::fromString(q.value(TRANS_INTIME).toString(),Qt::ISODate);
             accItem->tState = (AccountTransferState)q.value(TRANS_STATE).toInt();
@@ -1593,7 +1635,8 @@ void AppConfig::_initCfgVarDefs()
 bool AppConfig::_initAccountCaches()
 {
     QSqlQuery q(db);
-    QString s = QString("select * from %1").arg(tbl_localAccountCache);
+    QString s = QString("select * from %1 order by %2").arg(tbl_localAccountCache)
+            .arg(fld_lac_code);
     init_accCache = false;
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -1624,6 +1667,11 @@ bool AppConfig::_initAccountCaches()
  */
 bool AppConfig::_initMachines()
 {
+    //读取主站标识
+    appIni->beginGroup(SEGMENT_STATIONS);
+    msId = appIni->value(KEY_STATION_MSID,101).toInt();
+    appIni->endGroup();
+
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_machines);
     if(!q.exec(s)){
@@ -1642,7 +1690,8 @@ bool AppConfig::_initMachines()
         isLocal = q.value(MACS_ISLOCAL).toBool();
         name = q.value(MACS_NAME).toString();
         desc = q.value(MACS_DESC).toString();
-        Machine* m = new Machine(id,mtype,mid,isLocal,name,desc);
+        int osType = q.value(MACS_OSTYPE).toInt();
+        Machine* m = new Machine(id,mtype,mid,isLocal,name,desc,osType);
         machines[m->getMID()] = m;
     }
     return true;
@@ -1792,15 +1841,17 @@ bool AppConfig::_saveMachine(Machine *mac)
     QSqlQuery q(db);
     QString s;
     if(mac->getId() == UNID)
-        s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,%8,%9,'%10','%11')")
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,%9,%10,'%11','%12',%13)")
                 .arg(tbl_machines).arg(fld_mac_mid).arg(fld_mac_type).arg(fld_mac_islocal)
-                .arg(fld_mac_sname).arg(fld_mac_desc).arg(mac->getMID()).arg(mac->getType())
-                .arg(mac->isLocalMachine()?1:0).arg(mac->name()).arg(mac->description());
+                .arg(fld_mac_sname).arg(fld_mac_desc).arg(fld_mac_ostype).arg(mac->getMID())
+                .arg(mac->getType()).arg(mac->isLocalStation()?1:0).arg(mac->name())
+                .arg(mac->description()).arg(mac->osType());
     else
-        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8='%9',%10='%11' where id=%12")
+        s = QString("update %1 set %2=%3,%4=%5,%6=%7,%8='%9',%10='%11',%12=%13 where id=%14")
                 .arg(tbl_machines).arg(fld_mac_mid).arg(mac->getMID()).arg(fld_mac_type)
-                .arg(mac->getType()).arg(fld_mac_islocal).arg(mac->isLocalMachine()?1:0)
-                .arg(fld_mac_sname).arg(mac->name()).arg(fld_mac_desc).arg(mac->description()).arg(mac->getId());
+                .arg(mac->getType()).arg(fld_mac_islocal).arg(mac->isLocalStation()?1:0)
+                .arg(fld_mac_sname).arg(mac->name()).arg(fld_mac_desc).arg(mac->description())
+                .arg(fld_mac_ostype).arg(mac->osType()).arg(mac->getId());
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -1815,7 +1866,32 @@ bool AppConfig::_saveMachine(Machine *mac)
         mac->id = q.value(0).toInt();
         machines[mac->getMID()] = mac;
     }
+    if(mac->isLocalStation()){
+        QString s = QString("update %1 set %2=0 where %3!=%4").arg(tbl_machines)
+                .arg(fld_mac_islocal).arg(fld_mac_mid).arg(mac->getMID());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
     return true;
+}
+
+/**
+ * @brief 返回存放各种目录所使用的键名
+ * @param witch
+ * @return
+ */
+QString AppConfig::_getKeyNameForDir(AppConfig::DirectoryName witch)
+{
+    switch (witch) {
+    case DIR_TRANSOUT:
+        return "TransOutDir";
+    case DIR_TRANSIN:
+        return "TransInDir";
+    default:
+        return "";
+    }
 }
 
 
@@ -1976,6 +2052,20 @@ QHash<int, SubjectClass> AppConfig::getSubjectClassMaps(int subSys)
 }
 
 /**
+ * @brief AppConfig::getMasterStation
+ * 返回主站对象
+ * @return
+ */
+Machine *AppConfig::getMasterStation()
+{
+    foreach(Machine* m, machines){
+        if(m->getMID() == msId)
+            return m;
+    }
+    return 0;
+}
+
+/**
  * @brief AppConfig::getMachineTypes
  *  返回系统支持的主机类型（即保存账户文件处所）
  * @return
@@ -1995,12 +2085,12 @@ QHash<MachineType, QString> AppConfig::getMachineTypes()
  *  获取本机对象
  * @return
  */
-Machine *AppConfig::getLocalMachine()
+Machine *AppConfig::getLocalStation()
 {
     QHashIterator<int,Machine*> it(machines);
     while(it.hasNext()){
         it.next();
-        if(it.value()->isLocalMachine())
+        if(it.value()->isLocalStation())
             return it.value();
     }
     return NULL;
@@ -2032,6 +2122,40 @@ bool AppConfig::saveMachines(QList<Machine *> macs)
         if(!db.rollback())
             LOG_SQLERROR("Rollback transaction failed on save machines list!");
         return false;
+    }
+    return true;
+}
+
+bool AppConfig::removeMachine(Machine *mac)
+{
+    if(!mac)
+        return false;
+    if(mac->getId() != UNID){
+        QSqlQuery q(db);
+        QString s = QString("delete from %1 where id=%2").arg(tbl_machines).arg(mac->getId());
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    machines.remove(mac->getMID());
+    delete mac;
+    return true;
+}
+
+bool AppConfig::getOsTypes(QHash<int, QString>& types)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 order by %2").arg(tbl_base_osTypes).arg(fld_base_osTypes_code);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int code = q.value(FI_BASE_OSTYPES_CODE).toInt();
+        QString mName = q.value(FI_BASE_OSTYPES_MN).toString();
+        QString sName = q.value(FI_BASE_OSTYPES_SN).toString();
+        types[code] = mName + " " + sName;
     }
     return true;
 }
@@ -2105,6 +2229,126 @@ bool AppConfig::savePzTemplateParameter(PzTemplateParameter *parameter)
     appIni->setValue(KEY_PZT_BATABLE_FACTOR,factors.join(","));
     appIni->endGroup();
     appIni->sync();
+    return true;
+}
+
+QString AppConfig::getDirName(DirectoryName witch)
+{
+    QString key = _getKeyNameForDir(witch);
+    if(key.isEmpty()){
+        LOG_ERROR(QString("Key name is illegal in segment '%1'").arg(SEGMENT_DIR));
+        return "";
+    }
+    appIni->beginGroup(SEGMENT_DIR);
+    QString dir = appIni->value(key).toString();
+    appIni->endGroup();
+    return dir;
+}
+
+void AppConfig::saveDirName(DirectoryName witch, QString dir)
+{
+    QString key = _getKeyNameForDir(witch);
+    if(key.isEmpty()){
+        LOG_ERROR(QString("Key name is illegal in segment '%1'").arg(SEGMENT_DIR));
+        return;
+    }
+    appIni->beginGroup(SEGMENT_DIR);
+    appIni->setValue(key,dir);
+    appIni->endGroup();
+    appIni->sync();
+}
+
+/**
+ * @brief AppConfig::getSubWinInfo
+ *  读取子窗口的各种几何尺寸信息
+ * @param winEnum
+ * @param info
+ * @param otherInfo
+ * @return
+ */
+bool AppConfig::getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *&otherInfo)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2 = %3")
+           .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(winEnum);
+    if(!q.exec(s)){
+       LOG_SQLERROR(s);
+       return false;
+    }
+    if(q.first()){
+        info = new SubWindowDim;
+        info->x = q.value(FI_BASE_SWI_X).toInt();
+        info->y = q.value(FI_BASE_SWI_Y).toInt();
+        info->w = q.value(FI_BASE_SWI_W).toInt();
+        info->h = q.value(FI_BASE_SWI_H).toInt();
+        otherInfo = new QByteArray(q.value(FI_BASE_SWI_TBL).toByteArray());
+    }
+    else{
+        info = NULL;
+        otherInfo = NULL;
+    }
+    return true;
+}
+
+/**
+ * @brief AppConfig::saveSubWinInfo
+ *  保存子窗口的各种几何尺寸信息
+ * @param winEnum
+ * @param info
+ * @param otherInfo
+ * @return
+ */
+bool AppConfig::saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *otherInfo)
+{
+    QSqlQuery q(db);
+    QString s;
+
+    if(otherInfo == NULL)
+        otherInfo = new QByteArray;
+    s = QString("select * from %1 where %2 = %3")
+            .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(winEnum);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first()){
+        int id = q.value(0).toInt();
+        s = QString("update %1 set %2=:enum,%3=:x,%4=:y,%5=:w,%6=:h"
+                    ",%7=:info where id=:id")
+                .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(fld_base_swi_x).arg(fld_base_swi_y)
+                .arg(fld_base_swi_width).arg(fld_base_swi_height).arg(fld_base_swi_stateInfo);
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.bindValue(":enum",winEnum);
+        q.bindValue(":x",info->x);
+        q.bindValue(":y",info->y);
+        q.bindValue(":w",info->w);
+        q.bindValue(":h",info->h);
+        q.bindValue(":info",*otherInfo);
+        q.bindValue(":id",id);
+    }
+    else{
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) "
+                    "values(:enum,:x,:y,:w,:h,:info)")
+                .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(fld_base_swi_x).arg(fld_base_swi_y)
+                .arg(fld_base_swi_width).arg(fld_base_swi_height).arg(fld_base_swi_stateInfo);;
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.bindValue(":enum",winEnum);
+        q.bindValue(":x",info->x);
+        q.bindValue(":y",info->y);
+        q.bindValue(":w",info->w);
+        q.bindValue(":h",info->h);
+        q.bindValue(":info",*otherInfo);
+    }
+    if(!q.exec()){
+        LOG_SQLERROR(s);
+        return false;
+    }
     return true;
 }
 

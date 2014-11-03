@@ -174,8 +174,17 @@ void SecConDialog::save()
             gs.removeOne(g);
         }
         if(!gs.isEmpty()){
-            foreach(UserGroup* g, gs)
+            foreach(UserGroup* g, gs){
+                allGroups.remove(g->getGroupCode());
                 appCon->saveUserGroup(g,true);
+                foreach(User* u, allUsers.values()){
+                    if(u->getOwnerGroups().contains(g)){
+                        u->delGroup(g);
+                        set_Users.insert(u);
+                    }
+                }
+                delete g;
+            }
         }
     }
     //保存用户
@@ -191,8 +200,11 @@ void SecConDialog::save()
             us.removeOne(u);
         }
         if(!us.isEmpty()){
-            foreach(User* u, us)
+            foreach(User* u, us){
+                allUsers.remove(u->getUserId());
                 appCon->saveUser(u,true);
+                delete u;
+            }
         }
     }
     dirty = false;
@@ -824,6 +836,7 @@ void SecConDialog::on_actDelGroup_triggered()
 void SecConDialog::on_actAddUser_triggered()
 {
     QDialog dlg(this);
+    dlg.setWindowTitle(tr("新用户"));
     QLabel lbl1(tr("用户名"),&dlg),lbl2(tr("密码"),&dlg),lbl3(tr("确认密码"),&dlg);
     QLineEdit edtName(&dlg),edtPw(&dlg),edtPwConfirm(&dlg);
     edtPw.setEchoMode(QLineEdit::Password);
@@ -839,7 +852,7 @@ void SecConDialog::on_actAddUser_triggered()
     QVBoxLayout* lm = new QVBoxLayout;
     lm->addLayout(&gl); lm->addLayout(&lb);
     dlg.setLayout(lm);
-    dlg.resize(100,100);
+    dlg.resize(300,200);
     if(QDialog::Rejected == dlg.exec())
         return ;
     QString name = edtName.text();

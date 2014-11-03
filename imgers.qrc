@@ -102,5 +102,8 @@
         <file>styles/arrow-down.png</file>
         <file>images/Options/common.png</file>
         <file>styles/pink.css</file>
+        <file>images/question.png</file>
+        <file>images/info.png</file>
+        <file>images/error.png</file>
     </qresource>
 </RCC>

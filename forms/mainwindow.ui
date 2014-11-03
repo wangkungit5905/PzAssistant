@@ -381,13 +381,13 @@
    </property>
    <property name="icon">
     <iconset resource="../imgers.qrc">
-     <normaloff>:/images/acc_export.png</normaloff>:/images/acc_export.png</iconset>
+     <normaloff>:/images/acc_import.png</normaloff>:/images/acc_import.png</iconset>
    </property>
    <property name="text">
     <string>转入账户</string>
    </property>
    <property name="toolTip">
-    <string>将指定账户文件转入当前主机以便编辑或查看</string>
+    <string>将指定账户文件转入当前工作站以便编辑或查看</string>
    </property>
   </action>
   <action name="actEmpAccount">
@@ -396,13 +396,13 @@
    </property>
    <property name="icon">
     <iconset resource="../imgers.qrc">
-     <normaloff>:/images/acc_import.png</normaloff>:/images/acc_import.png</iconset>
+     <normaloff>:/images/acc_export.png</normaloff>:/images/acc_export.png</iconset>
    </property>
    <property name="text">
     <string>转出账户</string>
    </property>
    <property name="toolTip">
-    <string>将指定账户转出本机，以便在其他主机上编辑或查看</string>
+    <string>将指定账户转出本工作站，以便在其他共组织上编辑或查看</string>
    </property>
   </action>
   <action name="actExit">

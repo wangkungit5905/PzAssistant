@@ -370,23 +370,7 @@ const int NSE_E_DIR   = 4;
 
 
 
-//子窗口信息表（subWinInfos）
-//字段名
-const QString tbl_subWinInfo = "subWinInfos";
-const QString fld_swi_enum  = "winEnum";  //字窗口类别枚举值（INTEGER）
-const QString fld_swi_x     = "x";        //x,y,w,h是子窗口最后一次关闭时的位置和大小尺寸
-const QString fld_swi_y     = "y";
-const QString fld_swi_width = "w";
-const QString fld_swi_height= "h";
-const QString fld_swi_tblInfo = "tblInfo";//子窗体内表格各列的宽度信息（tblInfo）
 
-//字段索引
-const int   SWI_ENUM    = 1;
-const int   SWI_X       = 2;
-const int   SWI_Y       = 3;
-const int   SWI_W       = 4;
-const int   SWI_H       = 5;
-const int   SWI_TBL     = 6;
 
 
 //明细账视图过滤条件表
@@ -592,12 +576,24 @@ const QString fld_mac_type      = "type";
 const QString fld_mac_islocal   = "isLocal";
 const QString fld_mac_sname     = "sname";
 const QString fld_mac_desc      = "lname";
+const QString fld_mac_ostype    = "osType";
 //字段索引
 const int MACS_MID        = 1;
 const int MACS_TYPE       = 2;
 const int MACS_ISLOCAL    = 3;
 const int MACS_NAME       = 4;
 const int MACS_DESC       = 5;
+const int MACS_OSTYPE     = 6;
+
+//操作系统类型表
+const QString tbl_base_osTypes = "osTypes";
+const QString fld_base_osTypes_code = "osCode";     //系统编码
+const QString fld_base_osTypes_mName = "masterName";//操作系统系列名
+const QString fld_base_osTypes_sName = "secondName";//版本名
+//字段索引
+const int FI_BASE_OSTYPES_CODE  = 1;
+const int FI_BASE_OSTYPES_MN    = 2;
+const int FI_BASE_OSTYPES_SN    = 3;
 
 //账户数据库表格创建语句表（tableCrtSqls）
 const QString tbl_table_create_sqls = "tableCrtSqls";
@@ -737,5 +733,23 @@ const QString fld_base_et_parameter = "Parameter";
 const int FI_BASE_ET_NAME = 1;
 const int FI_BASE_ET_COMMANDLINE = 2;
 const int FI_BASE_ET_PARAMETER = 3;
+
+//子窗口信息表（subWinInfos）
+//字段名
+const QString tbl_base_subWinInfo = "subWinInfos";
+const QString fld_base_swi_enum  = "winEnum";  //字窗口类别枚举值（INTEGER）
+const QString fld_base_swi_x     = "x";        //x,y,w,h是子窗口最后一次关闭时的位置和大小尺寸
+const QString fld_base_swi_y     = "y";
+const QString fld_base_swi_width = "w";
+const QString fld_base_swi_height= "h";
+const QString fld_base_swi_stateInfo = "tblInfo";//子窗体内自定义状态信息（tblInfo）
+
+//字段索引
+const int   FI_BASE_SWI_ENUM    = 1;
+const int   FI_BASE_SWI_X       = 2;
+const int   FI_BASE_SWI_Y       = 3;
+const int   FI_BASE_SWI_W       = 4;
+const int   FI_BASE_SWI_H       = 5;
+const int   FI_BASE_SWI_TBL     = 6;
 
 #endif // TABLES_H

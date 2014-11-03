@@ -394,12 +394,12 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     //connect(delegate,SIGNAL(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)),
     //        this,SLOT(extraException(BusiAction*,Double,MoneyDirection,Double,MoneyDirection)));
 
-    actModifyRate = new QAction(tr("修改汇率"),this);
-    if(pzMgr->isSuiteClosed() || pzMgr->getState() == Ps_Jzed)
-        actModifyRate->setEnabled(false);
     ui->edtRate->setContextMenuPolicy(Qt::ActionsContextMenu);
-    ui->edtRate->addAction(actModifyRate);
-    connect(actModifyRate,SIGNAL(triggered()),this,SLOT(modifyRate()));
+    if(!account->isReadOnly() && !pzMgr->isSuiteClosed() && pzMgr->getState() != Ps_Jzed){
+        actModifyRate = new QAction(tr("修改汇率"),this);
+        ui->edtRate->addAction(actModifyRate);
+        connect(actModifyRate,SIGNAL(triggered()),this,SLOT(modifyRate()));
+    }
 }
 
 PzDialog::~PzDialog()
@@ -500,7 +500,9 @@ void PzDialog::setMonth(int month)
 void PzDialog::adjustViewReadonly()
 {
     //综合凭证集状态和凭证状态决定凭证是否可编辑
-    bool b = (curPz->getPzState() != Pzs_Recording) && (curPz->getPzState() != Pzs_Repeal);
+    bool b = account->isReadOnly() || pzMgr->isSuiteClosed() ||
+            pzMgr->getState() == Ps_Jzed ||
+            (curPz->getPzState() != Pzs_Recording && (curPz->getPzState() != Pzs_Repeal));
     ui->dateEdit->setReadOnly(b);
     ui->spnZbNum->setReadOnly(b);
     ui->spnEncNum->setReadOnly(b);

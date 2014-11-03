@@ -39,6 +39,8 @@ public:
     SubjectManager* getSubjectManager();
     int getSubSysCode(){return suiteRecord->subSys;}
     bool open(int m);
+    bool isSuiteEditable();
+    bool isPzSetEditable(int m=0);
     bool isPzSetOpened();
     bool isDirty();
     void closePzSet();

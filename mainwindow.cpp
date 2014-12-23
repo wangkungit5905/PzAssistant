@@ -390,7 +390,7 @@ void SubWinGroupMgr::closeAll()
 void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
 {
     subWindowType t = subWin->getWindowType();
-    QByteArray* state = NULL;
+    QByteArray* commonState=0,*properState=0;
     SubWindowDim* dim = new SubWindowDim;
     dim->x = subWin->x();
     dim->y = subWin->y();
@@ -398,7 +398,7 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
     dim->h = subWin->height();
     if(t == SUBWIN_PZEDIT){
         PzDialog* w = static_cast<PzDialog*>(subWin->widget());
-        state = w->getState();
+        commonState = w->getCommonState();
         disconnect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
         disconnect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
         disconnect(w,SIGNAL(rateChanged(int)),this,SLOT(rateChanged(int)));
@@ -406,31 +406,40 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
     }
     else if(t == SUBWIN_HISTORYVIEW){
         HistoryPzForm* w = static_cast<HistoryPzForm*>(subWin->widget());
-        state = w->getState();
+        commonState = w->getCommonState();
         delete w;
     }
     else if(t == SUBWIN_DETAILSVIEW){
         ShowDZDialog* w = static_cast<ShowDZDialog*>(subWin->widget());
-        state = w->getState();
+        commonState = w->getCommonState();
         disconnect(w,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
         delete w;
     }
     else if(t == SUBWIN_PZSTAT){
         CurStatDialog* w = static_cast<CurStatDialog*>(subWin->widget());
-        state = w->getState();
+        commonState = w->getCommonState();
+        properState = w->getProperState();
         delete w;
     }
     else if(t == SUBWIN_VIEWPZSETERROR){
         ViewPzSetErrorForm* w = static_cast<ViewPzSetErrorForm*>(subWin->widget());
-        state = w->getState();
+        commonState = w->getState();
         disconnect(w,SIGNAL(reqLoation(int,int)),this,SLOT(openSpecPz(int,int)));
         delete w;
     }
-    AppConfig::getInstance()->saveSubWinInfo(t,dim,state);
+    else if(t == SUBWIN_LOOKUPSUBEXTRA){
+        ApcData* w = static_cast<ApcData*>(subWin->widget());
+        if(w){
+            properState = w->getProperState();
+        }
+    }
+    AppConfig::getInstance()->saveSubWinInfo(t,dim,commonState);
+    if(curAccount)
+        curAccount->getDbUtil()->saveSubWinInfo(t,properState);
     subWinHashs.remove(subWin->getWindowType());
     delete dim;
-    if(state)
-        delete state;    
+    if(commonState)
+        delete commonState;
     parent->removeSubWindow(subWin);
     emit specSubWinClosed(t);
 }
@@ -510,7 +519,7 @@ MainWindow::MainWindow(QWidget *parent) :
     }
     accountInit(ci);
     setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
-    rfMainAct();
+    rfMainAct(curUser);
     refreshShowPzsState();
 }
 
@@ -535,7 +544,10 @@ void MainWindow::getMdiAreaSize(int &mdiAreaWidth, int &mdiAreaHeight)
  */
 bool MainWindow::AccountVersionMaintain(QString fname)
 {
-    bool cancel = false;
+    if(!QFile::exists(DATABASE_PATH+fname)){
+        myHelper::ShowMessageBoxWarning(tr("账户文件“%1”不存在！").arg(fname));
+        return false;
+    }
     VersionManager vm(VersionManager::MT_ACC,fname);
     VersionUpgradeInspectResult result = vm.isMustUpgrade();
     bool exec = false;
@@ -798,6 +810,25 @@ void MainWindow::addSubWindowMenuItem(QList<MyMdiSubWindow *> windows)
 }
 
 /**
+ * @brief MainWindow::isContainRights
+ * 测试当前用户是否包含指定权限
+ * @param rs
+ * @return
+ */
+bool MainWindow::isContainRights(QSet<Right *> rs)
+{
+    if(!curUser)
+        return false;
+    if(curUser->isSuperUser())
+        return true;
+    if(!curUser->getAllRights().contains(rs)){
+        myHelper::ShowMessageBoxWarning(tr("当前用户不具有执行此操作的权限！"));
+        return false;
+    }
+    return true;
+}
+
+/**
  * @brief 当前帐套是否可编辑
  * @return
  */
@@ -845,28 +876,52 @@ void MainWindow::rfLogin()
     ui->actLogin->setEnabled(!login);
     ui->actLogout->setEnabled(login);
     ui->actShiftUser->setEnabled(login);
-    //如果当前登录的root用户，则启用安全配置菜单项，目前未实现，暂不启用
+    ui->actOption->setEnabled(login);
+    ui->actNoteMgr->setEnabled(login);
+    //超级用户特权项
     bool r = login && curUser->isSuperUser();
     ui->actSecCon->setEnabled(r);
     ui->actSqlTool->setEnabled(r);
-    rfMainAct();
+    ui->actManageExternalTool->setEnabled(r);
+    ui->actUpdateSql->setEnabled(r);
+    ui->actImpPzSet->setEnabled(r);
+    ui->actExtComSndSub->setEnabled(r);
+    //管理员特权项
+    ui->actTaxCompare->setEnabled(login && curUser->isAdmin());
+
+    rfMainAct(curUser);
 }
 
 /**
  * @brief MainWindow::rfMainAct
  *  控制账户相关的命令的启用性（在账户打开或关闭时刻调用）
  */
-void MainWindow::rfMainAct()
+void MainWindow::rfMainAct(bool login)
 {
     bool open = curAccount?true:false;
-    ui->actCrtAccount->setEnabled(!open);
-    ui->actOpenAccount->setEnabled(!open);
-    ui->actCloseAccount->setEnabled(open);
-    ui->actAccProperty->setEnabled(open);
-    ui->actRefreshActInfo->setEnabled(!open);
-    ui->actDelAcc->setEnabled(!open);
-    ui->actInAccount->setEnabled(!open);
-    ui->actEmpAccount->setEnabled(!open);
+    ui->actCrtAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Create)) && !open);
+    ui->actOpenAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Common_Open)) && !open);
+    ui->actCloseAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Common_Close)) && open);
+    if(!login)
+        ui->actAccProperty->setEnabled(false);
+    else if(curUser->isSuperUser())
+        ui->actAccProperty->setEnabled(true);
+    else{
+        QSet<Right*> cfgRs;
+        cfgRs<<allRights.value(Right::Account_Config_SetCommonInfo)
+             <<allRights.value(Right::Account_Config_SetSensitiveInfo)
+             <<allRights.value(Right::Account_Config_SetUsedSubSys)
+             <<allRights.value(Right::Account_Config_SetFstSubject)
+             <<allRights.value(Right::Account_Config_SetSndSubject)
+             <<allRights.value(Right::Account_Config_SetBaseTime)
+             <<allRights.value(Right::Account_Config_SetPeriodBegin);
+        QSet<Right*> rs = curUser->getAllRights() & cfgRs;
+        ui->actAccProperty->setEnabled(!rs.isEmpty()  && open);
+    }
+    ui->actRefreshActInfo->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Refresh)) && !open);
+    ui->actDelAcc->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Remove)) && !open);
+    ui->actInAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Import)) && !open);
+    ui->actEmpAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Export)) && !open);
     rfSuiteAct();
 }
 
@@ -875,7 +930,7 @@ void MainWindow::rfMainAct()
  */
 void MainWindow::rfSuiteAct()
 {
-    bool open = curSuiteMgr?true:false;
+    bool open = curUser && curSuiteMgr?true:false;
     ui->actSuite->setEnabled(open);         //帐套切换面板
     ui->actSearch->setEnabled(open);        //凭证搜索
     ui->actSubExtra->setEnabled(open);      //科目余额
@@ -891,7 +946,7 @@ void MainWindow::rfSuiteAct()
 void MainWindow::rfPzSetOpenAct()
 {
 
-    bool open = (curSuiteMgr && curSuiteMgr->isPzSetOpened())?true:false;
+    bool open = (curUser && curSuiteMgr && curSuiteMgr->isPzSetOpened())?true:false;
     ui->actNaviToPz->setEnabled(open);      //凭证定位
     ui->actCurStatNew->setEnabled(open);    //本期统计
     ui->actPzErrorInspect->setEnabled(open);//凭证集错误检测
@@ -1043,14 +1098,21 @@ void MainWindow::setActiveSubWindow(QWidget *window)
 /////////////////////////文件菜单处理槽部分/////////////////////////////////////////
 void MainWindow::newAccount()
 {
+    QSet<Right*> rs;
+    rs.insert(allRights.value(Right::Account_Create));
+    if(!isContainRights(rs))
+        return;
     NABaseInfoDialog dlg(this);
     if(dlg.exec() == QDialog::Rejected)
         return;
-
 }
 
 void MainWindow::openAccount()
 {
+    QSet<Right*> rs;
+    rs.insert(allRights.value(Right::Account_Common_Open));
+    if(!isContainRights(rs))
+        return;
     OpenAccountDialog* dlg = new OpenAccountDialog(this);
     if(dlg->exec() != QDialog::Accepted)
         return;
@@ -1059,7 +1121,7 @@ void MainWindow::openAccount()
     if(!ci || !AccountVersionMaintain(ci->fileName)){
         setWindowTitle(QString("%1---%2").arg(appTitle)
                        .arg(tr("无账户被打开")));
-        rfMainAct();
+        rfMainAct(curUser);
         return;
     }
     if(curAccount){
@@ -1081,13 +1143,13 @@ void MainWindow::openAccount()
             delete curAccount;
         curAccount = NULL;
         setWindowTitle(QString("%1---%2").arg(appTitle).arg(tr("无账户被打开")));
-        rfMainAct();
+        rfMainAct(curUser);
         return;
     }
     setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
     AppConfig::getInstance()->setRecentOpenAccount(ci->code);
     accountInit(ci);
-    rfMainAct();
+    rfMainAct(curUser);
 }
 
 void MainWindow::closeAccount()
@@ -1173,7 +1235,7 @@ void MainWindow::closeAccount()
     delete curAccount;
     curAccount = NULL;
     setWindowTitle(tr("会计凭证处理系统---无账户被打开"));
-    rfMainAct();
+    rfMainAct(curUser);
 }
 
 /**
@@ -1273,23 +1335,24 @@ void MainWindow::on_actExtComSndSub_triggered()
  */
 void MainWindow::on_actOption_triggered()
 {
-    QByteArray* sinfo = NULL;
+    QByteArray* sinfo = new QByteArray;
     SubWindowDim* winfo = NULL;
     ConfigPanels* form = NULL;
     if(!commonGroups.contains(SUBWIN_OPTION)){
         appCon->getSubWinInfo(SUBWIN_OPTION,winfo,sinfo);
-        form = new ConfigPanels();
-        AppCommCfgPanel* comPanel = new AppCommCfgPanel(form);
-        form->addPanel(comPanel,QIcon(":/images/Options/common.png"));
-        PzTemplateOptionForm* panel = new PzTemplateOptionForm(form);
-        form->addPanel(panel,QIcon(":/images/Options/pzTemplate.png"));        
-        //SpecSubCodeCfgform* ssccPanel = new SpecSubCodeCfgform(form);
-        //form->addPanel(ssccPanel,QIcon(":/images/Options/test1.png"));
-        StationCfgForm* sf = new StationCfgForm(form);
-        form->addPanel(sf,QIcon(":/images/Options/test1.png"));
-        TestPanel* testPanel = new TestPanel(form);
-        form->addPanel(testPanel,QIcon(":/images/Options/test1.png"));
-
+        QList<ConfigPanelBase*> panels;
+        QList<QIcon> icons;
+        panels<<new AppCommCfgPanel;            //通用面板
+        icons<<QIcon(":/images/Options/common.png");
+        if(curUser->isSuperUser()){
+            panels<<new PzTemplateOptionForm;   //凭证模板参数面板
+            icons<<QIcon(":/images/Options/pzTemplate.png");
+            panels<<new StationCfgForm;         //工作站面板
+            icons<<QIcon(":/images/Options/test1.png");
+        }
+        panels<<new TestPanel(form);            //测试面板
+        icons<<QIcon(":/images/Options/test1.png");
+        form = new ConfigPanels(panels,icons,sinfo);
     }
     showCommonSubWin(SUBWIN_OPTION,form,winfo);
     if(sinfo)
@@ -1316,7 +1379,7 @@ void MainWindow::on_actManageExternalTool_triggered()
     SubWindowDim* winfo = NULL;
     ExternalToolConfigForm* form = NULL;
     if(!commonGroups.contains(SUBWIN_EXTERNALTOOLS)){
-        appCon->getSubWinInfo(SUBWIN_EXTERNALTOOLS,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_EXTERNALTOOLS,winfo);
         form = new ExternalToolConfigForm(&eTools);
     }
     showCommonSubWin(SUBWIN_EXTERNALTOOLS,form,winfo);
@@ -1358,7 +1421,7 @@ void MainWindow::on_actNoteMgr_triggered()
     SubWindowDim* winfo = NULL;
     NoteMgrForm* form = NULL;
     if(!commonGroups.contains(SUBWIN_NOTEMGR)){
-        appCon->getSubWinInfo(SUBWIN_NOTEMGR,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_NOTEMGR,winfo);
         form = new NoteMgrForm(curAccount);
     }
     showCommonSubWin(SUBWIN_NOTEMGR,form,winfo);
@@ -1367,6 +1430,365 @@ void MainWindow::on_actNoteMgr_triggered()
     if(winfo)
         delete winfo;
 }
+
+/**
+ * @brief 导出应用设置信息（包括工作站、组、用户、权限和权限类型等）
+ */
+void MainWindow::on_actExpAppCfg_triggered()
+{
+    if(!curUser->isSuperUser())
+        return;
+    QDialog dlg(this);
+    QLabel title(tr("选择要导出的部分："),&dlg);
+    QCheckBox chkRightType(tr("权限类型"), &dlg);
+    QCheckBox chkRight(tr("权限"), &dlg);
+    QCheckBox chkMac(tr("工作站"), &dlg);
+    QCheckBox chkGroup(tr("用户组"), &dlg);
+    QCheckBox chkUser(tr("用户"), &dlg);
+    QPushButton btnOk(tr("确定"), &dlg);
+    QPushButton btnCancel(tr("取消"), &dlg);
+    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+    QHBoxLayout lb; lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
+    QVBoxLayout* lm = new QVBoxLayout;
+    lm->addWidget(&title);lm->addWidget(&chkRightType);
+    lm->addWidget(&chkRight); lm->addWidget(&chkMac);
+    lm->addWidget(&chkGroup); lm->addWidget(&chkUser);
+    lm->addLayout(&lb);
+    dlg.setLayout(lm);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    if(!chkRight.isChecked() && !chkRightType.isChecked() && !chkMac.isChecked()
+            && !chkGroup.isChecked() && !chkUser.isChecked())
+        return;
+
+    //默认导出目录
+    QDir dir("./exports/securitys/");
+    if(!dir.exists() && !dir.mkpath("."))
+        dir.setPath(QApplication::applicationDirPath());
+    QString dirName = QFileDialog::getExistingDirectory(this,tr("选择导出的目录"),dir.path());
+    bool fileExist;
+    if(chkRightType.isChecked()){
+        QList<RightType*> rts;
+        rts = allRightTypes.values();
+        qSort(rts.begin(),rts.end(),rightTypeByCode);
+        QString fileName = dirName + "/rightTypes.txt";
+        fileExist = QFile::exists(fileName);
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+            QFile file(fileName);
+            if(!file.open(QFile::WriteOnly|QFile::Text)){
+                myHelper::ShowMessageBoxError(tr("打开文件“rightTypes.txt”时出错！"));
+                return;
+            }
+            QTextStream ts(&file);
+            int mv, sv;
+            appCon->getAppCfgVersion(mv,sv,BDVE_RIGHTTYPE);
+            ts<<QString("version=%1.%2\n").arg(mv).arg(sv);
+            foreach(RightType* rt, rts)
+                ts<<rt->serialToText()<<"\n";
+            ts.flush();
+            file.close();
+        }
+    }
+    if(chkRight.isChecked()){
+        QList<Right*> rs;
+        rs = allRights.values();
+        qSort(rs.begin(),rs.end(),rightByCode);
+        QString fileName = dirName + "/rights.txt";
+        fileExist = QFile::exists(fileName);
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+            QFile file(fileName);
+            if(!file.open(QFile::WriteOnly|QFile::Text)){
+                myHelper::ShowMessageBoxError(tr("打开文件“rights.txt”时出错！"));
+                return;
+            }
+            QTextStream ts(&file);
+            int mv, sv;
+            appCon->getAppCfgVersion(mv,sv,BDVE_RIGHT);
+            ts<<QString("version=%1.%2\n").arg(mv).arg(sv);
+            foreach(Right* r, rs)
+                ts<<r->serialToText()<<"\n";
+            ts.flush();
+            file.close();
+        }
+    }
+    if(chkMac.isChecked()){
+        QList<Machine*> macs;
+        macs = appCon->getAllMachines().values();
+        qSort(macs.begin(),macs.end(),byMacMID);
+        QString fileName = dirName + "/machines.txt";
+        fileExist = QFile::exists(fileName);
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+            QFile file(fileName);
+            if(!file.open(QFile::WriteOnly|QFile::Text)){
+                myHelper::ShowMessageBoxError(tr("打开文件“machines.txt”时出错！"));
+                return;
+            }
+            QTextStream ts(&file);
+            int mv, sv;
+            appCon->getAppCfgVersion(mv,sv,BDVE_WORKSTATION);
+            ts<<QString("version=%1.%2\n").arg(mv).arg(sv);
+            foreach(Machine* m, macs)
+                ts<<m->serialToText()<<"\n";
+            ts.flush();
+            file.close();
+        }
+    }
+    if(chkGroup.isChecked()){
+        QList<UserGroup*> gs = allGroups.values();
+        qSort(gs.begin(),gs.end(),groupByCode);
+        QString fileName = dirName + "/groups.txt";
+        fileExist = QFile::exists(fileName);
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+            QFile file(fileName);
+            if(!file.open(QFile::WriteOnly|QFile::Text)){
+                myHelper::ShowMessageBoxError(tr("打开文件“groups.txt”时出错！"));
+                return;
+            }
+            QTextStream ts(&file);
+            int mv, sv;
+            appCon->getAppCfgVersion(mv,sv,BDVE_GROUP);
+            ts<<QString("version=%1.%2\n").arg(mv).arg(sv);
+            foreach(UserGroup* g, gs)
+                ts<<g->serialToText()<<"\n";
+            ts.flush();
+            file.close();
+        }
+    }
+    if(chkUser.isChecked()){
+        QList<User*> us = allUsers.values();
+        qSort(us.begin(),us.end(),userByCode);
+        QString fileName = dirName + "/users.txt";
+        fileExist = QFile::exists(fileName);
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+            QFile file(fileName);
+            if(!file.open(QFile::WriteOnly|QFile::Text)){
+                myHelper::ShowMessageBoxError(tr("打开文件“users.txt”时出错！"));
+                return;
+            }
+            QTextStream ts(&file);
+            int mv, sv;
+            appCon->getAppCfgVersion(mv,sv,BDVE_USER);
+            ts<<QString("version=%1.%2\n").arg(mv).arg(sv);
+            foreach(User* u, us)
+                ts<<u->serialToText()<<"\n";
+            ts.flush();
+            file.close();
+        }
+    }
+    myHelper::ShowMessageBoxInfo(tr("操作成功完成！"));
+}
+
+/**
+ * @brief 导入应用配置信息（包括工作站、组、用户、权限和权限类型等）
+ */
+void MainWindow::on_actImpAppCfg_triggered()
+{
+    if(!curUser->isSuperUser())
+        return;
+    QDialog dlg(this);
+    QLabel title(tr("选择要导入的部分："),&dlg);
+    QCheckBox chkRightType(tr("权限类型"), &dlg);
+    QCheckBox chkRight(tr("权限"), &dlg);
+    QCheckBox chkMac(tr("工作站"), &dlg);
+    QCheckBox chkGroup(tr("用户组"), &dlg);
+    QCheckBox chkUser(tr("用户"), &dlg);
+    QPushButton btnOk(tr("确定"), &dlg);
+    QPushButton btnCancel(tr("取消"), &dlg);
+    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+    QHBoxLayout lb; lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
+    QVBoxLayout* lm = new QVBoxLayout;
+    lm->addWidget(&title);lm->addWidget(&chkRightType);
+    lm->addWidget(&chkRight); lm->addWidget(&chkMac);
+    lm->addWidget(&chkGroup); lm->addWidget(&chkUser);
+    lm->addLayout(&lb);
+    dlg.setLayout(lm);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    if(!chkRight.isChecked() && !chkRightType.isChecked() && !chkMac.isChecked()
+            && !chkGroup.isChecked() && !chkUser.isChecked())
+        return;
+
+    //默认导入目录
+    QDir dir("./exports/securitys/");
+    if(!dir.exists() && !dir.mkpath("."))
+        dir.setPath(QApplication::applicationDirPath());
+    QString dirName = QFileDialog::getExistingDirectory(this,tr("选择导出的目录"),dir.path());
+    QString fileName;
+    QFile file;  QTextStream ts;
+    int mv,sv;
+
+    if(chkRightType.isChecked()){
+        fileName = dirName + "/rightTypes.txt";
+        if(!QFile::exists(fileName)){
+            myHelper::ShowMessageBoxWarning(tr("导入文件“rightTypes.txt”不存在！"));
+            return;
+        }
+        file.setFileName(fileName);
+        if(!file.open(QFile::ReadOnly|QFile::Text)){
+            myHelper::ShowMessageBoxError(tr("打开文件“rightTypes.txt”时出错！"));
+            return;
+        }
+        ts.setDevice(&file);
+        if(!inspectVersionBeforeImport(ts.readLine(),BDVE_RIGHTTYPE,"rightTypes.txt",mv,sv))
+            return;
+        QHash<int,RightType*> rts = allRightTypes;
+        allRightTypes.clear();
+        QList<RightType*> rightTypes;
+        while(!ts.atEnd()){
+            QString text = ts.readLine();
+            RightType* rt = RightType::serialFromText(text,allRightTypes);
+            if(!rt){
+                myHelper::ShowMessageBoxWarning(tr("导入权限类型时出现错误，请查看日志！"));
+                allRightTypes = rts;
+                return;
+            }
+            rightTypes<<rt;
+            allRightTypes[rt->code] = rt;
+        }
+        if(!appCon->clearAndSaveRightTypes(rightTypes,mv,sv)){
+            myHelper::ShowMessageBoxError(tr("在保存导入的权限类型时发生错误！"));
+            allRightTypes = rts;
+            return;
+        }
+    }
+    if(chkRight.isChecked()){
+        fileName = dirName + "/rights.txt";
+        if(!QFile::exists(fileName)){
+            myHelper::ShowMessageBoxWarning(tr("导入文件“rights.txt”不存在！"));
+            return;
+        }
+        file.setFileName(fileName);
+        if(!file.open(QFile::ReadOnly|QFile::Text)){
+            myHelper::ShowMessageBoxError(tr("打开文件“rights.txt”时出错！"));
+            return;
+        }
+        ts.setDevice(&file);
+        if(!inspectVersionBeforeImport(ts.readLine(),BDVE_RIGHT,"rights.txt",mv,sv))
+            return;
+        QHash<int,Right*> rs = allRights;
+        allRights.clear();
+        QList<Right*> rights;
+        while(!ts.atEnd()){
+            QString text = ts.readLine();
+            Right* r = Right::serialFromText(text,allRightTypes);
+            if(!r){
+                myHelper::ShowMessageBoxWarning(tr("导入权限类型时出现错误，请查看日志！"));
+                allRights = rs;
+                return;
+            }
+            rights<<r;
+            allRights[r->getCode()] = r;
+        }
+        if(!appCon->clearAndSaveRights(rights,mv,sv)){
+            myHelper::ShowMessageBoxError(tr("在保存导入的权限时发生错误！"));
+            allRights = rs;
+            return;
+        }
+    }
+    if(chkGroup.isChecked()){
+        fileName = dirName + "/groups.txt";
+        if(!QFile::exists(fileName)){
+            myHelper::ShowMessageBoxWarning(tr("导入文件“groups.txt”不存在！"));
+            return;
+        }
+        file.setFileName(fileName);
+        if(!file.open(QFile::ReadOnly|QFile::Text)){
+            myHelper::ShowMessageBoxError(tr("打开文件“groups.txt”时出错！"));
+            return;
+        }
+        ts.setDevice(&file);
+        if(!inspectVersionBeforeImport(ts.readLine(),BDVE_GROUP,"groups.txt",mv,sv))
+            return;
+        QHash<int,UserGroup*> gs = allGroups;
+        allGroups.clear();
+        QList<UserGroup*> groups;
+        while(!ts.atEnd()){
+            QString text = ts.readLine();
+            UserGroup* g = UserGroup::serialFromText(text,allRights,allGroups);
+            if(!g){
+                myHelper::ShowMessageBoxWarning(tr("导入权限类型时出现错误，请查看日志！"));
+                allGroups = gs;
+                return;
+            }
+            groups<<g;
+            allGroups[g->getGroupCode()] = g;
+        }
+        if(!appCon->clearAndSaveGroups(groups,mv,sv)){
+            myHelper::ShowMessageBoxError(tr("在保存导入的组配置信息时发生错误！"));
+            allGroups = gs;
+            return;
+        }
+    }
+    if(chkUser.isChecked()){
+        fileName = dirName + "/users.txt";
+        if(!QFile::exists(fileName)){
+            myHelper::ShowMessageBoxWarning(tr("导入文件“users.txt”不存在！"));
+            return;
+        }
+        file.setFileName(fileName);
+        if(!file.open(QFile::ReadOnly|QFile::Text)){
+            myHelper::ShowMessageBoxError(tr("打开文件“users.txt”时出错！"));
+            return;
+        }
+        ts.setDevice(&file);
+        if(!inspectVersionBeforeImport(ts.readLine(),BDVE_USER,"users.txt",mv,sv))
+            return;
+        QHash<int,User*> us = allUsers; //备份全局用户表
+        allUsers.clear();
+        QList<User*> users;
+        while(!ts.atEnd()){
+            QString text = ts.readLine();
+            User* u = User::serialFromText(text,allRights,allGroups);
+            if(!u){
+                myHelper::ShowMessageBoxWarning(tr("导入权限类型时出现错误，请查看日志！"));
+                allUsers = us;  //恢复全局用户表
+                return;
+            }
+            users<<u;
+            allUsers[u->getUserId()] = u;
+        }
+        if(!appCon->clearAndSaveUsers(users,mv,sv)){
+            myHelper::ShowMessageBoxError(tr("在保存导入的用户配置信息时发生错误！"));
+            allUsers = us;
+            return;
+        }
+    }
+    if(chkMac.isChecked()){
+        fileName = dirName + "/machines.txt";
+        if(!QFile::exists(fileName)){
+            myHelper::ShowMessageBoxWarning(tr("导入文件“machines.txt”不存在！"));
+            return;
+        }
+        file.setFileName(fileName);
+        if(!file.open(QFile::ReadOnly|QFile::Text)){
+            myHelper::ShowMessageBoxError(tr("打开文件“machines.txt”时出错！"));
+            return;
+        }
+        ts.setDevice(&file);
+        if(!inspectVersionBeforeImport(ts.readLine(),BDVE_WORKSTATION,"machines.txt",mv,sv))
+            return;
+        QList<Machine*> macs;
+        while(!ts.atEnd()){
+            QString text = ts.readLine();
+            Machine* mac = Machine::serialFromText(text);
+            if(!mac){
+                myHelper::ShowMessageBoxWarning(tr("导入权限类型时出现错误，请查看日志！"));
+                return;
+            }
+            macs<<mac;
+        }
+        if(!appCon->clearAndSaveMacs(macs,mv,sv)){
+            myHelper::ShowMessageBoxError(tr("保存导入的工作站配置信息时发生错误！"));
+            return;
+        }
+        appCon->refreshMachines();
+    }
+    myHelper::ShowMessageBoxInfo(tr("操作成功完成，需要重新启动应用以使新的设置生效！"));
+}
+
+
 
 /**
  * @brief MainWindow::isExecAccountTransform
@@ -1422,11 +1844,12 @@ void MainWindow::viewSubjectExtra()
 
     ApcData* w = NULL;
     SubWindowDim* winfo = NULL;
-    QByteArray* sinfo = NULL;
+    QByteArray* sinfo = new QByteArray;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_LOOKUPSUBEXTRA)){
-        appCon->getSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,winfo,sinfo);
-        w = new ApcData(curAccount,false,this);
+        appCon->getSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,winfo);
+        dbUtil->getSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,sinfo);
+        w = new ApcData(curAccount,false,sinfo,this);
         w->setWindowTitle(tr("科目余额"));
     }
     else{
@@ -1462,13 +1885,13 @@ void MainWindow::openSpecPz(int pid,int bid)
         return;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     int month = pz->getDate2().month();
-    QByteArray* sinfo = NULL;
+    QByteArray cinfo;
     SubWindowDim* winfo = NULL;
     if(isIn){
         PzDialog* w = NULL;
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
-            appCon->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
-            w = new PzDialog(month,curSuiteMgr,sinfo);
+            appCon->getSubWinInfo(SUBWIN_PZEDIT,winfo,&cinfo);
+            w = new PzDialog(month,curSuiteMgr,&cinfo);
             w->setWindowTitle(tr("凭证窗口（新）"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
@@ -1497,8 +1920,8 @@ void MainWindow::openSpecPz(int pid,int bid)
         historyPzSetIndex[suiteId] = 0;
         HistoryPzForm* w;
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_HISTORYVIEW)){
-            appCon->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
-            w = new HistoryPzForm(pz,sinfo);
+            appCon->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,&cinfo);
+            w = new HistoryPzForm(pz,&cinfo);
             subWinGroups.value(suiteId)->showSubWindow(SUBWIN_HISTORYVIEW,w,winfo);
         }
         else{
@@ -1508,29 +1931,9 @@ void MainWindow::openSpecPz(int pid,int bid)
         }
         w->setCurBa(bid);
         w->setWindowTitle(tr("历史凭证（%1年%2月）").arg(curSuiteMgr->year()).arg(month));
-        if(sinfo)
-            delete sinfo;
         if(winfo)
             delete winfo;
     }
-        //        HistoryPzForm* form;
-        //        if(!subWindows.contains(SUBWIN_HISTORYVIEW)){
-        //            QByteArray* sinfo;
-        //            SubWindowDim* winfo;
-        //            dbUtil->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
-        //            form = new HistoryPzForm(pz,sinfo);
-        //            showSubWindow(SUBWIN_HISTORYVIEW,winfo,form);
-        //            if(sinfo)
-        //                delete sinfo;
-        //            if(winfo)
-        //                delete winfo;
-        //        }
-        //        else{
-        //            form  = static_cast<HistoryPzForm*>(subWindows.value(SUBWIN_HISTORYVIEW)->widget());
-        //            form->setPz(pz);
-        //        }
-        //        form->setCurBa(bid);
-
 }
 
 //生成利润表
@@ -1978,7 +2381,7 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
 {
     //如果帐套已关闭，或指定月份已结账，则利用历史凭证显示窗口显示
     int suiteId = accSmg->getSuiteRecord()->id;
-    QByteArray* sinfo = NULL;
+    QByteArray cinfo;
     SubWindowDim* winfo = NULL;
     bool editable = false;
 
@@ -1993,8 +2396,8 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
             historyPzSetIndex[suiteId] = 0;
             HistoryPzForm* w;
             if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_HISTORYVIEW)){
-                appCon->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,sinfo);
-                w = new HistoryPzForm(historyPzSet.value(suiteId).first(),sinfo);
+                appCon->getSubWinInfo(SUBWIN_HISTORYVIEW,winfo,&cinfo);
+                w = new HistoryPzForm(historyPzSet.value(suiteId).first(),&cinfo);
                 subWinGroups.value(suiteId)->showSubWindow(SUBWIN_HISTORYVIEW,w,winfo);
             }
             else{
@@ -2011,8 +2414,8 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
         if((curSuiteMgr != accSmg) || ((curSuiteMgr == accSmg) && (curSuiteMgr->month() != month)))
             curSuiteMgr = accSmg;
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
-            appCon->getSubWinInfo(SUBWIN_PZEDIT,winfo,sinfo);
-            PzDialog* w = new PzDialog(month,curSuiteMgr,sinfo);
+            appCon->getSubWinInfo(SUBWIN_PZEDIT,winfo,&cinfo);
+            PzDialog* w = new PzDialog(month,curSuiteMgr,&cinfo);
             w->setWindowTitle(tr("凭证编辑窗口"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
@@ -2119,7 +2522,7 @@ void MainWindow::pzSetClosed(AccountSuiteManager *accSmg, int month)
 void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
 {
     //确定是唯一性还是多个同类型子窗口可以同时存在的子窗口
-    QByteArray* state = NULL;
+    QByteArray* cinfo = NULL,*pinfo=NULL;
     SubWindowDim* dim = NULL;
     disconnect(subWin,SIGNAL(windowClosed(MyMdiSubWindow*)),this,SLOT(commonSubWindowClosed(MyMdiSubWindow*)));
     subWindowType winType = subWin->getWindowType();
@@ -2130,7 +2533,7 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
         if(winType == SUBWIN_ACCOUNTPROPERTY){
             AccountPropertyConfig* w = static_cast<AccountPropertyConfig*>(subWin->widget());
             if(w){
-                state = w->getState();
+                cinfo = w->getCommonState();
                 w->closeAllPage();
                 delete w;
             }
@@ -2152,7 +2555,12 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
         else if(winType == SUBWIN_SECURITY){
             SecConDialog* w = static_cast<SecConDialog*>(subWin->widget());
             if(w)
-                state = w->getState();
+                cinfo = w->getState();
+        }
+        else if(winType == SUBWIN_OPTION){
+            ConfigPanels* w = static_cast<ConfigPanels*>(subWin->widget());
+            if(w)
+                cinfo = w->getState();
         }
 #ifdef Q_OS_WIN
         else if(winType == SUBWIN_TAXCOMPARE){
@@ -2173,12 +2581,15 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
         }
         commonGroups_multi.remove(winType,subWin);
     }
-    if(dim || state)
-        appCon->saveSubWinInfo(winType,dim,state);
-    if(dim)
+    if(dim){
+        appCon->saveSubWinInfo(winType,dim,cinfo);
         delete dim;
-    if(state)
-        delete state;
+        delete cinfo;
+    }
+    if(pinfo && curAccount){
+        dbUtil->saveSubWinInfo(winType,pinfo);
+        delete pinfo;
+    }
 }
 
 /**
@@ -2661,11 +3072,12 @@ void MainWindow::on_actCurStatNew_triggered()
 
     CurStatDialog* dlg = NULL;
     SubWindowDim* winfo = NULL;
-    QByteArray* sinfo = NULL;
+    QByteArray cinfo,pinfo;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZSTAT)){
-        appCon->getSubWinInfo(SUBWIN_PZSTAT,winfo,sinfo);
-        dlg = new CurStatDialog(curSuiteMgr->getStatUtil(), sinfo, this);
+        appCon->getSubWinInfo(SUBWIN_PZSTAT,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_PZSTAT,&pinfo);
+        dlg = new CurStatDialog(curSuiteMgr->getStatUtil(), &cinfo, &pinfo, this);
         connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
         connect(dlg,SIGNAL(extraValided()),this,SLOT(extraValid()));
     }
@@ -2677,8 +3089,6 @@ void MainWindow::on_actCurStatNew_triggered()
     subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZSTAT,dlg,winfo);
     if(winfo)
         delete winfo;
-    if(sinfo)
-        delete sinfo;
 }
 
 //登录
@@ -2692,12 +3102,24 @@ void MainWindow::on_actLogin_triggered()
         recentUserId = curUser->getUserId();        
         ui->statusbar->setUser(curUser);
     }
-    rfLogin();;
+    rfLogin();
 }
 
 //登出
 void MainWindow::on_actLogout_triggered()
 {
+    if(curSuiteMgr && curSuiteMgr->isDirty()){
+        if(QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("当前帐套已改变，要保存吗？")))
+            curSuiteMgr->save();
+        else
+            curSuiteMgr->rollback();
+        curSuiteMgr->closePzSet();
+    }
+    //关闭所有打开的子窗口和面板窗口
+    foreach(QMdiSubWindow* subWin, ui->mdiArea->subWindowList())
+        subWin->close();
+    foreach(QDockWidget* dw, dockWindows.values())
+        dw->hide();
     curUser = NULL;
     ui->statusbar->setUser(curUser);
     rfLogin();
@@ -2718,12 +3140,13 @@ void MainWindow::on_actShiftUser_triggered()
 //显示安全配置对话框
 void MainWindow::on_actSecCon_triggered()
 {
-    QByteArray* sinfo = NULL;
+    QByteArray* sinfo = new QByteArray;
     SubWindowDim* winfo = NULL;
     SecConDialog* dlg = NULL;
     if(!commonGroups.contains(SUBWIN_SECURITY)){
+        appCon->getSubWinInfo(SUBWIN_SECURITY,winfo,sinfo);
         if(dbUtil)
-            appCon->getSubWinInfo(SUBWIN_SECURITY,winfo,sinfo);
+            dbUtil->getSubWinInfo(SUBWIN_SECURITY,sinfo);
         dlg = new SecConDialog(sinfo,this);
     }
     showCommonSubWin(SUBWIN_SECURITY,dlg,winfo);
@@ -3160,18 +3583,17 @@ void MainWindow::on_actShowTotal_triggered()
  */
 void MainWindow::on_actDetailView_triggered()
 {
-    QByteArray* sinfo = NULL;
+    QByteArray cinfo,pinfo;
     SubWindowDim* winfo = NULL;
     ShowDZDialog* dlg = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_DETAILSVIEW)){
-        appCon->getSubWinInfo(SUBWIN_DETAILSVIEW,winfo,sinfo);
-        dlg = new ShowDZDialog(curAccount,sinfo);
+        appCon->getSubWinInfo(SUBWIN_DETAILSVIEW,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_DETAILSVIEW,&pinfo);
+        dlg = new ShowDZDialog(curAccount,&cinfo,&pinfo);
         connect(dlg,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
     }
     subWinGroups.value(suiteId)->showSubWindow(SUBWIN_DETAILSVIEW,dlg,winfo);
-    if(sinfo)
-        delete sinfo;
     if(winfo)
         delete winfo;
 }
@@ -3610,19 +4032,139 @@ bool MainWindow::exportCommonSubject()
     return true;
 }
 
+/**
+ * @brief 临时助手函数，导出权限系统设置信息到文本文件
+ */
+void MainWindow::exportRightSys()
+{
+    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE","ExportRS");
+    QString fileName = PATCHES_PATH + "basicdata.dat";
+    db.setDatabaseName(fileName);
+    if(!db.open()){
+        QMessageBox::critical(this,"",tr("打开数据库文件（%1）出错！").arg(fileName));
+        return;
+    }
+    QFile file(PATCHES_PATH + "rightTypes.txt");
+    if(!file.open(QIODevice::WriteOnly|QIODevice::Text)){
+        QMessageBox::critical(this,"","Open file rightTypes for writeOnly error!");
+        return;
+    }
+    QTextStream ts(&file);
+    QString s = QString("select * from %1 order by %2,%3").arg(tbl_base_righttypes)
+            .arg(fld_base_rt_pcode).arg(fld_base_rt_code);
+    QSqlQuery q(db);
+    if(!q.exec(s)){
+        QMessageBox::critical(this,"",QString("Exec Sql statement: %1").arg(s));
+        return;
+    }
+    while(q.next()){
+        int pcode = q.value(FI_BASE_RT_PCODE).toInt();
+        int code = q.value(FI_BASE_RT_CODE).toInt();
+        QString name = q.value(FI_BASE_RT_NAME).toString();
+        QString explain = q.value(FI_BASE_RT_EXPLAIN).toString();
+        ts<<pcode<<"||"<<code<<"||"<<name<<"||"<<explain<<"\n";
+    }
+    ts.flush();
+
+    file.setFileName(PATCHES_PATH + "rights.txt");
+    if(!file.open(QIODevice::WriteOnly|QIODevice::Text)){
+        QMessageBox::critical(this,"","Open file rightTypes for writeOnly error!");
+        return;
+    }
+    ts.setDevice(&file);
+    s = QString("select * from %1 order by %2").arg(tbl_base_rights).arg(fld_base_rt_code);
+    if(!q.exec(s)){
+        QMessageBox::critical(this,"",QString("Exec Sql statement: %1").arg(s));
+        return;
+    }
+    while(q.next()){
+        int code = q.value(FI_BASE_R_CODE).toInt();
+        int type = q.value(FI_BASE_R_TYPE).toInt();
+        QString name = q.value(FI_BASE_R_NAME).toString();
+        QString explain = q.value(FI_BASE_R_EXPLAIN).toString();
+        ts<<code<<"||"<<type<<"||"<<name<<"||"<<explain<<"\n";
+    }
+    ts.flush();
+    QMessageBox::information(this,"",tr("成功导出权限系统设置信息！"));
+}
+
+/**
+ * @brief 在导入应用配置信息前执行版本检测
+ * @param versionText   导入文件的第一行，表示待导入版本号
+ * @param type          指定哪个应用配置类型
+ * @param fileName      导入文件名
+ * @param fmv           导入配置的主版本号
+ * @param fsv           导入配置的次版本号
+ * @return 如果版本号识别出错，或导入版本低于或等于当前版本且用户取消导入，则返回false，否则返回true
+ */
+bool MainWindow::inspectVersionBeforeImport(QString versionText, BaseDbVersionEnum type, QString fileName, int &fmv, int &fsv)
+{
+    QStringList ls = versionText.split("=");
+    fmv=0,fsv=0;
+    bool vError = false;
+    if(ls.count() != 2)
+        vError = true;
+    else{
+        ls = ls.at(1).split(".");
+        if(ls.count() != 2)
+            vError = true;
+        else{
+            bool ok;
+            fmv = ls.at(0).toInt(&ok);
+            if(!ok)
+                vError = true;
+            else{
+                fsv = ls.at(1).toInt(&ok);
+                if(!ok)
+                    vError = true;
+            }
+        }
+    }
+    if(vError){
+        myHelper::ShowMessageBoxWarning(tr("文件“%1”无法识别版本号！").arg(fileName));
+        return false;
+    }
+    int mv,sv;
+    appCon->getAppCfgVersion(mv,sv,type);
+    if((fmv < mv) || ((fmv == mv) && (fsv <= sv))){
+        QString info;
+        switch(type){
+        case BDVE_RIGHTTYPE:
+            info = tr("权限类型设置\n");
+            break;
+        case BDVE_RIGHT:
+            info = tr("权限设置\n");
+            break;
+        case BDVE_GROUP:
+            info = tr("组设置\n");
+            break;
+        case BDVE_USER:
+            info = tr("用户设置\n");
+            break;
+        case BDVE_WORKSTATION:
+            info = tr("工作站设置\n");
+            break;
+        }
+        info.append(tr("当前版本：%1.%2\n导入版本：%3.%4\n版本不是最新的，确定需要导入吗？")
+                .arg(mv).arg(sv).arg(fmv).arg(fsv));
+        if(myHelper::ShowMessageBoxQuesion(info) == QDialog::Rejected)
+            return false;
+    }
+    return true;
+}
+
 //显示账户属性对话框
 void MainWindow::on_actAccProperty_triggered()
 {
-    QByteArray* sinfo = NULL;
+    QByteArray cinfo;
     SubWindowDim* winfo = NULL;
     AccountPropertyConfig* dlg = NULL;
     if(!commonGroups.contains(SUBWIN_ACCOUNTPROPERTY)){
-        appCon->getSubWinInfo(SUBWIN_ACCOUNTPROPERTY,winfo,sinfo);
-        dlg = new AccountPropertyConfig(curAccount);
+        appCon->getSubWinInfo(SUBWIN_ACCOUNTPROPERTY,winfo,&cinfo);
+        //dbUtil->getSubWinInfo(SUBWIN_ACCOUNTPROPERTY,pinfo);
+        dlg = new AccountPropertyConfig(curAccount,&cinfo);
     }
     showCommonSubWin(SUBWIN_ACCOUNTPROPERTY,dlg,winfo);
-    if(sinfo)
-        delete sinfo;
     if(winfo)
         delete winfo;
 }
@@ -3688,7 +4230,7 @@ void MainWindow::on_actPzErrorInspect_triggered()
     SubWindowDim* dim = NULL;
     int suiteId = curSuiteMgr->getSuiteRecord()->id;
     if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_VIEWPZSETERROR)){
-        appCon->getSubWinInfo(SUBWIN_VIEWPZSETERROR,dim,state);
+        appCon->getSubWinInfo(SUBWIN_VIEWPZSETERROR,dim);
         w = new ViewPzSetErrorForm(curSuiteMgr,state);
         if(!dim){
             dim = new SubWindowDim;
@@ -3839,7 +4381,7 @@ void MainWindow::on_actViewLog_triggered()
     SubWindowDim* winfo = NULL;
     LogView* form = NULL;
     if(!commonGroups.contains(SUBWIN_LOGVIEW)){
-        appCon->getSubWinInfo(SUBWIN_LOGVIEW,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_LOGVIEW,winfo);
         form = new LogView;
     }
     showCommonSubWin(SUBWIN_NOTEMGR,form,winfo);
@@ -3979,27 +4521,19 @@ bool MainWindow::impTestDatas()
 //    int r = myHelper::ShowMessageBoxQuesion(tr("这是询问测试！"));
 
     //AppConfig::getInstance()->saveDirName(AppConfig::DIR_TRANSOUT,"/media/ProgVol/5");
+//    QSet<int> i1;i1<<1<<2<<3<<4<<5;
+//    QSet<int> i2; i2<<3<<4;
+//    QSet<int> i3= i1&i2;
+
+//    SubWindowDim *dim=new SubWindowDim;
+//    QByteArray state(5,'A');
+//    dim->x = 11;
+//    dim->y = 22;
+//    dim->w = 202;
+//    dim->h = 101;
+//    appCon->saveSubWinInfo(100,dim,&state);
+//    SubWindowDim* dim2=0;
+//    QByteArray state2;
+//    appCon->getSubWinInfo(100,dim2,&state2);
     int i = 0;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

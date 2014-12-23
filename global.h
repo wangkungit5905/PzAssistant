@@ -40,6 +40,7 @@ extern QString hVersion;        //应用程序当前支持的最高账户文件�
 
 //应用程序的路径变量
 extern QString LOGS_PATH;       //日志文件目录
+extern QString PATCHES_PATH;    //补丁文件目录
 extern QString DATABASE_PATH;   //工作数据库路径
 extern QString BASEDATA_PATH;   //基础数据库路径
 extern QString BACKUP_PATH;     //账户文件备份目录

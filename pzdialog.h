@@ -116,8 +116,8 @@ public:
 
     explicit PzDialog(int month, AccountSuiteManager* psm, QByteArray* sinfo, QWidget *parent = NULL);
     ~PzDialog();
-    void setState(QByteArray* info);
-    QByteArray* getState();
+    void setCommonState(QByteArray* info);
+    QByteArray* getCommonState();
     void setMonth(int month);
 
     void adjustViewReadonly();
@@ -322,8 +322,8 @@ public:
     ~HistoryPzForm();
     void setPz(PingZheng* pz);
     void setCurBa(int bid);
-    void setState(QByteArray* info);
-    QByteArray* getState();
+    void setCommonState(QByteArray* info);
+    QByteArray* getCommonState();
 private slots:
     void colWidthChanged(int logicalIndex, int oldSize, int newSize);
 private:

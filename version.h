@@ -6,6 +6,8 @@
 #include <QSqlDatabase>
 #include <QDialog>
 
+#include "commdatastruct.h"
+
 class QSettings;
 
 namespace Ui {
@@ -37,7 +39,7 @@ enum VersionUpgradeInspectResult{
     VUIR_MUST   =   1,  //系统版本高于当前账户版本，需要升级
     VUIR_DONT   =   0,  //版本相等，不需要升级
     VUIR_LOW    =   -1, //系统版本低于当前账户版本，程序版本太低，不能打开当前账户
-    VUIR_CANT   =   -2  //不能获取当前账户的版本号，因此不能确定是否可以升级，也不能打开该账户
+    VUIR_CANT   =   -2, //不能获取当前账户的版本号，因此不能确定是否可以升级，也不能打开该账户
 };
 
 class VMBase : public QObject
@@ -118,7 +120,9 @@ public:
     bool perfectVersion();
     void getSysVersion(int &mv, int &sv);
     void getCurVersion(int &mv, int &sv);
+    void getCurTabVersion(int &mv, int &sv, BaseDbVersionEnum versionType);
     bool setCurVersion(int mv, int sv);
+    bool setCurTabVersion(int mv, int sv, BaseDbVersionEnum versionType);
     bool execUpgrade(int verNum);
 private:
     void appendVersion(int mv, int sv, UpgradeFun_Config upFun);

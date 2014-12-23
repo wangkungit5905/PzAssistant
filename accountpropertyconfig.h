@@ -447,10 +447,11 @@ public:
         CI_MV       = 3
     };
 
-    explicit ApcData(Account* account, bool isCfg, QWidget *parent = 0);
+    explicit ApcData(Account* account, bool isCfg, QByteArray* state=0, QWidget *parent = 0);
     ~ApcData();
-    void init();
+    void init(QByteArray* state=0);
     void setYM(int year, int month);
+    QByteArray *getProperState();
 
 private slots:
     void curFSubChanged(int index);
@@ -494,6 +495,10 @@ private:
     QBrush bg_red;              //当二级科目有余额项时所采用的前景色
     QFont boldFont;
     bool extraCfg;              //是期初余额配置（true：默认），还是余额显示
+
+    //需要保存的专有状态信息（b：期初编辑，e：余额显示）
+    qint16 b_fsubId,b_ssubId,e_fsubId,e_ssubId,e_y;
+    qint8 e_m;
 };
 
 class ApcReport : public QWidget
@@ -541,10 +546,10 @@ class AccountPropertyConfig : public QDialog
     };
     
 public:
-    explicit AccountPropertyConfig(Account* account, QWidget *parent = 0);
+    explicit AccountPropertyConfig(Account* account, QByteArray* cinfo, QWidget *parent = 0);
     ~AccountPropertyConfig();
-    QByteArray* getState(){return NULL;}
-    void setState(QByteArray* state){}
+    QByteArray* getCommonState();
+    void setCommonState(QByteArray* state);
 
 public slots:
     void closeAllPage();

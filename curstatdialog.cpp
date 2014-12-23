@@ -14,10 +14,13 @@
 #include "outputexceldlg.h"
 #include "myhelper.h"
 
-CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *parent)
+CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* cinfo, QByteArray* pinfo, QWidget *parent)
     :DialogWithPrint(parent),ui(new Ui::CurStatDialog),statUtil(statUtil)
 {
     ui->setupUi(this);
+    account = statUtil->getAccount();
+    smg = statUtil->getSubjectManager();
+    setProperState(pinfo);
     init();
 
     headerModel = NULL;
@@ -50,7 +53,7 @@ CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* sinfo, QWidget *par
     hv->setSectionsClickable(true);
     //hv->setStyleSheet("QHeaderView::section {background-color:darkcyan;}");
     ui->tview->setHorizontalHeader(hv);
-    setState(sinfo);
+    setCommonState(cinfo);
     stat();
 }
 
@@ -65,7 +68,7 @@ CurStatDialog::~CurStatDialog()
  *  第一次调用此函数时，已经显示表格数据（此函数应在setDate函数后得到调用）
  * @param info
  */
-void CurStatDialog::setState(QByteArray *info)
+void CurStatDialog::setCommonState(QByteArray *info)
 {
     qint8 i8;
     qint16 i16;
@@ -199,11 +202,34 @@ void CurStatDialog::setState(QByteArray *info)
 }
 
 /**
+ * @brief CurStatDialog::setProperState
+ * 恢复窗口专有的内部状态
+ * @param info
+ */
+void CurStatDialog::setProperState(QByteArray *info)
+{
+    if(!info || info->isEmpty()){
+        fsub = 0;
+        ssub = 0;
+    }
+    else{
+        QBuffer bf(info);
+        QDataStream in(&bf);
+        bf.open(QIODevice::ReadOnly);
+        qint8 i8;
+        in>>i8;
+        fsub = smg->getFstSubject(i8);
+        in>>i8;
+        ssub = smg->getSndSubject(i8);
+    }
+}
+
+/**
  * @brief CurStatDialog::getState
- *  获取状态信息
+ *  获取通用状态信息
  * @return
  */
-QByteArray *CurStatDialog::getState()
+QByteArray *CurStatDialog::getCommonState()
 {
     //状态信息序列化顺序：
     //1、表格格式
@@ -246,6 +272,29 @@ QByteArray *CurStatDialog::getState()
     d = stateInfo.margins.top; out<<d;
     d = stateInfo.margins.bottom; out<<d;
 
+    bf.close();
+    return info;
+}
+
+/**
+ * @brief CurStatDialog::getProperState
+ * 获取专有状态信息
+ * @return
+ */
+QByteArray *CurStatDialog::getProperState()
+{
+    //状态信息序列化顺序：
+    //1、选择的一级科目id
+    //2：选择的二级科目id
+    QByteArray* info = new QByteArray;
+    QBuffer bf(info);
+    QDataStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    qint8 i8;
+    i8 = fsub?fsub->getId():0;
+    out<<i8;
+    i8 = ssub?ssub->getId():0;
+    out<<i8;
     bf.close();
     return info;
 }
@@ -326,7 +375,6 @@ void CurStatDialog::colWidthChanged(int logicalIndex, int oldSize, int newSize)
 void CurStatDialog::onSelFstSub(int index)
 {
     fsub = ui->cmbFstSub->itemData(index).value<FirstSubject*>();
-    //fsub = ui->cmbFstSub->getFirstSubject();
     disconnect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     if(index == 0){
         ui->cmbSndSub->clear();
@@ -335,16 +383,11 @@ void CurStatDialog::onSelFstSub(int index)
     }
     else{
         ui->cmbSndSub->setEnabled(true);
-        ui->cmbSndSub->setFirstSubject(fsub);
-        //ui->cmbSndSub->clear();
+        ui->cmbSndSub->setParentSubject(fsub);
         ui->cmbSndSub->insertItem(0,tr("所有"),0);
-        //QVariant v;
-        //foreach(SecondSubject* sub, fsub->getChildSubs()){
-        //    v.setValue<SecondSubject*>(sub);
-        //    ui->cmbSndSub->addItem(sub->getName(),v);
-        //}
-        //scom->setPid(fsub->getId());
+
     }
+    ui->cmbSndSub->setCurrentIndex(0);
     ssub = NULL;
     connect(ui->cmbSndSub, SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     viewTable();
@@ -388,10 +431,7 @@ void CurStatDialog::onDetViewChanged(bool checked)
 }
 
 void CurStatDialog::init()
-{
-    account = statUtil->getAccount();
-    //smg = account->getSubjectManager();
-    smg = statUtil->getSubjectManager();
+{    
     ui->cmbFstSub->setSubjectManager(smg);
     ui->cmbFstSub->setSubjectClass();
     ui->cmbFstSub->insertItem(0,tr("所有"));
@@ -408,29 +448,28 @@ void CurStatDialog::init()
     disconnect(ui->cmbSndSub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     disconnect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int))
             ,this, SLOT(colWidthChanged(int,int,int)));
-
-    //ui->cmbFstSub->clear();
-    //ui->cmbFstSub->addItem(tr("所有"),0);
-    //FSubItrator* fsubIt = smg->getFstSubItrator();
-    //QVariant v;
-    //while(fsubIt->hasNext()){
-    //    fsubIt->next();
-    //    v.setValue<FirstSubject*>(fsubIt->value());
-    //    ui->cmbFstSub->addItem(fsubIt->value()->getName(),v);
-    //}
-    //ui->cmbSndSub->clear();
-    ui->cmbSndSub->addItem(tr("所有"),0);
-    fsub = NULL; ssub = NULL;
-
+    if(fsub){
+        ui->cmbSndSub->setEnabled(true);
+        ui->cmbFstSub->setSubject(fsub);
+        ui->cmbSndSub->setParentSubject(fsub);
+        ui->cmbSndSub->insertItem(0,tr("所有"),0);
+        if(ssub)
+            ui->cmbSndSub->setSubject(ssub);
+        else
+            ui->cmbSndSub->setCurrentIndex(0);
+    }
+    else{
+        ui->cmbSndSub->setEnabled(false);
+        ui->cmbFstSub->setCurrentIndex(0);
+        ui->cmbSndSub->addItem(tr("所有"),0);
+    }
 
     ui->lbly->setText(QString::number(statUtil->year()));
     ui->lblm->setText(QString::number(statUtil->month()));
-    ui->cmbFstSub->setCurrentIndex(0);
     connect(ui->cmbFstSub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelFstSub(int)));
     connect(ui->cmbSndSub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int))
             ,this, SLOT(colWidthChanged(int,int,int)));
-
 }
 
 

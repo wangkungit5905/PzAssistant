@@ -48,6 +48,11 @@ public:
     int osType(){return _osType;}
     void setOsType(int type){_osType = type;}
 
+    QString serialToText();
+    static Machine* serialFromText(QString serialText);
+    static void serialAllToBinary(int mv, int sv, QByteArray* ds);
+    static bool serialAllFromBinary(QList<Machine*> &macs, int &mv, int &sv, QByteArray* ds);
+
     bool operator ==(const Machine &other) const;
     bool operator !=(const Machine &other) const;
 private:
@@ -73,43 +78,28 @@ class TransferRecordManager : public QObject
     Q_OBJECT
 public:
     TransferRecordManager(QString filename,QWidget* parent=0);
+    ~TransferRecordManager();
     bool setFilename(QString filename);
     bool saveTransferRecord(AccontTranferInfo* rec);
-    bool attechMachineInfo(QList<Machine *> macs);
-    bool attechUserInfo(QList<User*> users);
-    bool clearTemUserTable();
-    bool isReqUpdateUser(){return !upUsers.isEmpty();}  //是否需要更新本站的用户信息
-    bool updateUsers();
-    bool updateMachines();
-    bool clearTemMachineTable();
+    bool attechAppCfgInfo(QList<BaseDbVersionEnum> &verTypes, QStringList &verNames, QList<int> &mvs, QList<int> &svs, QList<QByteArray*> &infos);
+    bool upgradeAppCfg();
+    bool clearTemAppCfgTable();
     bool getAccountInfo(QString& accCode, QString& accName, QString& accLName);
     int getSourceStationId(){return smid;}
     int getDestinateStationId(){return dmid;}
     AccontTranferInfo* getLastTransRec();
     bool isMacUpdated(){return macUpdated;}
-
-
-private slots:
-    void execStationUpdate();
-
 private:
-    void genMergeMacs();
-    bool _getTakeMacs();
-    bool _inspectSelUpMacs();
-
     QSqlDatabase db;
+    bool isTranOut;                 //true：转出，false：转入
     bool connected;
-    bool isExistTemMacTable;     //是否存在捎带的临时主机表标记
-    bool isExistTemUserTable;    //是否存在捎带的临时用户信息表标记
-    bool macUpdated;             //本站拥有的工作站信息是否已更新
-    int smid,dmid;               //源站和目的站的id
-    AccontTranferInfo* trRec; //账户最近的转移记录
-    QHash<int,Machine*> localMacs, takeMacs, mergeMacs;//本地拥有的、转入账户捎带的、两者合并的工作站列表
-    QList<Machine*> newMacs,upMacs,notMacs,notExistMacs;//新增、更新，未被更新的、不存在的主机列表
-    QList<Machine*> selUpMacs; //用户选择的需要更新的主机
-    QTableWidget* tab;
+    bool isExistTemAppCfgTable;     //是否存在捎带应用配置信息的临时表的标记
+    bool macUpdated;                //本站拥有的工作站信息是否已更新
+    int smid,dmid;                  //源站和目的站的id
+    AccontTranferInfo* trRec;       //账户最近的转移记录
+    QHash<int,Machine*> localMacs;  //本地拥有的工作站列表
     QWidget* p;
-    QList<User*> upUsers;   //更新的用户
+    AppConfig* conf;
 };
 
 class TransferOutDialog : public QDialog
@@ -132,26 +122,17 @@ public:
     QString getAccountFileName();
     Machine* getDestiMachine();
     QString getDescription();
-    bool isTakeMachineInfo();
+    bool isTakeAppConInfo();
     QDir getDirection();
     
 private slots:
     void selectAccountChanged(int index);
-    void enAct();
 
     void on_cmbMachines_currentIndexChanged(int index);
 
     void on_btnBrowser_clicked();
 
-    void on_chkTake_toggled(bool checked);
-
     void on_btnOk_clicked();
-
-    void on_actReset_triggered();
-
-    void on_actDel_triggered();
-
-    void on_btnTakeUser_clicked();
 
 private:
     bool canTransferOut(DontTranReason& reason);
@@ -161,7 +142,7 @@ private:
     AppConfig* conf;
     QHash<AccountTransferState, QString> tranStates; //转移状态名称表
     QList<AccountCacheItem*> accCacheItems; //本地缓存账户列表
-    QList<Machine*> localMacs,takeMacs;  //本地主机、捎带主机列表
+    QList<Machine*> localMacs;  //本地主机、捎带主机列表
     Machine* lm;    //本机对象
     QDir dir;
     QList<User*> upUsers;   //更新的用户对象列表
@@ -176,7 +157,6 @@ public:
     ~TransferInDialog();
 
 private slots:
-    void refreshMachines();
 
     void on_btnOk_clicked();
 

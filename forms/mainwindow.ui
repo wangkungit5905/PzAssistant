@@ -164,6 +164,8 @@
      <addaction name="actImpTestDatas"/>
      <addaction name="actViewLog"/>
      <addaction name="actSqlTool"/>
+     <addaction name="actExpAppCfg"/>
+     <addaction name="actImpAppCfg"/>
      <addaction name="actUpdateSql"/>
      <addaction name="actExtComSndSub"/>
     </widget>
@@ -1182,6 +1184,22 @@
    </property>
    <property name="toolTip">
     <string>笔记管理</string>
+   </property>
+  </action>
+  <action name="actExpAppCfg">
+   <property name="text">
+    <string>导出应用设置</string>
+   </property>
+   <property name="toolTip">
+    <string>导出工作站、组、用户的设置到文本文件</string>
+   </property>
+  </action>
+  <action name="actImpAppCfg">
+   <property name="text">
+    <string>导入应用设置</string>
+   </property>
+   <property name="toolTip">
+    <string>导入安全模块设置</string>
    </property>
   </action>
  </widget>

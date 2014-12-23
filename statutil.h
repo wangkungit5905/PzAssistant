@@ -30,6 +30,7 @@ class StatUtil : public QObject
 
 public:
     StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager* parent);
+    void setPzSet(QList<PingZheng *> *pzs){this->pzs=pzs;}
     bool stat();
     bool save();
     void clear();

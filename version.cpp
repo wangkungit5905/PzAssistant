@@ -1802,11 +1802,53 @@ void VMAppConfig::getCurVersion(int &mv, int &sv)
     mv = curMv; sv = curSv;
 }
 
+void VMAppConfig::getCurTabVersion(int &mv, int &sv, BaseDbVersionEnum versionType)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1,%2 from %3 where %4=%5")
+            .arg(fld_base_version_master).arg(fld_base_version_second).arg(tbl_base_version)
+            .arg(fld_base_version_typeEnum).arg(versionType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        mv = 1; sv = 0;
+        return;
+    }
+    if(!q.first()){
+        mv = 1; sv = 0;
+    }
+    else{
+        mv = q.value(0).toInt();
+        sv = q.value(1).toInt();
+    }
+}
+
 bool VMAppConfig::setCurVersion(int mv, int sv)
 {
     QSqlQuery q(db);
     QString s = QString("update version set master=%1,second=%2").arg(mv).arg(sv);
-    return q.exec(s);
+    if(q.exec(s))
+        return (q.numRowsAffected() == 1);
+    s = QString("update %1 set %2=%3,%4=%5 where %6=%7").arg(tbl_base_version)
+            .arg(fld_base_version_master).arg(mv).arg(fld_base_version_second)
+            .arg(sv).arg(fld_base_version_typeEnum).arg(BDVE_DB);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return (q.numRowsAffected() == 1);
+}
+
+bool VMAppConfig::setCurTabVersion(int mv, int sv, BaseDbVersionEnum versionType)
+{
+    QSqlQuery q(db);
+    QString s = QString("update %1 set %2=%3,%4=%5 where %6=%7").arg(tbl_base_version)
+            .arg(fld_base_version_master).arg(mv).arg(fld_base_version_second)
+            .arg(sv).arg(fld_base_version_typeEnum).arg(versionType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return (q.numRowsAffected() == 1);
 }
 
 /**
@@ -1845,15 +1887,22 @@ void VMAppConfig::appendVersion(int mv, int sv, UpgradeFun_Config upFun)
 
 /**
  * @brief VMAppConfig::_getCurVersion
- *  读取当前版本
+ *  读取当前基本库版本
  * @return
  */
 bool VMAppConfig::_getCurVersion()
 {
     QSqlQuery q(db);
     QString s = "select master, second from version";
-    if(!q.exec(s))
-        return false;
+    if(!q.exec(s)){
+        s = QString("select %1,%2 from %3 where %4=%5").arg(fld_base_version_master)
+                .arg(fld_base_version_second).arg(tbl_base_version)
+                .arg(fld_base_version_typeEnum).arg(BDVE_DB);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
     if(!q.first())
         return false;
     curMv = q.value(0).toInt();
@@ -2288,8 +2337,7 @@ bool VMAppConfig::updateTo1_6()
 
 /**
  * @brief VMAppConfig::updateTo1_7
- * 1、给用户表添加专属账户、额外权限字段，该字段存放该用户可以访问的账户代码列表，用逗号分隔。
- * 2、创建外部工具配置表
+ * 1、创建外部工具配置表
  * @return
  */
 bool VMAppConfig::updateTo1_7()
@@ -2297,21 +2345,7 @@ bool VMAppConfig::updateTo1_7()
     QSqlQuery q(db);
     int verNum = 107;
     emit startUpgrade(verNum, tr("开始更新到版本“1.7”..."));
-    QString s = QString("alter table %1 add column  %2 TEXT")
-            .arg(tbl_base_users).arg(fld_base_u_accounts);
-    if(!q.exec(s)){
-        upgradeStep(verNum,tr("在给%1表添加专属账户字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
-        LOG_SQLERROR(s);
-        return false;
-    }
-    s = QString("alter table %1 add column  %2 TEXT")
-            .arg(tbl_base_users).arg(fld_base_u_extra_rights);
-    if(!q.exec(s)){
-        upgradeStep(verNum,tr("在给%1表添加额外权限字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
-        LOG_SQLERROR(s);
-        return false;
-    }
-    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 TEXT, %3 TEXT, %4 TEXT)")
+    QString s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 TEXT, %3 TEXT, %4 TEXT)")
             .arg(tbl_base_external_tools).arg(fld_base_et_name).arg(fld_base_et_commandline)
             .arg(fld_base_et_parameter);
     if(!q.exec(s)){
@@ -2325,8 +2359,14 @@ bool VMAppConfig::updateTo1_7()
 
 /**
  * @brief VMAppConfig::updateTo1_8
- * 1、给Machines表添加表示操作系统类型的字段“osType”，并添加表格osTypes，初始化（windows和linux）
- * 2、将子窗口信息（位置、尺寸和自定义状态信息）挪到基本库中
+ * 1、给用户表添加专属账户（该字段存放该用户可以访问的账户代码列表，用逗号分隔）、禁用权限字段（
+ * 即禁用用户所属组中的某些权限）和是否启用字段
+ * 2、修改groups表，添加组所属组，组的简要说明字段
+ * 3、给Machines表添加表示操作系统类型的字段“osType”，初始化生产环境工作站。
+ *    并添加表格osTypes，初始化（windows和linux）
+ * 4、创建子窗口公共状态信息表（子窗口的位置和大小等）
+ * 5、修改version表定义，添加版本类型枚举值和版本类型名字段
+ * 6、初始化应用的安全环境设置（权限、组、用户等）
  * @return
  */
 bool VMAppConfig::updateTo1_8()
@@ -2335,20 +2375,66 @@ bool VMAppConfig::updateTo1_8()
     int verNum = 108;
     emit startUpgrade(verNum, tr("开始更新到版本“1.8”..."));
 
-    //1
-    QString s = QString("alter table %1 add column  %2 INTEGER")
+    if(!db.transaction()){
+        emit upgradeStep(verNum,tr("在启动事务时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    QString splitTag = "||";
+    QString s;
+    //1修改User表
+    s = QString("alter table %1 add column %2 TEXT")
+            .arg(tbl_base_users).arg(fld_base_u_accounts);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在给%1表添加专属账户字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("alter table %1 add column  %2 TEXT")
+            .arg(tbl_base_users).arg(fld_base_u_disabled_rights);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在给%1表添加禁用权限字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("alter table %1 add column  %2 TEXT")
+            .arg(tbl_base_users).arg(fld_base_u_isenabled);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在给%1表添加是否启用字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    //2、修改Groups表
+    s = QString("alter table %1 add column  %2 TEXT")
+            .arg(tbl_base_usergroups).arg(fld_base_g_groups);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在给%1表添加所属组字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("alter table %1 add column  %2 TEXT")
+            .arg(tbl_base_usergroups).arg(fld_base_g_explain);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在给%1表添加简要说明字段时发生错误！").arg(tbl_base_users),VUR_ERROR);
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    //3、修改Machines表
+    s = QString("alter table %1 add column  %2 INTEGER")
             .arg(tbl_machines).arg(fld_mac_ostype);
     if(!q.exec(s)){
-        upgradeStep(verNum,tr("在给%1表添加操作系统类型字段时发生错误！").arg(tbl_machines),VUR_ERROR);
+        emit upgradeStep(verNum,tr("在给%1表添加操作系统类型字段时发生错误！").arg(tbl_machines),VUR_ERROR);
         return false;
     }
     s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 TEXT, %4 TEXT)")
             .arg(tbl_base_osTypes).arg(fld_base_osTypes_code)
             .arg(fld_base_osTypes_mName).arg(fld_base_osTypes_sName);
     if(!q.exec(s)){
-        upgradeStep(verNum,tr("在创建表“%1”是发生错误！").arg(tbl_base_osTypes),VUR_ERROR);
+        emit upgradeStep(verNum,tr("在创建表“%1”是发生错误！").arg(tbl_base_osTypes),VUR_ERROR);
         return false;
     }
+    //初始化操作系统类型表
     QList<int> codes;
     codes<<1<<2<<11;
     QStringList names,versions;
@@ -2357,7 +2443,7 @@ bool VMAppConfig::updateTo1_8()
     s = QString("insert into %1(%2,%3,%4) values(:code,:name,:version)").arg(tbl_base_osTypes)
             .arg(fld_base_osTypes_code).arg(fld_base_osTypes_mName).arg(fld_base_osTypes_sName);
     if(!q.prepare(s)){
-        upgradeStep(verNum,tr("初始化操作系统类型表时发生错误！"),VUR_ERROR);
+        emit upgradeStep(verNum,tr("初始化操作系统类型表时发生错误！"),VUR_ERROR);
         return false;
     }
     for(int i = 0; i < codes.count(); ++i){
@@ -2366,13 +2452,324 @@ bool VMAppConfig::updateTo1_8()
         q.bindValue(":version",versions.at(i));
         q.exec();
     }
+    //初始化生产环境中的工作站设置信息
+    QFile file(PATCHES_PATH + "machines.txt");
+    if(!file.open(QIODevice::ReadOnly|QIODevice::Text)){
+        emit upgradeStep(verNum,tr("打开文件“machines.txt”失败！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("delete from %1").arg(tbl_machines);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("在清空工作站表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(:mid,:type,:isLocal,:name,:explain,:osType)")
+            .arg(tbl_machines).arg(fld_mac_mid).arg(fld_mac_type).arg(fld_mac_islocal)
+            .arg(fld_mac_sname).arg(fld_mac_desc).arg(fld_mac_ostype);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(s),VUR_ERROR);
+        return false;
+    }
+    QTextStream in(&file);
+    in.readLine();
+    int row = 0;
+    while(!in.atEnd()){
+        row++;
+        QString line = in.readLine();
+        QStringList sl = line.split(splitTag);
+        if(sl.count() != 6){
+            emit upgradeStep(verNum,tr("文件“machines.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        bool ok = true, tok = false;
+        int mid = sl.at(0).toInt(&tok); ok = ok && tok;
+        int type = sl.at(1).toInt(&tok); ok = ok && tok;
+        int isLocal = sl.at(2).toInt(&tok); ok = ok && tok;
+        int osType = sl.at(5).toInt(&tok); ok = ok && tok;
+        if(!ok){
+            emit upgradeStep(verNum,tr("文件“machines.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        q.bindValue(":mid",mid);
+        q.bindValue(":type",type);
+        q.bindValue(":isLocal",isLocal==0?false:true);
+        q.bindValue(":name",sl.at(3));
+        q.bindValue(":explain",sl.at(4));
+        q.bindValue(":osType",osType);
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(q.lastQuery()),VUR_ERROR);
+            return false;
+        }
+    }
 
-    //2
+    //4、创建子窗口公共状态信息表
+    s = QString("drop table if exists %1").arg(tbl_base_subWinInfo);
+    q.exec(s);
     s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 INTEGER,%4 INTEGER,%5 INTEGER,%6 INTEGER,%7 BLOB)")
             .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(fld_base_swi_x).arg(fld_base_swi_y)
             .arg(fld_base_swi_width).arg(fld_base_swi_height).arg(fld_base_swi_stateInfo);
     if(!q.exec(s)){
-        upgradeStep(verNum,tr("创建子窗口信息表时发生错误！"),VUR_ERROR);
+        emit upgradeStep(verNum,tr("创建子窗口信息表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+
+    //5、修改version表定义，添加版本类型枚举值和版本类型名字段
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 TEXT, %4 INTEGER, %5 INTEGER)")
+            .arg(tbl_base_version).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+            .arg(fld_base_version_master).arg(fld_base_version_second);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("创建版本表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = "select * from version";
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("读取老版本表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    int mv = 1, sv = 0;
+    if(!q.first())
+        emit upgradeStep(verNum,tr("读取老版本表时发生错误！"),VUR_ERROR);
+    else{
+        mv = q.value(1).toInt();
+        sv = q.value(2).toInt();
+    }
+    s = QString("insert into %1(%2,%3,%4,%5) values(:te,:tn,:mv,:sv)")
+            .arg(tbl_base_version).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+            .arg(fld_base_version_master).arg(fld_base_version_second);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("准备初始化版本表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    q.bindValue(":te",BDVE_DB);
+    q.bindValue(":tn","bdb_version");
+    q.bindValue(":mv",mv);
+    q.bindValue(":sv",sv);
+    if(!q.exec()){
+        emit upgradeStep(verNum,tr("初始化基本库版本时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    names.clear();codes.clear();
+    names<<"RightType"<<"Right"<<"Group"<<"User"<<"WorkStation";
+    codes<<(int)BDVE_RIGHTTYPE<<(int)BDVE_RIGHT<<(int)BDVE_GROUP<<(int)BDVE_USER
+         <<(int)BDVE_WORKSTATION;
+    for(int i = 0; i < names.count(); ++i){
+        q.bindValue(":te",codes.at(i));
+        q.bindValue(":tn",names.at(i));
+        q.bindValue(":mv",1);
+        q.bindValue(":sv",0);
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("初始化“%1”版本号时发生错误！").arg(names.at(i)),VUR_ERROR);
+            return false;
+        }
+    }
+    if(!q.exec("drop table version"))
+        emit upgradeStep(verNum,tr("移除老的版本表时发生错误！"),VUR_ERROR);
+
+    //6、初始化应用的安全环境设置（权限类型、权限、组、用户等）
+    //（1）权限类型
+    //初始化记录数据
+    names.clear();versions.clear();codes.clear();
+    QList<int> pcodes;
+    file.setFileName(PATCHES_PATH + "rightTypes.txt");
+    if(!file.open(QIODevice::ReadOnly|QIODevice::Text)){
+        emit upgradeStep(verNum,tr("打开文件“rightTypes.txt”失败！"),VUR_ERROR);
+        return false;
+    }
+    in.setDevice(&file);
+    in.readLine();
+    row = 0;
+    while (!in.atEnd()){
+        row++;
+        QString line = in.readLine();
+        QStringList ls = line.split("||");
+        if(ls.count() != 4){
+            emit upgradeStep(verNum,tr("文件“rightTypes.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        bool ok1 = false,ok2 = false;
+        pcodes<<ls.at(0).toInt(&ok1);
+        codes<<ls.at(1).toInt(&ok2);
+        if(!ok1 || !ok2){
+            emit upgradeStep(verNum,tr("文件“rightTypes.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        names<<ls.at(2); versions<<ls.at(3);
+    }
+    s = QString("delete from %1").arg(tbl_base_righttypes);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("清空权限类型表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5) values(:pcode,:code,:name,:explain)")
+            .arg(tbl_base_righttypes).arg(fld_base_rt_pcode).arg(fld_base_rt_code)
+            .arg(fld_base_rt_name).arg(fld_base_rt_explain);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(s),VUR_ERROR);
+        return false;
+    }
+    for(int i = 0; i<codes.count(); ++i){
+        q.bindValue(":pcode",pcodes.at(i));
+        q.bindValue(":code",codes.at(i));
+        q.bindValue(":name",names.at(i));
+        q.bindValue(":explain",versions.at(i));
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(q.lastQuery()),VUR_ERROR);
+            return false;
+        }
+    }
+
+    //（2）权限    
+    names.clear();versions.clear();codes.clear();pcodes.clear();
+    file.setFileName(PATCHES_PATH + "rights.txt");
+    if(!file.open(QIODevice::ReadOnly|QIODevice::Text)){
+        emit upgradeStep(verNum,tr("打开文件“rightTypes.txt”失败！"),VUR_ERROR);
+        return false;
+    }
+    in.setDevice(&file);
+    in.readLine();
+    row = 0;
+    while (!in.atEnd()){
+        row++;
+        QString line = in.readLine();
+        QStringList ls = line.split("||");
+        if(ls.count() != 4){
+            emit upgradeStep(verNum,tr("文件“rights.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        bool ok1 = false, ok2 = false;
+        codes<<ls.at(0).toInt(&ok1);
+        pcodes<<ls.at(1).toInt(&ok2);
+        if(!ok1 || !ok2){
+            emit upgradeStep(verNum,tr("文件“rights.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        names<<ls.at(2); versions<<ls.at(3);
+    }
+    s = QString("delete from %1").arg(tbl_base_rights);
+    if(!q.exec(s)){
+        emit upgradeStep(verNum,tr("清空权限表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5) values(:code,:type,:name,:explain)")
+            .arg(tbl_base_rights).arg(fld_base_r_code).arg(fld_base_r_type)
+            .arg(fld_base_r_name).arg(fld_base_r_explain);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(s),VUR_ERROR);
+        return false;
+    }
+    for(int i = 0; i<codes.count(); ++i){
+        q.bindValue(":code",codes.at(i));
+        q.bindValue(":type",pcodes.at(i));
+        q.bindValue(":name",names.at(i));
+        q.bindValue(":explain",versions.at(i));
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(q.lastQuery()),VUR_ERROR);
+            return false;
+        }
+    }
+
+    names.clear();versions.clear();codes.clear();pcodes.clear();
+
+    //（3）初始化生产环境中的用户组设置信息
+    file.setFileName(PATCHES_PATH + "groups.txt");
+    if(!file.open(QIODevice::ReadOnly|QIODevice::Text)){
+        emit upgradeStep(verNum,tr("打开文件“groups.txt”失败！"),VUR_ERROR);
+        return false;
+    }
+    in.setDevice(&file);
+    s = QString("delete from %1").arg(tbl_base_usergroups);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("在清空“groups”表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:code,:name,:rights,:owner,:desc)")
+            .arg(tbl_base_usergroups).arg(fld_base_g_code).arg(fld_base_g_name)
+            .arg(fld_base_g_rights).arg(fld_base_g_groups).arg(fld_base_g_explain);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(s),VUR_ERROR);
+        return false;
+    }
+    in.readLine();
+    row = 0;
+    while(!in.atEnd()){
+        row++;
+        QString line = in.readLine();
+        QStringList sl = line.split(splitTag);
+        if(sl.count() != 5){
+            emit upgradeStep(verNum,tr("文件“groups.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        bool ok = false;
+        int code = sl.at(0).toInt(&ok);
+        if(!ok){
+            emit upgradeStep(verNum,tr("文件“groups.txt内”行 %1 格式错误，非法组代码！").arg(row),VUR_ERROR);
+            return false;
+        }
+        q.bindValue(":code",code);
+        q.bindValue(":name",sl.at(1));
+        q.bindValue(":rights",sl.at(2));
+        q.bindValue(":owner",sl.at(3));
+        q.bindValue(":desc",sl.at(4));
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(q.lastQuery()),VUR_ERROR);
+            return false;
+        }
+    }
+
+    //（4）用户
+    file.setFileName(PATCHES_PATH + "users.txt");
+    if(!file.open(QIODevice::ReadOnly|QIODevice::Text)){
+        emit upgradeStep(verNum,tr("打开文件“groups.txt”失败！"),VUR_ERROR);
+        return false;
+    }
+    in.setDevice(&file);
+    s = QString("delete from %1").arg(tbl_base_users);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("在清空“users”表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7) values(:id,:name,:pw,:owner,:account,:disRights,:isEnabled)")
+            .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
+            .arg(fld_base_u_groups).arg(fld_base_u_accounts)
+            .arg(fld_base_u_disabled_rights).arg(fld_base_u_isenabled);
+    if(!q.prepare(s)){
+        emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(s),VUR_ERROR);
+        return false;
+    }
+    in.readLine();
+    row = 0;
+    while(!in.atEnd()){
+        row++;
+        QString line = in.readLine();
+        QStringList sl = line.split(splitTag);
+        if(sl.count() != 7){
+            emit upgradeStep(verNum,tr("文件“users.txt内”行 %1 格式错误！").arg(row),VUR_ERROR);
+            return false;
+        }
+        bool ok = true, tok=false;
+        int uid = sl.at(0).toInt(&tok); ok &= tok;
+        int isEnabled = sl.at(1).toInt(&tok); ok &= tok;
+        if(!ok){
+            emit upgradeStep(verNum,tr("文件“users.txt内”行 %1 格式错误，非法组代码！").arg(row),VUR_ERROR);
+            return false;
+        }
+        q.bindValue(":id",uid);
+        q.bindValue(":isEnabled",isEnabled==0?false:true);
+        q.bindValue(":name",sl.at(2));
+        q.bindValue(":pw",sl.at(3));
+        q.bindValue(":owner",sl.at(4));
+        q.bindValue(":account",sl.at(5));
+        q.bindValue(":disRights",sl.at(6));
+        if(!q.exec()){
+            emit upgradeStep(verNum,tr("执行SQL语句错误：%1").arg(q.lastQuery()),VUR_ERROR);
+            return false;
+        }
+    }
+
+    file.close();
+    if(!db.commit()){
+        upgradeStep(verNum,tr("在提交事务时发生错误！"),VUR_ERROR);
+        db.rollback();
         return false;
     }
     endUpgrade(verNum,"基本库成功升级到1.8版",VUR_OK);

@@ -653,10 +653,10 @@ public:
     //static bool saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo = NULL);
 
     //获取子窗口信息
-    static bool getSubWinInfo3(int winEnum, QByteArray*& ba);
+    //static bool getSubWinInfo3(int winEnum, QByteArray*& ba);
 
     //保存字窗口信息
-    static bool saveSubWinInfo3(int winEnum, QByteArray* otherInfo);
+    //static bool saveSubWinInfo3(int winEnum, QByteArray* otherInfo);
 };
 
 void transferDirection(const QHash<int, int> &sd, QHash<int, MoneyDirection> &dd);

@@ -28,11 +28,11 @@
       </attribute>
       <layout class="QHBoxLayout" name="horizontalLayout_5" stretch="1,3">
        <item>
-        <layout class="QVBoxLayout" name="verticalLayout">
+        <layout class="QVBoxLayout" name="verticalLayout" stretch="1,5,1,2">
          <item>
           <widget class="QLabel" name="label">
            <property name="text">
-            <string>组列表：</string>
+            <string>系统组列表：</string>
            </property>
           </widget>
          </item>
@@ -43,10 +43,24 @@
            </property>
           </widget>
          </item>
+         <item>
+          <widget class="QLabel" name="label_8">
+           <property name="text">
+            <string>所选组包含有如下组：</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QListWidget" name="lwGroupContain">
+           <property name="contextMenuPolicy">
+            <enum>Qt::CustomContextMenu</enum>
+           </property>
+          </widget>
+         </item>
         </layout>
        </item>
        <item>
-        <layout class="QGridLayout" name="gridLayout">
+        <layout class="QGridLayout" name="gridLayout" rowstretch="1,2,1,8" columnstretch="1,2,1,4">
          <item row="0" column="0">
           <widget class="QLabel" name="label_2">
            <property name="text">
@@ -61,24 +75,34 @@
            </property>
           </widget>
          </item>
-         <item row="1" column="0">
+         <item row="0" column="2">
           <widget class="QLabel" name="label_3">
            <property name="text">
             <string>组名称：</string>
            </property>
           </widget>
          </item>
-         <item row="1" column="1">
+         <item row="0" column="3">
           <widget class="QLineEdit" name="edtGroupName"/>
          </item>
-         <item row="4" column="0" colspan="2">
+         <item row="1" column="0">
+          <widget class="QLabel" name="label_15">
+           <property name="text">
+            <string>简要说明</string>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1" colspan="3">
+          <widget class="QPlainTextEdit" name="edtGroupExplain"/>
+         </item>
+         <item row="2" column="0" colspan="2">
           <widget class="QLabel" name="label_12">
            <property name="text">
             <string>组拥有的权限：</string>
            </property>
           </widget>
          </item>
-         <item row="5" column="0" colspan="2">
+         <item row="3" column="0" colspan="4">
           <widget class="QTreeWidget" name="trwGroup">
            <attribute name="headerVisible">
             <bool>false</bool>
@@ -89,16 +113,6 @@
             </property>
            </column>
           </widget>
-         </item>
-         <item row="2" column="0">
-          <widget class="QLabel" name="label_15">
-           <property name="text">
-            <string>简要说明</string>
-           </property>
-          </widget>
-         </item>
-         <item row="2" column="1">
-          <widget class="QLineEdit" name="edtGroupExplain"/>
          </item>
         </layout>
        </item>
@@ -152,27 +166,34 @@
                  </property>
                 </widget>
                </item>
-               <item row="1" column="0">
+               <item row="2" column="0">
                 <widget class="QLabel" name="label_6">
                  <property name="text">
                   <string>用户名称：</string>
                  </property>
                 </widget>
                </item>
-               <item row="1" column="1">
+               <item row="2" column="1">
                 <widget class="QLineEdit" name="edtUserName"/>
                </item>
-               <item row="2" column="0">
+               <item row="3" column="0">
                 <widget class="QLabel" name="label_7">
                  <property name="text">
                   <string>用户密码：</string>
                  </property>
                 </widget>
                </item>
-               <item row="2" column="1">
+               <item row="3" column="1">
                 <widget class="QLineEdit" name="edtUserPw">
                  <property name="echoMode">
-                  <enum>QLineEdit::Normal</enum>
+                  <enum>QLineEdit::PasswordEchoOnEdit</enum>
+                 </property>
+                </widget>
+               </item>
+               <item row="1" column="0">
+                <widget class="QCheckBox" name="chkIsEnabled">
+                 <property name="text">
+                  <string>是否启用</string>
                  </property>
                 </widget>
                </item>
@@ -247,6 +268,13 @@
           <layout class="QHBoxLayout" name="horizontalLayout_6" stretch="1,2">
            <item>
             <layout class="QVBoxLayout" name="verticalLayout_5">
+             <item>
+              <widget class="QCheckBox" name="chkViewPW">
+               <property name="text">
+                <string>显示密码</string>
+               </property>
+              </widget>
+             </item>
              <item>
               <widget class="QLabel" name="label_14">
                <property name="text">
@@ -398,17 +426,17 @@
     </layout>
    </item>
   </layout>
-  <action name="actAddGroup">
+  <action name="actAddNewGroup">
    <property name="text">
-    <string>添加组</string>
+    <string>添加新组</string>
    </property>
    <property name="toolTip">
     <string>添加组</string>
    </property>
   </action>
-  <action name="actDelGroup">
+  <action name="actDelSelGroup">
    <property name="text">
-    <string>移除组</string>
+    <string>移除选择的组</string>
    </property>
    <property name="toolTip">
     <string>移除组</string>
@@ -453,6 +481,22 @@
   </action>
   <action name="actDelGrpForUser">
    <property name="text">
+    <string>移除组</string>
+   </property>
+  </action>
+  <action name="actAddGroup">
+   <property name="text">
+    <string>添加组</string>
+   </property>
+   <property name="toolTip">
+    <string>添加所属组</string>
+   </property>
+  </action>
+  <action name="actDelGroup">
+   <property name="text">
+    <string>移除组</string>
+   </property>
+   <property name="toolTip">
     <string>移除组</string>
    </property>
   </action>

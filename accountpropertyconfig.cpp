@@ -2911,18 +2911,18 @@ void BeginCfgItemDelegate::commitAndCloseEditor(int colIndex, bool isMove)
 
 
 ///////////////////////////ApcData///////////////////////////////////////////
-ApcData::ApcData(Account *account, bool isCfg, QWidget *parent) :
+ApcData::ApcData(Account *account, bool isCfg, QByteArray* state, QWidget *parent) :
     QWidget(parent),ui(new Ui::ApcData),account(account),extraCfg(isCfg)
 {
     ui->setupUi(this);
     iniTag = false;
-    curFSub=NULL;
-    curSSub=NULL;
+    b_fsubId=0; b_ssubId=0;e_fsubId=0;e_ssubId=0;e_y=0;e_m=0;
+    curFSub=NULL;curSSub=NULL;
     readOnly = account->isReadOnly();
     boldFont = ui->ssubs->font();
     boldFont.setBold(true);
     if(!isCfg)
-        init();
+        init(state);
 }
 
 ApcData::~ApcData()
@@ -2931,10 +2931,22 @@ ApcData::~ApcData()
     smg = NULL;
 }
 
-void ApcData::init()
+void ApcData::init(QByteArray *state)
 {
     if(iniTag)
         return;
+    if(state && !state->isEmpty()){
+        QBuffer bf(state);
+        QDataStream in(&bf);
+        bf.open(QIODevice::ReadOnly);
+        in>>e_y;
+        in>>e_m;
+        in>>e_fsubId;
+        in>>e_ssubId;
+        in>>b_fsubId;
+        in>>b_ssubId;
+    }
+
     AccountSuiteRecord* asr;
     if(extraCfg){  //期初余额配置模式
         asr = account->getStartSuiteRecord();
@@ -2972,6 +2984,8 @@ void ApcData::init()
             return;
         }
         y = asr->year; m = asr->startMonth;
+        if(e_y == y && m != e_m)
+            m = e_m;
         readOnly = true;
         ui->month->setMaximum(asr->endMonth);
         ui->month->setMinimum(asr->startMonth);
@@ -2992,17 +3006,24 @@ void ApcData::init()
         return;
 
     smg = account->getSubjectManager(asr->subSys);
+    int fsubId = extraCfg?b_fsubId:e_fsubId;
+    int ssubId = extraCfg?b_ssubId:e_ssubId;
+    curFSub = smg->getFstSubject(fsubId);
+    curSSub = smg->getSndSubject(ssubId);
     FSubItrator* it = smg->getFstSubItrator();
     QListWidgetItem* item;
-    QVariant v;
+    QVariant v; int index = -1,fsubIndex = 0;
     while(it->hasNext()){
         it->next();
         if(!it->value()->isEnabled())
             continue;
+        index++;
         item = new QListWidgetItem(it->value()->getName());
         v.setValue<FirstSubject*>(it->value());
         item->setData(Qt::UserRole,v);
         ui->fsubs->addItem(item);
+        if(curFSub && curFSub == it->value())
+            fsubIndex = index;
     }
 
     delegate = new BeginCfgItemDelegate(account,readOnly,false,this);
@@ -3015,8 +3036,70 @@ void ApcData::init()
     ui->ftables->setColumnWidth(CI_DIR, ui->etables->columnWidth(CI_DIR));
     ui->ftables->setColumnWidth(CI_PV, ui->etables->columnWidth(CI_PV));
     connect(ui->etables->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),this,SLOT(adjustColWidth(int,int,int)));
-    if(ui->fsubs->count() > 0)
-        ui->fsubs->setCurrentRow(0);
+    if(fsubIndex >= 0){
+        ui->fsubs->setCurrentRow(fsubIndex);
+        if(ssubId){
+            SecondSubject* ssub = smg->getSndSubject(ssubId);
+            if(ssub){
+                for(int r=0; r < ui->ssubs->count(); ++r){
+                    if(ssub == ui->ssubs->item(r)->data(Qt::UserRole).value<SecondSubject*>()){
+                        ui->ssubs->setCurrentRow(r);
+                        break;
+                    }
+                }
+            }
+
+        }
+    }
+
+//    if(fsubId){
+//        FirstSubject* cFSub = smg->getFstSubject(fsubId);
+//        if(cFSub){
+//            bool f_fonded = false;
+//            for(int i = 0; i < ui->fsubs->count(); ++i){
+//                FirstSubject* fsub = ui->fsubs->item(i)->data(Qt::UserRole).value<FirstSubject*>();
+//                if(cFSub == fsub){
+//                    f_fonded = true;
+//                    ui->fsubs->setCurrentRow(i);
+//                    break;
+//                }
+//            }
+//            if(f_fonded && ssubId && ui->ssubs->count()>0){
+//                SecondSubject* cSSub = smg->getSndSubject(ssubId);
+//                if(cSSub){
+//                    bool s_fonded = false;
+//                    for(int i = 0; i < ui->ssubs->count(); ++i){
+//                        SecondSubject* ssub = ui->ssubs->item(i)->data(Qt::UserRole).value<SecondSubject*>();
+//                        if(cSSub == ssub){
+//                            s_fonded = true;
+//                            ui->ssubs->setCurrentRow(i);
+//                            break;
+//                        }
+//                    }
+//                    if(!s_fonded){
+//                        if(extraCfg)
+//                            e_ssubId=0;
+//                        else
+//                            b_ssubId=0;
+//                    }
+//                }
+//                else{
+//                    if(extraCfg)
+//                        e_ssubId=0;
+//                    else
+//                        b_ssubId=0;
+//                }
+//            }
+//        }
+//        else{
+//            if(extraCfg){
+//                e_fsubId=0;e_ssubId=0;
+//            }
+//            else{
+//                b_fsubId=0;b_ssubId=0;
+//            }
+//        }
+//    }
     iniTag = true;
 }
 
@@ -3038,6 +3121,31 @@ void ApcData::setYM(int year, int month)
     m = month;
     if(ui->fsubs->currentRow() != -1)
         curFSubChanged(ui->fsubs->currentRow());
+}
+
+QByteArray *ApcData::getProperState()
+{
+    if(!extraCfg){
+        e_y = y; e_m = m;
+        e_fsubId = curFSub?curFSub->getId():0;
+        e_ssubId = curSSub?curSSub->getId():0;
+    }
+    else{
+        b_fsubId = curFSub?curFSub->getId():0;
+        b_ssubId = curSSub?curSSub->getId():0;
+    }
+    QByteArray* info = new QByteArray;
+    QBuffer bf(info);
+    QDataStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<e_y;
+    out<<e_m;
+    out<<e_fsubId;
+    out<<e_ssubId;
+    out<<b_fsubId;
+    out<<b_ssubId;
+    bf.close();
+    return info;
 }
 
 void ApcData::curFSubChanged(int index)
@@ -3236,6 +3344,8 @@ void ApcData::windowShallClosed()
 {
     if(ui->save->isEnabled())
         on_save_clicked();
+    QByteArray* state = getProperState();
+    account->getDbUtil()->saveSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,state);
 }
 
 void ApcData::on_add_clicked()
@@ -3561,7 +3671,8 @@ ApcLog::~ApcLog()
 }
 
 ///////////////////////////////AccountPropertyConfig///////////////////////////////////////
-AccountPropertyConfig::AccountPropertyConfig(Account* account, QWidget *parent) : QDialog(parent)
+AccountPropertyConfig::AccountPropertyConfig(Account* account, QByteArray* cinfo, QWidget *parent)
+    : QDialog(parent),account(account)
 {
     contentsWidget = new QListWidget;
     contentsWidget->setViewMode(QListView::IconMode);
@@ -3583,7 +3694,10 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QWidget *parent) 
     ApcSubject* subjectCfg = new ApcSubject(account,this);
     connect(this,SIGNAL(windowShallClosed()),subjectCfg,SLOT(windowShallClosed()));
     pagesWidget->addWidget(subjectCfg);
-    ApcData* dataCfg = new ApcData(account,true,this);
+    QByteArray* state = new QByteArray;
+    account->getDbUtil()->getSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,state);
+    ApcData* dataCfg = new ApcData(account,true,state,this);
+    delete state;
     connect(this,SIGNAL(windowShallClosed()),dataCfg,SLOT(windowShallClosed()));
     pagesWidget->addWidget(dataCfg);
     pagesWidget->addWidget(new ApcReport(this));
@@ -3613,11 +3727,38 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QWidget *parent) 
     setLayout(mainLayout);
 
     setWindowTitle(tr("账户属性配置"));
+    setCommonState(cinfo);
 }
 
 AccountPropertyConfig::~AccountPropertyConfig()
 {
 
+}
+
+QByteArray *AccountPropertyConfig::getCommonState()
+{
+    QByteArray* info = new QByteArray;
+    QBuffer bf(info);
+    QDataStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    qint8 i8 = contentsWidget->currentRow();
+    out<<i8;
+    bf.close();
+    return info;
+}
+
+void AccountPropertyConfig::setCommonState(QByteArray *state)
+{
+    if(!state || state->isEmpty()){
+        contentsWidget->setCurrentRow(0);
+        return;
+    }
+    QBuffer bf(state);
+    QDataStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    qint8 i8; in>>i8;
+    contentsWidget->setCurrentRow(i8);
+    bf.close();
 }
 
 //void AccountPropertyConfig::closeEvent(QCloseEvent *event)
@@ -3653,7 +3794,9 @@ void AccountPropertyConfig::pageChanged(int index)
     }
     else if(index == APC_DATA){
         ApcData* w = static_cast<ApcData*>(pagesWidget->currentWidget());
-        w->init();
+        QByteArray* state = new QByteArray;
+        account->getDbUtil()->getSubWinInfo(SUBWIN_LOOKUPSUBEXTRA,state);
+        w->init(state);
     }
 
 }

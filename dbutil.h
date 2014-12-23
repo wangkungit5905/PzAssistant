@@ -208,6 +208,9 @@ public:
     //笔记功能函数
     bool readNotes(QList<NoteStruct *> &notes);
     bool saveNote(NoteStruct* note, bool isDel=false);
+    //子窗口状态访问函数
+    bool getSubWinInfo(int winEnum, QByteArray *state);
+    bool saveSubWinInfo(int winEnum, QByteArray *state);
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool _readAccountSuites(QList<AccountSuiteRecord*>& suites);

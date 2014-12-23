@@ -46,10 +46,12 @@ public:
         TRT_YEAR    = 3     //年合计行
     };
 
-    explicit ShowDZDialog(Account* account, QByteArray* sinfo = NULL, QWidget *parent = 0);
+    explicit ShowDZDialog(Account* account, QByteArray* cinfo, QByteArray* pinfo, QWidget *parent = 0);
     ~ShowDZDialog();
-    void setState(QByteArray* info);
-    QByteArray* getState();
+    void setCommonState(QByteArray* info);
+    void setProperState(QByteArray* info);
+    QByteArray* getCommonState();
+    QByteArray* getProperState();
     void print(PrintActionClass pac = PAC_TOPRINTER);
 
 private slots:

@@ -6,8 +6,9 @@
 #include <QHBoxLayout>
 #include <QPushButton>
 #include <QCloseEvent>
+#include <QBuffer>
 
-ConfigPanels::ConfigPanels(QWidget *parent) : ConfigPanelBase(parent)
+ConfigPanels::ConfigPanels(QList<ConfigPanelBase*> panels,QList<QIcon> icons, QByteArray* state, QWidget *parent) : ConfigPanelBase(parent)
 {
     reason = R_UNCERTAIN;
     setWindowTitle(tr("应用选项配置"));
@@ -39,10 +40,38 @@ ConfigPanels::ConfigPanels(QWidget *parent) : ConfigPanelBase(parent)
     mainLayout->addSpacing(12);
     mainLayout->addLayout(buttonsLayout);
     setLayout(mainLayout);
+
+    for(int i = 0; i < panels.count(); ++i)
+        addPanel(panels.at(i),icons.at(i));
+    qint8 curIndex = 0;
+    if(state && !state->isEmpty()){
+        QBuffer bf(state);
+        QDataStream in(&bf);
+        bf.open(QIODevice::ReadOnly);
+        in>>curIndex;
+        bf.close();
+    }
+    if(curIndex >=0 && curIndex < panels.count()){
+        contentsWidget->setCurrentRow(curIndex);
+        pagesWidget->setCurrentIndex(curIndex);
+    }
+}
+
+QByteArray *ConfigPanels::getState()
+{
+    QByteArray* info = new QByteArray;
+    QBuffer bf(info);
+    QDataStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    qint8 curIndex = contentsWidget->currentRow();
+    out<<curIndex;
+    bf.close();
+    return info;
 }
 
 void ConfigPanels::addPanel(ConfigPanelBase *panel, QIcon icon)
 {
+    panel->setParent(this);
     QListWidgetItem* item = new QListWidgetItem(contentsWidget);
     item->setIcon(icon);
     item->setText(panel->panelName());

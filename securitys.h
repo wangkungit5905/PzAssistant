@@ -20,6 +20,11 @@ struct RightType{
     int code;               //类别代码
     RightType* pType;        //父类别
     QString name,explain;   //名称和简介
+
+    static RightType* serialFromText(QString serialText, const QHash<int, RightType *> &rightTypes);
+    QString serialToText();
+    static void serialAllToBinary(int mv, int sv, QByteArray* ds);
+    static bool serialAllFromBinary(QList<RightType*> &rts, int &mv, int &sv, QByteArray* ds);
 };
 bool rightTypeByCode(RightType* rt1, RightType* rt2);
 
@@ -76,20 +81,24 @@ public:
     Pz_Advanced_AntiVerify = 204,        //取消审核凭证（204）
     Pz_Advanced_JzHdsy     = 205,        //创建结转汇兑损益凭证（205）
     Pz_Advanced_JzSy       = 206,        //创建结转损益凭证（206）
+    Pz_Advanced_jzlr       = 207,        //创建结转利润凭证（207）
 
 
     //高级凭证集操作（44）
     PzSet_Advance_ShowExtra     = 211,  //查看余额（211）
-    PzSet_Advance_SaveExtra     = 212,  //保存凭证集余额（212）
-    PzSet_Advance_EndSet        = 213,  //凭证集结账（213）
-    PzSet_Advance_AntiEndSet    = 214,  //反结账（214）
-    PzSet_Advance_EndSuite      = 215,  //关账（帐套关账）（215）
-    PzSet_Advance_AntiEndSuite  = 216,  //反关账（216）
+    PzSet_Advance_EndSet        = 212,  //凭证集结账（212）
+    PzSet_Advance_AntiEndSet    = 213,  //反结账（213）
+
+    //帐套操作（47）
+    Suite_EndSuite      = 241,  //关账（帐套关账）（241）
+    Suite_AntiEndSuite  = 242,  //反关账（242）
+    Suite_New           = 243,  //新开帐套（243）
 
     //5、统计类（45）：（251 - 300）
     PzSet_ShowStat_Details  = 251,      //查看明细账
     PzSet_ShowStat_Totals   = 252,      //查看总分类账
     PzSet_ShowStat_Current  = 253,      //查看本期统计
+    PzSet_SaveStat          = 261,      //保存统计值
 
     //6、打印类（46）： （301 - 350）
     Print_Pz           = 301,    //打印凭证（301）；
@@ -112,11 +121,17 @@ public:
     void setExplain(QString explain);
     QString getExplain();
 
+    QString serialToText();
+    static Right* serialFromText(QString serialText, const QHash<int, RightType *> &rightTypes);
+    static void serialAllToBinary(int mv, int sv, QByteArray* ds);
+    static bool serialAllFromBinary(const QHash<int, RightType *> &rightTypes, QList<Right*> &rs, int &mv, int &sv, QByteArray* ds);
+
 private:
     int code;              //权限代码
     RightType* type;              //权限类别代码
     QString name, explain; //权限名称和解释
 };
+Q_DECLARE_METATYPE(Right*)
 bool rightByCode(Right* r1, Right *r2);
 
 
@@ -135,20 +150,32 @@ public:
     void setName(QString name);
     QString getExplain(){return explain;}
     void setExplain(QString explain){this->explain=explain;}
-    QSet<Right*> getHaveRights();
+    QSet<Right*> getExtraRights();
+    QSet<Right*> getAllRights();
     QString getRightCodeList();
     void setHaveRights(QSet<Right*> rights);
     void addRight(Right* right);
-    void delRight(Right* right);
+    void removeRight(Right* right);
+    void addGroup(UserGroup* g){ownerGroups.insert(g);}
+    void removeGroup(UserGroup* g){ownerGroups.remove(g);}
+    QSet<UserGroup*> getOwnerGroups(){return ownerGroups;}
+    void setOwnerGroups(QSet<UserGroup*> gs){ownerGroups = gs;}
+    QString getOwnerCodeList();
+    bool isGroupRight(Right* r);
     int getGroupCode();
     bool hasRight(Right* r);
+
+    QString serialToText();
+    static UserGroup* serialFromText(QString serialText,const QHash<int, Right*> &rights, const QHash<int,UserGroup*> &groups);
+    static void serialAllToBinary(int mv, int sv, QByteArray* ds);
+    static bool serialAllFromBinary(QList<UserGroup*> &groups, int &mv, int &sv, QByteArray* ds,const QHash<int, Right*> &rights);
 
 private:
     int id;
     int code;                       //组代码
     QString name,explain;           //组名，组说明信息
-    QSet<Right*> rights;            //所拥有的权限集（不包括其所属的其他组所拥有的权限）
-    //QSet<UserGroup*> ownerGroups;   //所属组
+    QSet<Right*> rights;            //所拥有的权限集（不包括其所属的其他组所拥有的权限，即组的额外）
+    QSet<UserGroup*> ownerGroups;   //所属组
 
     friend class AppConfig;
 };
@@ -161,6 +188,8 @@ class User
 public:
     User(int id, QString name, QString password = "", QSet<UserGroup*> ownerGroups = QSet<UserGroup*>());
     int getUserId(){return id;}
+    bool isEnabled(){return enabled;}
+    void setEnabled(bool en){enabled=en;}
     QString getName();
     void setName(QString name);
     void setPassword(QString password);
@@ -169,14 +198,16 @@ public:
     QSet<UserGroup*> getOwnerGroups();
     void setOwnerGroups(QSet<UserGroup*> ownerGroups);
     QString getOwnerGroupCodeList();
-    void addGroup(UserGroup* group);
-    void delGroup(UserGroup* group);
-    void addRight(Right* r);
-    QSet<Right*> getExtraRights(){return extraRights;}
-    void clearExtraRights(){extraRights.clear();refreshRights();}
-    QString getExtraRightCodes();
+    void addGroup(UserGroup* group){groups.insert(group);}
+    void delGroup(UserGroup* group){groups.remove(group);}
+    bool isDisabledRight(Right* r){return disRights.contains(r);}
+    QSet<Right*> getAllDisRights(){return disRights;}
+    void setAllDisRights(QSet<Right*> rs){disRights=rs;}
+    void addDisRight(Right* r){disRights.insert(r);}
+    void removeDisRight(Right* r){disRights.remove(r);}
+    void clearDisRights(){disRights.clear();}
+    QString getDisRightCodes();
     QSet<Right*> getAllRights();
-    void setAllRights(QSet<Right*> rs);
     bool haveRight(Right* right);
     bool haveRights(QSet<Right*> rights);
     bool isSuperUser();
@@ -186,18 +217,23 @@ public:
     void removeExclusiveAccount(QString accountCode){accountCodes.remove(accountCode);}
     QStringList getExclusiveAccounts();
     void setExclusiveAccounts(QStringList codes);
+
+    QString serialToText();
+    static User* serialFromText(QString serialText,const QHash<int,Right*> &rights, const QHash<int,UserGroup*> &groups);
+    static void serialAllToBinary(int mv, int sv, QByteArray* ds);
+    static bool serialAllFromBinary(QList<User*> &users, int &mv, int &sv, QByteArray* ds,const QHash<int,Right*> &rights, const QHash<int,UserGroup*> &groups);
+
     static QString encryptPw(QString pw){return pw;} //默认实现不对密码进行加密
     static QString decryptPw(QString pw){return pw;}
 
 private:
-    void refreshRights();
-
     int id;
+    bool enabled;              //是否启用该用户
     QString name;
     QString password;
     QSet<UserGroup*> groups;   //用户所属组
-    QSet<Right*> rights;       //用户拥有的所有权限
-    QSet<Right*> extraRights;   //额外权限
+    QSet<Right*> disRights;       //用户拥有的所有权限
+    //QSet<Right*> extraRights;   //额外权限
     QSet<QString> accountCodes;//专属账户代码集合
 
     friend class AppConfig;

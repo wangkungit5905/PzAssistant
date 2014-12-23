@@ -25,7 +25,7 @@ BaTableWidget::BaTableWidget(QWidget *parent):QTableWidget(parent)
     //构造合计栏表格
     sumTable = new QTableWidget(this);
     sumTable->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    sumTable->setMaximumHeight(30);
+    sumTable->setMaximumHeight(60);
     sumTable->setColumnCount(4);
     sumTable->setRowCount(1);
     sumTable->horizontalHeader()->hide();
@@ -241,6 +241,7 @@ void BaTableWidget::updateSubTableGeometry()
     for(int i = 0; i < sumTable->columnCount(); ++i)
         w += sumTable->columnWidth(i);
     sumTable->setGeometry(x,y,w,h);
+    sumTable->setRowHeight(0,h-2);
 }
 
 /**
@@ -338,9 +339,7 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     ui->setupUi(this);
     curPz = NULL;
     initResources();
-    setState(sinfo);
-
-
+    //setCommonState(sinfo);
     msgTimer = new QTimer(this);
     msgTimer->setInterval(INFO_TIMEOUT);
     msgTimer->setSingleShot(true);
@@ -400,6 +399,7 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
         ui->edtRate->addAction(actModifyRate);
         connect(actModifyRate,SIGNAL(triggered()),this,SLOT(modifyRate()));
     }
+    setCommonState(sinfo);
 }
 
 PzDialog::~PzDialog()
@@ -409,9 +409,9 @@ PzDialog::~PzDialog()
     //
 }
 
-void PzDialog::setState(QByteArray *info)
+void PzDialog::setCommonState(QByteArray *info)
 {
-    if(!info){
+    if(!info || info->isEmpty()){
         states.isValid = true;
         QList<int> tinfos;
         AppConfig::getInstance()->readPzEwTableState(tinfos);
@@ -438,7 +438,7 @@ void PzDialog::setState(QByteArray *info)
     adjustTableSize();
 }
 
-QByteArray *PzDialog::getState()
+QByteArray *PzDialog::getCommonState()
 {
     //
     QByteArray* info = new QByteArray;
@@ -519,7 +519,6 @@ bool PzDialog::isDirty()
 
 /**
  * @brief PzDialog::restoreState 恢复窗口状态
- * @param datas 第1个元素表示表格行高，后6个元素表示表格列宽
  */
 void PzDialog::restoreStateInfo()
 {
@@ -531,34 +530,7 @@ void PzDialog::restoreStateInfo()
     ui->tview->setColumnWidth(BaTableWidget::DVALUE,states.colValueWidth);
     for(int i = 0; i < ui->tview->rowCount(); ++i)
         ui->tview->setRowHeight(i,states.rowHeight);
-//    baColWidths.clear();
-//    if(datas.count() != 7){
-//        baRowHeight = 20;
-//        baColWidths<<DEFCW_SUMMARY<<DEFCW_FS<<DEFCW_SS<<DEFCW_MT<<DEFCW_JV<<DEFCW_DV;
-//    }
-//    else{
-//        baRowHeight = datas.at(0);
-//        for(int i = 1; i < 7; ++i)
-//            baColWidths<<datas.at(i);
-//    }
-//    for(int i = 0; i < 6; ++i)
-//        ui->tview->setColumnWidth(i,baColWidths.at(i));
-//    for(int i = 0; i < ui->tview->rowCount(); ++i)
-//        ui->tview->setRowHeight(i,baRowHeight);
 }
-
-///**
-// * @brief PzDialog::getState 获取窗口的状态信息
-// * @return
-// */
-//PzDialog::stateInfo *PzDialog::getState()
-//{
-
-
-////    datas<<baRowHeight;
-////    for(int i = 0; i < 6; ++i)
-////        datas<<ui->tview->columnWidth(i);
-//}
 
 /**
  * @brief PzDialog::updateContent
@@ -1559,6 +1531,7 @@ void PzDialog::tabRowHeightResized(int index, int oldSize, int newSize)
                this,SLOT(tabRowHeightResized(int,int,int)));
     for(int i = 0; i < ui->tview->rowCount(); ++i)
         ui->tview->setRowHeight(i,newSize);
+    ui->tview->updateSubTableGeometry();
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(tabRowHeightResized(int,int,int)));
 }
@@ -1657,15 +1630,7 @@ void PzDialog::adjustTableSize()
             this,SLOT(tabColWidthResized(int,int,int)));
     disconnect(ui->tview->verticalHeader(),SIGNAL(sectionResized(int,int,int)),
                    this,SLOT(tabRowHeightResized(int,int,int)));
-    ui->tview->setColumnWidth(BaTableWidget::SUMMARY,states.colSummaryWidth);
-    ui->tview->setColumnWidth(BaTableWidget::FSTSUB,states.colFstSubWidth);
-    ui->tview->setColumnWidth(BaTableWidget::SNDSUB,states.colSndSubWidth);
-    ui->tview->setColumnWidth(BaTableWidget::MONEYTYPE,states.colMtWidth);
-    ui->tview->setColumnWidth(BaTableWidget::JVALUE,states.colValueWidth);
-    ui->tview->setColumnWidth(BaTableWidget::DVALUE,states.colValueWidth);
-
-    for(int i = 0; i < ui->tview->rowCount(); ++i)
-        ui->tview->setRowHeight(i,states.rowHeight);
+    restoreStateInfo();
     ui->tview->updateSubTableGeometry();
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(tabColWidthResized(int,int,int)));
@@ -2072,7 +2037,7 @@ HistoryPzForm::HistoryPzForm(PingZheng *pz, QByteArray *sinfo, QWidget *parent) 
     ReadOnlyItemDelegate* delegate = new ReadOnlyItemDelegate(this);
     ui->tview->setItemDelegate(delegate);
     //ui->tview->setColumnCount(6);
-    setState(sinfo);
+    setCommonState(sinfo);
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(colWidthChanged(int,int,int)));
     curY = 0;
@@ -2109,9 +2074,9 @@ void HistoryPzForm::setCurBa(int bid)
     }
 }
 
-void HistoryPzForm::setState(QByteArray *info)
+void HistoryPzForm::setCommonState(QByteArray *info)
 {
-    if(info == NULL){
+    if(!info || info->isEmpty()){
         colWidths<<300<<100<<100<<50<<200<<200;
     }
     else{
@@ -2133,7 +2098,7 @@ void HistoryPzForm::setState(QByteArray *info)
 
 }
 
-QByteArray *HistoryPzForm::getState()
+QByteArray *HistoryPzForm::getCommonState()
 {
     QByteArray* info = new QByteArray;
     QBuffer bf(info);

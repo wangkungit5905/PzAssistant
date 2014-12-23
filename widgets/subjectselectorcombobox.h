@@ -36,7 +36,8 @@ public:
 
     void setSubjectManager(SubjectManager* smg);
     void setSubjectClass(SUBJECTCATALOG subClass = SC_FST);
-    void setFirstSubject(FirstSubject* fsub);
+    void setSubject(SubjectBase *fsub);
+    void setParentSubject(FirstSubject* fsub);
     //FirstSubject* getFirstSubject(){return fsub;}
     //SecondSubject* getSecondSubject(){return ssub;}
 

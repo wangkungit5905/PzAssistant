@@ -2456,6 +2456,7 @@ bool DbUtil::appendMixJoinInfo(int sc, int dc, QList<MixedJoinCfg *> cfgInfos)
 /**
  * @brief DbUtil::getDetViewFilters
  *  获取明细账视图的历史过滤条件记录
+ * @param 帐套id
  * @param rs
  * @return
  */
@@ -4269,6 +4270,68 @@ bool DbUtil::saveNote(NoteStruct *note, bool isDel)
             q.exec("select last_insert_rowid()");
             q.first();
             note->id = q.value(0).toInt();
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::getSubWinInfo
+ *  读取子窗口状态信息
+ * @param winEnum
+ * @param state
+ * @return
+ */
+bool DbUtil::getSubWinInfo(int winEnum, QByteArray *state)
+{
+    if(!state)
+        return false;
+    QSqlQuery q(db);
+    QString s = QString("select %1 from %2 where %3 = %4").arg(fld_swi_stateInfo)
+           .arg(tbl_subWinInfo).arg(fld_swi_enum).arg(winEnum);
+    if(!q.exec(s)){
+       LOG_SQLERROR(s);
+       return false;
+    }
+    if(q.first())
+        *state = q.value(0).toByteArray();
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveSubWinInfo
+ *  保存子窗口状态信息
+ * @param winEnum
+ * @param state
+ * @return
+ */
+bool DbUtil::saveSubWinInfo(int winEnum, QByteArray *state)
+{
+    if(!state)
+        return true;
+    QSqlQuery q(db);
+    QString s = QString("update %1 set %2=:state where %3=%4").arg(tbl_subWinInfo)
+            .arg(fld_swi_stateInfo).arg(fld_swi_enum).arg(winEnum);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    q.bindValue(":state", *state);
+    if(!q.exec()){
+        LOG_SQLERROR(q.lastQuery());
+        return false;
+    }
+    if(q.numRowsAffected() == 0){
+        s = QString("insert into %1(%2,%3) values(%4,:state)").arg(tbl_subWinInfo)
+                .arg(fld_swi_enum).arg(fld_swi_stateInfo).arg(winEnum);
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        q.bindValue(":state",*state);
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
         }
     }
     return true;

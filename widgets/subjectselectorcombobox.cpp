@@ -60,7 +60,12 @@ void SubjectSelectorComboBox::setSubjectClass(SubjectSelectorComboBox::SUBJECTCA
 
 }
 
-void SubjectSelectorComboBox::setFirstSubject(FirstSubject *fsub)
+void SubjectSelectorComboBox::setSubject(SubjectBase *fsub)
+{
+    setCurrentIndex(findSubject(fsub));
+}
+
+void SubjectSelectorComboBox::setParentSubject(FirstSubject *fsub)
 {
     if(which == SC_FST)
         return;

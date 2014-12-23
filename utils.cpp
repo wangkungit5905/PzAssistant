@@ -5432,45 +5432,45 @@ bool BusiUtil::isAccMtS(int sid)
 //}
 
 //获取子窗口信息
-bool VariousUtils::getSubWinInfo3(int winEnum,QByteArray*& ba)
-{
-    QSqlQuery q;
-    QString s;
+//bool VariousUtils::getSubWinInfo3(int winEnum,QByteArray*& ba)
+//{
+//    QSqlQuery q;
+//    QString s;
 
-    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-    if(q.exec(s) && q.first()){
-        ba = new QByteArray(q.value(FI_BASE_SWI_TBL).toByteArray());
-        return true;
-    }
-    return false;
-}
+//    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
+//    if(q.exec(s) && q.first()){
+//        ba = new QByteArray(q.value(FI_BASE_SWI_TBL).toByteArray());
+//        return true;
+//    }
+//    return false;
+//}
 
 //保存字窗口信息
-bool VariousUtils::saveSubWinInfo3(int winEnum, QByteArray* otherInfo)
-{
-    QSqlQuery q;
-    QString s;
-    bool r;
+//bool VariousUtils::saveSubWinInfo3(int winEnum, QByteArray* otherInfo)
+//{
+//    QSqlQuery q;
+//    QString s;
+//    bool r;
 
-    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-    if(q.exec(s) && q.first()){
-        int id = q.value(0).toInt();
-        s = QString("update subWinInfos set winEnum=:enum,tblInfo=:info where id=:id");
-        r = q.prepare(s);
-        q.bindValue(":enum",winEnum);
-        q.bindValue(":info",*otherInfo);
-        q.bindValue(":id",id);
-    }
-    else{
-        s = QString("insert into subWinInfos(winEnum,tblInfo) "
-                    "values(:enum,:info)");
-        r = q.prepare(s);
-        q.bindValue(":enum",winEnum);
-        q.bindValue(":info",*otherInfo);
-    }
-    r = q.exec();
-    return r;
-}
+//    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
+//    if(q.exec(s) && q.first()){
+//        int id = q.value(0).toInt();
+//        s = QString("update subWinInfos set winEnum=:enum,tblInfo=:info where id=:id");
+//        r = q.prepare(s);
+//        q.bindValue(":enum",winEnum);
+//        q.bindValue(":info",*otherInfo);
+//        q.bindValue(":id",id);
+//    }
+//    else{
+//        s = QString("insert into subWinInfos(winEnum,tblInfo) "
+//                    "values(:enum,:info)");
+//        r = q.prepare(s);
+//        q.bindValue(":enum",winEnum);
+//        q.bindValue(":info",*otherInfo);
+//    }
+//    r = q.exec();
+//    return r;
+//}
 
 //因为原先表示方向的是整形宏定义常量，现在用枚举常量来代替，因此提供这些转换函数
 void transferDirection(const QHash<int,int> &sd, QHash<int,MoneyDirection>& dd)

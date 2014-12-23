@@ -27,6 +27,7 @@ QSqlDatabase bdb;
 QString hVersion = "1.2";
 
 QString LOGS_PATH;
+QString PATCHES_PATH;
 QString DATABASE_PATH;
 QString BASEDATA_PATH;
 QString BACKUP_PATH;
@@ -77,6 +78,7 @@ int appInit()
 {
     //初始化路径信息
     LOGS_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/logs/"));
+    PATCHES_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/patches/"));
     DATABASE_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/datas/databases/"));
     BASEDATA_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/datas/basicdatas/"));
     BACKUP_PATH = QDir::toNativeSeparators(QDir::currentPath().append("/datas/backups/"));

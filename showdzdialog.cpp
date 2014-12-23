@@ -12,7 +12,7 @@
 #include <QInputDialog>
 
 
-ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) :
+ShowDZDialog::ShowDZDialog(Account* account,QByteArray* cinfo,  QByteArray* pinfo,QWidget *parent) :
     DialogWithPrint(parent),ui(new Ui::ShowDZDialog2),account(account)
 {
     ui->setupUi(this);
@@ -86,9 +86,9 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* sinfo, QWidget *parent) 
     qSort(mts.begin(),mts.end());
 
 
-    setState(sinfo);
+    setCommonState(cinfo);
     readFilters();
-
+    setProperState(pinfo);
 
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(colWidthChanged(int,int,int)));
@@ -108,10 +108,10 @@ ShowDZDialog::~ShowDZDialog()
 }
 
 //设置视图的内部状态
-void ShowDZDialog::setState(QByteArray* info)
+void ShowDZDialog::setCommonState(QByteArray* info)
 {
     QList<int> sizes;
-    if(info == NULL){
+    if(!info || info->isEmpty()){
         //屏幕视图上的表格列宽
         colWidths[CASHDAILY]<<45<<25<<25<<50<<300<<0<<100<<100<<50<<100<<0<<0;
         colWidths[BANKRMB]<<45<<25<<25<<50<<300<<0<<0<<100<<100<<50<<100<<0<<0;
@@ -207,8 +207,26 @@ void ShowDZDialog::setState(QByteArray* info)
     ui->splitter->setSizes(sizes);
 }
 
+void ShowDZDialog::setProperState(QByteArray *info)
+{
+    if(!info || info->isEmpty())
+        return;
+//    QBuffer bf(info);
+//    QDataStream in(&bf);
+//    qint8 i8;
+//    bf.open(QIODevice::ReadOnly);
+//    in>>i8;
+//    foreach(DVFilterRecord* fr, filters){
+//        if(fr->id == i8){
+//            curFilter = fr;
+//            return;
+//        }
+//    }
+//    bf.close();
+}
+
 //获取视图的内部状态
-QByteArray* ShowDZDialog::getState()
+QByteArray* ShowDZDialog::getCommonState()
 {
     QByteArray* ba = new QByteArray;
     QBuffer bf(ba);
@@ -299,6 +317,25 @@ QByteArray* ShowDZDialog::getState()
 }
 
 /**
+ * @brief ShowDZDialog::getProperState
+ *  返回窗口专有状态
+ * @return
+ */
+QByteArray *ShowDZDialog::getProperState()
+{
+    //目前没有专有状态
+    return 0;
+//    QByteArray* ba = new QByteArray;
+//    QBuffer bf(ba);
+//    QDataStream out(&bf);
+//    bf.open(QIODevice::WriteOnly);
+//    qint8 i8 = curFilter->id;
+//    out<<i8;
+//    bf.close();
+//    return ba;
+}
+
+/**
  * @brief ShowDZDialog::print
  * @param pac
  */
@@ -330,7 +367,8 @@ void ShowDZDialog::curFilterChanged(QListWidgetItem *current, QListWidgetItem *p
 {
     if(curFilter){
         curFilter->isCur = false;
-        curFilter->editState = CIES_CHANGED;
+        if(curFilter->id != 0)
+            curFilter->editState = CIES_CHANGED;
     }
     curFilter = current->data(Qt::UserRole).value<DVFilterRecord*>();
     ui->btnSaveAs->setEnabled(curFilter->isDef);
@@ -340,7 +378,8 @@ void ShowDZDialog::curFilterChanged(QListWidgetItem *current, QListWidgetItem *p
     else
         ui->lblSelMode->setText(tr("二级科目"));
     curFilter->isCur = true;
-    curFilter->editState = CIES_CHANGED;
+    if(curFilter->id != 0)
+        curFilter->editState = CIES_CHANGED;
     initFilter();
 }
 
@@ -774,7 +813,7 @@ void ShowDZDialog::readFilters()
 
 /**
  * @brief ShowDZDialog2::initFilter
- *  根据当前选中的过滤条件项目，设置窗明细账口的过滤条件（时间范围、科目范围、当前选中的科目和币种等）
+ *  根据当前选中的过滤条件项目，设置明细账窗口的过滤条件（时间范围、科目范围、当前选中的科目和币种等）
  */
 void ShowDZDialog::initFilter()
 {

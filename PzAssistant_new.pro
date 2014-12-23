@@ -10,7 +10,7 @@ win32{
 }
 
 TARGET = PzAssistant
-DESTDIR = $${PWD}/../workDir/
+DESTDIR = $${PWD}/../workDir_5_4/
 TEMPLATE = app
 
 #CONFIG += qaxcontainer

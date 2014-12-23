@@ -31,7 +31,7 @@ AppConfig::AppConfig()
     b &=_initSpecSubCodes();
     b &=_initSpecNameItemClses();
     if(!b)
-        QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("应用配置对象初始化期间发生错误！"));
+        myHelper::ShowMessageBoxError(QObject::tr("应用配置对象初始化期间发生错误！"));
 }
 
 AppConfig::~AppConfig()
@@ -1120,7 +1120,7 @@ bool AppConfig::saveExternalTool(ExternalToolCfgItem *item, bool isDelete)
     return true;
 }
 
-bool AppConfig::getRights(QHash<int, Right *> &rights)
+bool AppConfig::initRights(QHash<int, Right *> &rights)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_base_rights);
@@ -1131,7 +1131,10 @@ bool AppConfig::getRights(QHash<int, Right *> &rights)
     while(q.next()){
         int code = q.value(FI_BASE_R_CODE).toInt();
         QString name = q.value(FI_BASE_R_NAME).toString();
-        RightType* type = allRightTypes.value(q.value(FI_BASE_R_TYPE).toInt());
+        int rtCode = q.value(FI_BASE_R_TYPE).toInt();
+        RightType* type = allRightTypes.value(rtCode);
+        if(!type)
+            LOG_ERROR(QString("Fonded a invalid Right Type code(rt_code=%1,rcode=%2)").arg(rtCode).arg(code));
         QString explain = q.value(FI_BASE_R_EXPLAIN).toString();
         Right* right = new Right(code,type,name,explain);
         rights[code] = right;
@@ -1139,7 +1142,7 @@ bool AppConfig::getRights(QHash<int, Right *> &rights)
     return true;
 }
 
-bool AppConfig::getUsers(QHash<int, User *> &users)
+bool AppConfig::initUsers(QHash<int, User *> &users)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_base_users);
@@ -1149,10 +1152,11 @@ bool AppConfig::getUsers(QHash<int, User *> &users)
     }
     while(q.next()){
         int id = q.value(0).toInt();
+        bool isEnabled = q.value(FI_BASE_U_ISENABLED).toBool();
         QString name = q.value(FI_BASE_U_NAME).toString();
         QString pw = q.value(FI_BASE_U_PASSWORD).toString();
         pw = User::encryptPw(pw);
-        QString gs = q.value(FI_BASE_U_GROUPS).toString();
+        QString gs = q.value(FI_BASE_U_GROUPS).toString();      //所属组
         QSet<UserGroup*> groups;
         if(!gs.isEmpty()){
             QStringList gr = gs.split(",");            
@@ -1163,20 +1167,28 @@ bool AppConfig::getUsers(QHash<int, User *> &users)
             }            
         }
         User* user = new User(id, name, pw, groups);
+        if(!isEnabled)
+            user->setEnabled(false);
         users[id] = user;
-        gs = q.value(FI_BASE_U_ACCOUNTS).toString();
+        gs = q.value(FI_BASE_U_ACCOUNTS).toString();        //专属账户
         if(!gs.isEmpty()){
             foreach(QString code, gs.split(",")){
                 if(!code.isEmpty())
                     user->addExclusiveAccount(code);
             }
-        }
-        gs = q.value(FI_BASE_U_EXTRARIGHTS).toString();
+        }        
+        gs = q.value(FI_BASE_U_DISABLED_RIGHTS).toString();  //禁用权限
         if(!gs.isEmpty()){
             foreach(QString code, gs.split(",")){
-                Right* r = allRights.value(code.toInt());
-                if(r)
-                    user->addRight(r);
+                bool ok = false;
+                int c = code.toInt(&ok);
+                Right* r = allRights.value(c);
+                if(!ok || !r){
+                    LOG_ERROR(QString("User(uid=%1) disabled right code(rid=%2) is invalid")
+                              .arg(id).arg(code));
+                    continue;
+                }
+                user->addDisRight(r);
             }
         }
     }
@@ -1196,23 +1208,23 @@ bool AppConfig::saveUser(User *u, bool isDelete)
         return true;
     }
     if(u->getUserId() != UNID){
-        s = QString("update %1 set %2='%7',%3='%8',%4='%9',%5='%10',%6='%11' where id=%12")
+        s = QString("update %1 set %2='%8',%3='%9',%4='%10',%5='%11',%6='%12',%7=%13 where id=%14")
                 .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
-                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
-                .arg(u->getName()).arg(User::decryptPw(u->getPassword())).arg(u->getOwnerGroupCodeList())
-                .arg(u->getExclusiveAccounts().join(",")).arg(u->getExtraRightCodes())
-                .arg(u->getUserId());
+                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_disabled_rights)
+                .arg(fld_base_u_isenabled).arg(u->getName()).arg(User::decryptPw(u->getPassword()))
+                .arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(",")).arg(u->getDisRightCodes())
+                .arg(u->isEnabled()?1:0).arg(u->getUserId());
         if(!q.exec(s)){
             LOG_SQLERROR(s);
             return false;
         }
         if(q.numRowsAffected() == 0){
-            s = QString("insert into %1(id,%2,%3,%4,%5,%6) values(%12,'%7','%8','%9','%10','%11')")
+            s = QString("insert into %1(id,%2,%3,%4,%5,%6,%7) values(%14,'%8','%9','%10','%11','%12',%13)")
                     .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
-                    .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
-                    .arg(u->getName()).arg(User::decryptPw(u->getPassword()))
+                    .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_disabled_rights)
+                    .arg(fld_base_u_isenabled).arg(u->getName()).arg(User::decryptPw(u->getPassword()))
                     .arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(","))
-                    .arg(u->getExtraRightCodes()).arg(u->getUserId());
+                    .arg(u->getDisRightCodes()).arg(u->isEnabled()?1:0).arg(u->getUserId());
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
                 return false;
@@ -1221,12 +1233,12 @@ bool AppConfig::saveUser(User *u, bool isDelete)
         }
     }
     else{
-        s = QString("insert into %1(%2,%3,%4,%5,%6) values('%7','%8','%9','%10','%11')")
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values('%8','%9','%10','%11','%12',%13)")
                 .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
-                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights)
-                .arg(u->getName()).arg(User::decryptPw(u->getPassword()))
+                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_disabled_rights)
+                .arg(fld_base_u_isenabled).arg(u->getName()).arg(User::decryptPw(u->getPassword()))
                 .arg(u->getOwnerGroupCodeList()).arg(u->getExclusiveAccounts().join(","))
-                .arg(u->getExtraRightCodes());
+                .arg(u->getDisRightCodes()).arg(u->isEnabled()?1:0);
         if(!q.exec(s)){
             LOG_SQLERROR(s);
             return false;
@@ -1280,19 +1292,19 @@ bool AppConfig::restorUser(User *u)
                 u->addExclusiveAccount(code);
         }
     }
-    gs = q.value(FI_BASE_U_EXTRARIGHTS).toString();
-    u->clearExtraRights();
+    gs = q.value(FI_BASE_U_DISABLED_RIGHTS).toString();
+    u->clearDisRights();
     if(!gs.isEmpty()){
         foreach(QString code, gs.split(",")){
             Right* r = allRights.value(code.toInt());
             if(r)
-                u->addRight(r);
+                u->addDisRight(r);
         }
     }
     return true;
 }
 
-bool AppConfig::getRightTypes(QHash<int, RightType*> &types)
+bool AppConfig::initRightTypes(QHash<int, RightType*> &types)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1 order by %2")
@@ -1302,9 +1314,15 @@ bool AppConfig::getRightTypes(QHash<int, RightType*> &types)
         return false;
     }
     while(q.next()){
-        int c = q.value(FI_BASE_RT_CODE).toInt();
-        int pc = q.value(FI_BASE_RT_PCODE).toInt();
+        bool ok = false;
+        int rowId = q.value(0).toInt();
+        int c = q.value(FI_BASE_RT_CODE).toInt(&ok);
+        if(!ok)
+            LOG_ERROR(QString("Fonded a invalid right type code in rightTypes table(rowId=%1)!").arg(rowId));
+        int pc = q.value(FI_BASE_RT_PCODE).toInt(&ok);
         RightType* p = types.value(pc);
+        if(!ok || ok && !p && pc!=0)
+            LOG_ERROR(QString("Fonded a invalid parent right type code (in rightTypes table(rowId=%1)!").arg(rowId));
         RightType* t = new RightType;
         t->code = c; t->pType = p;
         t->name = q.value(FI_BASE_RT_NAME).toString();
@@ -1314,7 +1332,7 @@ bool AppConfig::getRightTypes(QHash<int, RightType*> &types)
     return true;
 }
 
-bool AppConfig::getUserGroups(QHash<int, UserGroup *> &groups)
+bool AppConfig::initUserGroups(QHash<int, UserGroup *> &groups)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1").arg(tbl_base_usergroups);
@@ -1322,12 +1340,14 @@ bool AppConfig::getUserGroups(QHash<int, UserGroup *> &groups)
         LOG_SQLERROR(s);
         return false;
     }
+    QHash<int,QList<int> > gcs;  //临时保存组的所属组代码，待所有组对象初始化完成后再添加所属组
     while(q.next()){
         int id = q.value(0).toInt();
         int code = q.value(FI_BASE_G_CODE).toInt();
         QString name = q.value(FI_BASE_G_NAME).toString();
         QString explain = q.value(FI_BASE_G_EXPLAIN).toString();
         QString rs = q.value(FI_BASE_G_RIGHTS).toString();
+        QString gs = q.value(FI_BASE_G_GROUPS).toString();
         QSet<Right*> haveRights;
         if(!rs.isEmpty()){
             QStringList rl = rs.split(",");            
@@ -1340,9 +1360,28 @@ bool AppConfig::getUserGroups(QHash<int, UserGroup *> &groups)
                     haveRights.insert(r);
             }            
         }
+        if(!gs.isEmpty()){
+            QStringList gl = gs.split(",");
+            gcs[code] = QList<int>();
+            for(int i = 0; i < gl.count(); ++i){
+                gcs[code]<<gl[i].toInt();
+            }
+        }
         UserGroup* group = new UserGroup(id,code, name, haveRights);
         group->setExplain(explain);
         groups[code] = group;
+    }
+    //初始化组的所属组成员
+    foreach(UserGroup* g, groups.values()){
+        foreach(int gc, gcs.value(g->getGroupCode())){
+            UserGroup* og = groups.value(gc);
+            if(!og){
+                LOG_ERROR(QString("Fonded a not exist group code(code=%1,groupCode=%2)")
+                          .arg(gc).arg(g->getGroupCode()));
+                return false;
+            }
+            g->addGroup(og);
+        }
     }
     return true;
 }
@@ -1362,20 +1401,22 @@ bool AppConfig::saveUserGroup(UserGroup *g, bool isDelete)
         delete g;
         return true;
     }
-    s = QString("update %1 set %3='%7',%4='%8',%5='%9' where %2=%6")
+    s = QString("update %1 set %3='%7',%4='%8',%5='%9',%6='%10' where %2=%11")
             .arg(tbl_base_usergroups).arg(fld_base_g_code).arg(fld_base_g_name)
-            .arg(fld_base_g_rights).arg(fld_base_g_explain).arg(g->getGroupCode())
-            .arg(g->getName()).arg(g->getRightCodeList()).arg(g->getExplain());
+            .arg(fld_base_g_rights).arg(fld_base_g_groups).arg(fld_base_g_explain)
+            .arg(g->getName()).arg(g->getRightCodeList()).arg(g->getOwnerCodeList())
+            .arg(g->getExplain()).arg(g->getGroupCode());
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
     int nums = q.numRowsAffected();
     if(nums == 0){
-        s = QString("insert into %1(%2,%3,%4,%5) values(%6,'%7','%8','%9')").arg(tbl_base_usergroups)
+        s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,'%8','%9','%10','%11')").arg(tbl_base_usergroups)
                 .arg(fld_base_g_code).arg(fld_base_g_name).arg(fld_base_g_explain)
-                .arg(fld_base_g_rights).arg(g->getGroupCode()).arg(g->getName())
-                .arg(g->getExplain()).arg(g->getRightCodeList());
+                .arg(fld_base_g_rights).arg(fld_base_g_groups).arg(g->getGroupCode())
+                .arg(g->getName()).arg(g->getExplain()).arg(g->getRightCodeList())
+                .arg(g->getOwnerCodeList());
         if(!q.exec(s)){
             LOG_SQLERROR(s);
             return false;
@@ -1422,6 +1463,290 @@ bool AppConfig::restoreUserGroup(UserGroup *g)
         }
     }
     g->setHaveRights(haveRights);
+    rs = q.value(FI_BASE_G_GROUPS).toString();
+    QSet<UserGroup*> gs;
+    if(!rs.isEmpty()){
+        QStringList sl = rs.split(",");
+        for(int i = 0; i < sl.count(); ++i){
+            UserGroup* g1 = allGroups.value(sl.at(i).toInt());
+            if(!g1)
+                LOG_SQLERROR(QString("Fonded a not exist owner group(group code=%1,owner group code=%2")
+                             .arg(g->getGroupCode()).arg(sl.at(i)));
+            else
+                gs.insert(g1);
+        }
+        g->setOwnerGroups(gs);
+    }
+    return true;
+}
+
+/**
+ * @brief 返回应用配置类型名称
+ * @return
+ */
+void AppConfig::getAppCfgTypeNames(QHash<BaseDbVersionEnum, QString> &names)
+{
+    names[BDVE_DB] = "bdb_version";
+    names[BDVE_RIGHTTYPE] = "RightType";
+    names[BDVE_RIGHT] = "Right";
+    names[BDVE_GROUP] = "Group";
+    names[BDVE_USER] = "User";
+    names[BDVE_WORKSTATION] = "WorkStation";
+}
+
+/**
+ * @brief 设置指定应用配置的版本号
+ * @param verType
+ * @param mv
+ * @param sv
+ * @return
+ */
+bool AppConfig::setAppCfgVersion(BaseDbVersionEnum verType, int mv, int sv)
+{
+    QSqlQuery q(db);
+    QString s = QString("update %7 set %1=%2,%3=%4 where %5=%6").arg(fld_base_version_master)
+            .arg(mv).arg(fld_base_version_second).arg(sv).
+            arg(fld_base_version_typeEnum).arg((int)verType).arg(tbl_base_version);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.numRowsAffected() != 1){
+        QHash<BaseDbVersionEnum, QString> names;
+        s = QString("insert into %9(%1,%2,%3,%4) values(%5,%6,%7,%8)")
+                .arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+                .arg(fld_base_version_master).arg(fld_base_version_second)
+                .arg(tbl_base_version).arg(verType).arg(names.value(verType))
+                .arg(mv).arg(sv);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 获取基本库内可转移的应用配置的版本号
+ * 这些配置信息可以通过转换转移操作在各个工作站之间进行转移
+ * @param vType
+ * @return
+ */
+bool AppConfig::getAppCfgVersion(int &mv, int &sv, BaseDbVersionEnum vType)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1,%2 from %3 where %4=%5")
+            .arg(fld_base_version_master).arg(fld_base_version_second).arg(tbl_base_version)
+            .arg(fld_base_version_typeEnum).arg(vType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        mv = 1; sv = 0;
+        return false;
+    }
+    if(!q.first()){
+        mv = 1; sv = 0;
+    }
+    else{
+        mv = q.value(0).toInt();
+        sv = q.value(1).toInt();
+    }
+    return true;
+}
+
+/**
+ * @brief 获取指定的可转移的应用配置的版本信息（包括版本类型、版本号、版本名等）
+ * @param verTypes  指定哪些应用配置版本信息（输入参数）
+ * @param verNames  版本名称（下面都是输出参数）
+ * @param mvs       主版本号
+ * @param svs       次版本号
+ * @return
+ */
+bool AppConfig::getAppCfgVersions(QList<BaseDbVersionEnum> &verTypes, QStringList &verNames, QList<int> &mvs, QList<int> &svs)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 order by %2").arg(tbl_base_version).arg(fld_base_version_typeEnum);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        BaseDbVersionEnum verType = (BaseDbVersionEnum)q.value(FI_BASE_VER_TYPEENUM).toInt();
+        if(!verTypes.contains(verType))
+            continue;
+        verNames<<q.value(FI_BASE_VER_TYPENAME).toString();
+        mvs<<q.value(FI_BASE_VER_MASTER).toInt();
+        svs<<q.value(FI_BASE_VER_SECOND).toInt();
+    }
+    return true;
+}
+
+bool AppConfig::clearAndSaveUsers(QList<User *> users, int mv, int sv)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on clear and save users");
+        return false;
+    }
+    QString s = QString("delete from %1").arg(tbl_base_users);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(User* u, users){
+        if(!saveUser(u)){
+            db.rollback();
+            return false;
+        }
+    }
+    if(!setAppCfgVersion(BDVE_USER,mv,sv)){
+        db.rollback();
+        return false;
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on clear and save users");
+        return false;
+    }
+    return true;
+}
+
+bool AppConfig::clearAndSaveGroups(QList<UserGroup *> groups,int mv,int sv)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on clear and save groups");
+        return false;
+    }
+    QString s = QString("delete from %1").arg(tbl_base_usergroups);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(UserGroup* g, groups){
+        if(!saveUserGroup(g)){
+            db.rollback();
+            return false;
+        }
+    }
+    if(!setAppCfgVersion(BDVE_GROUP,mv,sv)){
+        db.rollback();
+        return false;
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on clear and save groups");
+        return false;
+    }
+    return true;
+}
+
+bool AppConfig::clearAndSaveMacs(QList<Machine *> macs,int mv, int sv)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on clear and save Workstations");
+        return false;
+    }
+    QString s = QString("delete from %1").arg(tbl_machines);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        db.rollback();
+        return false;
+    }
+    foreach(Machine* mac, macs){
+        if(!_saveMachine(mac)){
+            db.rollback();
+            return false;
+        }
+    }
+    if(!setAppCfgVersion(BDVE_WORKSTATION,mv,sv)){
+        db.rollback();
+        return false;
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on clear and save Workstations");
+        return false;
+    }
+    return true;
+}
+
+bool AppConfig::clearAndSaveRights(QList<Right *> rights,int mv, int sv)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on clear and save rights");
+        return false;
+    }
+    QString s = QString("delete from %1").arg(tbl_base_rights);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5) values(:c,:t,:name,:desc)")
+            .arg(tbl_base_rights).arg(fld_base_r_code).arg(fld_base_r_type)
+            .arg(fld_base_r_name).arg(fld_base_r_explain);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        db.rollback();
+        return false;
+    }
+    foreach(Right* r, rights){
+        q.bindValue(":c",r->getCode());
+        q.bindValue(":t",r->getType()->code);
+        q.bindValue(":name",r->getName());
+        q.bindValue(":desc",r->getExplain());
+        if(!q.exec()){
+            db.rollback();
+            return false;
+        }
+    }
+    if(!setAppCfgVersion(BDVE_RIGHT,mv,sv)){
+        db.rollback();
+        return false;
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on clear and save groups");
+        return false;
+    }
+    return true;
+}
+
+bool AppConfig::clearAndSaveRightTypes(QList<RightType *> rightTypes, int mv, int sv)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on clear and save rightTypes");
+        return false;
+    }
+    QString s = QString("delete from %1").arg(tbl_base_righttypes);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5) values(:p,:c,:name,:desc)").arg(tbl_base_righttypes)
+            .arg(fld_base_rt_pcode).arg(fld_base_rt_code).arg(fld_base_rt_name)
+            .arg(fld_base_rt_explain);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        db.rollback();
+        return false;
+    }
+    foreach(RightType* rt, rightTypes){
+        q.bindValue(":p",rt->pType?rt->pType->code:0);
+        q.bindValue(":c",rt->code);
+        q.bindValue(":name",rt->name);
+        q.bindValue(":desc",rt->explain);
+        if(!q.exec()){
+            db.rollback();
+            return false;
+        }
+    }
+    if(!setAppCfgVersion(BDVE_RIGHTTYPE,mv,sv)){
+        db.rollback();
+        return false;
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on clear and save rightTypes");
+        return false;
+    }
     return true;
 }
 
@@ -1670,6 +1995,7 @@ bool AppConfig::_initMachines()
     //读取主站标识
     appIni->beginGroup(SEGMENT_STATIONS);
     msId = appIni->value(KEY_STATION_MSID,101).toInt();
+    localId = appIni->value(KEY_STATION_LOID,101).toInt();
     appIni->endGroup();
 
     QSqlQuery q(db);
@@ -1679,6 +2005,7 @@ bool AppConfig::_initMachines()
         QMessageBox::critical(0,QObject::tr("出错信息"),QObject::tr("无法读取机器信息，请检查账户数据库相应表格是否有误！"));
         return false;
     }
+    machines.clear();
     int id,mid;
     QString name,desc;
     MachineType mtype;
@@ -1693,6 +2020,18 @@ bool AppConfig::_initMachines()
         int osType = q.value(MACS_OSTYPE).toInt();
         Machine* m = new Machine(id,mtype,mid,isLocal,name,desc,osType);
         machines[m->getMID()] = m;
+    }
+    if(!machines.contains(localId)){
+        LOG_ERROR(QString("Station Exception! Workstation list not contain (local ID: %1)").arg(localId));
+        return false;
+    }
+    else if(!machines.value(localId)->isLocalStation()){
+        foreach(Machine*m, machines){
+            if(m->getMID() == localId)
+                m->setLocalMachine(true);
+            else
+                m->setLocalMachine(false);
+        }
     }
     return true;
 }
@@ -1873,6 +2212,9 @@ bool AppConfig::_saveMachine(Machine *mac)
             LOG_SQLERROR(s);
             return false;
         }
+        appIni->beginGroup(SEGMENT_STATIONS);
+        appIni->setValue(KEY_STATION_LOID,mac->getMID());
+        appIni->endGroup();
     }
     return true;
 }
@@ -2262,11 +2604,11 @@ void AppConfig::saveDirName(DirectoryName witch, QString dir)
  * @brief AppConfig::getSubWinInfo
  *  读取子窗口的各种几何尺寸信息
  * @param winEnum
- * @param info
- * @param otherInfo
+ * @param info  位置和大小信息
+ * @param sinfo 其他公共信息（比如表格列宽等）
  * @return
  */
-bool AppConfig::getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *&otherInfo)
+bool AppConfig::getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray* sinfo)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1 where %2 = %3")
@@ -2281,11 +2623,8 @@ bool AppConfig::getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *&oth
         info->y = q.value(FI_BASE_SWI_Y).toInt();
         info->w = q.value(FI_BASE_SWI_W).toInt();
         info->h = q.value(FI_BASE_SWI_H).toInt();
-        otherInfo = new QByteArray(q.value(FI_BASE_SWI_TBL).toByteArray());
-    }
-    else{
-        info = NULL;
-        otherInfo = NULL;
+        if(sinfo)
+            *sinfo = q.value(FI_BASE_SWI_TBL).toByteArray();
     }
     return true;
 }
@@ -2298,23 +2637,34 @@ bool AppConfig::getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *&oth
  * @param otherInfo
  * @return
  */
-bool AppConfig::saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *otherInfo)
+bool AppConfig::saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray* sinfo)
 {
     QSqlQuery q(db);
     QString s;
-
-    if(otherInfo == NULL)
-        otherInfo = new QByteArray;
-    s = QString("select * from %1 where %2 = %3")
-            .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(winEnum);
-    if(!q.exec(s)){
+    s = QString("update %1 set %2=:x,%3=:y,%4=:w,%5=:h")
+            .arg(tbl_base_subWinInfo).arg(fld_base_swi_x).arg(fld_base_swi_y)
+            .arg(fld_base_swi_width).arg(fld_base_swi_height);
+    if(sinfo)
+        s.append(QString(",%1=:state").arg(fld_base_swi_stateInfo));
+    s.append(QString(" where %1=:enum").arg(fld_base_swi_enum));
+    if(!q.prepare(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    if(q.first()){
-        int id = q.value(0).toInt();
-        s = QString("update %1 set %2=:enum,%3=:x,%4=:y,%5=:w,%6=:h"
-                    ",%7=:info where id=:id")
+    q.bindValue(":enum",winEnum);
+    q.bindValue(":x",info->x);
+    q.bindValue(":y",info->y);
+    q.bindValue(":w",info->w);
+    q.bindValue(":h",info->h);
+    if(sinfo)
+        q.bindValue(":state",*sinfo);
+    if(!q.exec()){
+        LOG_SQLERROR(q.lastQuery());
+        return false;
+    }
+    if(q.numRowsAffected() == 0){
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) "
+                    "values(:enum,:x,:y,:w,:h,:state)")
                 .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(fld_base_swi_x).arg(fld_base_swi_y)
                 .arg(fld_base_swi_width).arg(fld_base_swi_height).arg(fld_base_swi_stateInfo);
         if(!q.prepare(s)){
@@ -2326,29 +2676,15 @@ bool AppConfig::saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *othe
         q.bindValue(":y",info->y);
         q.bindValue(":w",info->w);
         q.bindValue(":h",info->h);
-        q.bindValue(":info",*otherInfo);
-        q.bindValue(":id",id);
-    }
-    else{
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7) "
-                    "values(:enum,:x,:y,:w,:h,:info)")
-                .arg(tbl_base_subWinInfo).arg(fld_base_swi_enum).arg(fld_base_swi_x).arg(fld_base_swi_y)
-                .arg(fld_base_swi_width).arg(fld_base_swi_height).arg(fld_base_swi_stateInfo);;
-        if(!q.prepare(s)){
+        if(sinfo)
+            q.bindValue(":state",*sinfo);
+        else
+            q.bindValue(":state",QByteArray());
+        if(!q.exec()){
             LOG_SQLERROR(s);
             return false;
         }
-        q.bindValue(":enum",winEnum);
-        q.bindValue(":x",info->x);
-        q.bindValue(":y",info->y);
-        q.bindValue(":w",info->w);
-        q.bindValue(":h",info->h);
-        q.bindValue(":info",*otherInfo);
-    }
-    if(!q.exec()){
-        LOG_SQLERROR(s);
-        return false;
-    }
+    }    
     return true;
 }
 

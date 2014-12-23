@@ -2,6 +2,7 @@
 #include "config.h"
 #include "securitys.h"
 #include "widgets.h"
+#include "myhelper.h"
 
 #include <QBuffer>
 #include <QCloseEvent>
@@ -14,6 +15,9 @@ SecConDialog::SecConDialog(QByteArray* state, QWidget *parent) :QDialog(parent),
     dirty = false;
     isCancel = false;
     ui->tabRight->setLayout(ui->trLayout);
+    enColor.setColor(Qt::darkGreen);
+    disColor.setColor(Qt::red);
+    nonColor.setColor(Qt::gray);
     connect(ui->lwGroup,SIGNAL(customContextMenuRequested(QPoint)),
             this,SLOT(listContextMenuRequested(QPoint)));
     connect(ui->lwUsers,SIGNAL(customContextMenuRequested(QPoint)),
@@ -22,8 +26,11 @@ SecConDialog::SecConDialog(QByteArray* state, QWidget *parent) :QDialog(parent),
             this,SLOT(listContextMenuRequested(QPoint)));
     connect(ui->lwAccounts,SIGNAL(customContextMenuRequested(QPoint)),
             this,SLOT(listContextMenuRequested(QPoint)));
+    connect(ui->lwGroupContain,SIGNAL(customContextMenuRequested(QPoint)),
+            this,SLOT(listContextMenuRequested(QPoint)));
     connect(ui->edtGroupName,SIGNAL(textEdited(QString)),this,SLOT(groupNameChanged(QString)));
     connect(ui->edtUserName,SIGNAL(textEdited(QString)),this,SLOT(userNameChanged(QString)));
+    connect(ui->twUserRights,SIGNAL(itemClicked(QTreeWidgetItem*,int)),this,SLOT(userRightItemClicked(QTreeWidgetItem*,int)));
     init();
     setState(state);
 }
@@ -183,8 +190,8 @@ void SecConDialog::save()
                         set_Users.insert(u);
                     }
                 }
-                delete g;
             }
+            qDeleteAll(gs);
         }
     }
     //保存用户
@@ -244,6 +251,7 @@ QList<Right *> SecConDialog::getRightsForType(RightType *type)
 
 /**
  * @brief 生成权限树
+ * @param tree      用户/组的权限树
  * @param type      权限类别
  * @param isLeaf    true：权限，false：权限类别
  * @param parent    父节点
@@ -255,8 +263,17 @@ void SecConDialog::genRightTree(QTreeWidget* tree, RightType* type, bool isLeaf,
             QStringList sl;
             sl<<QString("%1(%2)").arg(r->getName()).arg(r->getCode());
             QTreeWidgetItem* item = new QTreeWidgetItem(parent,sl);
-            item->setData(0,ROLE_RIGHT_CODE,r->getCode());
+            QVariant v; v.setValue<Right*>(r);
+            item->setData(0,ROLE_RIGHT,v);
+            item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable);
             item->setCheckState(0,Qt::Unchecked);
+            if(tree == ui->trwGroup){
+                groupRightItems<<item;
+            }
+            else{
+                item->setForeground(0,nonColor);
+                userRightItems<<item;
+            }
         }
     }
     else{
@@ -281,85 +298,90 @@ void SecConDialog::genRightTree(QTreeWidget* tree, RightType* type, bool isLeaf,
  * @param group
  * @param parent
  */
-void SecConDialog::refreshRightsForGroup(UserGroup *group, QTreeWidgetItem* parent)
+void SecConDialog::refreshRightsForGroup(UserGroup *group)
 {
-    if(!parent){
-        ui->edtGroupCode->setText(QString::number(group->getGroupCode()));
-        ui->edtGroupName->setText(group->getName());
-        ui->edtGroupExplain->setText(group->getExplain());
-        for(int i = 0; i < ui->trwGroup->topLevelItemCount(); ++i){
-            QTreeWidgetItem* item = ui->trwGroup->topLevelItem(i);
-            refreshRightsForGroup(group,item);
-        }
-    }
-    else{
-        int c = parent->childCount();
-        if(c == 0){
-            QSet<Right*> rs = group->getHaveRights();
-            int rc = parent->data(0,ROLE_RIGHT_CODE).toInt();
-            Right* r = allRights.value(rc);
-            if(r)
-                parent->setCheckState(0,rs.contains(r)?Qt::Checked:Qt::Unchecked);
+    if(!group)
+        return;
+    ui->edtGroupCode->setText(QString::number(group->getGroupCode()));
+    ui->edtGroupName->setText(group->getName());
+    ui->edtGroupExplain->setPlainText(group->getExplain());
+    QSet<Right*> rs = group->getAllRights();
+    foreach(QTreeWidgetItem* item, groupRightItems){
+        Right* r = item->data(0,ROLE_RIGHT).value<Right*>();
+        if(rs.contains(r)){
+            item->setCheckState(0,Qt::Checked);
+            if(group->isGroupRight(r))
+                item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsUserCheckable);
+            else
+                item->setFlags( Qt::ItemIsSelectable | Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
         }
         else{
-            for(int i = 0; i < c; ++i){
-                QTreeWidgetItem* item = parent->child(i);
-                refreshRightsForGroup(group,item);
-            }
+            item->setCheckState(0,Qt::Unchecked);
+            item->setFlags( Qt::ItemIsSelectable | Qt::ItemIsUserCheckable | Qt::ItemIsEnabled);
         }
     }
 }
 
 /**
- * @brief 收集组的权限，以决定是否需要保存
+ * @brief SecConDialog::refreshMemberInGroup
+ * 刷新显示当前组的所属组成员
+ * @param g
+ */
+void SecConDialog::refreshMemberInGroup(UserGroup *g)
+{
+    ui->lwGroupContain->clear();
+    QList<UserGroup*> gs = g->getOwnerGroups().toList();
+    qSort(gs.begin(),gs.end(),groupByCode);
+    foreach(UserGroup* g, gs){
+        QVariant v;
+        v.setValue<UserGroup*>(g);
+        QListWidgetItem* item = new QListWidgetItem(g->getName(),ui->lwGroupContain);
+        item->setData(Qt::UserRole,v);
+    }
+}
+
+/**
+ * @brief 收集组的额外权限，以决定是否需要保存
  * @param group
  * @param rs 被赋于的权限（初始是空集合）
  * @param parent
  */
-void SecConDialog::collectRightsForGroup(QSet<Right*> &rs, QTreeWidgetItem *parent)
+void SecConDialog::collectRightsForGroup(QSet<Right*> &rs)
 {
-    if(!parent){
-        for(int i = 0; i < ui->trwGroup->topLevelItemCount(); ++i){
-            QTreeWidgetItem* item = ui->trwGroup->topLevelItem(i);
-            collectRightsForGroup(rs,item);
-        }
-    }
-    else{
-        int c = parent->childCount();
-        if(c == 0){
-            int rc = parent->data(0,ROLE_RIGHT_CODE).toInt();
-            Right* r = allRights.value(rc);
-            if(r && (parent->checkState(0) == Qt::Checked))
-                    rs.insert(r);
-        }
-        else{
-            for(int i = 0; i < c; ++i){
-                QTreeWidgetItem* item = parent->child(i);
-                collectRightsForGroup(rs,item);
-            }
+    foreach(QTreeWidgetItem* item, groupRightItems){
+        if((item->checkState(0) == Qt::Checked) && item->flags().testFlag(Qt::ItemIsEnabled)){
+            Right* r = item->data(0,ROLE_RIGHT).value<Right*>();
+            rs<<r;
         }
     }
 }
 
 /**
- * @brief 当前用户组的内容是否改变（包括组名、简介和权限等）
+ * @brief 当前用户组的内容是否改变（包括组名、简介所属组和权限等）
  * @param g 当前显示的组对象
  */
 void SecConDialog::isCurGroupChanged(UserGroup *g)
 {
     QSet<Right*> rs;
-    collectRightsForGroup(rs,0);
+    collectRightsForGroup(rs);
     bool changed = false;
-    if(g->getHaveRights() != rs){
+    if(g->getExtraRights() != rs){
         g->setHaveRights(rs);
+        changed = true;
+    }
+    QSet<UserGroup*> gs;
+    for(int i = 0; i < ui->lwGroupContain->count(); ++i)
+        gs.insert(ui->lwGroupContain->item(i)->data(Qt::UserRole).value<UserGroup*>());
+    if(gs != g->getOwnerGroups()){
+        g->setOwnerGroups(gs);
         changed = true;
     }
     if(ui->edtGroupName->text() != g->getName()){
         g->setName(ui->edtGroupName->text());
         changed = true;
     }
-    if(ui->edtGroupExplain->text() != g->getExplain()){
-        g->setExplain(ui->edtGroupExplain->text());
+    if(ui->edtGroupExplain->toPlainText() != g->getExplain()){
+        g->setExplain(ui->edtGroupExplain->toPlainText());
         changed = true;
     }
     if(changed){
@@ -371,6 +393,7 @@ void SecConDialog::isCurGroupChanged(UserGroup *g)
 void SecConDialog::viewUserInfos(User *u)
 {
     ui->edtUserId->setText(QString::number(u->getUserId()));
+    ui->chkIsEnabled->setChecked(u->isEnabled());
     ui->edtUserName->setText(u->getName());
     ui->edtUserPw->setText(u->getPassword());
     ui->lwOwner->clear();
@@ -409,6 +432,10 @@ void SecConDialog::viewUserInfos(User *u)
 void SecConDialog::isCurUserChanged(User *u)
 {
     bool isChanged = false;
+    if(u->isEnabled() ^ ui->chkIsEnabled->isChecked()){
+        u->setEnabled(ui->chkIsEnabled->isChecked());
+        isChanged = true;
+    }
     if(u->getName() != ui->edtUserName->text()){
         u->setName(ui->edtUserName->text());
         isChanged = true;
@@ -435,12 +462,10 @@ void SecConDialog::isCurUserChanged(User *u)
         isChanged = true;
     }
     QSet<Right*> rs;
-    collectRightsForUser(rs,0);
-    //如果权限发生了变化，则重新根据拥有的权限决定用户的所属组
-    //即如果用户拥有某个组的全部权限，则用户就属于该组，反之不成
-    if(rs != u->getAllRights()){
+    collectDisRightsForUser(rs);
+    if(rs != u->getAllDisRights()){
         isChanged = true;
-        u->setAllRights(rs);
+        u->setAllDisRights(rs);
     }
     if(isChanged){
         set_Users.insert(u);
@@ -452,78 +477,54 @@ void SecConDialog::isCurUserChanged(User *u)
  * @brief 刷新用户具有的权限
  * @param u
  */
-void SecConDialog::refreshRightsForUser(User *u, QTreeWidgetItem *parent)
+void SecConDialog::refreshRightsForUser(User *u)
 {
-    if(!parent){
-        for(int i = 0; i < ui->twUserRights->topLevelItemCount(); ++i){
-            QTreeWidgetItem* item = ui->twUserRights->topLevelItem(i);
-            refreshRightsForUser(u,item);
+    QSet<Right*> grs,rs;
+    foreach(UserGroup* g, u->getOwnerGroups())
+        grs += g->getAllRights();
+    rs = grs - u->getAllDisRights();
+    bool isRoot = u->isSuperUser();
+    foreach(QTreeWidgetItem* ti, userRightItems){
+        if(isRoot){
+            ti->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable);
+            ti->setCheckState(0,Qt::Unchecked);
+            ti->setForeground(0,enColor);
+            continue;
         }
-    }
-    else{
-        int c = parent->childCount();
-        if(c == 0){
-            QSet<Right*> rs = u->getAllRights();
-            int rc = parent->data(0,ROLE_RIGHT_CODE).toInt();
-            Right* r = allRights.value(rc);
-            if(r)
-                parent->setCheckState(0,rs.contains(r)?Qt::Checked:Qt::Unchecked);
+        Right* r = ti->data(0,ROLE_RIGHT).value<Right*>();
+        if(grs.contains(r))
+            ti->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable|Qt::ItemIsEnabled);
+        else
+            ti->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable);
+        if(rs.contains(r)){
+            ti->setCheckState(0,Qt::Unchecked);
+            ti->setForeground(0,enColor);
         }
         else{
-            for(int i = 0; i < c; ++i){
-                QTreeWidgetItem* item = parent->child(i);
-                refreshRightsForUser(u,item);
+            if(u->isDisabledRight(r)){
+                ti->setCheckState(0,Qt::Checked);
+                ti->setForeground(0,disColor);
+            }
+            else{
+                ti->setCheckState(0,Qt::Unchecked);
+                ti->setForeground(0,nonColor);
             }
         }
     }
 }
 
-void SecConDialog::modifyRightsForUser(QSet<Right *> rs, QTreeWidgetItem *parent)
+/**
+ * @brief 收集用户的禁用权限
+ * @param rs
+ */
+void SecConDialog::collectDisRightsForUser(QSet<Right *> &rs)
 {
-    if(!parent){
-        for(int i = 0; i < ui->twUserRights->topLevelItemCount(); ++i){
-            QTreeWidgetItem* item = ui->twUserRights->topLevelItem(i);
-            modifyRightsForUser(rs,item);
-        }
-    }
-    else{
-        int c = parent->childCount();
-        if(c == 0){
-            int rc = parent->data(0,ROLE_RIGHT_CODE).toInt();
-            Right* r = allRights.value(rc);
-            if(r)
-                parent->setCheckState(0,rs.contains(r)?Qt::Checked:Qt::Unchecked);
-        }
-        else{
-            for(int i = 0; i < c; ++i){
-                QTreeWidgetItem* item = parent->child(i);
-                modifyRightsForUser(rs,item);
-            }
-        }
-    }
-}
-
-void SecConDialog::collectRightsForUser(QSet<Right *> &rs, QTreeWidgetItem *parent)
-{
-    if(!parent){
-        for(int i = 0; i < ui->twUserRights->topLevelItemCount(); ++i){
-            QTreeWidgetItem* item = ui->twUserRights->topLevelItem(i);
-            collectRightsForUser(rs,item);
-        }
-    }
-    else{
-        int c = parent->childCount();
-        if(c == 0){
-            int rc = parent->data(0,ROLE_RIGHT_CODE).toInt();
-            Right* r = allRights.value(rc);
-            if(r && (parent->checkState(0) == Qt::Checked))
-                    rs.insert(r);
-        }
-        else{
-            for(int i = 0; i < c; ++i){
-                QTreeWidgetItem* item = parent->child(i);
-                collectRightsForUser(rs,item);
-            }
+    foreach(QTreeWidgetItem* ti, userRightItems){
+        if(!ti->flags().testFlag(Qt::ItemIsEnabled))
+            continue;
+        if(ti->checkState(0) == Qt::Checked){
+            Right* r = ti->data(0,ROLE_RIGHT).value<Right*>();
+            rs.insert(r);
         }
     }
 }
@@ -581,9 +582,9 @@ void SecConDialog::listContextMenuRequested(const QPoint &pos)
     QMenu m;
     QListWidgetItem* item = lw->itemAt(pos);
     if(lw == ui->lwGroup){
-        m.addAction(ui->actAddGroup);
+        m.addAction(ui->actAddNewGroup);
         if(item)
-            m.addAction(ui->actDelGroup);
+            m.addAction(ui->actDelSelGroup);
     }
     else if(lw == ui->lwUsers){
         m.addAction(ui->actAddUser);
@@ -606,6 +607,13 @@ void SecConDialog::listContextMenuRequested(const QPoint &pos)
         m.addAction(ui->actAddAcc);
         if(item)
             m.addAction(ui->actDelAcc);
+    }
+    else if(lw == ui->lwGroupContain){
+        if(!ui->lwGroup->currentItem())
+            return;
+        m.addAction(ui->actAddGroup);
+        if(item)
+            m.addAction(ui->actDelGroup);
     }
     m.exec(lw->mapToGlobal(pos));
 }
@@ -666,7 +674,8 @@ void SecConDialog::on_lwGroup_currentItemChanged(QListWidgetItem *current, QList
     }
     //再刷新显示新的当前用户组的权限
     g = current->data(ROLE_USERGROUP).value<UserGroup*>();
-    refreshRightsForGroup(g,0);
+    refreshRightsForGroup(g);
+    refreshMemberInGroup(g);
 }
 
 /**
@@ -706,6 +715,7 @@ void SecConDialog::on_actAddGrpForUser_triggered()
     QDialog dlg(this);
     QLabel title(tr("可用组："),&dlg);
     QListWidget lwGroup(&dlg);
+    lwGroup.setSelectionMode(QAbstractItemView::ExtendedSelection);
     qSort(gs.begin(),gs.end(),groupByCode);
     foreach(UserGroup* g, gs){
         QListWidgetItem* item = new QListWidgetItem(g->getName(),&lwGroup);
@@ -726,17 +736,27 @@ void SecConDialog::on_actAddGrpForUser_triggered()
     dlg.setLayout(lm);
     dlg.resize(200,300);
     if(dlg.exec() == QDialog::Accepted){
-        UserGroup* g = lwGroup.currentItem()->data(ROLE_USERGROUP).value<UserGroup*>();
-        QListWidgetItem* item = new QListWidgetItem(g->getName(),ui->lwOwner);
-        QVariant v; v.setValue<UserGroup*>(g);
-        item->setData(ROLE_USERGROUP,v);
+        QList<QListWidgetItem*> items = lwGroup.selectedItems();
+        if(items.isEmpty())
+            return;
         QSet<Right*> rs;
-        for(int i = 0; i < ui->lwOwner->count(); ++i){
-            UserGroup* g = ui->lwOwner->item(i)->data(ROLE_USERGROUP).value<UserGroup*>();
-            rs += g->getHaveRights();
+        foreach(QListWidgetItem* item, items){
+            UserGroup* g = item->data(ROLE_USERGROUP).value<UserGroup*>();
+            QListWidgetItem* li = new QListWidgetItem(g->getName(),ui->lwOwner);
+            QVariant v; v.setValue<UserGroup*>(g);
+            li->setData(ROLE_USERGROUP,v);
+            rs += g->getAllRights();
         }
-        rs += u->getExtraRights();
-        modifyRightsForUser(rs);
+        foreach(QTreeWidgetItem* item, userRightItems){
+            Right* r = item->data(0,ROLE_RIGHT).value<Right*>();
+            if(rs.contains(r)){
+                item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable|Qt::ItemIsEnabled);
+                if(u->isDisabledRight(r))
+                    item->setForeground(0,disColor);
+                else
+                    item->setForeground(0,enColor);
+            }
+        }
     }
 }
 
@@ -749,21 +769,35 @@ void SecConDialog::on_actDelGrpForUser_triggered()
         return;
     if(!ui->lwOwner->currentItem())
         return;
-    delete ui->lwOwner->takeItem(ui->lwOwner->currentRow());
-    QSet<Right*> rs;
-    for(int i = 0; i < ui->lwOwner->count(); ++i){
+    UserGroup* g = ui->lwOwner->takeItem(ui->lwOwner->currentRow())->data(Qt::UserRole)
+            .value<UserGroup*>();
+    QSet<Right*> rs = g->getAllRights();
+    QSet<Right*> ars;for(int i = 0; i < ui->lwOwner->count(); ++i){
         UserGroup* g = ui->lwOwner->item(i)->data(ROLE_USERGROUP).value<UserGroup*>();
-        rs += g->getHaveRights();
+        ars += g->getAllRights();
     }
-    User* u = ui->lwUsers->currentItem()->data(ROLE_USER).value<User*>();
-    rs += u->getExtraRights();
-    modifyRightsForUser(rs);
+    foreach(Right* r, rs){
+        if(ars.contains(r))
+            rs.remove(r);
+    }
+    if(rs.isEmpty())
+        return;
+    foreach(QTreeWidgetItem* item, userRightItems){
+        if(!item->flags().testFlag(Qt::ItemIsEnabled))
+            continue;
+        Right* r = item->data(0,ROLE_RIGHT).value<Right*>();
+        if(rs.contains(r)){
+            item->setCheckState(0,Qt::Unchecked);
+            item->setForeground(0,nonColor);
+            item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable);
+        }
+    }
 }
 
 /**
  * @brief 添加新用户组
  */
-void SecConDialog::on_actAddGroup_triggered()
+void SecConDialog::on_actAddNewGroup_triggered()
 {
     QDialog dlg(this);
     int code = 0;
@@ -823,7 +857,7 @@ void SecConDialog::on_actAddGroup_triggered()
 /**
  * @brief 删除用户组
  */
-void SecConDialog::on_actDelGroup_triggered()
+void SecConDialog::on_actDelSelGroup_triggered()
 {
     if(!ui->lwGroup->currentItem())
         return;
@@ -904,7 +938,9 @@ void SecConDialog::on_actAddAcc_triggered()
         return;
     QList<AccountCacheItem*> accItems = appCon->getAllCachedAccounts();
     User* u = ui->lwUsers->currentItem()->data(ROLE_USER).value<User*>();
-    QStringList codes = u->getExclusiveAccounts();
+    QStringList codes;
+    for(int i = 0; i < ui->lwAccounts->count(); ++i)
+        codes<<ui->lwAccounts->item(i)->data(ROLE_ACCOUNT_CODE).toString();
     foreach(AccountCacheItem* item, accItems){
         if(codes.contains(item->code))
             accItems.removeOne(item);
@@ -946,4 +982,113 @@ void SecConDialog::on_actDelAcc_triggered()
     if(!ui->lwAccounts->currentItem())
         return;
     delete ui->lwAccounts->takeItem(ui->lwAccounts->currentRow());
+}
+
+/**
+ * @brief SecConDialog::on_actAddGroup_triggered
+ * 在当前组内添加所属组
+ */
+void SecConDialog::on_actAddGroup_triggered()
+{
+    UserGroup* cg = ui->lwGroup->currentItem()->data(Qt::UserRole).value<UserGroup*>();
+    QList<UserGroup*> gs = allGroups.values();
+    gs.removeOne(cg);
+    foreach(UserGroup* g, cg->getOwnerGroups())
+        gs.removeOne(g);
+    if(gs.isEmpty()){
+        myHelper::ShowMessageBoxWarning(tr("没有可用的组可以加入！"));
+        return;
+    }
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("添加所属组"));
+    QLabel lb(tr("可用的组"),&dlg);
+    QListWidget lw(&dlg);
+    lw.setSelectionMode(QAbstractItemView::ExtendedSelection);
+    qSort(gs.begin(),gs.end(),groupByCode);
+    foreach(UserGroup* g, gs){
+        QListWidgetItem* item = new QListWidgetItem(g->getName(),&lw);
+        QVariant v; v.setValue<UserGroup*>(g);
+        item->setData(Qt::UserRole,v);
+    }
+    QHBoxLayout lbtn;
+    QPushButton btnOk(tr("确定"),&dlg);
+    QPushButton btnCancel(tr("取消"),&dlg);
+    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+    lbtn.addWidget(&btnOk); lbtn.addWidget(&btnCancel);
+    QVBoxLayout* lm = new QVBoxLayout;
+    lm->addWidget(&lb); lm->addWidget(&lw); lm->addLayout(&lbtn);
+    dlg.setLayout(lm);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    QSet<Right*> rs;
+    foreach(QListWidgetItem* item, lw.selectedItems()){
+        ui->lwGroupContain->addItem(new QListWidgetItem(*item));
+        UserGroup* g = item->data(Qt::UserRole).value<UserGroup*>();
+        rs += g->getAllRights();
+    }
+    if(rs.isEmpty())
+        return;
+    foreach(QTreeWidgetItem* item, groupRightItems){
+        Right* r = item->data(0,ROLE_RIGHT).value<Right*>();
+        if(rs.contains(r)){
+            item->setCheckState(0,Qt::Checked);
+            item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable);
+        }
+    }
+}
+
+/**
+ * @brief SecConDialog::on_actDelGroup_triggered
+ * 在当前组中移除所选的组
+ */
+void SecConDialog::on_actDelGroup_triggered()
+{
+    QListWidgetItem* item = ui->lwGroup->currentItem();
+    if(!item)
+        return;
+    UserGroup* cg = item->data(Qt::UserRole).value<UserGroup*>(); //当前组
+    item = ui->lwGroupContain->currentItem();
+    UserGroup* g = item->data(Qt::UserRole).value<UserGroup*>();  //欲移除组
+    ui->lwGroupContain->takeItem(ui->lwGroupContain->currentRow());
+    QSet<Right*> rs = g->getAllRights();    //欲移除组所拥有的全部权限
+    QSet<Right*> grs;
+    QSet<UserGroup*> gs = cg->getOwnerGroups();
+    gs.remove(g);
+    foreach(UserGroup* g, gs){              //当前组在移除某个所属组后，其所有所属组拥有的权限
+        grs += g->getAllRights();
+    }
+    foreach(QTreeWidgetItem* item, groupRightItems){
+        Right* r = item->data(0,ROLE_RIGHT).value<Right*>();
+        if(rs.contains(r)){
+            item->setCheckState(0,Qt::Unchecked);
+            if(grs.contains(r))
+                item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable);
+            else
+                item->setFlags(Qt::ItemIsSelectable|Qt::ItemIsUserCheckable|Qt::ItemIsEnabled);
+        }
+    }
+}
+
+void SecConDialog::on_chkViewPW_clicked(bool checked)
+{
+    if(checked)
+        ui->edtUserPw->setEchoMode(QLineEdit::Normal);
+    else
+        ui->edtUserPw->setEchoMode(QLineEdit::PasswordEchoOnEdit);
+}
+
+/**
+ * @brief 单击用户禁用权限
+ * @param item
+ * @param column
+ */
+void SecConDialog::userRightItemClicked(QTreeWidgetItem *item, int column)
+{
+    if(column != 0 || !item->flags().testFlag(Qt::ItemIsEnabled))
+        return;
+    if(item->checkState(0) == Qt::Checked)
+        item->setForeground(0,disColor);
+    else
+        item->setForeground(0,enColor);
 }

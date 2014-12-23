@@ -29,7 +29,7 @@ public:
     //在树控件项目中放置的数据角色枚举
     enum ItemDataRole{
         ROLE_RIGHTTYPE_CODE = Qt::UserRole,     //权限类型代码
-        ROLE_RIGHT_CODE     = Qt::UserRole + 1, //权限代码
+        ROLE_RIGHT          = Qt::UserRole + 1, //权限代码
         ROLE_USERGROUP      = Qt::UserRole,     //组代码
         ROLE_USER           = Qt::UserRole,     //用户代码
         ROLE_ACCOUNT_CODE   = Qt::UserRole      //账户代码
@@ -57,9 +57,9 @@ private slots:
 
     void on_actDelGrpForUser_triggered();
 
-    void on_actAddGroup_triggered();
+    void on_actAddNewGroup_triggered();
 
-    void on_actDelGroup_triggered();
+    void on_actDelSelGroup_triggered();
 
     void on_actAddUser_triggered();
 
@@ -68,6 +68,14 @@ private slots:
     void on_actAddAcc_triggered();
 
     void on_actDelAcc_triggered();
+
+    void on_actAddGroup_triggered();
+
+    void on_actDelGroup_triggered();
+
+    void on_chkViewPW_clicked(bool checked);
+
+    void userRightItemClicked(QTreeWidgetItem *item, int column);
 
 private:
     void init();
@@ -78,16 +86,16 @@ private:
 
     //组相关函数
     void genRightTree(QTreeWidget* tree, RightType* type, bool isLeaf = false, QTreeWidgetItem* parent=NULL);
-    void refreshRightsForGroup(UserGroup* group, QTreeWidgetItem *parent=NULL);
-    void collectRightsForGroup(QSet<Right*> &rs, QTreeWidgetItem *parent=NULL);
+    void refreshRightsForGroup(UserGroup* group);
+    void refreshMemberInGroup(UserGroup* g);
+    void collectRightsForGroup(QSet<Right*> &rs);
     void isCurGroupChanged(UserGroup* g);
 
     //用户相关函数
     void viewUserInfos(User* u);
     void isCurUserChanged(User* u);
-    void refreshRightsForUser(User* u, QTreeWidgetItem *parent=NULL);
-    void modifyRightsForUser(QSet<Right*> rs, QTreeWidgetItem *parent=NULL);
-    void collectRightsForUser(QSet<Right*> &rs, QTreeWidgetItem *parent=NULL);
+    void refreshRightsForUser(User* u);
+    void collectDisRightsForUser(QSet<Right*> &rs);
 
     Ui::SecConDialog *ui;
     AppConfig* appCon;
@@ -97,6 +105,10 @@ private:
     QSet<User*> set_Users;
     bool dirty;
     bool isCancel;
+
+    QList<QTreeWidgetItem*> groupRightItems; //组权限树中的所有项目
+    QList<QTreeWidgetItem*> userRightItems;  //用户权限树中的所有项目
+    QBrush enColor,disColor,nonColor;        //分别表示用户权限树中启用、禁用和不具有的权限颜色指代
 };
 
 

@@ -4,6 +4,8 @@
 
 #include "aboutform.h"
 #include "ui_aboutform.h"
+#include "config.h"
+#include "transfers.h"
 
 AboutForm::AboutForm(QString copyRightText, QWidget *parent) :
     QWidget(parent),
@@ -11,7 +13,11 @@ AboutForm::AboutForm(QString copyRightText, QWidget *parent) :
 {
     ui->setupUi(this);
 
-
+    Machine* mac = AppConfig::getInstance()->getLocalStation();
+    if(mac)
+        ui->edtWsName->setText(mac->name());
+    else
+        ui->edtWsName->setText(tr("本站未知"));
     QSettings setting(":files/ini/revisionHistorys.ini",QSettings::IniFormat);
     setting.setIniCodec(QTextCodec::codecForName("utf-8"));
     QString key = "revisions";

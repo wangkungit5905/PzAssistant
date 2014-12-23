@@ -644,22 +644,60 @@ struct ExternalToolCfgItem{
     QString name,commandLine,parameter;
 };
 
-//enum MachineType{
-//    MT_COMPUTER = 1,    //电脑
-//    MT_CLOUDY   = 2     //云
-//};
+/**
+ * @brief 以文本方式序列化对象的字段索引
+ */
 
-///**
-// * @brief The Machine struct
-// *  可以放置账户文件以只读或编辑模式打开的机器
-// */
+enum SerialObjectFieldIndex{
+    //Right Type Object
+    SOFI_RT_PC = 0,
+    SOFI_RT_CODE = 1,
+    SOFI_RT_NAME = 2,
+    SOFI_RT_DESC = 3,
 
-//struct Machine{
-//    int id;             //主机id
-//    MachineType type;   //主机类型
-//    bool isLocal;       //是否本机
-//    QString name;       //主机名
-//    QString desc;       //主机描述
-//};
+    //Right Object
+    SOFI_RIGHT_CODE = 0,
+    SOFI_RIGHT_RT = 1,
+    SOFI_RIGHT_NAEM = 2,
+    SOFI_RIGHT_DESC = 3,
+
+    //User Group Object
+    SOFI_GROUP_CODE = 0,
+    SOFI_GROUP_NAME = 1,
+    SOFI_GROUP_RIGHTS = 2,
+    SOFI_GROUP_OWNER = 3,
+    SOFI_GROUP_DESC = 4,
+
+    //User Object
+    SOFI_USER_CODE = 0,
+    SOFI_USER_ISENABLED = 1,
+    SOFI_USER_NAME = 2,
+    SOFI_USER_PASSWORD = 3,
+    SOFI_USER_GROUPS = 4,
+    SOFI_USER_ACCOUNTS = 5,
+    SOFI_USER_DISRIGHTS = 6,
+
+    //WorkStation Object 101||1||0||本机Pc（W）||家里的桌面电脑||1
+    SOFI_WS_MID = 0,
+    SOFI_WS_TYPE = 1,
+    SOFI_WS_ISLOCAL = 2,
+    SOFI_WS_NAME = 3,
+    SOFI_WS_DESC = 4,
+    SOFI_WS_OSTYPE = 5
+};
+
+/**
+ * @brief 基本库版本类型枚举
+ * 对于数据库结构版本，每次当基本库中表结构发生改变，或增删表时，要递增版本号，
+ * 其他版本类型记录该表的记录内容改变，这些表中的记录是应用正常运行所需的
+ */
+enum BaseDbVersionEnum{
+    BDVE_DB = 1,            //数据库结构版本
+    BDVE_RIGHTTYPE = 2,     //权限类型
+    BDVE_RIGHT = 3,         //权限
+    BDVE_GROUP = 4,         //组
+    BDVE_USER = 5,          //用户
+    BDVE_WORKSTATION = 6    //工作站
+};
 
 #endif // COMMDATASTRUCT_H

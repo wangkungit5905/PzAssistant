@@ -59,10 +59,10 @@ public:
         QHash<TableFormat, QList<int> > colPriWidths; //打印各种表格格式时的列宽
     } stateInfo;
 
-    explicit CurStatDialog(StatUtil* statUtil, QByteArray* sinfo = NULL, QWidget *parent = 0);
+    explicit CurStatDialog(StatUtil* statUtil, QByteArray* cinfo, QByteArray* pinfo, QWidget *parent = 0);
     ~CurStatDialog();
-    void setState(QByteArray* info);
-    QByteArray* getState();
+    QByteArray* getCommonState();
+    QByteArray* getProperState();
     void stat();
     void print(PrintActionClass action = PAC_TOPRINTER);
 
@@ -94,7 +94,9 @@ signals:
     void infomation(QString info);       //向主窗口发送要在状态条上显示的信息
     void extraValided();    //向主窗口报告余额已经保存，有效了
 
-private:
+private:    
+    void setCommonState(QByteArray* info);
+    void setProperState(QByteArray* info);
     void init();
     void initHashs();
     void viewRates();

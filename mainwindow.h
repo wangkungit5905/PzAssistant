@@ -310,6 +310,10 @@ private slots:
 
     void on_actNoteMgr_triggered();
 
+    void on_actExpAppCfg_triggered();
+
+    void on_actImpAppCfg_triggered();
+
 private:
     bool isExecAccountTransform();
     bool isOnlyCommonSubWin(subWindowType winType);
@@ -325,11 +329,12 @@ private:
     void addSubWindowMenuItem(QList<MyMdiSubWindow*> windows);
 
     //菜单项启用性控制
+    bool isContainRights(QSet<Right*> rs);
     bool isSuiteEditable();
     bool isPzSetEditable();
     bool isPzEditable();
     void rfLogin();
-    void rfMainAct();
+    void rfMainAct(bool login);
     void rfSuiteAct();
     void rfPzSetOpenAct();
     void rfPzSetStateAct();
@@ -353,6 +358,8 @@ private:
     void adjustEditMenus(UndoType ut=UT_PZ, bool restore = false);
 
     bool exportCommonSubject();
+    void exportRightSys();
+    bool inspectVersionBeforeImport(QString versionText, BaseDbVersionEnum type, QString fileName,int &mv, int &sv);
 
     /////////////////////////////////////////////////////////////////
 

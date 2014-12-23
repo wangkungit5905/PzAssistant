@@ -28,7 +28,7 @@ void TestForm::fstSubChanged(int index)
     fsub = ui->cmbFst->itemData(index).value<FirstSubject*>();
     if(fsub){
         ui->edtName->setText(fsub->getName());
-        ui->cmbSnd->setFirstSubject(fsub);
+        ui->cmbSnd->setParentSubject(fsub);
     }
     else
         ui->edtName->clear();

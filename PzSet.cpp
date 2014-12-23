@@ -62,6 +62,8 @@ bool AccountSuiteManager::open(int m)
     scanPzCount(c_repeal,c_recording,c_verify,c_instat,pzs);
     if(!statUtil)
         statUtil = new StatUtil(pzs,this);
+    else
+        statUtil->setPzSet(pzs);
     //凭证集的状态以实际凭证为准
     PzsState state;
     _determinePzSetState(state);

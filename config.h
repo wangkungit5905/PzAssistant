@@ -103,6 +103,7 @@ public:
     //记录站点信息
     const QString SEGMENT_STATIONS = "Stations";
     const QString KEY_STATION_MSID = "masterStationId";
+    const QString KEY_STATION_LOID = "localStationId";
 
     ~AppConfig();
 
@@ -133,8 +134,10 @@ public:
     Machine* getMasterStation();
     QHash<MachineType,QString> getMachineTypes();
     Machine* getLocalStation();
+    int getLocalStationId(){return localId;}
     Machine* getMachine(int id){return machines.value(id);}
     QHash<int,Machine*> getAllMachines(){return machines;}
+    bool refreshMachines(){return _initMachines();}
     bool saveMachine(Machine* mac);
     bool saveMachines(QList<Machine*> macs);
     bool removeMachine(Machine* mac);
@@ -147,8 +150,8 @@ public:
     void saveDirName(DirectoryName witch,QString dir);
 
     //子窗口状态信息存取方法
-    bool getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *&otherInfo);
-    bool saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *otherInfo);
+    bool getSubWinInfo(int winEnum, SubWindowDim *&info, QByteArray *sinfo=0);
+    bool saveSubWinInfo(int winEnum, SubWindowDim *info, QByteArray *sinfo=0);
     bool readPzEwTableState(QList<int> &infos);
 
     //获取或设置配置变量的值
@@ -197,15 +200,26 @@ public:
     bool saveExternalTool(ExternalToolCfgItem* item, bool isDelete=false);
 
     //安全模块需要的方法
-    bool getRights(QHash<int,Right*>& rights);
-    bool getUsers(QHash<int,User*>& users);
+    bool initRights(QHash<int,Right*>& rights);
+    bool initUsers(QHash<int,User*>& users);
     bool saveUser(User* u, bool isDelete=false);
     bool restorUser(User* u);
-    bool getRightTypes(QHash<int, RightType *> &types);
-    bool getUserGroups(QHash<int,UserGroup*>& groups);
+    bool initRightTypes(QHash<int, RightType *> &types);
+    bool initUserGroups(QHash<int,UserGroup*>& groups);
     bool saveUserGroup(UserGroup* g, bool isDelete=false);
     bool restoreUserGroup(UserGroup* g);
-    //bool getOprates(QHash<int,Operate*>& operates);
+    void getAppCfgTypeNames(QHash<BaseDbVersionEnum, QString> &names);
+    bool setAppCfgVersion(BaseDbVersionEnum verType, int mv, int sv);
+    bool getAppCfgVersion(int &mv, int &sv, BaseDbVersionEnum vType);
+    bool getAppCfgVersions(QList<BaseDbVersionEnum> &verTypes, QStringList &verNames,
+                          QList<int> &mvs, QList<int> &svs);
+
+    //批量保存安全模块设置信息方法
+    bool clearAndSaveUsers(QList<User*> users,int mv,int sv);
+    bool clearAndSaveGroups(QList<UserGroup*> groups,int mv,int sv);
+    bool clearAndSaveMacs(QList<Machine *> macs,int mv,int sv);
+    bool clearAndSaveRights(QList<Right*> rights,int mv,int sv);
+    bool clearAndSaveRightTypes(QList<RightType*> rightTypes,int mv,int sv);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);
@@ -224,6 +238,7 @@ private:
     QHash<int, Money*> moneyTypes;
     QHash<int, Machine*> machines;
     int msId;   //主站标识
+    int localId; //本站标识
     QHash<int, SubSysNameItem*> subSysNames;
     QList<AccountCacheItem*> accountCaches;
     QHash<int, QHash<SpecSubCode,QString> > specCodes; //特定科目代码表

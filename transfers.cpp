@@ -1,6 +1,7 @@
 #include <QPushButton>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QSqlError>
 
 #include "global.h"
 #include "config.h"
@@ -27,6 +28,89 @@ Machine::Machine(Machine &other)
     sname = other.sname;
     desc = other.desc;
     _osType = other._osType;
+}
+
+/**
+ * @brief 序列化对象到文本
+ * @return
+ */
+QString Machine::serialToText()
+{
+    QStringList ls;
+    for(int i = 0; i < 6; ++i)
+        ls<<"";
+    ls[SOFI_WS_MID] = QString::number(mid);
+    ls[SOFI_WS_TYPE] = QString::number((int)type);
+    ls[SOFI_WS_ISLOCAL] = (isLocal?"1":"0");
+    ls[SOFI_WS_NAME] = sname;
+    ls[SOFI_WS_DESC] = desc;
+    ls[SOFI_WS_OSTYPE] = QString::number(_osType);
+    return ls.join("||");
+}
+
+Machine *Machine::serialFromText(QString serialText)
+{
+    QStringList ls = serialText.split("||");
+    if(ls.count() != 6)
+        return 0;
+    bool ok;
+    int mid = ls.at(SOFI_WS_MID).toInt(&ok);
+    if(!ok)
+        return 0;
+    MachineType type = (MachineType)ls.at(SOFI_WS_TYPE).toInt(&ok);
+    if(!ok)
+        return 0;
+    if(type != MT_COMPUTER && type != MT_COMPUTER){
+        LOG_ERROR(QString("Create Workstation Object failed! Reason is type code invalid! text is '%1'").arg(serialText));
+        return 0;
+    }
+    bool isLocal = (ls.at(SOFI_WS_ISLOCAL) == "0")?false:true;
+    int osType = ls.at(SOFI_WS_OSTYPE).toInt(&ok);
+    if(!ok)
+        LOG_ERROR(QString("Create Workstation Object have Warning! Reason is Operate System code invalid! text is '%1'").arg(serialText));
+    Machine* mac = new Machine(UNID,type,mid,isLocal,ls.at(SOFI_WS_NAME),ls.at(SOFI_WS_DESC),osType);
+    return mac;
+}
+
+void Machine::serialAllToBinary(int mv, int sv, QByteArray *ds)
+{
+    QList<Machine*> macs = AppConfig::getInstance()->getAllMachines().values();
+    qSort(macs.begin(),macs.end(),byMacMID);
+    QBuffer bf(ds);
+    QTextStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
+    foreach(Machine* m, macs)
+        out<<m->serialToText()<<"\n";
+    bf.close();
+}
+
+bool Machine::serialAllFromBinary(QList<Machine *> &macs, int &mv, int &sv, QByteArray *ds)
+{
+    QBuffer bf(ds);
+    QTextStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    QStringList sl = in.readLine().split("=");
+    if(sl.count() != 2)
+        return false;
+    sl = sl.at(1).split(".");
+    if(sl.count() != 2)
+        return false;
+    bool ok;
+    mv = sl.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = sl.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+
+    while(!in.atEnd()){
+        Machine* m = serialFromText(in.readLine());
+        if(!m)
+            return false;
+        macs<<m;
+    }
+    return true;
 }
 
 bool Machine::operator ==(const Machine &other) const
@@ -56,9 +140,19 @@ TransferRecordManager::TransferRecordManager(QString filename, QWidget *parent):
     trRec = NULL;
     db = QSqlDatabase::addDatabase("QSQLITE",TRANSFER_MANAGER_CONNSTR);
     connected = false;
-    isExistTemMacTable = false;
+    isExistTemAppCfgTable = false;
     macUpdated = false;
-    setFilename(filename);    
+    isTranOut = (p->objectName() == "TransferOutDialog");
+    conf = AppConfig::getInstance();
+    localMacs = conf->getAllMachines();
+    setFilename(filename);
+}
+
+TransferRecordManager::~TransferRecordManager()
+{
+    if(db.isOpen())
+        db.close();
+    QSqlDatabase::removeDatabase(TRANSFER_MANAGER_CONNSTR);
 }
 
 /**
@@ -85,96 +179,19 @@ bool TransferRecordManager::setFilename(QString filename)
     }
     connected = true;
     QSqlQuery q(db);
-    QString s = QString("select count() from sqlite_master where type='table' and name='tem_%1'").arg(tbl_machines);
+    QString s = QString("select count() from sqlite_master where type='table' and name='%1'").arg(tbl_tem_appcfg);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
     }
     q.first();
     int c = q.value(0).toInt();
-    isExistTemMacTable = (c == 1);
-    s = QString("select count() from sqlite_master where type='table' and name='tem_%1'").arg(tbl_base_users);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    q.first();
-    c = q.value(0).toInt();
-    isExistTemUserTable = (c == 1);
-    genMergeMacs();
+    isExistTemAppCfgTable = (c == 1);
     trRec = getLastTransRec();
-    //如果捎带了用户信息，则更新本站的用户信息表
-    if(isExistTemUserTable && upUsers.isEmpty()){
-        s = QString("select count() from tem_%1").arg(tbl_base_users);
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        q.first();
-        c = q.value(0).toInt();
-        if(c == 0)
-            return true;
-        s = QString("select * from tem_%1").arg(tbl_base_users);
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-        while(q.next()){
-            int uid = q.value(0).toInt();
-            QString name = q.value(FI_BASE_U_NAME).toString();
-            QString password = q.value(FI_BASE_U_PASSWORD).toString();
-            QString groups = q.value(FI_BASE_U_GROUPS).toString();
-            QString accounts = q.value(FI_BASE_U_ACCOUNTS).toString();
-            QString rights = q.value(FI_BASE_U_EXTRARIGHTS).toString();
-            QSet<Right*> extraRights;
-            bool ok = false;
-            int rid;
-            foreach(QString rd, rights.split(",")){
-                rid = rd.toInt(&ok);
-                if(!ok)
-                    LOG_ERROR(QString("Invalid Right code '%1'").arg(rid));
-                Right* r = allRights.value(rid);
-                if(!r)
-                    LOG_ERROR(QString("Invalid Right code '%1'").arg(rid));
-                extraRights.insert(r);
-            }
-            //剔除无效组代码
-            QSet<UserGroup*> gs;
-            int gc = 0;
-            foreach(QString cs, groups.split(",")){
-                gc = cs.toInt(&ok);
-                if(!ok){
-                    LOG_ERROR(QString("Invalid group code: %1").arg(cs));
-                    continue;
-                }
-                UserGroup* g = allGroups.value(gc);
-                if(!g){
-                    myHelper::ShowMessageBoxWarning(tr("捎带用户“%1”所属组在本站不存在，组代码为“%2”").arg(name).arg(gc));
-                    continue;
-                }
-                gs.insert(g);
-            }
-            User* u = allUsers.value(uid);
-            if(!u){
-                u = new User(uid,name,password,gs);
-                //allUsers[uid] = u;
-            }
-            else{
-                if(u->getName() != name)
-                    u->setName(name);
-                if(u->getPassword() != password)
-                    u->setPassword(password);
-                if(u->getOwnerGroups() != gs)
-                    u->setOwnerGroups(gs);
-            }
-            if(u->getExclusiveAccounts().join(",") != accounts)
-                u->setExclusiveAccounts(accounts.split(","));
-            if(u->getExtraRights() != extraRights){
-                foreach(Right* r, extraRights)
-                    u->addRight(r);
-            }
-            upUsers<<u;
-        }
+    q.finish();
+    //如果是执行转入操作，且账户捎带了应用配置信息，则与本站进行版本比较只有在高于本站版本时才可以应用
+    if(isExistTemAppCfgTable && !isTranOut && !upgradeAppCfg()){
+        myHelper::ShowMessageBoxError(tr("应用配置信息更新过程发生错误，可能使应用无法处于最新有效的运行状态！"));
     }
     return true;
 }
@@ -240,299 +257,274 @@ bool TransferRecordManager::saveTransferRecord(AccontTranferInfo *rec)
 
 /**
  * @brief TransferRecordManager::attechMachineInfo
- *  让转出的账户文件捎带执行转出操作的主机上的所有主机信息，将在账户文件内创建临时保存主机的表
+ *  让转出的账户文件捎带执行转出操作的主机上的应用配置信息，将在账户文件内创建临时保存配置信息的表
  *  此方法只在执行转出操作时调用
  * @return
  */
-bool TransferRecordManager::attechMachineInfo(QList<Machine*> macs)
+bool TransferRecordManager::attechAppCfgInfo(QList<BaseDbVersionEnum> &verTypes, QStringList &verNames, QList<int> &mvs, QList<int> &svs, QList<QByteArray*> &infos)
 {
     if(!connected)
         return false;
     if(trRec && trRec->tState != ATS_TRANSINDES) //只有在账户已转入目标主机的情况下，才可以执行转出操作
         return true;
+    if(verTypes.isEmpty())
+        return true;
     QSqlQuery q(db);
     QString s;
-    if(!isExistTemMacTable){
-        s = QString("create table tem_%1(id integer primary key, %2 integer, %3 integer, %4 text, %5 text, %6 integer)")
-                .arg(tbl_machines).arg(fld_mac_mid).arg(fld_mac_type).arg(fld_mac_sname).arg(fld_mac_desc).arg(fld_mac_ostype);
+    if(!isExistTemAppCfgTable){
+        s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 TEXT, %4 INTEGER, %5 INTEGER, %6 BLOB)")
+                .arg(tbl_tem_appcfg).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+                .arg(fld_base_version_master).arg(fld_base_version_second).arg(fld_tem_appcfg_obj);
         if(!q.exec(s)){
             LOG_SQLERROR(s);
-            myHelper::ShowMessageBoxError(tr("创建临时主机表失败！"));
+            myHelper::ShowMessageBoxError(tr("创建临时应用配置表失败！"));
             return false;
         }
     }
     else{
-        s = QString("delete from tem_%1").arg(tbl_machines);
+        s = QString("delete from %1").arg(tbl_tem_appcfg);
         if(!q.exec(s)){
             LOG_SQLERROR(s);
             return false;
         }
-    }
-    foreach(Machine* mac, macs){
-        s = QString("insert into tem_%1(%2,%3,%4,%5,%6) values(%7,%8,'%9','%10',%11)")
-                .arg(tbl_machines).arg(fld_mac_mid).arg(fld_mac_type).arg(fld_mac_sname)
-                .arg(fld_mac_desc).arg(fld_mac_ostype).arg(mac->getMID()).arg(mac->getType())
-                .arg(mac->name()).arg(mac->description()).arg(mac->osType());
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            QMessageBox::critical(0,tr("出错信息"),tr("往临时主机表插入主机信息时失败！"));
-            return false;
-        }
-    }
-    return true;
-}
-
-/**
- * @brief TransferRecordManager::attechUserInfo
- *  捎带用户信息到转入站
- * @param users
- * @return
- */
-bool TransferRecordManager::attechUserInfo(QList<User *> users)
-{
-    if(!connected)
+    };
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save Application config infomation!");
         return false;
-    if(trRec && trRec->tState != ATS_TRANSINDES) //只有在账户已转入目标主机的情况下，才可以执行转出操作
-        return true;
-    QSqlQuery q(db);
-    QString s;
-    if(!isExistTemUserTable){
-        s = QString("create table tem_%1(id INTEGER PRIMARY KEY, %2 TEXT, %3 TEXT, %4 TEXT, %5 TEXT, %6 TEXT)")
-                .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
-                .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights);
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-
-    }else{
-        s = QString("delete from tem_%1").arg(tbl_base_users);
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
     }
-    s = QString("insert into tem_%1(id,%2,%3,%4,%5,%6) values(:id,:name,:pw,:g,:a,:right)")
-            .arg(tbl_base_users).arg(fld_base_u_name).arg(fld_base_u_password)
-            .arg(fld_base_u_groups).arg(fld_base_u_accounts).arg(fld_base_u_extra_rights);
+    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:type,:name,:mv,:sv,:infos)")
+            .arg(tbl_tem_appcfg).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+            .arg(fld_base_version_master).arg(fld_base_version_second).arg(fld_tem_appcfg_obj);
     if(!q.prepare(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    foreach(User* u, users){
-        q.bindValue(":id",u->getUserId());
-        q.bindValue(":name",u->getName());
-        q.bindValue(":pw",u->getPassword());
-        q.bindValue(":g",u->getOwnerGroupCodeList());
-        q.bindValue(":a",u->getExclusiveAccounts().join(","));
-        q.bindValue(":right",u->getExtraRightCodes());
+    for(int i = 0; i < verTypes.count(); ++i){
+        q.bindValue(":type",verTypes.at(i));
+        q.bindValue(":name",verNames.at(i));
+        q.bindValue(":mv",mvs.at(i));
+        q.bindValue(":sv",svs.at(i));
+        q.bindValue(":infos",*infos.at(i));
         if(!q.exec()){
             LOG_SQLERROR(q.lastQuery());
             return false;
         }
     }
-    return true;
-}
-
-/**
- * @brief 移除捎带用户信息的临时表
- * @return
- */
-bool TransferRecordManager::clearTemUserTable()
-{
-    if(!isExistTemUserTable)
-        return true;
-    QSqlQuery q(db);
-    QString s = QString("drop table tem_%1").arg(tbl_base_users);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save Application config infomation!");
         return false;
     }
-    isExistTemUserTable = false;
-    return true;
-}
-
-/**
- * @brief 从临时用户表捎带的用户更新本站用户信息
- * @return
- */
-bool TransferRecordManager::updateUsers()
-{
-    if(!connected)
-        return false;
-    if(upUsers.isEmpty())
-        return true;
-    AppConfig* conf = AppConfig::getInstance();
-    foreach(User* u, upUsers){
-        if(!conf->saveUser(u)){
-            myHelper::ShowMessageBoxError(tr("在保存捎带用户“%1（%2）时发生错误！”")
-                                                          .arg(u->getName().arg(u->getUserId())));
-            return false;
-        }
-    }
-    if(!clearTemUserTable())
-        LOG_ERROR("Failed delete temporary user table!");
     return true;
 }
 
 /**
  * @brief TransferRecordManager::updateMachines
- *  如果被转入的账户捎带了工作站信息，则和本地工作站上保存的工作站列表比较，进行必要的更新、新增和删除操作
- *  用一个表格显示比较的结果，如果是要更新的工作站，则第一列有一个检取框供用户选择是否更新，如果没有检取框，
- *  则表示此工作站信息没有变化，或此工作站在本工作站中存在但在来源工作站中不存在（用灰色背景）
+ *  升级应用配置信息
  *  此方法只在执行转入操作时调用
  * @return
  */
-bool TransferRecordManager::updateMachines()
+bool TransferRecordManager::upgradeAppCfg()
 {
     if(!connected)
         return false;
     QSqlQuery q(db);
     if(trRec && trRec->tState != ATS_TRANSOUTED)
         return true;
-    if(!isExistTemMacTable) //只有在捎带了主机信息的情况下，才执行此任务
+    if(!isExistTemAppCfgTable)
         return true;
-    AppConfig* conf = AppConfig::getInstance();
-    if(upMacs.isEmpty() && newMacs.isEmpty())
+    QString s = QString("select * from %1").arg(tbl_tem_appcfg);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    //比较版本，以决定升级哪些配置信息
+    QList<BaseDbVersionEnum> verTypes;
+    QList<QByteArray*> objs;
+    QList<QString> names;
+    while(q.next()){
+        int bmv,bsv,smv,ssv; //本站或转入捎带的主次版本号
+        BaseDbVersionEnum verType = (BaseDbVersionEnum)q.value(FI_TEM_APPCFG_VERTYPE).toInt();
+        conf->getAppCfgVersion(bmv,bsv,verType);
+        smv = q.value(FI_TEM_APPCFG_MASTER).toInt();
+        ssv = q.value(FI_TEM_APPCFG_SECOND).toInt();
+        if((bmv > smv) || ((bmv == smv) && (bsv >= ssv)))
+            continue;
+        verTypes<<verType;
+        QString name;
+        switch(verType){
+        case BDVE_RIGHTTYPE:
+            name = tr("权限类型");
+            break;
+        case BDVE_RIGHT:
+            name = tr("权限系统");
+            break;
+        case BDVE_GROUP:
+            name = tr("组");
+            break;
+        case BDVE_USER:
+            name = tr("用户");
+            break;
+        case BDVE_WORKSTATION:
+            name = tr("工作站");
+            break;
+        }
+        names<<name;
+        objs<<new QByteArray(q.value(FI_TEM_APPCFG_OBJECT).toByteArray());
+    }
+    //显示给用户哪些配置信息需升级
+    if(verTypes.empty()){
+        myHelper::ShowMessageBoxInfo(tr("导入文件附带应用配置升级信息，但版本不高于本站配置，因此无须升级！"));
+        q.finish();
+        clearTemAppCfgTable();
         return true;
+    }
+    QString info = tr("如下应用配置信息需要升级：\n");
+    foreach(QString s,names)
+        info.append(s).append("\n");
+    myHelper::ShowMessageBoxInfo(info);
 
-    QDialog dlg(p);
-    QLabel* lblExplain = new QLabel(QObject::tr("说明：蓝色--新增，红色--不相同，黑色--相同，绿色--未更新，灰底--本机存在但未捎带"));
-    QFont font = lblExplain->font();
-    font.setBold(true);
-    lblExplain->setFont(font);
-    tab = new QTableWidget(&dlg);
-    tab->setSelectionBehavior(QAbstractItemView::SelectRows);
-    tab->setColumnCount(6);
-    int rowCount = newMacs.count()+upMacs.count()+notMacs.count()+notExistMacs.count();
-    tab->setRowCount(rowCount);
-    tab->horizontalHeader()->setStretchLastSection(true);
-    tab->setEditTriggers(QAbstractItemView::NoEditTriggers);
-    QStringList ht;
-    ht<<tr("是否更新")<<tr("主机ID")<<tr("主机类型")<<tr("宿主系统")<<tr("主机名")<<tr("主机描述");
-    tab->setHorizontalHeaderLabels(ht);
-    QHash<MachineType,QString> macTypes = conf->getMachineTypes();
-    QPushButton* btnExec = new QPushButton(tr("更新本地主机"),&dlg);
-    QPushButton* btnClose = new QPushButton(tr("关闭"),&dlg);
-    QObject::connect(btnExec,SIGNAL(clicked()),this,SLOT(execStationUpdate()));
-    QObject::connect(btnClose,SIGNAL(clicked()),&dlg,SLOT(close()));
-    int row = 0;
-    Machine* mac;
-    QTableWidgetItem* item;
-    QBrush color_blue(QColor(Qt::blue));    //新增主机
-    QBrush color_red(QColor(Qt::red));      //更新主机
-    QBrush color_grey(QColor(Qt::gray));    //
-    QBrush color_green(QColor(Qt::darkGreen));  //未更新主机
-    QHash<int,QString> osTypes;
-    conf->getOsTypes(osTypes);
-    //装载新增主机
-    for(int i = 0; i < newMacs.count(); ++i,++row){
-        mac = newMacs.at(i);
-        tab->setCellWidget(row,0,new QCheckBox());
-        item = new QTableWidgetItem(QString::number(mac->getMID()));
-        item->setForeground(color_blue);
-        tab->setItem(row,MCI_MID+1,item);
-        item = new QTableWidgetItem(macTypes.value(mac->getType()));
-        item->setForeground(color_blue);
-        tab->setItem(row,MCI_TYPE+1,item);
-        item = new QTableWidgetItem(osTypes.value(mac->osType(),tr("未知系统")));
-        item->setForeground(color_blue);
-        tab->setItem(row,MCI_OSTYPE+1,item);
-        item = new QTableWidgetItem(mac->name());
-        item->setForeground(color_blue);
-        tab->setItem(row,MCI_NAME+1,item);
-        item = new QTableWidgetItem(mac->description());
-        item->setForeground(color_blue);
-        tab->setItem(row,MCI_DESC+1,item);
+    //升级
+    int mv,sv;
+    BaseDbVersionEnum verType;
+    for(int i=0; i<verTypes.count(); ++i){
+        bool ok1=false,ok2=false;
+        verType = verTypes.at(i);
+        if(verType == BDVE_RIGHTTYPE){
+            QList<RightType*> rts;
+            ok1 = RightType::serialAllFromBinary(rts,mv,sv,objs.at(i));
+            if(!ok1)
+                myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
+            else{
+                ok2 = conf->clearAndSaveRightTypes(rts,mv,sv);
+                if(!ok2)
+                    myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
+            }
+            if(!ok1 || !ok2){
+                if(!rts.isEmpty())
+                    qDeleteAll(rts);
+                return false;
+            }
+            else{
+                allRightTypes.clear();
+                foreach(RightType* rt, rts)
+                    allRightTypes[rt->code] = rt;
+            }
+        }
+        else if(verType == BDVE_RIGHT){
+            QList<Right*> rs;
+            ok1 = Right::serialAllFromBinary(allRightTypes,rs,mv,sv,objs.at(i));
+            if(!ok1)
+                myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
+            else{
+                ok2 = conf->clearAndSaveRights(rs,mv,sv);
+                if(!ok2)
+                    myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
+            }
+            if(!ok1 || !ok2){
+                if(!rs.isEmpty())
+                    qDeleteAll(rs);
+                return false;
+            }
+            else{
+                allRights.clear();
+                foreach(Right* r,rs)
+                    allRights[r->getCode()] = r;
+            }
+        }
+        else if(verType == BDVE_GROUP){
+            QList<UserGroup*> gs;
+            ok1 = UserGroup::serialAllFromBinary(gs,mv,sv,objs.at(i),allRights);
+            if(!ok1)
+                myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
+            else{
+                ok2 = conf->clearAndSaveGroups(gs,mv,sv);
+                if(!ok2)
+                    myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
+            }
+            if(!ok1 || !ok2){
+                if(!gs.isEmpty())
+                    qDeleteAll(gs);
+                return false;
+            }
+            else{
+                allGroups.clear();
+                foreach(UserGroup* g, gs)
+                    allGroups[g->getGroupCode()] = g;
+            }
+        }
+        else if(verType == BDVE_USER){
+            QList<User*> us;
+            ok1 = User::serialAllFromBinary(us,mv,sv,objs.at(i),allRights,allGroups);
+            if(!ok1)
+                myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
+            else{
+                ok2 = conf->clearAndSaveUsers(us,mv,sv);
+                if(!ok2)
+                    myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
+            }
+            if(!ok1 || !ok2){
+                if(!us.isEmpty())
+                    qDeleteAll(us);
+                return false;
+            }
+            else{
+                allUsers.clear();
+                foreach(User* u, us)
+                    allUsers[u->getUserId()] = u;
+            }
+        }
+        else if(verType == BDVE_WORKSTATION){
+            QList<Machine*> macs;
+            ok1 = Machine::serialAllFromBinary(macs,mv,sv,objs.at(i));
+            if(!ok1)
+                myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
+            else{
+                int localId = conf->getLocalStationId();
+                foreach(Machine* m, macs){
+                    if(m->getMID() == localId)
+                        m->setLocalMachine(true);
+                    else
+                        m->setLocalMachine(false);
+                }
+                ok2 = conf->clearAndSaveMacs(macs,mv,sv);
+                if(!ok2)
+                    myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
+            }
+            if(!ok1 || !ok2){
+                if(!macs.isEmpty())
+                    qDeleteAll(macs);
+                return false;
+            }
+            else{
+                conf->refreshMachines();
+                localMacs.clear();
+                localMacs = conf->getAllMachines();
+            }
+        }
     }
-    //装载信息更新的主机
-    for(int i = 0; i < upMacs.count(); ++i,++row){
-        mac = upMacs.at(i);
-        tab->setCellWidget(row,0,new QCheckBox());
-        item = new QTableWidgetItem(QString::number(mac->getMID()));
-        item->setForeground(color_red);
-        tab->setItem(row,MCI_MID+1,item);
-        item = new QTableWidgetItem(macTypes.value(mac->getType()));
-        item->setForeground(color_red);
-        tab->setItem(row,MCI_TYPE+1,item);
-        item = new QTableWidgetItem(osTypes.value(mac->osType(),tr("未知系统")));
-        item->setForeground(color_red);
-        tab->setItem(row,MCI_OSTYPE+1,item);
-        item = new QTableWidgetItem(mac->name());
-        item->setForeground(color_red);
-        tab->setItem(row,MCI_NAME+1,item);
-        item = new QTableWidgetItem(mac->description());
-        item->setForeground(color_red);
-        tab->setItem(row,MCI_DESC+1,item);
-    }
-    //装载未变更的主机
-    for(int i = 0; i < notMacs.count(); ++i,++row){
-        mac = notMacs.at(i);
-        item = new QTableWidgetItem(QString::number(mac->getMID()));
-        item->setForeground(color_green);
-        tab->setItem(row,MCI_MID+1,item);
-        item = new QTableWidgetItem(macTypes.value(mac->getType()));
-        item->setForeground(color_green);
-        tab->setItem(row,MCI_TYPE+1,item);
-        item = new QTableWidgetItem(osTypes.value(mac->osType(),tr("未知系统")));
-        item->setForeground(color_green);
-        tab->setItem(row,MCI_OSTYPE+1,item);
-        item = new QTableWidgetItem(mac->name());
-        item->setForeground(color_green);
-        tab->setItem(row,MCI_NAME+1,item);
-        item = new QTableWidgetItem(mac->description());
-        item->setForeground(color_green);
-        tab->setItem(row,MCI_DESC+1,item);
-    }
-    //装载本机存在但未捎带的主机（可能这些主机已经被认为不实际存在了，可以清除）
-    for(int i = 0; i < notExistMacs.count(); ++i,++row){
-        mac = notExistMacs.at(i);
-        item = new QTableWidgetItem(QString::number(mac->getMID()));
-        item->setBackground(color_grey);
-        tab->setItem(row,MCI_MID+1,item);
-        item = new QTableWidgetItem(macTypes.value(mac->getType()));
-        item->setBackground(color_grey);
-        tab->setItem(row,MCI_TYPE+1,item);
-        item = new QTableWidgetItem(osTypes.value(mac->osType(),tr("未知系统")));
-        item->setBackground(color_grey);
-        tab->setItem(row,MCI_OSTYPE+1,item);
-        item = new QTableWidgetItem(mac->name());
-        item->setBackground(color_grey);
-        tab->setItem(row,MCI_NAME+1,item);
-        item = new QTableWidgetItem(mac->description());
-        item->setBackground(color_grey);
-        tab->setItem(row,MCI_DESC+1,item);
-    }
-    QHBoxLayout* lb = new QHBoxLayout;
-    lb->addStretch();
-    lb->addWidget(btnExec);
-    lb->addWidget(btnClose);
-    QVBoxLayout* lm = new QVBoxLayout;
-    lm->addWidget(lblExplain);
-    lm->addWidget(tab);
-    lm->addLayout(lb);
-    dlg.setLayout(lm);
-    dlg.resize(800,400);
-    dlg.exec();
+    q.finish();
+    clearTemAppCfgTable();
+    myHelper::ShowMessageBoxInfo(tr("升级操作成功完成，需要重新启动应用以使配置生效！"));
     return true;
 }
 
 /**
  * @brief TransferRecordManager::clearTemMachineTable
- *  删除捎带主机信息的临时表
+ *  删除捎带应用配置信息的临时表
  * @return
  */
-bool TransferRecordManager::clearTemMachineTable()
+bool TransferRecordManager::clearTemAppCfgTable()
 {
-    if(!isExistTemMacTable)
+    if(!isExistTemAppCfgTable)
         return true;
     QSqlQuery q(db);
-    QString s = QString("drop table tem_%1").arg(tbl_machines);
+    QString s = QString("drop table %1").arg(tbl_tem_appcfg);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
+        QString info = q.lastError().text();
         return false;
     }
-    isExistTemMacTable = false;
+    isExistTemAppCfgTable = false;
     return true;
 }
 
@@ -591,19 +583,22 @@ AccontTranferInfo *TransferRecordManager::getLastTransRec()
     }
     if(!q.last())
         return NULL;
-    AppConfig* conf = AppConfig::getInstance();
     trRec = new AccontTranferInfo;
     trRec->tState = (AccountTransferState)q.value(TRANS_STATE).toInt();
     smid = q.value(TRANS_SMID).toInt();
     dmid = q.value(TRANS_DMID).toInt();
-    //检测源主机和目标主机是否在本机上存在，如果不存在，则检查是否捎带了主机信息，并更新主机信息，如果还是不存在，则视为异常
-    if(!mergeMacs.contains(smid) || !mergeMacs.contains(dmid)){
-            QMessageBox::warning(0,tr("出错信息"),tr("转移记录中包含未知的源或目标主机，这将使账户转移无法继续！"));
+    //检测源主机和目标主机是否在本机上存在，如果不存在，则视为异常
+    if(!localMacs.contains(smid) || !localMacs.contains(dmid)){
+        if(isTranOut){
+            myHelper::ShowMessageBoxError(tr("转出账户的最后转移记录中包含未知的源或目标主机，请先纠正之！"));
             return false;
+        }
+        else
+            myHelper::ShowMessageBoxWarning(tr("转入账户的最后转移记录中包含未知的源或目标主机！"));
     }
     trRec->id = q.value(0).toInt();
-    trRec->m_in = mergeMacs.value(dmid);
-    trRec->m_out = mergeMacs.value(smid);
+    trRec->m_in = localMacs.value(dmid);
+    trRec->m_out = localMacs.value(smid);
     trRec->t_in = q.value(TRANS_INTIME).toDateTime();
     trRec->t_out = q.value(TRANS_OUTTIME).toDateTime();
     s = QString("select * from %1 where %2=%3").arg(tbl_transferDesc)
@@ -620,155 +615,11 @@ AccontTranferInfo *TransferRecordManager::getLastTransRec()
     return trRec;
 }
 
-/**
- * @brief TransferRecordManager::getMergeMacs
- *  生成合并的工作站信息（本地拥有的和引入文件捎带的）
- *  同时进行本地工作站信息与捎带工作站信息的比较，并初始化新增、更新工作站列表成员
- * @return
- */
-void TransferRecordManager::genMergeMacs()
-{
-    mergeMacs.clear();localMacs.clear();newMacs.clear();upMacs.clear();
-    notMacs.clear();notExistMacs.clear();
-    localMacs = AppConfig::getInstance()->getAllMachines();
-    QList<int> localMids = localMacs.keys();
-    mergeMacs = localMacs;
-    if(!_getTakeMacs() || takeMacs.isEmpty())
-        return;
-    foreach(Machine* mac, takeMacs){
-        int mid = mac->getMID();
-        if(!localMacs.contains(mid)){
-            mergeMacs[mid] = mac;
-            newMacs<<mac;
-        }
-        else {
-            if(*mac != *localMacs.value(mac->getMID())){
-                mergeMacs[mid] = mac;    //工作站信息以捎带的为准
-                upMacs<<mac;
-            }
-            else
-                notMacs<<localMacs.value(mid);
-            localMids.removeOne(mid);
-        }
-    }
-    if(!localMids.isEmpty()){
-        foreach(int mid, localMids)
-            notExistMacs<<localMacs.value(mid);
-    }
-}
-
-/**
- * @brief TransferRecordManager::execUpdate
- *  执行更新工作站操作
- */
-void TransferRecordManager::execStationUpdate()
-{
-    if(!_inspectSelUpMacs()){
-        myHelper::ShowMessageBoxWarning(tr("来源工作站或目的工作站信息已更新，必须更新到本地，否者造成工作站无法识别或无法显示最新的工作站信息！"));
-        return;
-    }
-    AppConfig* conf = AppConfig::getInstance();
-    if(!conf->saveMachines(selUpMacs))
-        myHelper::ShowMessageBoxError(tr("在保存更新的工作站信息时出错"));
-    macUpdated = true;
-    QPushButton* btn = qobject_cast<QPushButton*>(sender());
-    if(btn){
-        QDialog* dlg = qobject_cast<QDialog*>(btn->parent());
-        if(dlg)
-            dlg->accept();
-    }
-}
-
-/**
- * @brief TransferRecordManager::getTakeMacs
- *  读取捎带的主机信息
- */
-bool TransferRecordManager::_getTakeMacs()
-{
-    if(!connected)
-        return false;
-    if(!takeMacs.isEmpty()){
-        foreach(Machine* mac, takeMacs){
-            if(mac->getId() == UNID)
-                delete mac;
-        }
-        takeMacs.clear();
-    }
-    if(!isExistTemMacTable)
-        return true;
-    QSqlQuery q(db);
-    QString s = QString("select * from tem_%1").arg(tbl_machines);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    while(q.next()){
-        int mid = q.value(MACS_MID).toInt();
-        MachineType type = (MachineType)q.value(MACS_TYPE).toInt();
-        int osType = q.value(MACS_OSTYPE-1).toInt();
-        QString name = q.value(MACS_NAME-1).toString();
-        QString desc = q.value(MACS_DESC-1).toString();
-        takeMacs[mid] = new Machine(UNID,type,mid,false,name,desc,osType);
-    }
-    return true;
-}
-
-/**
- * @brief TransferRecordManager::_inspectSelUpMacs
- *  用户选择的更新工作站是否满足基本更新条件，即
- *  如果当前引入的账户涉及到的主机（来源机和目标机）发生了变更，则必须至少选择它们
- * @return true：满足
- */
-bool TransferRecordManager::_inspectSelUpMacs()
-{
-    QList<Machine*> macs;
-    macs = newMacs + upMacs;
-    selUpMacs.clear();
-    int newRows = newMacs.count();
-    int rows = newRows + upMacs.count();
-    for(int i = 0; i < rows; ++i){
-        QCheckBox* btn = qobject_cast<QCheckBox*>(tab->cellWidget(i,0));
-        Machine* mac = macs.at(i);
-        if(btn && btn->isChecked()){
-            if(i >= newRows){   //对于更新主机要将更新信息转移到本地表示该主机的对象上
-                Machine* takeMac = mac;
-                mac = localMacs.value(takeMac->getMID());
-                mac->setType(takeMac->getType());
-                mac->setOsType(takeMac->osType());
-                mac->setName(takeMac->name());
-                mac->setDescription(takeMac->description());
-            }
-            selUpMacs<<mac;
-        }
-    }
-    //如果本地未包含源工作站，也未选择更新
-    if(!localMacs.contains(trRec->m_in->getMID()) && !selUpMacs.contains(trRec->m_in))
-        return false;
-    //如果本地未包含目的工作站，也未选择更新
-    if(!localMacs.contains(trRec->m_out->getMID()) && !selUpMacs.contains(trRec->m_out))
-        return false;
-    //如果本地包含了源工作站，且源工作站发生了更新但未选择更新
-    if(!localMacs.contains(trRec->m_in->getMID()) && upMacs.contains(trRec->m_in) && !selUpMacs.contains(trRec->m_in))
-        return false;
-    //如果本地包含了目的工作站，且目的工作站发生了更新但未选择更新
-    if(!localMacs.contains(trRec->m_out->getMID()) && upMacs.contains(trRec->m_out) && !selUpMacs.contains(trRec->m_out))
-        return false;
-    else
-        return true;
-}
-
 ///////////////////////////TransferOutDialog//////////////////////////////////////////
 
 TransferOutDialog::TransferOutDialog(QWidget *parent) : QDialog(parent), ui(new Ui::TransferOutDialog)
 {
     ui->setupUi(this);
-    ui->tView->setColumnWidth(MCI_MID,50);
-    ui->tView->setColumnWidth(MCI_TYPE,100);
-    ui->tView->setColumnWidth(MCI_OSTYPE,150);
-    ui->tView->setColumnWidth(MCI_NAME,150);
-    ui->tView->addAction(ui->actDel);
-    ui->tView->addAction(ui->actReset);
-    connect(ui->tView,SIGNAL(itemSelectionChanged()),this,SLOT(enAct()));
 
     conf = AppConfig::getInstance();
     tranStates = conf->getAccTranStates();
@@ -776,8 +627,8 @@ TransferOutDialog::TransferOutDialog(QWidget *parent) : QDialog(parent), ui(new 
     if(lm){
         ui->edtLocalMac->setText(tr("%1（%2）").arg(lm->name()).arg(lm->getMID()));
         Machine* ms = conf->getMasterStation();
-        if(ms && lm->getMID() == ms->getMID()) //主站
-            ui->btnTakeUser->setEnabled(true);
+        if(ms && (lm->getMID() == ms->getMID()) && curUser->isSuperUser()) //主站
+            ui->gbIsTake->setChecked(true);
     }
     accCacheItems = conf->getAllCachedAccounts();
     if(accCacheItems.isEmpty()){
@@ -790,7 +641,7 @@ TransferOutDialog::TransferOutDialog(QWidget *parent) : QDialog(parent), ui(new 
     if(localMacs.isEmpty()){
         myHelper::ShowMessageBoxError(tr("无法读取工作站列表"));
         ui->btnOk->setEnabled(false);
-        return;
+       return;
     }
     foreach(AccountCacheItem* acc, accCacheItems)
         ui->cmbAccount->addItem(acc->accName);
@@ -840,9 +691,14 @@ QString TransferOutDialog::getDescription()
     return ui->edtDesc->toPlainText();
 }
 
-bool TransferOutDialog::isTakeMachineInfo()
+/**
+ * @brief 是否捎带应用配置信息（比如安全模块配置信息等）
+ * @return
+ */
+bool TransferOutDialog::isTakeAppConInfo()
 {
-    return ui->chkTake->isChecked();
+    return ui->chkRightType->isChecked()||ui->chkRight->isChecked()||ui->chkUser->isChecked()||
+           ui->chkWS->isChecked()||ui->chkGroup->isChecked();
 }
 
 QDir TransferOutDialog::getDirection()
@@ -867,19 +723,6 @@ void TransferOutDialog::selectAccountChanged(int index)
             myHelper::ShowMessageBoxWarning(tr("所选账户上次转入时目的工作站不是本站"));
     }
 }
-
-/**
- * @brief TransferOutDialog::enAct
- *  控制重置、删除主机的菜单项的可用性
- */
-void TransferOutDialog::enAct()
-{
-    ui->actReset->setEnabled(takeMacs.count() != localMacs.count());
-    int row = ui->tView->currentRow();
-    bool r = (row > -1) && (row < takeMacs.count());
-    ui->actDel->setEnabled(r);
-}
-
 
 /**
  * @brief TransferOutDialog::on_cmbMachines_currentIndexChanged
@@ -925,21 +768,6 @@ void TransferOutDialog::on_btnBrowser_clicked()
 }
 
 /**
- * @brief TransferOutDialog::on_chkTake_toggled
- *  选择或不选捎带主机信息
- * @param checked
- */
-void TransferOutDialog::on_chkTake_toggled(bool checked)
-{
-    if(checked)
-        on_actReset_triggered();
-    else{
-        //ui->tView->clearContents();
-        ui->tView->setRowCount(0);
-    }
-}
-
-/**
  * @brief TransferOutDialog::on_btnOk_clicked
  *  执行转出操作
  */
@@ -951,7 +779,6 @@ void TransferOutDialog::on_btnOk_clicked()
     //1、在转出账户中添加一条转出记录
     QString sn = DATABASE_PATH + getAccountFileName();
     TransferRecordManager trMgr(sn,this);
-    AppConfig* conf = AppConfig::getInstance();
     AccontTranferInfo rec;
     rec.id = UNID;
     rec.desc_out = ui->edtDesc->toPlainText();
@@ -963,10 +790,56 @@ void TransferOutDialog::on_btnOk_clicked()
         myHelper::ShowMessageBoxError(tr("在添加转移记录时出错！"));
         return;
     }
-    if(isTakeMachineInfo() && !trMgr.attechMachineInfo(takeMacs))
-        myHelper::ShowMessageBoxError(tr("写入捎带站点信息时出错，无法捎带站点信息！"));
-    if(!upUsers.isEmpty() && !trMgr.attechUserInfo(upUsers))
-        myHelper::ShowMessageBoxError(tr("写入捎带用户信息时出错，无法捎带用户信息！"));
+    //捎带应用配置信息
+    if(isTakeAppConInfo()){
+        QList<BaseDbVersionEnum> verTypes;
+        QStringList verNames;
+        QList<int> mvs, svs;
+        QList<QByteArray*> infos;
+        if(ui->chkRightType->isChecked()){
+            verTypes<<BDVE_RIGHTTYPE;
+            QByteArray* ba = new QByteArray;
+            int mv,sv;
+            conf->getAppCfgVersion(mv,sv,BDVE_RIGHTTYPE);
+            RightType::serialAllToBinary(mv,sv,ba);
+            infos<<ba;
+        }
+        if(ui->chkRight->isChecked()){
+            verTypes<<BDVE_RIGHT;
+            QByteArray* ba = new QByteArray;
+            int mv,sv;
+            conf->getAppCfgVersion(mv,sv,BDVE_RIGHT);
+            Right::serialAllToBinary(mv,sv,ba);
+            infos<<ba;
+        }
+        if(ui->chkGroup->isChecked()){
+            verTypes<<BDVE_GROUP;
+            QByteArray* ba = new QByteArray;
+            int mv,sv;
+            conf->getAppCfgVersion(mv,sv,BDVE_GROUP);
+            UserGroup::serialAllToBinary(mv,sv,ba);
+            infos<<ba;
+        }
+        if(ui->chkUser->isChecked()){
+            verTypes<<BDVE_USER;
+            QByteArray* ba = new QByteArray;
+            int mv,sv;
+            conf->getAppCfgVersion(mv,sv,BDVE_USER);
+            User::serialAllToBinary(mv,sv,ba);
+            infos<<ba;
+        }
+        if(ui->chkWS){
+            verTypes<<BDVE_WORKSTATION;
+            QByteArray* ba = new QByteArray;
+            int mv,sv;
+            conf->getAppCfgVersion(mv,sv,BDVE_WORKSTATION);
+            Machine::serialAllToBinary(mv,sv,ba);
+            infos<<ba;
+        }
+        conf->getAppCfgVersions(verTypes,verNames,mvs,svs);
+        if(!trMgr.attechAppCfgInfo(verTypes,verNames,mvs,svs,infos))
+            myHelper::ShowMessageBoxError(tr("写入捎带站点信息时出错，无法捎带站点信息！"));
+    }
 
     //2、修改本地的账户缓存记录
     AccountCacheItem* acc = accCacheItems.at(ui->cmbAccount->currentIndex());
@@ -993,57 +866,6 @@ void TransferOutDialog::on_btnOk_clicked()
     }
     conf->saveDirName(AppConfig::DIR_TRANSOUT,dir.absolutePath());
     accept();
-}
-
-/**
- * @brief TransferOutDialog::on_actReset_triggered
- *  装载捎带的主机信息
- */
-void TransferOutDialog::on_actReset_triggered()
-{
-    takeMacs = localMacs;
-    ui->tView->setRowCount(localMacs.count());
-    QHash<int,QString> osTypes;
-    if(!AppConfig::getInstance()->getOsTypes(osTypes)){
-        myHelper::ShowMessageBoxError(tr("无法获取宿主操作系统类型！"));
-        return;
-    }
-    QTableWidgetItem* item;
-    int i = -1;
-    foreach(Machine* mac, localMacs){
-        i++;
-        item = new QTableWidgetItem(QString::number(mac->getMID()));
-        ui->tView->setItem(i,MCI_MID,item);
-        if(mac->getType() == MT_COMPUTER)
-            item = new QTableWidgetItem(tr("物理电脑"));
-        else
-            item = new QTableWidgetItem(tr("云账户"));
-        ui->tView->setItem(i,MCI_TYPE,item);
-        item = new QTableWidgetItem(osTypes.value(mac->osType(),tr("未知系统")));
-        ui->tView->setItem(i,MCI_OSTYPE,item);
-        item = new QTableWidgetItem(mac->name());
-        ui->tView->setItem(i,MCI_NAME,item);
-        item = new QTableWidgetItem(mac->description());
-        ui->tView->setItem(i,MCI_DESC,item);
-        if(mac->isLocalStation()){
-            QBrush back(QColor("grey"));
-            for(int j = 0; j < ui->tView->columnCount(); ++j)
-                ui->tView->item(i,j)->setBackground(back);
-        }
-    }
-}
-
-/**
- * @brief TransferOutDialog::on_actDel_triggered
- *  移除选定的主机，不捎带
- */
-void TransferOutDialog::on_actDel_triggered()
-{
-    int row = ui->tView->currentRow();
-    if(row < 0 || row >= takeMacs.count())
-        return;
-    ui->tView->removeRow(row);
-    takeMacs.removeAt(row);
 }
 
 /**
@@ -1100,56 +922,12 @@ TransferInDialog::TransferInDialog(QWidget *parent) : QDialog(parent), ui(new Ui
 {
     ui->setupUi(this);
     trMgr = NULL;
-    ui->twMachines->setColumnWidth(MCI_MID,50);
-    ui->twMachines->setColumnWidth(MCI_TYPE,80);
-    ui->twMachines->setColumnWidth(MCI_OSTYPE,100);
-    ui->twMachines->setColumnWidth(MCI_NAME,150);
-    refreshMachines();
 }
 
 TransferInDialog::~TransferInDialog()
 {
     delete ui;
 }
-
-/**
- * @brief TransferInDialog::refreshMachines
- *  刷新显示本地主机信息
- */
-void TransferInDialog::refreshMachines()
-{
-    ui->twMachines->setRowCount(0);
-    QTableWidgetItem* item;
-    int row = 0;
-    AppConfig* conf = AppConfig::getInstance();
-    QHash<MachineType,QString> macTypes = conf->getMachineTypes();
-    QHash<int,QString> osTypes;
-    conf->getOsTypes(osTypes);
-    QBrush lmBack(QColor("grey"));
-    QHash<int,Machine*> ms; ms = conf->getAllMachines();
-    QList<int> mids; mids = ms.keys(); qSort(mids.begin(),mids.end());
-    Machine* mac;
-    for(int i=0; i< mids.count(); ++i){
-        mac = ms.value(mids.at(i));
-        ui->twMachines->insertRow(row);
-        item = new QTableWidgetItem(QString::number(mac->getMID()));
-        ui->twMachines->setItem(row,MCI_MID,item);
-        item = new QTableWidgetItem(macTypes.value(mac->getType()));
-        ui->twMachines->setItem(row,MCI_TYPE,item);
-        item = new QTableWidgetItem(osTypes.value(mac->osType(),tr("未知系统")));
-        ui->twMachines->setItem(row,MCI_OSTYPE,item);
-        item = new QTableWidgetItem(mac->name());
-        ui->twMachines->setItem(row,MCI_NAME,item);
-        item = new QTableWidgetItem(mac->description());
-        ui->twMachines->setItem(row,MCI_DESC,item);
-        if(mac->isLocalStation()){
-            for(int i = 0; i < 5; ++i)
-                ui->twMachines->item(row,i)->setBackground(lmBack);
-        }
-        row++;
-    }
-}
-
 
 /**
  * @brief TransferInDialog::on_btnOk_clicked
@@ -1228,10 +1006,6 @@ void TransferInDialog::on_btnOk_clicked()
             myHelper::ShowMessageBoxWarning(tr("无法恢复被覆盖的账户文件！"));
         return;
     }
-    if(ui->btnClear->isChecked())
-        trMgr->clearTemMachineTable();
-    if(trMgr->isReqUpdateUser() && !trMgr->updateUsers())
-        myHelper::ShowMessageBoxError(tr("从捎带用户更新本地用户信息时发生错误，这可能将导致转入的账户无法正确操作！"));
     QString path = QFileInfo(fileName).path();
     conf->saveDirName(AppConfig::DIR_TRANSIN,path);
     accept();
@@ -1280,7 +1054,7 @@ void TransferInDialog::on_btnSelectFile_clicked()
     //if(trInfo->m_out)
 
     //如果执行转入操作的工作站内存在对应的缓存账户，且缓存项的转移状态是已转入的目的站，则表示
-    //此账户的转移状态异常，原因可能是手工任务地修改了账户的转移状态，使其在整个工作组集内的转移状态不一致
+    //此账户的转移状态异常，原因可能是手工人为地修改了账户的转移状态，使其在整个工作组集内的转移状态不一致
     AccountCacheItem* acItem = AppConfig::getInstance()->getAccountCacheItem(accCode);
     if(acItem && acItem->tState == ATS_TRANSINDES){
         QDialog dlg(this);
@@ -1331,57 +1105,4 @@ void TransferInDialog::on_btnSelectFile_clicked()
     ui->edtOsType->setText(osTypes.value(trInfo->m_in->osType(),tr("未知系统")));
     ui->edtMDesc->setText(trInfo->m_in->description());
     ui->btnOk->setEnabled(true);
-
-
-
-    trMgr->updateMachines();
-    if(trMgr->isMacUpdated()){
-        refreshMachines();
-        ui->btnClear->setChecked(true   );
-    }
-}
-
-/**
- * @brief 编辑要捎带的用户信息
- */
-void TransferOutDialog::on_btnTakeUser_clicked()
-{
-    QDialog dlg(this);
-    QTableWidget tw(&dlg);
-    tw.setColumnCount(2);
-    tw.horizontalHeader()->setStretchLastSection(true);
-    tw.setSelectionBehavior(QAbstractItemView::SelectRows);
-    int row = 0;
-    QList<User*> users = allUsers.values();
-    qSort(users.begin(),users.end(),userByCode);
-    foreach(User* u, users){
-        tw.insertRow(row);
-        QTableWidgetItem* item = new QTableWidgetItem(tr("%1(%2)").arg(u->getName()).arg(u->getUserId()));
-        item->setFlags(Qt::ItemIsEnabled|Qt::ItemIsSelectable|Qt::ItemIsUserCheckable);
-        QVariant v; v.setValue<User*>(u);
-        item->setData(Qt::UserRole,v);
-        item->setCheckState(upUsers.contains(u)?Qt::Checked:Qt::Unchecked);
-        tw.setItem(row,0,item);
-        QStringList gs;
-        foreach(UserGroup* g,u->getOwnerGroups())
-            gs<<g->getName();
-        item = new QTableWidgetItem(gs.join(","));
-        tw.setItem(row,1,item);
-    }
-    QPushButton btnOk(tr("确定"),&dlg),btnCancel(tr("取消"),&dlg);
-    connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
-    connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
-    QHBoxLayout lb; lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
-    QVBoxLayout* lm = new QVBoxLayout;
-    lm->addWidget(&tw); lm->addLayout(&lb);
-    dlg.setLayout(lm);
-    if(dlg.exec() == QDialog::Rejected)
-        return;
-    if(!upUsers.isEmpty())
-        upUsers.clear();
-    for(int i = 0; i < tw.rowCount(); ++i){
-        if(tw.item(i,0)->checkState() == Qt::Checked)
-            upUsers<<tw.item(i,0)->data(Qt::UserRole).value<User*>();
-    }
-
 }

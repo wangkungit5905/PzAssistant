@@ -29,8 +29,10 @@ class ConfigPanels : public ConfigPanelBase
     };
 
 public:
-    explicit ConfigPanels(QWidget *parent = 0);
-    void addPanel(ConfigPanelBase* panel, QIcon icon);
+    explicit ConfigPanels(QList<ConfigPanelBase*> panels,QList<QIcon> icons, QByteArray* state=0, QWidget *parent = 0);
+
+    //void retoreState(QByteArray* state);
+    QByteArray* getState();
 
 protected:
     void closeEvent(QCloseEvent *event);
@@ -41,6 +43,7 @@ public slots:
     void btnCancelClicked();
 
 private:
+    void addPanel(ConfigPanelBase* panel, QIcon icon);
     bool isDirty();
     bool save();
 

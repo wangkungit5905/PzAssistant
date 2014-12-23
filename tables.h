@@ -467,6 +467,14 @@ const int SSJ_SS_SUB = 2;
 const int SSJ_DF_SUB = 3;
 const int SSJ_DS_SUB = 4;
 
+//子窗口状态表（subWinInfos）
+//字段名
+const QString tbl_subWinInfo = "subWinInfos";
+const QString fld_swi_enum  = "winEnum";  //字窗口类别枚举值（INTEGER）
+const QString fld_swi_stateInfo = "tblInfo";//子窗体内自定义状态信息（tblInfo）
+const int FI_SWI_ENUM   = 1;
+const int FI_SWI_STATE  = 6;
+
 
 //笔记表
 const QString tbl_Notes = "notes";
@@ -478,6 +486,15 @@ const int FI_NOTE_TITLE = 1;
 const int FI_NOTE_CREATETIME = 2;
 const int FI_NOTE_LASTTIME = 3;
 const int FI_NOTE_CONTENT = 4;
+
+//账户数据库中可能驻留的临时表
+const QString tbl_tem_appcfg = "tem_app_cfg";
+const QString fld_tem_appcfg_obj = "objText";   //保存序列化对象后的文本
+const int FI_TEM_APPCFG_VERTYPE = 1;
+const int FI_TEM_APPCFG_VERNAME = 2;
+const int FI_TEM_APPCFG_MASTER = 3;
+const int FI_TEM_APPCFG_SECOND = 4;
+const int FI_TEM_APPCFG_OBJECT = 5;
 
 
 //////////*****************基本库数据表********************************//////////
@@ -705,25 +722,30 @@ const int FI_BASE_R_EXPLAIN = 4;
 const QString tbl_base_usergroups = "groups";
 const QString fld_base_g_code = "code";
 const QString fld_base_g_name = "name";
-const QString fld_base_g_rights = "haveRights";
+const QString fld_base_g_rights = "haveRights"; //组的额外权限
+const QString fld_base_g_groups = "ownerGroups";//所属组
 const QString fld_base_g_explain = "explain";
 const int FI_BASE_G_CODE = 1;
 const int FI_BASE_G_NAME = 2;
 const int FI_BASE_G_RIGHTS = 3;
-const int FI_BASE_G_EXPLAIN = 4;
+const int FI_BASE_G_GROUPS  = 4;
+const int FI_BASE_G_EXPLAIN = 5;
+
 
 //用户表
 const QString tbl_base_users = "users";
-const QString fld_base_u_name = "name";
-const QString fld_base_u_password = "password";
-const QString fld_base_u_groups = "ownerGroups";
-const QString fld_base_u_accounts = "exclusiveAccounts";//专属账户列表
-const QString fld_base_u_extra_rights = "extraRights";  //额外权限列表
+const QString fld_base_u_name = "name";                         //名称
+const QString fld_base_u_password = "password";                 //密码
+const QString fld_base_u_groups = "ownerGroups";                //所属组
+const QString fld_base_u_accounts = "exclusiveAccounts";        //专属账户列表
+const QString fld_base_u_disabled_rights = "disabledRights";    //禁用权限
+const QString fld_base_u_isenabled = "isEnabled";               //此用户是否启用
 const int FI_BASE_U_NAME = 1;
 const int FI_BASE_U_PASSWORD = 2;
 const int FI_BASE_U_GROUPS = 3;
 const int FI_BASE_U_ACCOUNTS = 4;
-const int FI_BASE_U_EXTRARIGHTS = 5;
+const int FI_BASE_U_DISABLED_RIGHTS = 5;
+const int FI_BASE_U_ISENABLED = 6;
 
 //外部工具配置表
 const QString tbl_base_external_tools = "ExternalTools";
@@ -751,5 +773,17 @@ const int   FI_BASE_SWI_Y       = 3;
 const int   FI_BASE_SWI_W       = 4;
 const int   FI_BASE_SWI_H       = 5;
 const int   FI_BASE_SWI_TBL     = 6;
+
+//版本表（versions）
+const QString tbl_base_version = "versions";
+const QString fld_base_version_typeEnum = "typeEnum";
+const QString fld_base_version_typeName = "typeName";
+const QString fld_base_version_master = "master";
+const QString fld_base_version_second = "second";
+//字段索引
+const int FI_BASE_VER_TYPEENUM = 1;
+const int FI_BASE_VER_TYPENAME = 2;
+const int FI_BASE_VER_MASTER = 3;
+const int FI_BASE_VER_SECOND = 4;
 
 #endif // TABLES_H

@@ -1,12 +1,93 @@
 #include "securitys.h"
 #include "global.h"
 
+#include <QBuffer>
+#include <QTextStream>
+
 QHash<int,User*> allUsers;
 QHash<int,RightType*> allRightTypes;
 QHash<int,Right*> allRights;
 QHash<int,UserGroup*> allGroups;
 QHash<int,Operate*> allOperates;
 
+
+RightType *RightType::serialFromText(QString serialText, const QHash<int, RightType *>& rightTypes)
+{
+    QStringList sl = serialText.split("||");
+    if(sl.count() != 4)
+        return 0;
+    bool ok = false;
+    int c = sl.at(SOFI_RT_CODE).toInt(&ok);
+    if(!ok)
+        return 0;
+    int pcode = sl.at(SOFI_RT_PC).toInt(&ok);
+    RightType* pt = rightTypes.value(pcode);
+    if(!ok || ok && !pt && pcode!=0)
+        return 0;
+    RightType* rt = new RightType;
+    rt->code = c; rt->pType = pt;
+    rt->name = sl.at(SOFI_RT_NAME); rt->explain = sl.at(SOFI_RT_DESC);
+    return rt;
+}
+
+QString RightType::serialToText()
+{
+    QStringList sl;
+    for(int i = 0; i < 4; ++i)
+        sl<<"";
+    sl[SOFI_RT_CODE] = QString::number(code);
+    sl[SOFI_RT_PC] = QString::number((pType?pType->code:0));
+    sl[SOFI_RT_NAME] = name;
+    sl[SOFI_RT_DESC] = explain;
+    return sl.join("||");
+}
+
+/**
+ * @brief 序列化所有权限类型对象到字节数组中
+ * @param ds
+ */
+void RightType::serialAllToBinary(int mv, int sv, QByteArray *ds)
+{
+    QList<RightType*> rts = allRightTypes.values();
+    qSort(rts.begin(),rts.end(),rightTypeByCode);
+    QBuffer bf(ds);
+    QTextStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
+    foreach(RightType* rt, rts)
+        out<<rt->serialToText()<<"\n";
+    bf.close();
+}
+
+bool RightType::serialAllFromBinary(QList<RightType *> &rts, int &mv, int &sv, QByteArray *ds)
+{
+    QBuffer bf(ds);
+    QTextStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    QStringList sl = in.readLine().split("=");
+    if(sl.count() != 2)
+        return false;
+    sl = sl.at(1).split(".");
+    if(sl.count() != 2)
+        return false;
+    bool ok;
+    mv = sl.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = sl.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+
+    QHash<int, RightType *> rightTypes;
+    while(!in.atEnd()){
+        RightType* rt = serialFromText(in.readLine(),rightTypes);
+        if(!rt)
+            return false;
+        rts<<rt;
+        rightTypes[rt->code] = rt;
+    }
+    return true;
+}
 
 bool rightTypeByCode(RightType *rt1, RightType *rt2)
 {
@@ -25,20 +106,20 @@ bool groupByCode(UserGroup* g1, UserGroup* g2)
 
 bool userByCode(User* u1, User* u2)
 {
-    return u1->getUserId() > u2->getUserId();
+    return u1->getUserId() < u2->getUserId();
 }
 
 //初始化用户、组、权限和操作
 bool initSecurity()
 {
     AppConfig* appCon = AppConfig::getInstance();
-    bool r = appCon->getRightTypes(allRightTypes);
+    bool r = appCon->initRightTypes(allRightTypes);
     if(r)
-        r = appCon->getRights(allRights);
+        r = appCon->initRights(allRights);
     if(r)
-        r = appCon->getUserGroups(allGroups);
+        r = appCon->initUserGroups(allGroups);
     if(r)
-        r = appCon->getUsers(allUsers);
+        r = appCon->initUsers(allUsers);
     return r;
 }
 
@@ -46,10 +127,10 @@ bool initSecurity()
 User::User(int id, QString name, QString password, QSet<UserGroup*> ownerGroups)
 {
     this->id = id;
+    enabled = true;
     this->name = name;
     this->password = password;
     groups = ownerGroups;
-    refreshRights();
 }
 
 QString User::getName()
@@ -86,7 +167,6 @@ QSet<UserGroup*> User::getOwnerGroups()
 void User::setOwnerGroups(QSet<UserGroup*> groups)
 {
     this->groups = groups;
-    refreshRights();
 }
 
 /**
@@ -103,124 +183,27 @@ QString User::getOwnerGroupCodeList()
     return sl.join(",");
 }
 
-//添加组
-void User::addGroup(UserGroup* group)
-{
-    groups.insert(group);
-    refreshRights();
-}
-
-//删除组
-void User::delGroup(UserGroup* group)
-{
-    groups.remove(group);
-    refreshRights();
-}
-
 /**
- * @brief 添加用户权限（该权限可能不属于任何用户所属的组）
- * @param r
- */
-void User::addRight(Right *r)
-{
-    if(rights.contains(r))
-        return;
-    rights.insert(r);
-    extraRights.insert(r);
-    //如果添加的权限不属于用户当前所属的任何一个组，则将该权限视为额外权限
-//    bool isExtra = true;
-//    foreach(UserGroup* g, groups){
-//        if(g->hasRight(r)){
-//            isExtra = false;
-//            break;
-//        }
-//    }
-//    if(isExtra)
-//        extraRights.insert(r);
-//    rights.insert(r);
-}
-
-/**
- * @brief 移除用户的额外权限
- * @param r
- */
-//void User::removeExtraRight(Right *r)
-//{
-//    if(extraRights.contains(r)){
-//        extraRights.remove(r);
-//        rights.remove(r);
-//        return;
-//    }
-//    //如果要移除的权限是属于用户当前所属的某个组，
-//    //则将该组从用户所属组中移除，并将该组的其他权限加入到额外权限集中
-//    foreach(UserGroup* g,groups){
-//        QSet<Right*> rs = g->getHaveRights();
-//        if(rs.contains(r)){
-//            delGroup(g);
-//            rs.remove(r);
-//            extraRights += rs;
-//            return;
-//        }
-//    }
-//}
-
-/**
- * @brief 返回额外权限代码列表
+ * @brief 返回用户禁用权限代码列表串
  * @return
  */
-QString User::getExtraRightCodes()
+QString User::getDisRightCodes()
 {
-    QSetIterator<Right*> it(extraRights);
-    QStringList sl;
-    while(it.hasNext())
-        sl<<QString::number(it.next()->getCode());
-    qSort(sl.begin(),sl.end());
-    return sl.join(",");
-}
-
-//刷新用户具有的所有权限
-void User::refreshRights()
-{
-    rights.clear();
-    foreach(UserGroup* g, groups)
-        rights += g->getHaveRights();
-    if(!extraRights.isEmpty()){
-        foreach(Right* r, extraRights){
-            if(rights.contains(r))
-                extraRights.remove(r);
-            rights.insert(r);
-        }
-    }
+    QStringList ls;
+    foreach(Right* r,disRights)
+        ls.append(QString::number(r->getCode()));
+    qSort(ls.begin(),ls.end());
+    return ls.join(",");
 }
 
 //返回用户具有的所有权限
 QSet<Right*> User::getAllRights()
 {
-    return rights;
-}
-
-/**
- * @brief 设置用户的所有权限
- * @param rs
- */
-void User::setAllRights(QSet<Right *> rs)
-{
-    rights = rs;
-    QSet<Right*> rs_t;
-    QSet<UserGroup*> gs;
-    //如果用户所属的某个组所拥有的全部权限包含在rs中，
-    //则可以继续保留用户与组的所属关系，否则用户就不能属于该组
-    //这样处理是为了尽可能保留用户所属组的设置信息
-    foreach(UserGroup* g, groups){
-        if(rs.contains(g->getHaveRights())){
-            gs.insert(g);
-            rs_t += g->getHaveRights();
-        }
-    }
-    groups = gs;
-    rs -= rs_t;
-    if(!rs.isEmpty())
-        extraRights = rs;
+    QSet<Right*> rs;
+    foreach(UserGroup* g,groups)
+        rs += g->getAllRights();
+    rs -= disRights;
+    return rs;
 }
 
 //是否用户具有指定的权限
@@ -228,8 +211,13 @@ bool User::haveRight(Right* right)
 {
     if(isSuperUser())
         return true;
-    else
-        return rights.contains(right);
+    if(disRights.contains(right))
+        return false;
+    foreach(UserGroup* g, groups){
+        if(g->hasRight(right))
+            return true;
+    }
+    return false;
 }
 
 //是否用户具有指定的权限集
@@ -237,8 +225,8 @@ bool User::haveRights(QSet<Right*> rights)
 {
     if(isSuperUser())
         return true;
-    else
-        return this->rights.contains(rights);
+    QSet<Right*> rs = getAllRights();
+    return rs.contains(rights);
 }
 
 /**
@@ -303,6 +291,109 @@ void User::setExclusiveAccounts(QStringList codes)
         accountCodes.insert(code);
 }
 
+QString User::serialToText()
+{
+    QStringList ls;
+    for(int i = 0; i < 7; ++i)
+        ls<<"";
+    ls[SOFI_USER_CODE] = QString::number(id);
+    ls[SOFI_USER_ISENABLED] = (enabled?"1":"0");
+    ls[SOFI_USER_NAME] = name;
+    ls[SOFI_USER_PASSWORD] = password;
+    ls[SOFI_USER_GROUPS] = getOwnerGroupCodeList();
+    ls[SOFI_USER_ACCOUNTS] = getExclusiveAccounts().join(",");
+    ls[SOFI_USER_DISRIGHTS] = getDisRightCodes();
+    return ls.join("||");
+}
+
+User *User::serialFromText(QString serialText,const QHash<int,Right*> &rights, const QHash<int,UserGroup*> &groups)
+{
+    QStringList sl = serialText.split("||");
+    if(sl.count() != 7)
+        return 0;
+    bool ok;
+    int c = sl.at(SOFI_USER_CODE).toInt(&ok);
+    if(!ok)
+        return 0;
+    bool isEnable = (sl.at(SOFI_USER_ISENABLED) == "0")?false:true;
+    QSet<UserGroup*> gs;
+    if(!sl.at(SOFI_USER_GROUPS).isEmpty()){
+        QStringList ls = sl.at(SOFI_USER_GROUPS).split(",");
+        foreach(QString s, ls){
+            bool ok;
+            int gc = s.toInt(&ok);
+            UserGroup* g = groups.value(gc);
+            if(!ok || ok && !g){
+                LOG_SQLERROR(QString("Create User object from text failed! Reason is group code invalid, text = '%1'").arg(serialText));
+                continue;
+            }
+            gs<<g;
+        }
+    }
+    User* u = new User(c,sl.at(SOFI_USER_NAME),sl.at(SOFI_USER_PASSWORD),gs);
+    u->setEnabled(isEnable);
+    if(!sl.at(SOFI_USER_ACCOUNTS).isEmpty())
+        u->setExclusiveAccounts(sl.at(SOFI_USER_ACCOUNTS).split(","));
+    if(!sl.at(SOFI_USER_DISRIGHTS).isEmpty()){
+        QStringList ls = sl.at(SOFI_USER_DISRIGHTS).split(",");
+        QSet<Right*> rs;
+        foreach(QString s, ls){
+            bool ok;
+            int rc = s.toInt(&ok);
+            Right* r = rights.value(rc);
+            if(!ok || ok && !r){
+                LOG_ERROR(QString("Create User object from text failed! Reason is right code invalid, text = '%1'").arg(serialText));
+                continue;
+            }
+            rs<<r;
+        }
+        u->setAllDisRights(rs);
+    }
+    //allUsers[c] = u;
+    return u;
+}
+
+void User::serialAllToBinary(int mv, int sv, QByteArray *ds)
+{
+    QList<User*> us = allUsers.values();
+    qSort(us.begin(),us.end(),userByCode);
+    QBuffer bf(ds);
+    QTextStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
+    foreach(User* u, us)
+        out<<u->serialToText()<<"\n";
+    bf.close();
+}
+
+bool User::serialAllFromBinary(QList<User *> &users, int &mv, int &sv, QByteArray *ds,const QHash<int,Right*> &rights, const QHash<int,UserGroup*> &groups)
+{
+    QBuffer bf(ds);
+    QTextStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    QStringList sl = in.readLine().split("=");
+    if(sl.count() != 2)
+        return false;
+    sl = sl.at(1).split(".");
+    if(sl.count() != 2)
+        return false;
+    bool ok;
+    mv = sl.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = sl.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+
+    while(!in.atEnd()){
+        User* u = serialFromText(in.readLine(),rights,groups);
+        if(!u)
+            return false;
+        users<<u;
+    }
+    return true;
+}
+
 ///////////////////////////right类////////////////////////////////////
 
 Right::Right(int code, RightType *type, QString name, QString explain)
@@ -353,6 +444,76 @@ QString Right::getExplain()
     return explain;
 }
 
+QString Right::serialToText()
+{
+    QStringList sl;
+    for(int i = 0; i < 4; ++i)
+        sl<<"";
+    sl[SOFI_RIGHT_CODE] = QString::number(code);
+    sl[SOFI_RIGHT_RT] = QString::number((type?type->code:0));
+    sl[SOFI_RIGHT_NAEM] = name;
+    sl[SOFI_RIGHT_DESC] = explain;
+    return sl.join("||");
+}
+
+Right *Right::serialFromText(QString serialText, const QHash<int, RightType *> &rightTypes)
+{
+    QStringList ls = serialText.split("||");
+    if(ls.count() != 4)
+        return 0;
+    bool ok;
+    int rc = ls.at(SOFI_RIGHT_CODE).toInt(&ok);
+    if(!ok)
+        return 0;
+    int rtc = ls.at(SOFI_RIGHT_RT).toInt(&ok);
+    RightType* rt = rightTypes.value(rtc);
+    if(!ok || ok && !rt)
+        LOG_ERROR(QString("Create Right Object failed! Reason is right type code invalid! text is '%1'").arg(serialText));
+    Right* r = new Right(rc,rt,ls.at(SOFI_RIGHT_NAEM),ls.at(SOFI_RIGHT_DESC));
+    return r;
+}
+
+void Right::serialAllToBinary(int mv, int sv, QByteArray *ds)
+{
+    QList<Right*> rs = allRights.values();
+    qSort(rs.begin(),rs.end(),rightByCode);
+    QBuffer bf(ds);
+    QTextStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
+    foreach(Right* r, rs)
+        out<<r->serialToText()<<"\n";
+    bf.close();
+}
+
+bool Right::serialAllFromBinary(const QHash<int, RightType *> &rightTypes, QList<Right *> &rs, int &mv, int &sv, QByteArray *ds)
+{
+    QBuffer bf(ds);
+    QTextStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    QStringList sl = in.readLine().split("=");
+    if(sl.count() != 2)
+        return false;
+    sl = sl.at(1).split(".");
+    if(sl.count() != 2)
+        return false;
+    bool ok;
+    mv = sl.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = sl.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+
+    while(!in.atEnd()){
+        Right* r = serialFromText(in.readLine(),rightTypes);
+        if(!r)
+            return false;
+        rs<<r;
+    }
+    return true;
+}
+
 
 //////////////////UserGroup类////////////////////////////////////////////
 UserGroup::UserGroup(int id, int code, QString name, QSet<Right*> haveRights)
@@ -376,14 +537,27 @@ void UserGroup::setName(QString name)
     this->name = name;
 }
 
-//发回组具有的权限列表
-QSet<Right*> UserGroup::getHaveRights()
+//返回组具有的不属于任何所属组的权限列表（即额外权限）
+QSet<Right*> UserGroup::getExtraRights()
 {
     return rights;
 }
 
 /**
- * @brief 返回组所拥有的所有权限的代码的字符串，代码之间用逗号分隔
+ * @brief UserGroup::getAllRights
+ * 返回组所拥有的所有权限
+ * @return
+ */
+QSet<Right *> UserGroup::getAllRights()
+{
+    QSet<Right*> rs;
+    foreach(UserGroup* g, ownerGroups)
+        rs += g->getAllRights();
+    return rs + rights;
+}
+
+/**
+ * @brief 返回组所拥有的额外权限的代码的字符串，代码之间用逗号分隔
  * @return
  */
 QString UserGroup::getRightCodeList()
@@ -399,20 +573,48 @@ QString UserGroup::getRightCodeList()
 //设置组具有的权限列表
 void UserGroup::setHaveRights(QSet<Right*> rights)
 {
-    if(rights.count() > 0)
-        this->rights = rights;
+    this->rights = rights;
 }
 
-//增加组权限
+//增加组额外权限
 void UserGroup::addRight(Right* right)
 {
+    foreach(UserGroup* g, ownerGroups){
+        if(g->hasRight(right))
+            return;
+    }
     rights.insert(right);
 }
 
-//删除组权限
-void UserGroup::delRight(Right* right)
+//删除组额外权限
+void UserGroup::removeRight(Right* right)
 {
     rights.remove(right);
+}
+
+QString UserGroup::getOwnerCodeList()
+{
+    QList<UserGroup*> gs = ownerGroups.toList();
+    qSort(gs.begin(),gs.end(),groupByCode);
+    QStringList sl;
+    foreach(UserGroup* g, gs)
+        sl<<QString::number(g->getGroupCode());
+    return sl.join(",");
+}
+
+/**
+ * @brief UserGroup::isGroupRight
+ * 判断指定权限是否是所属组中某个组拥有的权限
+ * @param r
+ * @return
+ */
+bool UserGroup::isGroupRight(Right *r)
+{
+    foreach(UserGroup* g, ownerGroups){
+        if(g->hasRight(r))
+            return true;
+    }
+    return false;
 }
 
 /**
@@ -432,12 +634,109 @@ bool UserGroup::hasRight(Right *r)
 {
     if(rights.contains(r))
         return true;
-//    QSetIterator<UserGroup*> it(ownerGroups);
-//    while(it.hasNext()){
-//        if(it.next()->hasRight(r))
-//            return true;
-//    }
+    foreach(UserGroup* g, ownerGroups){
+        if(g->hasRight(r))
+            return true;
+    }
     return false;
+}
+
+QString UserGroup::serialToText()
+{
+    QStringList ls;
+    for(int i = 0; i < 5; ++i)
+        ls<<"";
+    ls[SOFI_GROUP_CODE] = QString::number(code);
+    ls[SOFI_GROUP_NAME] = name;
+    ls[SOFI_GROUP_RIGHTS] = getRightCodeList();
+    ls[SOFI_GROUP_OWNER] = getOwnerCodeList();
+    ls[SOFI_GROUP_DESC] = explain;
+    return ls.join("||");
+}
+
+UserGroup *UserGroup::serialFromText(QString serialText,const QHash<int, Right*> &rights, const QHash<int,UserGroup*> &groups)
+{
+    QStringList ls = serialText.split("||");
+    if(ls.count() != 5)
+        return 0;
+    bool ok;
+    int gc = ls.at(SOFI_GROUP_CODE).toInt(&ok);
+    if(!ok)
+        return 0;
+    QSet<Right*> rs;
+    if(!ls.at(SOFI_GROUP_RIGHTS).isEmpty()){
+        QStringList sl = ls.at(SOFI_GROUP_RIGHTS).split(",");
+        foreach(QString s, sl){
+            bool ok;
+            int rc = s.toInt(&ok);
+            Right* r = rights.value(rc);
+            if(!ok || ok && !r){
+                LOG_ERROR(QString("Create Group Object failed from serial text! Reason is right code invalid. text is '%1'").arg(serialText));
+                continue;
+            }
+            rs<<r;
+        }
+    }
+    UserGroup* ng = new UserGroup(UNID,gc,ls.at(SOFI_GROUP_NAME),rs);
+    if(!ls.at(SOFI_GROUP_OWNER).isEmpty()){
+        QSet<UserGroup*> gs;
+        QStringList sl = ls.at(SOFI_GROUP_OWNER).split(",");
+        foreach(QString s, sl){
+            bool ok;
+            int gc = s.toInt(&ok);
+            UserGroup* g = groups.value(gc);
+            if(!ok || ok && !g){
+                LOG_ERROR(QString("Create Group Object failed from serial text! Reason is owner group code invalid. text is '%1'").arg(serialText));
+                continue;
+            }
+            gs<<g;
+        }
+        ng->setOwnerGroups(gs);
+    }
+    return ng;
+}
+
+void UserGroup::serialAllToBinary(int mv, int sv, QByteArray *ds)
+{
+    QList<UserGroup*> gs = allGroups.values();
+    qSort(gs.begin(),gs.end(),groupByCode);
+    QBuffer bf(ds);
+    QTextStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
+    foreach(UserGroup* g, gs)
+        out<<g->serialToText()<<"\n";
+    bf.close();
+}
+
+bool UserGroup::serialAllFromBinary(QList<UserGroup *> &groups, int &mv, int &sv, QByteArray *ds,const QHash<int, Right*> &rights)
+{
+    QBuffer bf(ds);
+    QTextStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    QStringList sl = in.readLine().split("=");
+    if(sl.count() != 2)
+        return false;
+    sl = sl.at(1).split(".");
+    if(sl.count() != 2)
+        return false;
+    bool ok;
+    mv = sl.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = sl.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+
+    QHash<int,UserGroup*> gHashs;
+    while(!in.atEnd()){
+        UserGroup* g = serialFromText(in.readLine(),rights,gHashs);
+        if(!g)
+            return false;
+        groups<<g;
+        gHashs[g->getGroupCode()] = g;
+    }
+    return true;
 }
 
 
@@ -490,6 +789,9 @@ bool Operate::isPermition(User* user)
     }
     return true;
 }
+
+
+
 
 
 

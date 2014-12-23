@@ -75,6 +75,11 @@ int main(int argc, char *argv[])
     myHelper::SetUTF8Code();
     //myHelper::SetStyle("navy");//天蓝色风格
     //myHelper::SetStyle("black");
+    int errNum = appInit();
+    if(errNum != 0){
+        showErrorInfo(errNum);
+        return errNum;
+    }
     AppConfig* cfg = AppConfig::getInstance();
     QString style = cfg->getAppStyleName();
     if(style.isEmpty()){
@@ -84,13 +89,6 @@ int main(int argc, char *argv[])
     myHelper::SetStyle(style);
     myHelper::SetChinese();
     appTitle = QObject::tr("凭证辅助处理系统");
-
-	int errNum = appInit();
-    if(errNum != 0){
-        showErrorInfo(errNum);
-        return errNum;
-    }
-
     FileAppender* logFile = new FileAppender(LOGS_PATH + "app.log");
     Logger::registerAppender(logFile);
 
@@ -99,8 +97,7 @@ int main(int argc, char *argv[])
                   "************************************************************");
     Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                   QObject::tr("PzAssistant is starting......"));
-    //qDebug()<<"qDebug export info!";
-    logLevel = AppConfig::getInstance()->getLogLevel();
+    logLevel = cfg->getLogLevel();
     logFile->setDetailsLevel(logLevel);
 
     MainWindow mainWin;
@@ -109,7 +106,7 @@ int main(int argc, char *argv[])
     int exitCode = app.exec();
 
     Logger::write(QDateTime::currentDateTime(),Logger::Must,"",0,"", QObject::tr("Quit PzAssistant!"));
-    AppConfig::getInstance()->setLogLevel(logLevel);
+    cfg->setLogLevel(logLevel);
     appExit();
     return exitCode;
 }

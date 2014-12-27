@@ -11,13 +11,10 @@
 class QSettings;
 class VersionManager;
 class Machine;
+struct RightType;
+class Right;
+class UserGroup;
 struct ExternalToolCfgItem;
-
-//struct ExternalToolCfgItem{
-//    QString name;       //外部工具名称
-//    QString cmd;        //启动命令
-//    QStringList paras;  //命令的参数列表
-//};
 
 //通过访问应用程序的基本库来存取配置信息
 class AppConfig

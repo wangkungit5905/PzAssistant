@@ -338,6 +338,10 @@ void CurStatDialog::print(PrintActionClass action)
  */
 void CurStatDialog::save()
 {
+    if(!curUser->haveRight(allRights.value(Right::PzSet_Advance_SaveExtra))){
+        myHelper::ShowMessageBoxWarning(tr("您没有保存科目余额的权限！"));
+        return;
+    }
     if(curAccount->isReadOnly())
         return;
     AccountSuiteManager* sm = account->getSuiteMgr();

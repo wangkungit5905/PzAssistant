@@ -18,6 +18,7 @@
 #include "keysequence.h"
 #include "PzSet.h"
 #include "statutil.h"
+#include "myhelper.h"
 
 
 ////////////////////////////SummaryEdit/////////////////////////
@@ -1058,7 +1059,11 @@ void ActionEditItemDelegate::newNameItemMapping(FirstSubject *fsub, SubjectNameI
  * @param col  所在列
  */
 void ActionEditItemDelegate::newSndSubject(FirstSubject *fsub, SecondSubject*& ssub, QString name, int row, int col)
-{    
+{
+    if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
+        myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
+        return;
+    }
     if(QMessageBox::information(0,msgTitle_info,tr("确定要用新的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
                                 .arg(name).arg(fsub->getName()),
                              QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)

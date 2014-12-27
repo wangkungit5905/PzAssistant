@@ -167,6 +167,9 @@
          <layout class="QHBoxLayout" name="horizontalLayout_5">
           <item>
            <widget class="QPushButton" name="addUser">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>添加</string>
             </property>
@@ -174,6 +177,9 @@
           </item>
           <item>
            <widget class="QPushButton" name="removeUser">
+            <property name="enabled">
+             <bool>false</bool>
+            </property>
             <property name="text">
              <string>移除</string>
             </property>

@@ -305,6 +305,13 @@ void SecConDialog::refreshRightsForGroup(UserGroup *group)
     ui->edtGroupCode->setText(QString::number(group->getGroupCode()));
     ui->edtGroupName->setText(group->getName());
     ui->edtGroupExplain->setPlainText(group->getExplain());
+    if(group->getGroupCode() == USER_GROUP_ROOT_ID){
+        foreach(QTreeWidgetItem* item, groupRightItems){
+            item->setFlags(Qt::ItemIsSelectable | Qt::ItemIsUserCheckable);
+            item->setCheckState(0,Qt::Checked);
+        }
+        return;
+    }
     QSet<Right*> rs = group->getAllRights();
     foreach(QTreeWidgetItem* item, groupRightItems){
         Right* r = item->data(0,ROLE_RIGHT).value<Right*>();

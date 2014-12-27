@@ -7,6 +7,7 @@
 #include <QPushButton>
 #include <QCloseEvent>
 #include <QBuffer>
+#include <QMessageBox>
 
 ConfigPanels::ConfigPanels(QList<ConfigPanelBase*> panels,QList<QIcon> icons, QByteArray* state, QWidget *parent) : ConfigPanelBase(parent)
 {

@@ -2,6 +2,7 @@
 #define STATUTIL_H
 
 #include <QList>
+#include <QObject>
 
 #include "commdatastruct.h"
 

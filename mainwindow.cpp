@@ -809,19 +809,38 @@ void MainWindow::addSubWindowMenuItem(QList<MyMdiSubWindow *> windows)
     }
 }
 
+bool MainWindow::isContainRight(Right::RightCode rc)
+{
+    if(!curUser)
+        return false;
+    if(curUser->isSuperUser())
+        return true;
+    Right* r = allRights.value(rc);
+    if(!r)
+        return false;
+    if(!curUser->haveRight(r)){
+        myHelper::ShowMessageBoxWarning(tr("当前用户不具有执行此操作的权限！"));
+        return false;
+    }
+    return true;
+}
+
 /**
  * @brief MainWindow::isContainRights
  * 测试当前用户是否包含指定权限
  * @param rs
  * @return
  */
-bool MainWindow::isContainRights(QSet<Right *> rs)
+bool MainWindow::isContainRights(QSet<Right::RightCode> rcs)
 {
     if(!curUser)
         return false;
     if(curUser->isSuperUser())
         return true;
-    if(!curUser->getAllRights().contains(rs)){
+    QSet<Right*> rs;
+    foreach(Right::RightCode rc, rcs)
+        rs.insert(allRights.value(rc));
+    if(!curUser->haveRights(rs)){
         myHelper::ShowMessageBoxWarning(tr("当前用户不具有执行此操作的权限！"));
         return false;
     }
@@ -888,7 +907,6 @@ void MainWindow::rfLogin()
     ui->actExtComSndSub->setEnabled(r);
     //管理员特权项
     ui->actTaxCompare->setEnabled(login && curUser->isAdmin());
-
     rfMainAct(curUser);
 }
 
@@ -902,22 +920,7 @@ void MainWindow::rfMainAct(bool login)
     ui->actCrtAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Create)) && !open);
     ui->actOpenAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Common_Open)) && !open);
     ui->actCloseAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Common_Close)) && open);
-    if(!login)
-        ui->actAccProperty->setEnabled(false);
-    else if(curUser->isSuperUser())
-        ui->actAccProperty->setEnabled(true);
-    else{
-        QSet<Right*> cfgRs;
-        cfgRs<<allRights.value(Right::Account_Config_SetCommonInfo)
-             <<allRights.value(Right::Account_Config_SetSensitiveInfo)
-             <<allRights.value(Right::Account_Config_SetUsedSubSys)
-             <<allRights.value(Right::Account_Config_SetFstSubject)
-             <<allRights.value(Right::Account_Config_SetSndSubject)
-             <<allRights.value(Right::Account_Config_SetBaseTime)
-             <<allRights.value(Right::Account_Config_SetPeriodBegin);
-        QSet<Right*> rs = curUser->getAllRights() & cfgRs;
-        ui->actAccProperty->setEnabled(!rs.isEmpty()  && open);
-    }
+    ui->actAccProperty->setEnabled(login && open && curUser->canAccessAccount(curAccount));
     ui->actRefreshActInfo->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Refresh)) && !open);
     ui->actDelAcc->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Remove)) && !open);
     ui->actInAccount->setEnabled(login && curUser->haveRight(allRights.value(Right::Account_Import)) && !open);
@@ -1098,9 +1101,7 @@ void MainWindow::setActiveSubWindow(QWidget *window)
 /////////////////////////文件菜单处理槽部分/////////////////////////////////////////
 void MainWindow::newAccount()
 {
-    QSet<Right*> rs;
-    rs.insert(allRights.value(Right::Account_Create));
-    if(!isContainRights(rs))
+    if(!isContainRight(Right::Account_Create))
         return;
     NABaseInfoDialog dlg(this);
     if(dlg.exec() == QDialog::Rejected)
@@ -1109,9 +1110,7 @@ void MainWindow::newAccount()
 
 void MainWindow::openAccount()
 {
-    QSet<Right*> rs;
-    rs.insert(allRights.value(Right::Account_Common_Open));
-    if(!isContainRights(rs))
+    if(!isContainRight(Right::Account_Common_Open))
         return;
     OpenAccountDialog* dlg = new OpenAccountDialog(this);
     if(dlg->exec() != QDialog::Accepted)
@@ -1154,88 +1153,9 @@ void MainWindow::openAccount()
 
 void MainWindow::closeAccount()
 {
-    //检查是否有未保存的修改
-    if(!subWinGroups.isEmpty()){
-        foreach(int asrId, subWinGroups.keys()){
-            AccountSuiteManager* sm = curAccount->getSuiteMgr(asrId);
-            if(sm->isDirty()){
-                if(QMessageBox::Yes == QMessageBox::warning(this,tr("保存提醒"),tr("帐套“%1”已被修改，需要保存吗？").arg(sm->getSuiteRecord()->name),
-                                                            QMessageBox::Yes|QMessageBox::No))
-                    sm->save();
-            }
-        }
-    }
-    //关闭所有属于该账户的子窗口
-    if(!commonGroups.isEmpty()){
-        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups);
-        while(it.hasNext()){
-            it.next();
-            it.value()->close();
-        }
-        commonGroups.clear();
-    }
-    if(!commonGroups_multi.isEmpty()){
-        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups_multi);
-        while(it.hasNext()){
-            it.next();
-            it.value()->close();
-        }
-        commonGroups_multi.clear();
-    }
-    if(!subWinGroups.isEmpty()){
-        QHashIterator<int,SubWinGroupMgr*> it(subWinGroups);
-        while(it.hasNext()){
-            it.next();
-            it.value()->closeAll();
-            disconnect(it.value(),SIGNAL(specSubWinClosed(subWindowType)),this,SLOT(specSubWinClosed(subWindowType)));
-            delete it.value();
-        }
-        subWinGroups.clear();
-    }
-
-    //释放所有与该账户相关的资源
-    if(!historyPzSet.isEmpty()){
-        QHashIterator<int,QList<PingZheng*> > it(historyPzSet);
-        while(it.hasNext()){
-            it.next();
-            qDeleteAll(it.value());
-        }
-        historyPzSet.clear();
-    }
-    if(!historyPzSetIndex.isEmpty())
-        historyPzSetIndex.clear();
-    if(!historyPzMonth.isEmpty())
-        historyPzMonth.clear();
-
-    //如果帐套切换面板正显示，则关闭
-    if(dockWindows.value(TV_SUITESWITCH)->isVisible())
-        dockWindows.value(TV_SUITESWITCH)->hide();
-    if(curSSPanel){
-        disconnect(curSSPanel,SIGNAL(selectedSuiteChanged(AccountSuiteManager*,AccountSuiteManager*)),
-                this,SLOT(suiteViewSwitched(AccountSuiteManager*,AccountSuiteManager*)));
-        disconnect(curSSPanel,SIGNAL(viewPzSet(AccountSuiteManager*,int)),this,SLOT(viewOrEditPzSet(AccountSuiteManager*,int)));
-        disconnect(curSSPanel,SIGNAL(pzSetOpened(AccountSuiteManager*,int)),this,SLOT(pzSetOpen(AccountSuiteManager*,int)));
-        disconnect(curSSPanel,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
-        disconnect(curSSPanel,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
-        delete curSSPanel;
-        curSSPanel = NULL;
-    }
-
-    if(curSuiteMgr && curSuiteMgr->isPzSetOpened())
-        curSuiteMgr->closePzSet();
-
-    curAccount->setLastAccessTime(QDateTime::currentDateTime());
-    curAccount->close();
-
-    undoStack = NULL;
-    curSuiteMgr = NULL;
-    QAction* action = qobject_cast<QAction*>(sender());
-    if(action && action == ui->actCloseAccount)
-        AppConfig::getInstance()->clearRecentOpenAccount();
-    delete curAccount;
-    curAccount = NULL;
-    setWindowTitle(tr("会计凭证处理系统---无账户被打开"));
-    rfMainAct(curUser);
+    if(!isContainRight(Right::Account_Common_Close))
+        return;
+    _closeAccount();
 }
 
 /**
@@ -1244,6 +1164,8 @@ void MainWindow::closeAccount()
 void MainWindow::on_actDelAcc_triggered()
 {
     //显示当前账户列表供用户选择,将选择的账户从账户缓存中删除
+    if(!isContainRight(Right::Account_Remove))
+        return;
     AppConfig* appCfg = AppConfig::getInstance();
     QList<AccountCacheItem*> accItems = appCfg->getAllCachedAccounts();
     QStringList items;
@@ -1283,6 +1205,8 @@ void MainWindow::on_actDelAcc_triggered()
  */
 void MainWindow::on_actImpPzSet_triggered()
 {
+    if(!curUser || curUser && !curUser->isSuperUser())
+        return;
     if(!curAccount)
         return;
     ImportOVAccDlg dlg(curAccount,curSSPanel, ui->mdiArea);
@@ -1295,6 +1219,8 @@ void MainWindow::on_actImpPzSet_triggered()
  */
 void MainWindow::on_actUpdateSql_triggered()
 {
+    if(!curUser || curUser && !curUser->isSuperUser())
+        return;
     QSqlDatabase db = curAccount->getDbUtil()->getDb();
     QString s = QString("select name,sql from sqlite_master");
     QSqlQuery q(db);
@@ -1326,6 +1252,8 @@ void MainWindow::on_actUpdateSql_triggered()
  */
 void MainWindow::on_actExtComSndSub_triggered()
 {
+    if(!curUser || curUser && !curUser->isSuperUser())
+        return;
     if(!exportCommonSubject())
         myHelper::ShowMessageBoxWarning(tr("导出过程出错，请查看日志！"));
 }
@@ -1436,7 +1364,7 @@ void MainWindow::on_actNoteMgr_triggered()
  */
 void MainWindow::on_actExpAppCfg_triggered()
 {
-    if(!curUser->isSuperUser())
+    if(!curUser || curUser && !curUser->isSuperUser())
         return;
     QDialog dlg(this);
     QLabel title(tr("选择要导出的部分："),&dlg);
@@ -1474,7 +1402,7 @@ void MainWindow::on_actExpAppCfg_triggered()
         qSort(rts.begin(),rts.end(),rightTypeByCode);
         QString fileName = dirName + "/rightTypes.txt";
         fileExist = QFile::exists(fileName);
-        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“rightTypes.txt”已存在，要覆盖吗？")))){
             QFile file(fileName);
             if(!file.open(QFile::WriteOnly|QFile::Text)){
                 myHelper::ShowMessageBoxError(tr("打开文件“rightTypes.txt”时出错！"));
@@ -1496,7 +1424,7 @@ void MainWindow::on_actExpAppCfg_triggered()
         qSort(rs.begin(),rs.end(),rightByCode);
         QString fileName = dirName + "/rights.txt";
         fileExist = QFile::exists(fileName);
-        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“rights.txt”已存在，要覆盖吗？")))){
             QFile file(fileName);
             if(!file.open(QFile::WriteOnly|QFile::Text)){
                 myHelper::ShowMessageBoxError(tr("打开文件“rights.txt”时出错！"));
@@ -1539,7 +1467,7 @@ void MainWindow::on_actExpAppCfg_triggered()
         qSort(gs.begin(),gs.end(),groupByCode);
         QString fileName = dirName + "/groups.txt";
         fileExist = QFile::exists(fileName);
-        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“groups.txt”已存在，要覆盖吗？")))){
             QFile file(fileName);
             if(!file.open(QFile::WriteOnly|QFile::Text)){
                 myHelper::ShowMessageBoxError(tr("打开文件“groups.txt”时出错！"));
@@ -1560,7 +1488,7 @@ void MainWindow::on_actExpAppCfg_triggered()
         qSort(us.begin(),us.end(),userByCode);
         QString fileName = dirName + "/users.txt";
         fileExist = QFile::exists(fileName);
-        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“machines.txt”已存在，要覆盖吗？")))){
+        if(!fileExist || fileExist && (QDialog::Accepted == myHelper::ShowMessageBoxQuesion(tr("文件“users.txt”已存在，要覆盖吗？")))){
             QFile file(fileName);
             if(!file.open(QFile::WriteOnly|QFile::Text)){
                 myHelper::ShowMessageBoxError(tr("打开文件“users.txt”时出错！"));
@@ -1584,7 +1512,7 @@ void MainWindow::on_actExpAppCfg_triggered()
  */
 void MainWindow::on_actImpAppCfg_triggered()
 {
-    if(!curUser->isSuperUser())
+    if(!curUser || curUser && !curUser->isSuperUser())
         return;
     QDialog dlg(this);
     QLabel title(tr("选择要导入的部分："),&dlg);
@@ -1788,6 +1716,92 @@ void MainWindow::on_actImpAppCfg_triggered()
     myHelper::ShowMessageBoxInfo(tr("操作成功完成，需要重新启动应用以使新的设置生效！"));
 }
 
+void MainWindow::_closeAccount()
+{
+    //检查是否有未保存的修改
+    if(!subWinGroups.isEmpty()){
+        foreach(int asrId, subWinGroups.keys()){
+            AccountSuiteManager* sm = curAccount->getSuiteMgr(asrId);
+            if(sm->isDirty()){
+                if(QMessageBox::Yes == QMessageBox::warning(this,tr("保存提醒"),tr("帐套“%1”已被修改，需要保存吗？").arg(sm->getSuiteRecord()->name),
+                                                            QMessageBox::Yes|QMessageBox::No))
+                    sm->save();
+            }
+        }
+    }
+    //关闭所有属于该账户的子窗口
+    if(!commonGroups.isEmpty()){
+        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups);
+        while(it.hasNext()){
+            it.next();
+            it.value()->close();
+        }
+        commonGroups.clear();
+    }
+    if(!commonGroups_multi.isEmpty()){
+        QHashIterator<subWindowType,MyMdiSubWindow*> it(commonGroups_multi);
+        while(it.hasNext()){
+            it.next();
+            it.value()->close();
+        }
+        commonGroups_multi.clear();
+    }
+    if(!subWinGroups.isEmpty()){
+        QHashIterator<int,SubWinGroupMgr*> it(subWinGroups);
+        while(it.hasNext()){
+            it.next();
+            it.value()->closeAll();
+            disconnect(it.value(),SIGNAL(specSubWinClosed(subWindowType)),this,SLOT(specSubWinClosed(subWindowType)));
+            delete it.value();
+        }
+        subWinGroups.clear();
+    }
+
+    //释放所有与该账户相关的资源
+    if(!historyPzSet.isEmpty()){
+        QHashIterator<int,QList<PingZheng*> > it(historyPzSet);
+        while(it.hasNext()){
+            it.next();
+            qDeleteAll(it.value());
+        }
+        historyPzSet.clear();
+    }
+    if(!historyPzSetIndex.isEmpty())
+        historyPzSetIndex.clear();
+    if(!historyPzMonth.isEmpty())
+        historyPzMonth.clear();
+
+    //如果帐套切换面板正显示，则关闭
+    if(dockWindows.value(TV_SUITESWITCH)->isVisible())
+        dockWindows.value(TV_SUITESWITCH)->hide();
+    if(curSSPanel){
+        disconnect(curSSPanel,SIGNAL(selectedSuiteChanged(AccountSuiteManager*,AccountSuiteManager*)),
+                this,SLOT(suiteViewSwitched(AccountSuiteManager*,AccountSuiteManager*)));
+        disconnect(curSSPanel,SIGNAL(viewPzSet(AccountSuiteManager*,int)),this,SLOT(viewOrEditPzSet(AccountSuiteManager*,int)));
+        disconnect(curSSPanel,SIGNAL(pzSetOpened(AccountSuiteManager*,int)),this,SLOT(pzSetOpen(AccountSuiteManager*,int)));
+        disconnect(curSSPanel,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
+        disconnect(curSSPanel,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
+        delete curSSPanel;
+        curSSPanel = NULL;
+    }
+
+    if(curSuiteMgr && curSuiteMgr->isPzSetOpened())
+        curSuiteMgr->closePzSet();
+
+    curAccount->setLastAccessTime(QDateTime::currentDateTime());
+    curAccount->close();
+
+    undoStack = NULL;
+    curSuiteMgr = NULL;
+    QAction* action = qobject_cast<QAction*>(sender());
+    if(action && action == ui->actCloseAccount)
+        AppConfig::getInstance()->clearRecentOpenAccount();
+    delete curAccount;
+    curAccount = NULL;
+    setWindowTitle(tr("会计凭证处理系统---无账户被打开"));
+    rfMainAct(curUser);
+}
+
 
 
 /**
@@ -1838,7 +1852,8 @@ void MainWindow::exit()
  */
 void MainWindow::viewSubjectExtra()
 {
-
+    if(!isContainRight(Right::PzSet_Advance_ShowExtra))
+        return;
     if(curSuiteMgr->isDirty())
         curSuiteMgr->save();
 
@@ -1879,6 +1894,8 @@ void MainWindow::viewSubjectExtra()
 void MainWindow::openSpecPz(int pid,int bid)
 {
     //根据凭证是否属于当前月份来决定是否用凭证编辑窗口还是用历史凭证显示窗口打开    
+    if(!isContainRight(Right::Pz_Common_Show))
+        return;
     bool isIn;
     PingZheng* pz = curSuiteMgr->readPz(pid,isIn);
     if(!pz)
@@ -1961,88 +1978,6 @@ void MainWindow::about()
 {
     AboutForm* form = new AboutForm(aboutStr);
     form->show();
-}
-
-
-
-//处理向导式的新账户创建的4个步骤
-void MainWindow::toCrtAccNextStep(int curStep, int nextStep)
-{
-    //表现不理想，暂且不用
-//    if((curStep == 1) && (nextStep == 2)){ //结束账户一般信息的输入
-//        QString code = dlgAcc->getCode();
-//        QString sname = dlgAcc->getSName();
-//        QString lname = dlgAcc->getLName();
-//        QString filename = dlgAcc->getFileName();
-//        int reportType = dlgAcc->getReportType();
-
-//        //创建该账户对应的数据库，并建立基本数据表和导入基本数据,必要情况下显示创建进度
-//        //检查是否存在同名文件，如有，则恢复刚才的对话框的内容允许用户进行修改
-//        QString qn = QString("./datas/databases/%1").arg(filename);
-
-//        if(!QFile::exists(qn + ".dat") ||   //如果文件不存在或
-//           (QFile::exists(qn + ".dat") &&   //文件存在且要求覆盖
-//           (QMessageBox::Yes == QMessageBox::critical(0, qApp->tr("文件名称冲突"),
-//                qApp->tr("数据库文件名已存在，要覆盖吗？\n"
-//                "文件覆盖后将导致先前文件的数据全部丢失"),
-//                QMessageBox::Yes | QMessageBox::No)))){
-//            //创建数据库文件并打开连接
-//            ConnectionManager::openConnection(filename);
-//            adb = ConnectionManager::getConnect();
-//            createBasicTable(); //创建基本表
-
-//            //将账户信息添加到数据库文件中
-//            QSqlQuery query;
-//            query.prepare("INSERT INTO AccountInfos(code, sname, lname) "
-//                          "VALUES(:code, :sname, :lname)");
-//            query.bindValue(":code", code);
-//            query.bindValue(":sname", sname);
-//            query.bindValue(":lname", lname);
-//            query.exec();
-
-//            //将该账户添加到应用程序的配置信息中（帐户简称，数据库文件名对）并将该账户设置为当前账户
-//            AppConfig* appSetting = AppConfig::getInstance();
-//            curAccountId = appSetting->addAccountInfo(code, sname, lname, filename);
-//            appSetting->setUsedReportType(curAccountId, reportType);
-
-//            appSetting->setRecentOpenAccount(curAccountId);
-//            setWindowTitle(tr("会计凭证处理系统---") + lname);
-//            //enaActOnAccOpened(true);
-//            refreshTbrVisble();
-//            refreshActEnanble();
-//            dlgAcc->close();
-
-//            dlgBank = new SetupBankDialog;
-//            connect(dlgBank, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-//            dlgBank->show();
-//        }
-//    }
-//    else if((curStep == 2) && (nextStep == 3)){
-//        dlgBank->close();
-//        dlgData = new BasicDataDialog;
-//        connect(dlgData, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-//        dlgData->show();
-//    }
-//    else if((curStep == 3) && (nextStep == 4)){
-//        dlgData->close();
-//        dlgBase = new SetupBaseDialog;
-//        connect(dlgBase, SIGNAL(toNextStep(int,int)), this, SLOT(toCrtAccNextStep(int,int)));
-//        dlgBase->show();
-//    }
-//    else if((curStep == 4) && (nextStep == 4)){
-//        dlgBase->close();
-
-//        delete dlgAcc;
-//        delete dlgBank;
-//        delete dlgData;
-//        delete dlgBase;
-//    }
-//    else if(nextStep == 0){
-//        delete dlgAcc;
-//        delete dlgBank;
-//        delete dlgData;
-//        delete dlgBase;
-//    }
 }
 
 void MainWindow::showTemInfo(QString info)
@@ -2380,6 +2315,8 @@ void MainWindow::suiteViewSwitched(AccountSuiteManager *previous, AccountSuiteMa
 void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
 {
     //如果帐套已关闭，或指定月份已结账，则利用历史凭证显示窗口显示
+    if(!isContainRight(Right::Pz_Common_Show))
+        return;
     int suiteId = accSmg->getSuiteRecord()->id;
     QByteArray cinfo;
     SubWindowDim* winfo = NULL;
@@ -2452,6 +2389,8 @@ void MainWindow::viewOrEditPzSet(AccountSuiteManager *accSmg, int month)
  */
 void MainWindow::pzSetOpen(AccountSuiteManager *accSmg, int month)
 {
+    if(!isContainRight(Right::PzSet_Common_Open))
+        return;
     refreshShowPzsState();
     ui->statusbar->setPzSetDate(accSmg->getSuiteRecord()->year,month);
     rfPzSetOpenAct();
@@ -2465,6 +2404,8 @@ void MainWindow::pzSetOpen(AccountSuiteManager *accSmg, int month)
  */
 void MainWindow::prepareClosePzSet(AccountSuiteManager *accSmg, int month)
 {
+    if(!isContainRight(Right::PzSet_Common_Close))
+        return;
     //在关闭凭证集前，要检测是否有未保存的修改
 //    if(curSuiteMgr->isDirty()){
 //        if(QMessageBox::Accepted ==
@@ -2502,6 +2443,8 @@ void MainWindow::pzSetClosed(AccountSuiteManager *accSmg, int month)
 //    disconnect(curSuiteMgr,SIGNAL(pzSetStateChanged(PzsState)),this,SLOT(pzSetStateChanged(PzsState)));
 //    disconnect(curSuiteMgr,SIGNAL(pzExtraStateChanged(bool)),this,SLOT(pzSetExtraStateChanged(bool)));
 
+    if(!isContainRight(Right::PzSet_Common_Close))
+        return;
     ui->statusbar->setPzSetDate(0,0);
     ui->statusbar->setPzSetState(Ps_NoOpen);
     ui->statusbar->resetPzCounts();
@@ -2665,6 +2608,8 @@ void MainWindow::printProcess()
         return;
     subWindowType winType = activedMdiChild();
     if(winType == SUBWIN_PZEDIT || winType == SUBWIN_HISTORYVIEW){
+        if(!isContainRight(Right::Print_Pz))
+            return;
         QList<PingZheng*> pzSet;
         PingZheng* curPz;
         if(winType == SUBWIN_PZEDIT){
@@ -2724,6 +2669,8 @@ void MainWindow::printProcess()
         DialogWithPrint* dlg = qobject_cast<DialogWithPrint*>(subWin->widget());
         if(!dlg)
             return;
+        if(!isContainRight(Right::Print_DetialTable))
+            return;
         dlg->print(pac);
     }
 }
@@ -2731,6 +2678,8 @@ void MainWindow::printProcess()
 //处理添加凭证动作事件
 void MainWindow::on_actAddPz_triggered()
 {
+    if(!isContainRight(Right::Pz_common_Add))
+        return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->addPz();
@@ -2747,6 +2696,8 @@ void MainWindow::on_actAddPz_triggered()
  */
 void MainWindow::on_actInsertPz_triggered()
 {
+    if(!isContainRight(Right::Pz_common_Add))
+        return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->insertPz();
@@ -2759,6 +2710,8 @@ void MainWindow::on_actInsertPz_triggered()
 //删除凭证（综合考虑凭证集状态和凭证类别，来决定新的凭证集状态）
 void MainWindow::on_actDelPz_triggered()
 {
+    if(!isContainRight(Right::Pz_Common_Del))
+        return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed){
         w->removePz();
@@ -2776,6 +2729,8 @@ void MainWindow::on_actDelPz_triggered()
  */
 void MainWindow::on_actAddAction_triggered()
 {
+    if(!isContainRight(Right::Pz_Common_Edit))
+        return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed)
         w->addBa();
@@ -2787,6 +2742,8 @@ void MainWindow::on_actAddAction_triggered()
  */
 void MainWindow::on_actInsertBa_triggered()
 {
+    if(!isContainRight(Right::Pz_Common_Edit))
+        return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed)
         w->insertBa();
@@ -2798,6 +2755,8 @@ void MainWindow::on_actInsertBa_triggered()
  */
 void MainWindow::on_actDelAction_triggered()
 {
+    if(!isContainRight(Right::Pz_Common_Edit))
+        return;
     PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
     if(w && curSuiteMgr->getState() != Ps_Jzed)
         w->removeBa();
@@ -2900,6 +2859,7 @@ void MainWindow::on_actGoLast_triggered()
  */
 void MainWindow::on_actSave_triggered()
 {
+    //这个要如何进行权限限制？？？
     subWindowType winType = activedMdiChild();
     if(winType == SUBWIN_PZEDIT){
         PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
@@ -3028,6 +2988,8 @@ void MainWindow::undoViewItemClicked(const QModelIndex &indexes)
 //结转汇兑损益
 void MainWindow::on_actFordEx_triggered()
 {
+    if(!isContainRight(Right::Pz_Advanced_JzHdsy))
+        return;
     if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
@@ -3043,6 +3005,8 @@ void MainWindow::on_actFordEx_triggered()
 //结转损益
 void MainWindow::on_actFordPl_triggered()
 {
+    if(!isContainRight(Right::Pz_Advanced_JzSy))
+        return;
     if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
         return;
     int key = curSuiteMgr->getSuiteRecord()->id;
@@ -3063,6 +3027,8 @@ void MainWindow::on_actFordPl_triggered()
  */
 void MainWindow::on_actCurStatNew_triggered()
 {
+    if(!isContainRight(Right::PzSet_ShowStat_Current))
+        return;
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
         return;
@@ -3098,7 +3064,10 @@ void MainWindow::on_actLogin_triggered()
     AppConfig::getInstance()->getCfgVar(AppConfig::CVC_ResentLoginUser,recentUserId);
     LoginDialog* dlg = new LoginDialog;
     if(dlg->exec() == QDialog::Accepted){
-        curUser = dlg->getLoginUser();
+        User* u = dlg->getLoginUser();
+        if(curAccount && !u->canAccessAccount(curAccount))
+            _closeAccount();
+        curUser = u;
         recentUserId = curUser->getUserId();        
         ui->statusbar->setUser(curUser);
     }
@@ -3131,7 +3100,17 @@ void MainWindow::on_actShiftUser_triggered()
 {
     LoginDialog* dlg = new LoginDialog;
     if(dlg->exec() == QDialog::Accepted){
-        curUser = dlg->getLoginUser();
+        User* u = dlg->getLoginUser();
+        //如果切换用户前有打开的账户，且新登录的用户不是特权用户或他的专属账户中不包含当前打开的账户
+        //则必须关闭当前打开的账户，否则登录无意义
+        if(curAccount && !u->canAccessAccount(curAccount)){
+            if(QDialog::Rejected == myHelper::ShowMessageBoxQuesion(
+                        tr("当前登录用户不能访问账户（%1），确定用以此用户登录吗？")
+                        .arg(curAccount->getSName())))
+                return;
+            _closeAccount();
+        }
+        curUser = u;
         ui->statusbar->setUser(curUser);
     }
     rfLogin();
@@ -3160,6 +3139,8 @@ void MainWindow::on_actSecCon_triggered()
 //向上移动分录
 void MainWindow::on_actMvUpAction_triggered()
 {
+    if(!isContainRight(Right::Pz_Common_Edit))
+        return;
     if(activedMdiChild() == SUBWIN_PZEDIT){
         PzDialog* pzEdit = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
         pzEdit->moveUpBa();
@@ -3170,6 +3151,8 @@ void MainWindow::on_actMvUpAction_triggered()
 //向下移动分录
 void MainWindow::on_actMvDownAction_triggered()
 {
+    if(!isContainRight(Right::Pz_Common_Edit))
+        return;
     if(activedMdiChild() == SUBWIN_PZEDIT){
         PzDialog* pzEdit = static_cast<PzDialog*>(subWinGroups.value(curSuiteMgr->getSuiteRecord()->id)->getSubWinWidget(SUBWIN_PZEDIT));
         pzEdit->moveDownBa();
@@ -3195,6 +3178,8 @@ void MainWindow::on_actNaviToPz_triggered()
             myHelper::ShowMessageBoxWarning(tr("没有凭证号为%1的凭证").arg(num));
     }
     else if(activedMdiChild() == SUBWIN_HISTORYVIEW){
+        if(!isContainRight(Right::Pz_Common_Show))
+            return;
         int suiteId = curSuiteMgr->getSuiteRecord()->id;
         HistoryPzForm* win = qobject_cast<HistoryPzForm*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_HISTORYVIEW));
         PingZheng* pz = NULL;
@@ -3212,10 +3197,8 @@ void MainWindow::on_actNaviToPz_triggered()
 //全部手工凭证通过审核
 void MainWindow::on_actAllVerify_triggered()
 {
-    if(!curUser->haveRight(allRights.value(Right::Pz_Advanced_Verify))){
-        rightWarnning(Right::Pz_Advanced_Verify);
+    if(!isContainRight(Right::Pz_Advanced_Verify))
         return;
-    }
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
         return;
@@ -3241,10 +3224,8 @@ void MainWindow::on_actAllVerify_triggered()
 void MainWindow::on_actAllInstat_triggered()
 {
     //应该利用undo框架完成该动作，而不是直接操纵数据库
-    if(!curUser->haveRight(allRights.value(Right::Pz_Advanced_Instat))){
-        rightWarnning(Right::Pz_Advanced_Instat);
+    if(!isContainRight(Right::Pz_Advanced_Instat))
         return;
-    }
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
         return;
@@ -3324,6 +3305,9 @@ void MainWindow::on_actImpOtherPz_triggered()
 //结转本年利润
 void MainWindow::on_actJzbnlr_triggered()
 {
+    if(!isContainRight(Right::Pz_Advanced_jzlr))
+        return;
+
 //    if(!isOpenPzSet){
 //        pzsWarning();
 //        return;
@@ -3386,6 +3370,8 @@ void MainWindow::on_actJzbnlr_triggered()
  */
 void MainWindow::on_actEndAcc_triggered()
 {
+    if(!isContainRight(Right::PzSet_Advance_EndSet))
+        return;
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
         return;
@@ -3467,6 +3453,8 @@ void MainWindow::on_actAntiJz_triggered()
  */
 void MainWindow::on_actAntiEndAcc_triggered()
 {
+    if(!isContainRight(Right::PzSet_Advance_AntiEndSet))
+        return;
     //打破结账限制，
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
@@ -3503,6 +3491,8 @@ void MainWindow::on_actAntiImp_triggered()
 //打开Sql工具
 void MainWindow::showSqlTool()
 {
+    if(!isContainRight(Right::Database_Access))
+        return;
     DatabaseAccessForm* dlg = new DatabaseAccessForm(curAccount, AppConfig::getInstance());
     int winNumber = 1;
     if(commonGroups_multi.count(SUBWIN_SQL) > 0){
@@ -3563,6 +3553,8 @@ void MainWindow::on_actDtfyAdmin_triggered()
 //查看总账
 void MainWindow::on_actShowTotal_triggered()
 {
+    if(!isContainRight(Right::PzSet_ShowStat_Totals))
+        return;
     //要重新实现显示总账的视图类，以适应应用结构的改变
 //    QByteArray* sinfo;
 //    SubWindowDim* winfo;
@@ -3583,6 +3575,8 @@ void MainWindow::on_actShowTotal_triggered()
  */
 void MainWindow::on_actDetailView_triggered()
 {
+    if(!isContainRight(Right::PzSet_ShowStat_Details))
+        return;
     QByteArray cinfo,pinfo;
     SubWindowDim* winfo = NULL;
     ShowDZDialog* dlg = NULL;
@@ -3604,6 +3598,8 @@ void MainWindow::on_actDetailView_triggered()
  */
 void MainWindow::on_actInStatPz_triggered()
 {
+    if(!isContainRight(Right::Pz_Advanced_Instat))
+        return;
     if(!curSuiteMgr->getCurPz())
         return ;
     if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
@@ -3626,6 +3622,8 @@ void MainWindow::on_actInStatPz_triggered()
  */
 void MainWindow::on_actVerifyPz_triggered()
 {
+    if(!isContainRight(Right::Pz_Advanced_Verify))
+        return;
     if(!curSuiteMgr->getCurPz())
         return ;
     if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
@@ -3649,6 +3647,8 @@ void MainWindow::on_actVerifyPz_triggered()
  */
 void MainWindow::on_actAntiVerify_triggered()
 {
+    if(!isContainRight(Right::Pz_Advanced_AntiVerify))
+        return;
     if(!curSuiteMgr->getCurPz())
         return ;
     if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
@@ -3672,6 +3672,8 @@ void MainWindow::on_actAntiVerify_triggered()
 void MainWindow::on_actRefreshActInfo_triggered()
 {
     //刷新前要关闭当前打开的账户
+    if(!isContainRight(Right::Account_Refresh))
+        return;
     if(curAccount)
         closeAccount();
     //AppConfig::getInstance()->clearRecentOpenAccount();
@@ -3734,6 +3736,8 @@ void MainWindow::on_actSuite_triggered()
  */
 void MainWindow::on_actEmpAccount_triggered()
 {
+    if(!isContainRight(Right::Account_Export))
+        return;
     if(!isExecAccountTransform())
         return;
     TransferOutDialog dlg(this);
@@ -3746,6 +3750,8 @@ void MainWindow::on_actEmpAccount_triggered()
  */
 void MainWindow::on_actInAccount_triggered()
 {
+    if(!isContainRight(Right::Account_Import))
+        return;
     if(!isExecAccountTransform())
         return;
     TransferInDialog dlg(this);
@@ -3957,6 +3963,8 @@ void MainWindow::adjustEditMenus(UndoType ut, bool restore)
  */
 bool MainWindow::exportCommonSubject()
 {
+    if(!curUser || curUser && !curUser->isSuperUser())
+        return false;
     if(!curAccount)
         return false;
     QSqlDatabase bdb = AppConfig::getBaseDbConnect();
@@ -4032,61 +4040,7 @@ bool MainWindow::exportCommonSubject()
     return true;
 }
 
-/**
- * @brief 临时助手函数，导出权限系统设置信息到文本文件
- */
-void MainWindow::exportRightSys()
-{
-    QSqlDatabase db = QSqlDatabase::addDatabase("QSQLITE","ExportRS");
-    QString fileName = PATCHES_PATH + "basicdata.dat";
-    db.setDatabaseName(fileName);
-    if(!db.open()){
-        QMessageBox::critical(this,"",tr("打开数据库文件（%1）出错！").arg(fileName));
-        return;
-    }
-    QFile file(PATCHES_PATH + "rightTypes.txt");
-    if(!file.open(QIODevice::WriteOnly|QIODevice::Text)){
-        QMessageBox::critical(this,"","Open file rightTypes for writeOnly error!");
-        return;
-    }
-    QTextStream ts(&file);
-    QString s = QString("select * from %1 order by %2,%3").arg(tbl_base_righttypes)
-            .arg(fld_base_rt_pcode).arg(fld_base_rt_code);
-    QSqlQuery q(db);
-    if(!q.exec(s)){
-        QMessageBox::critical(this,"",QString("Exec Sql statement: %1").arg(s));
-        return;
-    }
-    while(q.next()){
-        int pcode = q.value(FI_BASE_RT_PCODE).toInt();
-        int code = q.value(FI_BASE_RT_CODE).toInt();
-        QString name = q.value(FI_BASE_RT_NAME).toString();
-        QString explain = q.value(FI_BASE_RT_EXPLAIN).toString();
-        ts<<pcode<<"||"<<code<<"||"<<name<<"||"<<explain<<"\n";
-    }
-    ts.flush();
 
-    file.setFileName(PATCHES_PATH + "rights.txt");
-    if(!file.open(QIODevice::WriteOnly|QIODevice::Text)){
-        QMessageBox::critical(this,"","Open file rightTypes for writeOnly error!");
-        return;
-    }
-    ts.setDevice(&file);
-    s = QString("select * from %1 order by %2").arg(tbl_base_rights).arg(fld_base_rt_code);
-    if(!q.exec(s)){
-        QMessageBox::critical(this,"",QString("Exec Sql statement: %1").arg(s));
-        return;
-    }
-    while(q.next()){
-        int code = q.value(FI_BASE_R_CODE).toInt();
-        int type = q.value(FI_BASE_R_TYPE).toInt();
-        QString name = q.value(FI_BASE_R_NAME).toString();
-        QString explain = q.value(FI_BASE_R_EXPLAIN).toString();
-        ts<<code<<"||"<<type<<"||"<<name<<"||"<<explain<<"\n";
-    }
-    ts.flush();
-    QMessageBox::information(this,"",tr("成功导出权限系统设置信息！"));
-}
 
 /**
  * @brief 在导入应用配置信息前执行版本检测
@@ -4170,56 +4124,6 @@ void MainWindow::on_actAccProperty_triggered()
 }
 
 /**
- * @brief MainWindow::on_actSetPzCls_triggered
- *  设置凭证类别
- */
-//void MainWindow::on_actSetPzCls_triggered()
-//{
-//    if(!curSuiteMgr->getCurPz())
-//        return;
-//    if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
-//        return;
-//    int key = curSuiteMgr->getSuiteRecord()->id;
-//    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT))
-//        return;
-//    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
-//    if(!w)
-//        return;
-
-//    QDialog* dlg = new QDialog;
-//    QLabel* lbl = new QLabel(tr("凭证类别"),dlg);
-//    QComboBox* cmb = new QComboBox(dlg);
-//    QList<PzClass> codes = pzClasses.keys();
-//    qSort(codes.begin(),codes.end());
-//    foreach(PzClass c, codes)
-//        cmb->addItem(pzClasses.value(c),(int)c);
-//    int index = cmb->findData(curSuiteMgr->getCurPz()->getPzClass());
-//    cmb->setCurrentIndex(index);
-//    QHBoxLayout* lh = new QHBoxLayout;
-//    lh->addWidget(lbl);
-//    lh->addWidget(cmb);
-//    QPushButton* btnOk = new QPushButton(tr("确定"));
-//    QPushButton* btnCancel = new QPushButton(tr("取消"));
-//    QHBoxLayout* lb = new QHBoxLayout;
-//    lb->addWidget(btnOk);
-//    lb->addWidget(btnCancel);
-//    QVBoxLayout* lm = new QVBoxLayout;
-//    lm->addLayout(lh);
-//    lm->addLayout(lb);
-//    dlg->setLayout(lm);
-//    dlg->resize(200,300);
-//    connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
-//    connect(btnCancel,SIGNAL(clicked()),dlg,SLOT(reject()));
-//    if(dlg->exec() == QDialog::Rejected){
-//        delete dlg;
-//        return;
-//    }
-//    PzClass c = (PzClass)cmb->itemData(cmb->currentIndex()).toInt();
-//    curSuiteMgr->getCurPz()->setPzClass(c);  //这里避开了undo框架，这是个缺陷
-//    delete dlg;
-//}
-
-/**
  * @brief MainWindow::on_actPzErrorInspect_triggered
  *  凭证检错
  */
@@ -4244,114 +4148,6 @@ void MainWindow::on_actPzErrorInspect_triggered()
         w->inspect();
         subWinGroups.value(suiteId)->showSubWindow(SUBWIN_VIEWPZSETERROR,w,dim);
     }
-}
-
-//强制删除锁定凭证（批量删除，凭证号之间用逗号隔开，连续的凭证号可以用连字符“-”连接，比如“2-4，7，8”）
-//实现中，在删除后未考虑对凭证号进行重置。
-void MainWindow::on_actForceDelPz_triggered()
-{
-//    if(!curSuiteMgr->isPzSetOpened()){
-//        pzsWarning();
-//        return;
-//    }
-//    QDialog* dlg = new QDialog(this);
-//    QLabel* ly = new QLabel(tr("凭证所属年月"),dlg);
-//    QDateEdit* date = new QDateEdit(dlg);
-//    date->setDate(QDate(curSuiteMgr->year(),curSuiteMgr->month(),1));
-//    date->setDisplayFormat("yyyy-M");
-//    date->setReadOnly(false);
-//    QLabel* ln = new QLabel(tr("凭证号"),dlg);
-//    QLineEdit* edtPzNums = new QLineEdit(dlg);
-//    QPushButton* btnOk = new QPushButton(tr("确定"));
-//    QPushButton* btnCancel = new QPushButton(tr("取消"));
-//    QHBoxLayout* ld = new QHBoxLayout;
-//    QHBoxLayout* lb = new QHBoxLayout;
-//    QHBoxLayout* ls = new QHBoxLayout;
-//    QVBoxLayout* lm = new QVBoxLayout;
-//    ld->addWidget(ly);
-//    ld->addWidget(date);
-//    ls->addWidget(ln);
-//    ls->addWidget(edtPzNums);
-//    lb->addWidget(btnOk);
-//    lb->addWidget(btnCancel);
-//    lm->addLayout(ld);
-//    lm->addLayout(ls);
-//    lm->addLayout(lb);
-//    dlg->setLayout(lm);
-//    connect(btnOk,SIGNAL(clicked()),dlg,SLOT(accept()));
-//    connect(btnCancel, SIGNAL(clicked()),dlg, SLOT(reject()));
-//    if(QDialog::Accepted != dlg->exec())
-//        return;
-//    QString ds = date->date().toString(Qt::ISODate);
-//    ds.chop(3);
-//    QStringList pzs = edtPzNums->text().split(",");
-//    if(pzs.empty())
-//        return;
-
-//    QList<int> pzNums;
-//    bool ok = false;
-//    int numStart,numEnd;
-//    foreach(QString s, pzs){
-//        s =  s.trimmed();
-//        numStart = s.toInt(&ok);
-//        if(ok)
-//            pzNums << numStart;
-//        else{
-//            int index = s.indexOf("-");
-//            if(index != -1){
-//                numStart = s.left(index).toInt(&ok);
-//                if(!ok){
-//                    qDebug()<<QString("String '%1' transform to number failed!").arg(s.left(index+1));
-//                    return;
-//                }
-//                numEnd = s.right(s.size()-index-1).toInt(&ok);
-//                if(!ok){
-//                    qDebug()<<QString("String '%1' transform to number failed!").arg(s.right(s.size()-index-1));
-//                    return;
-//                }
-//                for(int i = numStart; i <= numEnd; ++i)
-//                    pzNums<<i;
-//            }
-//        }
-//    }
-
-
-//    delete dlg;
-
-//    QString pzNumStr;
-//    foreach(int n,pzNums)
-//        pzNumStr.append(QString::number(n)).append(",");
-//    pzNumStr.chop(1);
-//    if(QMessageBox::No == QMessageBox::warning(this,
-//           tr("警告信息"),tr("确定要删除 %1 %2号凭证吗？").arg(ds).arg(pzNumStr),
-//           QMessageBox::Yes|QMessageBox::No))
-//        return;
-
-//    QSqlQuery qp,qb;
-//    QString sp,sb;
-//    foreach(int pzNum,pzNums){
-//        sp = QString("select id from PingZhengs where date like '%1%' and number = %2")
-//                .arg(ds).arg(pzNum);
-//        if(!qp.exec(sp)){
-//            qDebug()<<QString("Excute stationment '%1' failed!").arg(sp);
-//            return;
-//        }
-//        int pid;
-//        while(qp.next()){
-//            pid = qp.value(0).toInt();
-//            sb = QString("delete from BusiActions where pid = %1").arg(pid);
-//            if(!qb.exec(sb)){
-//                qDebug()<<QString("Excute stationment '%1' failed!").arg(sb);
-//                return;
-//            }
-//            sb = QString("delete from PingZhengs where id = %1").arg(pid);
-//            if(!qb.exec(sb)){
-//                qDebug()<<QString("Excute stationment '%1' failed!").arg(sb);
-//                return;
-//            }
-//        }
-//    }
-//    QMessageBox::information(0,tr("提示信息"),tr("成功删除凭证！"));
 }
 
 /**
@@ -4391,149 +4187,9 @@ void MainWindow::on_actViewLog_triggered()
         delete winfo;
 }
 
-//#include <QToolTip>
-#include "widgets/subjectselectorcombobox.h"
-#include "testform.h"
-#include "excel/ExcelUtil.h"
 bool MainWindow::impTestDatas()
 {
-//    SubjectManager* subMgr = curAccount->getSubjectManager();
-//    //SubjectNameItem* ni = new SubjectNameItem(0,2,"TestNI","Test Name Item","ti",QDateTime::currentDateTime(),curUser);
-//    SubjectNameItem* ni = subMgr->getNameItem(583);
-//    ni->setShortName("TestNI_changed");
-//    ni->setClassId(5);
-//    ni->setRemCode("tttt");
-//    ni->setLongName("test name item changed");
-//    //SecondSubject* ssub = new SecondSubject(subMgr->getBankSub(),0,ni,"01",100,true,QDateTime::currentDateTime(),QDateTime::currentDateTime(),curUser);
-//    SecondSubject* ssub = subMgr->getBankSub()->getChildSub(ni);
-//    ssub->setParent(subMgr->getCashSub());
-//    ssub->setCode("22");
-//    ssub->setEnabled(false);
-//    ssub->setDisableTime(QDateTime::currentDateTime());
-//    dbUtil->saveSndSubject(ssub);
-//    QVariant v;
-    //v.setValue(false);
-    //curAccount->getDbUtil()->setCfgVariable("boolValue",v);
-    //v.setValue(455);
-    //curAccount->getDbUtil()->setCfgVariable("integerValue",v);
-    //v.setValue(4.666);
-    //curAccount->getDbUtil()->setCfgVariable("floatValue",v);
-    //v.setValue(QString("test string modify!"));
-    //curAccount->getDbUtil()->setCfgVariable("stringValue",v);
-//    curAccount->getDbUtil()->getCfgVariable("boolValue",v);
-//    curAccount->getDbUtil()->getCfgVariable("integerValue",v);
-//    curAccount->getDbUtil()->getCfgVariable("floatValue",v);
-//    curAccount->getDbUtil()->getCfgVariable("stringValue",v);
-//    bool completed,subCloned;
-//    curAccount->isCompleteSubSysCfg(1,2,completed,subCloned);
-//    curAccount->setCompleteSubSysCfg(1,2,completed,subCloned);
-
-//    DatabaseAccessForm* dlg = new DatabaseAccessForm(curAccount,AppConfig::getInstance());
-//    dlg->show();
-
-//    QString info = tr("科目“%1-%2”的余额发生异常！\n一级科目余额：%3（%4）\n二级科目余额：%5（%6）");
-//    QToolTip::showText(QPoint(10,10),info,0);
-//    BackupUtil bu;
-    //QString fn = bu._fondLastFile(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
-    //bu.backup(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
-    //bu.restore(tr("宁波苏航.dat"),BackupUtil::BR_TRANSFERIN);
-    //bu.clear();
-
-    //QHash<int,int> fMaps, sMaps;
-    //QStringList errors;
-    //if(!curAccount->getSubSysJoinMaps(1,2,fMaps,sMaps))
-    //    return false;
-    //if(!curAccount->getDbUtil()->convertExtraInYear(2013,fMaps,sMaps,errors))
-    //    return false;
-    //
-    //curAccount->getDbUtil()->convertPzInYear(2013,fMaps,sMaps,errors);
-
-//    errors<<"11111"<<"22222"<<"33333";
-//    QFile logFile(LOGS_PATH + "subSysUpgrade.log");
-//    if(!logFile.open(QIODevice::WriteOnly | QIODevice::Text)){
-//        QMessageBox::critical(this,tr("错误提示"),tr("无法将升级日志写入到日志文件"));
-//        return false;
-//    }
-//    QTextStream ds(&logFile);
-//    foreach (QString s, errors){
-//        ds<<s<<"\n";
-//    }
-//    ds.flush();
-
-//    QDialog dlg(this);
-//    SubjectManager* subMgr = curAccount->getSubjectManager(1);
-//    //SubjectSelectorComboBox cmb(subMgr,subMgr->getFstSubject("1131"),
-//    //                            SubjectSelectorComboBox::SC_SND,&dlg);
-//    SubjectSelectorComboBox cmb(subMgr,subMgr->getFstSubject("1002"),
-//                                SubjectSelectorComboBox::SC_FST,&dlg);
-
-//    QHBoxLayout* l = new QHBoxLayout;
-//    l->addWidget(&cmb);
-//    dlg.setLayout(l);
-//    dlg.resize(300,200);
-//    dlg.exec();
-
-
-
-    //导出常用科目到基本库
-    //bool r = exportCommonSubject();
-//    QString errors;
-//    QSqlQuery qb(AppConfig::getBaseDbConnect());
-//    QSqlQuery q(curAccount->getDbUtil()->getDb());
-//    QSqlQuery qa(curAccount->getDbUtil()->getDb());
-
-    //将默认科目系统中启用的一级科目配置信息写入到基本库中
-//    QStringList codes;
-//    FSubItrator* it = curAccount->getSubjectManager(1)->getFstSubItrator();
-//    while(it->hasNext()){
-//        it->next();
-//        if(it->value()->isEnabled()){
-//            codes<<it->value()->getCode();
-//        }
-//    }
-
-//    while(it->hasNext()){
-//        it->next();
-//        if(it->value()->getJdDir())
-//            codes<<it->value()->getCode();
-//    }
-    //bool r = AppConfig::getInstance()->setEnabledFstSubs(1,codes);
-//    bool r = AppConfig::getInstance()->setSubjectJdDirs(1,codes);
-
-//    QHash<QString, QString> codeMaps,maps;
-//    AppConfig::getInstance()->getSubSysMaps2(1,2,codeMaps,maps);
-//    QList<QString> codes = maps.values("1123");
-
-//    SubjectManager* sm = curAccount->getSubjectManager(1);
-//    FirstSubject* fsub = sm->getFstSubject("1151");
-//    bool b = curAccount->getDbUtil()->verifyExtraForFsub(2013,12,fsub);
-
-//    PzTemplateParameter pt;
-//    AppConfig* config = AppConfig::getInstance();
-//    bool r = config->getPzTemplateParameter(&pt);
-//    pt.baRowHeight = 8;
-//    pt.factor[4] = 0.11;
-//    r = config->savePzTemplateParameter(&pt);
-
-//    myHelper::ShowMessageBoxInfo(tr("这是提示测试！"));
-//    myHelper::ShowMessageBoxWarning(tr("这是警告测试！"));
-//    myHelper::ShowMessageBoxError(tr("这是错误测试！"));
-//    int r = myHelper::ShowMessageBoxQuesion(tr("这是询问测试！"));
-
-    //AppConfig::getInstance()->saveDirName(AppConfig::DIR_TRANSOUT,"/media/ProgVol/5");
-//    QSet<int> i1;i1<<1<<2<<3<<4<<5;
-//    QSet<int> i2; i2<<3<<4;
-//    QSet<int> i3= i1&i2;
-
-//    SubWindowDim *dim=new SubWindowDim;
-//    QByteArray state(5,'A');
-//    dim->x = 11;
-//    dim->y = 22;
-//    dim->w = 202;
-//    dim->h = 101;
-//    appCon->saveSubWinInfo(100,dim,&state);
-//    SubWindowDim* dim2=0;
-//    QByteArray state2;
-//    appCon->getSubWinInfo(100,dim2,&state2);
+    if(!curUser || curUser && !curUser->isSuperUser())
+        return true;
     int i = 0;
 }

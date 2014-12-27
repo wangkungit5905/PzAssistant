@@ -182,7 +182,7 @@ private:
 
     Bank* curBank;
 
-    //QStack<Bank*> stack;
+    bool isEdit;
     bool iniTag;
     EditActionEnum editAction;
     BankCfgItemDelegate* delegate;
@@ -301,6 +301,11 @@ private:
 
 
     Ui::ApcSubject *ui;
+
+    //特权标志
+    bool isPrivilegeUser;   //是否特权用户
+    bool isFSubSetRight;    //一级科目设置权限
+    bool isSSubSetRight;    //二级科目设置权限
 
     //4个tab页的初始化完成标志
     bool iniTag_subsys;
@@ -469,6 +474,7 @@ private slots:
     void on_actSetRate_triggered();
 
 private:
+    bool isRateNull();
     bool viewRates();
     void collect();
     bool exist(int sid);

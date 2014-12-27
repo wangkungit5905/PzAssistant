@@ -15,6 +15,7 @@
 #include "statutil.h"
 #include "keysequence.h"
 #include "widgets.h"
+#include "myhelper.h"
 
 #include "ui_pzdialog.h"
 #include "ui_historypzform.h"
@@ -1412,7 +1413,10 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
 void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, SubjectNameItem *ni, SecondSubject*& ssub)
 {
     isInteracting = true;
-    //LOG_INFO("enter creatNewNameItemMapping()");
+    if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
+        myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
+        return;
+    }
     if(QMessageBox::information(0,msgTitle_info,tr("确定要使用已有的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
                                 .arg(ni->getShortName()).arg(fsub->getName()),
                              QMessageBox::Yes|QMessageBox::No) == QMessageBox::No)
@@ -1438,7 +1442,10 @@ void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, Sub
  */
 void PzDialog::creatNewSndSubject(int row, int col, FirstSubject* fsub, SecondSubject*& ssub, QString name)
 {
-    //LOG_INFO("enter PzDialog::creatNewSndSubject()");
+//    if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
+//        myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
+//        return;
+//    }
     CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fsub->getId(),subMgr,0);
     dlg->setName(name);
 

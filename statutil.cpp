@@ -1,6 +1,5 @@
 #include <QDate>
 #include <QDebug>
-//#include <QObject>
 
 #include "statutil.h"
 #include "account.h"

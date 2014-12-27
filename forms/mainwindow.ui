@@ -404,7 +404,7 @@
     <string>转出账户</string>
    </property>
    <property name="toolTip">
-    <string>将指定账户转出本工作站，以便在其他共组织上编辑或查看</string>
+    <string>将指定账户转出本工作站，以便在其他工作站上编辑或查看</string>
    </property>
   </action>
   <action name="actExit">
@@ -774,10 +774,10 @@
      <normaloff>:/images/action_add.png</normaloff>:/images/action_add.png</iconset>
    </property>
    <property name="text">
-    <string>新增业务活动</string>
+    <string>新增分录</string>
    </property>
    <property name="toolTip">
-    <string>在当前凭证中添加新的业务活动</string>
+    <string>在当前凭证中添加新的分录</string>
    </property>
   </action>
   <action name="actDelAction">
@@ -789,10 +789,10 @@
      <normaloff>:/images/action_del.png</normaloff>:/images/action_del.png</iconset>
    </property>
    <property name="text">
-    <string>删除业务活动</string>
+    <string>删除分录</string>
    </property>
    <property name="toolTip">
-    <string>删除当前选定的业务活动</string>
+    <string>删除当前选定的分录</string>
    </property>
   </action>
   <action name="actRepealPz">
@@ -1107,7 +1107,7 @@
      <normaloff>:/images/action_insert.png</normaloff>:/images/action_insert.png</iconset>
    </property>
    <property name="text">
-    <string>插入会计分录</string>
+    <string>插入分录</string>
    </property>
    <property name="toolTip">
     <string>在当前位置插入会计分录</string>

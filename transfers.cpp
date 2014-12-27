@@ -515,13 +515,10 @@ bool TransferRecordManager::upgradeAppCfg()
  */
 bool TransferRecordManager::clearTemAppCfgTable()
 {
-    if(!isExistTemAppCfgTable)
-        return true;
     QSqlQuery q(db);
-    QString s = QString("drop table %1").arg(tbl_tem_appcfg);
+    QString s = QString("drop table if exists %1").arg(tbl_tem_appcfg);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
-        QString info = q.lastError().text();
         return false;
     }
     isExistTemAppCfgTable = false;
@@ -790,8 +787,8 @@ void TransferOutDialog::on_btnOk_clicked()
         myHelper::ShowMessageBoxError(tr("在添加转移记录时出错！"));
         return;
     }
-    //捎带应用配置信息
-    if(isTakeAppConInfo()){
+    bool isTake = isTakeAppConInfo();
+    if(isTake){
         QList<BaseDbVersionEnum> verTypes;
         QStringList verNames;
         QList<int> mvs, svs;
@@ -865,6 +862,10 @@ void TransferOutDialog::on_btnOk_clicked()
         return;
     }
     conf->saveDirName(AppConfig::DIR_TRANSOUT,dir.absolutePath());
+
+    //4、移除本地账户文件中创建的临时表（因为捎带信息只保存在承载的账户文件上，而在本地文件上不需要此）
+    if(isTake)
+        trMgr.clearTemAppCfgTable();
     accept();
 }
 

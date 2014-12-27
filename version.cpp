@@ -2548,17 +2548,21 @@ bool VMAppConfig::updateTo1_8()
         emit upgradeStep(verNum,tr("初始化基本库版本时发生错误！"),VUR_ERROR);
         return false;
     }
-    names.clear();codes.clear();
-    names<<"RightType"<<"Right"<<"Group"<<"User"<<"WorkStation";
-    codes<<(int)BDVE_RIGHTTYPE<<(int)BDVE_RIGHT<<(int)BDVE_GROUP<<(int)BDVE_USER
-         <<(int)BDVE_WORKSTATION;
-    for(int i = 0; i < names.count(); ++i){
-        q.bindValue(":te",codes.at(i));
-        q.bindValue(":tn",names.at(i));
+    codes.clear();
+    QHash<BaseDbVersionEnum,QString> verNames;
+    AppConfig::getInstance()->getAppCfgTypeNames(verNames);
+    verNames.remove(BDVE_DB);
+    foreach(BaseDbVersionEnum vType, verNames.keys())
+        codes<<(int)vType;
+    qSort(codes.begin(),codes.end());
+    for(int i = 0; i < codes.count(); ++i){
+        int vType = codes.at(i);
+        q.bindValue(":te",vType);
+        q.bindValue(":tn",verNames.value((BaseDbVersionEnum)vType));
         q.bindValue(":mv",1);
         q.bindValue(":sv",0);
         if(!q.exec()){
-            emit upgradeStep(verNum,tr("初始化“%1”版本号时发生错误！").arg(names.at(i)),VUR_ERROR);
+            emit upgradeStep(verNum,tr("初始化“%1”版本号时发生错误！").arg(verNames.value((BaseDbVersionEnum)vType)),VUR_ERROR);
             return false;
         }
     }

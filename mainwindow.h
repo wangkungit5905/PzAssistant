@@ -156,7 +156,6 @@ private slots:
     void about();
 
     //处理创建新账户的向导
-    void toCrtAccNextStep(int curStep, int nextStep);
 
     void openSpecPz(int pid,int bid);
     void showTemInfo(QString info);
@@ -258,16 +257,11 @@ private slots:
 
     void on_actDtfyAdmin_triggered();
 
-    //void on_actSetPzCls_triggered();
-
     void on_actShowTotal_triggered();
 
     void on_actAccProperty_triggered();
 
     void on_actPzErrorInspect_triggered();
-
-    void on_actForceDelPz_triggered();
-
 
     bool impTestDatas();
     void on_actViewLog_triggered();
@@ -315,6 +309,7 @@ private slots:
     void on_actImpAppCfg_triggered();
 
 private:
+    void _closeAccount();
     bool isExecAccountTransform();
     bool isOnlyCommonSubWin(subWindowType winType);
     void showCommonSubWin(subWindowType winType, QWidget* widget, SubWindowDim* dim = NULL);
@@ -329,7 +324,8 @@ private:
     void addSubWindowMenuItem(QList<MyMdiSubWindow*> windows);
 
     //菜单项启用性控制
-    bool isContainRights(QSet<Right*> rs);
+    bool isContainRight(Right::RightCode rc);
+    bool isContainRights(QSet<Right::RightCode> rcs);
     bool isSuiteEditable();
     bool isPzSetEditable();
     bool isPzEditable();
@@ -349,23 +345,13 @@ private:
     void sqlWarning();    
     void showPzNumsAffected(int num);
 
-
-
-
     void initUndoView();
     //void clearUndo();
     void adjustViewMenus(ToolViewType t, bool isRestore = false);
     void adjustEditMenus(UndoType ut=UT_PZ, bool restore = false);
 
     bool exportCommonSubject();
-    void exportRightSys();
     bool inspectVersionBeforeImport(QString versionText, BaseDbVersionEnum type, QString fileName,int &mv, int &sv);
-
-    /////////////////////////////////////////////////////////////////
-
-    /////////////////////////////////////////////////////////////////
-
-
 
     Ui::MainWindow *ui;
 

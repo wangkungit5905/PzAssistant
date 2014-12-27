@@ -601,18 +601,6 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
         case LOGFILE:
             infos.logFileName = q.value(1).toString();
             break;
-        case EXCLUSIVEUSER:
-            s = q.value(1).toString();
-            if(!s.isEmpty()){
-                sl = s.split(",");
-                foreach(QString str, sl){
-                    int id = str.toInt();
-                    User* u = allUsers.value(id);
-                    if(u)
-                        infos.exclusiveUsers.insert(u);
-                }
-            }
-            break;
         case DBVERSION:
             infos.dbVersion = q.value(1).toString();
             sl = infos.dbVersion.split(".");

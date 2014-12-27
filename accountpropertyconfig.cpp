@@ -135,6 +135,8 @@ void ApcBase::textEdited()
 
 void ApcBase::currentUserChanged(QListWidgetItem * current, QListWidgetItem * previous)
 {
+    if(!curUser->isSuperUser() && !curUser->isAdmin())
+        return;
     if(current && !previous)
         ui->removeUser->setEnabled(true);
     else if(!current && previous)
@@ -278,7 +280,7 @@ ApcSuite::ApcSuite(Account *account, QWidget *parent) :
     ui->setupUi(this);
     iniTag = false;
     editAction = EA_NONE;
-    ui->btnNew->setEnabled(!account->isReadOnly());
+    ui->btnNew->setEnabled(!account->isReadOnly() && curUser->haveRight(allRights.value(Right::Suite_New)));
     if(!account->isReadOnly()){
         connect(ui->lw,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(suiteDbClicked(QListWidgetItem*)));
     }
@@ -334,35 +336,8 @@ void ApcSuite::curSuiteChanged(int index)
         ui->isCur->setChecked(as->isClosed);
         ui->isUsed->setChecked(as->isUsed);
         ui->lblSubSys->setText(subSystems.value(as->subSys)->name);
-        ui->btnEdit->setEnabled(!curAccount->isReadOnly());
+        ui->btnEdit->setEnabled(!curAccount->isReadOnly() && curUser->haveRight(allRights.value(Right::Suite_Edit)));
         ui->btnUsed->setEnabled(!as->isUsed);
-//        if(account->isReadOnly())
-//            ui->btnUpgrade->setEnabled(false);
-//        else{
-//            //判断当前帐套的科目系统是否可以升级
-//            //首先存在一个新的科目系统，且该科目系统必须已经导入，并正确地配置了新老科目之间的映射
-//            QList<SubSysNameItem*> items = account->getSupportSubSys();
-//            int idx = -1;
-//            for(int i = 0; i < items.count(); ++i){
-//                if(as->subSys == items.at(i)->code){
-//                    idx = i;
-//                    break;
-//                }
-//            }
-//            //如果没有找到，或当前帐套使用的科目系统是最新的，则不能升级
-//            if(idx == -1 || idx == (items.count()-1)){
-//                ui->btnUpgrade->setEnabled(false);
-//            }
-//            //下一个新的科目系统还没有导入或还没有配置完成，也不能升级
-//            else if(!items.at(idx+1)->isImport || !items.at(idx+1)->isConfiged){
-//                ui->btnUpgrade->setEnabled(false);
-//            }
-//            //如果当前帐套不是最后一个帐套且其下一个帐套采用的科目系统与当前帐套的科目系统相同，也不能升级
-//            else if(index < (suites.count()-1) && suites.at(index+1)->subSys == as->subSys)
-//                ui->btnUpgrade->setEnabled(false);
-//            else
-//                ui->btnUpgrade->setEnabled(true);
-//        }
     }
     else{
         ui->name->clear();
@@ -570,44 +545,41 @@ void ApcSuite::on_btnUpgrade_clicked()
 
 void ApcSuite::enWidget(bool en)
 {
-    ui->lw->setEnabled(!en);
-    ui->name->setReadOnly(!en);
-    ui->btnCommit->setEnabled(en);
+    bool isRO = account->isReadOnly();
+    ui->lw->setEnabled(isRO || !en);
+    ui->name->setReadOnly(!isRO && en && curUser->haveRight(allRights.value(Right::Suite_Edit)));
+    ui->btnCommit->setEnabled(!isRO && en);
     ui->btnEdit->setText(en?tr("取消"):tr("编辑"));
-    if(!en){
+    if(isRO || !en){
         ui->btnUpgrade->setEnabled(false);
         return;
     }
     //决定科目系统升级按钮的启用性
-    if(account->isReadOnly())
-        ui->btnUpgrade->setEnabled(false);
-    else{
-        //判断当前帐套的科目系统是否可以升级
-        //首先存在一个新的科目系统，且该科目系统必须已经导入，并正确地配置了新老科目之间的映射
-        int row = ui->lw->currentIndex().row();
-        AccountSuiteRecord* as = suites.at(row);
-        QList<SubSysNameItem*> items = account->getSupportSubSys();
-        int idx = -1;
-        for(int i = 0; i < items.count(); ++i){
-            if(as->subSys == items.at(i)->code){
-                idx = i;
-                break;
-            }
+    //判断当前帐套的科目系统是否可以升级
+    //首先存在一个新的科目系统，且该科目系统必须已经导入，并正确地配置了新老科目之间的映射
+    int row = ui->lw->currentIndex().row();
+    AccountSuiteRecord* as = suites.at(row);
+    QList<SubSysNameItem*> items = account->getSupportSubSys();
+    int idx = -1;
+    for(int i = 0; i < items.count(); ++i){
+        if(as->subSys == items.at(i)->code){
+            idx = i;
+            break;
         }
-        //如果没有找到，或当前帐套使用的科目系统是最新的，则不能升级
-        if(idx == -1 || idx == (items.count()-1)){
-            ui->btnUpgrade->setEnabled(false);
-        }
-        //下一个新的科目系统还没有导入或还没有配置完成，也不能升级
-        else if(!items.at(idx+1)->isImport || !items.at(idx+1)->isConfiged){
-            ui->btnUpgrade->setEnabled(false);
-        }
-        //如果当前帐套不是最后一个帐套且其下一个帐套采用的科目系统与当前帐套的科目系统相同，也不能升级
-        else if(row < (suites.count()-1) && suites.at(row+1)->subSys == as->subSys)
-            ui->btnUpgrade->setEnabled(false);
-        else
-            ui->btnUpgrade->setEnabled(true);
     }
+    //如果没有找到，或当前帐套使用的科目系统是最新的，则不能升级
+    if(idx == -1 || idx == (items.count()-1)){
+        ui->btnUpgrade->setEnabled(false);
+    }
+    //下一个新的科目系统还没有导入或还没有配置完成，也不能升级
+    else if(!items.at(idx+1)->isImport || !items.at(idx+1)->isConfiged){
+        ui->btnUpgrade->setEnabled(false);
+    }
+    //如果当前帐套不是最后一个帐套且其下一个帐套采用的科目系统与当前帐套的科目系统相同，也不能升级
+    else if(row < (suites.count()-1) && suites.at(row+1)->subSys == as->subSys)
+        ui->btnUpgrade->setEnabled(false);
+    else
+        ui->btnUpgrade->setEnabled(true);
 }
 
 
@@ -722,11 +694,12 @@ void BankCfgItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOpti
 ApcBank::ApcBank(Account* account, QWidget *parent) : QWidget(parent), ui(new Ui::ApcBank),account(account)
 {
     ui->setupUi(this);
+    isEdit = !account->isReadOnly() && curUser->haveRight(allRights.value(Right::Account_Config_SetSensitiveInfo));
     iniTag = false;
     curBank = NULL;
     editAction = EA_NONE;
     delegate = NULL;
-    if(!account->isReadOnly()){
+    if(!account->isReadOnly() && curUser->haveRight(allRights.value(Right::Account_Config_SetSensitiveInfo))){
         delegate = new BankCfgItemDelegate(account,this);
         ui->tvAccList->setItemDelegate(delegate);
     }
@@ -754,7 +727,7 @@ void ApcBank::init()
         item = new QListWidgetItem(bank->name);
         ui->lstBank->addItem(item);
     }
-    if(!account->isReadOnly()){
+    if(isEdit){
         connect(ui->lstBank,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(bankDbClicked()));
     }
     connect(ui->lstBank,SIGNAL(currentRowChanged(int)),this,SLOT(curBankChanged(int)));
@@ -786,7 +759,7 @@ void ApcBank::curBankChanged(int index)
     }
     curBank = banks.at(index);
     viewBankAccounts();
-    ui->delBank->setEnabled(true);
+    ui->delBank->setEnabled(isEdit);
 }
 
 /**
@@ -799,7 +772,7 @@ void ApcBank::curBankChanged(int index)
 void ApcBank::curBankAccountChanged(int currentRow, int currentColumn, int previousRow, int previousColumn)
 {
     if(currentRow != previousRow)
-        ui->delAcc->setEnabled((editAction != EA_NONE) && (currentRow != -1));
+        ui->delAcc->setEnabled((isEdit && editAction != EA_NONE) && (currentRow != -1));
 }
 
 /**
@@ -1042,7 +1015,7 @@ void ApcBank::viewBankAccounts()
         return;
     }
     else
-        ui->editBank->setEnabled(!account->isReadOnly());
+        ui->editBank->setEnabled(isEdit);
     ui->chkIsMain->setChecked(curBank->isMain);
     ui->bankName->setText(curBank->name);
     ui->bankLName->setText(curBank->lname);
@@ -1070,8 +1043,9 @@ void ApcBank::viewBankAccounts()
             ui->tvAccList->setCellWidget(row,CI_NAME,btn);
         }
     }
-    connect(ui->tvAccList,SIGNAL(currentCellChanged(int,int,int,int)),
-                   this,SLOT(curBankAccountChanged(int,int,int,int)));
+    if(isEdit)
+        connect(ui->tvAccList,SIGNAL(currentCellChanged(int,int,int,int)),
+                       this,SLOT(curBankAccountChanged(int,int,int,int)));
     ui->delAcc->setEnabled(false);
 }
 
@@ -1080,18 +1054,19 @@ void ApcBank::viewBankAccounts()
  * @param en    true：编辑模式，false：只读模式
  */
 void ApcBank::enWidget(bool en)
-{   ui->lstBank->setEnabled(!en);
+{
+    ui->lstBank->setEnabled(!isEdit || !en);
     if(delegate)
         delegate->setReadOnly(!en);
-    ui->chkIsMain->setEnabled(en);
-    ui->bankName->setReadOnly(!en);
-    ui->bankLName->setReadOnly(!en);
-    ui->newAcc->setEnabled(en);
-    ui->delAcc->setEnabled(en && ui->tvAccList->currentRow() != -1);
-    ui->submit->setEnabled(en);
+    ui->chkIsMain->setEnabled(isEdit && en);
+    ui->bankName->setReadOnly(!isEdit && !en);
+    ui->bankLName->setReadOnly(!isEdit && !en);
+    ui->newAcc->setEnabled(isEdit && en);
+    ui->delAcc->setEnabled(isEdit && en && ui->tvAccList->currentRow() != -1);
+    ui->submit->setEnabled(isEdit && en);
     ui->editBank->setText(en?tr("取消"):tr("编辑"));
-    ui->newBank->setEnabled(!en && !account->isReadOnly());
-    if(en)
+    ui->newBank->setEnabled(isEdit && !en);
+    if(!isEdit || en)
         ui->delBank->setEnabled(false);
     else
         ui->delBank->setEnabled(ui->lstBank->currentRow() != -1);
@@ -1300,7 +1275,7 @@ void ApcSubject::curFSubChanged(int row)
     }
     else{
         curFSub = ui->lwFSub->currentItem()->data(Qt::UserRole).value<FirstSubject*>();
-        ui->btnFSubEdit->setEnabled(!account->isReadOnly());
+        ui->btnFSubEdit->setEnabled(!account->isReadOnly() && (isFSubSetRight || isSSubSetRight));
     }
     enFSubWidget(false);
     curSSub = NULL;
@@ -1371,6 +1346,10 @@ void ApcSubject::defSubCfgChanged(bool checked)
  */
 void ApcSubject::on_tw_currentChanged(int index)
 {
+
+    isPrivilegeUser = curUser->isAdmin() || curUser->isSuperUser();
+    isFSubSetRight = curUser->haveRight(allRights.value(Right::Account_Config_SetFstSubject));
+    isSSubSetRight = curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject));
     APC_SUB_PAGEINDEX page = (APC_SUB_PAGEINDEX)index;
     switch(page){
     case APCS_SYS:
@@ -1394,8 +1373,8 @@ void ApcSubject::currentNiClsRowChanged(int curRow)
     bool readonly = account->isReadOnly();
     QListWidgetItem* item = ui->lwNiCls->item(curRow);
     curNiCls = item?item->data(Qt::UserRole).toInt():0;
-    ui->btnNiClsEdit->setEnabled(!readonly && curNiCls);
-    ui->btnDelNiCls->setEnabled(!readonly && curNiCls);
+    ui->btnNiClsEdit->setEnabled(isPrivilegeUser && !readonly && curNiCls);
+    ui->btnDelNiCls->setEnabled(isPrivilegeUser && !readonly && curNiCls);
     viewNiCls(curNiCls);
 }
 
@@ -1424,8 +1403,8 @@ void ApcSubject::currentNiRowChanged(int curRow)
     }
     else{
         bool readonly = account->isReadOnly();
-        ui->btnNiEdit->setEnabled(!readonly);
-        ui->btnDelNI->setEnabled(!readonly);
+        ui->btnNiEdit->setEnabled(!readonly && isPrivilegeUser);
+        ui->btnDelNI->setEnabled(!readonly && isPrivilegeUser);
         curNI = item->data(Qt::UserRole).value<SubjectNameItem*>();
         viewNI(curNI);
     }
@@ -1436,7 +1415,7 @@ void ApcSubject::currentNiRowChanged(int curRow)
  */
 void ApcSubject::selectedNIChanged()
 {
-    if(!account->isReadOnly() && ui->lwNI->selectedItems().count() > 1)
+    if(ui->lwNI->selectedItems().count() > 1)
         ui->btnNIMerge->setEnabled(true);
     else
         ui->btnNIMerge->setEnabled(false);
@@ -1473,7 +1452,8 @@ void ApcSubject::init_subsys()
         else{
             QPushButton* btn = new QPushButton(tr("导入"),this);
             ui->tv_subsys->setCellWidget(i,3,btn);            
-            if(!account->isReadOnly() && account->isSubSysConfiged(si->code))
+            if(!account->isReadOnly() && account->isSubSysConfiged(si->code) &&
+                    curUser->haveRight(allRights.value(Right::Account_Config_SetUsedSubSys)))
                 connect(btn,SIGNAL(clicked()),this,SLOT(importBtnClicked()));
             else
                 btn->setEnabled(false);
@@ -1481,7 +1461,10 @@ void ApcSubject::init_subsys()
         if(i > 0){
             QPushButton* btn = new QPushButton(tr("查看对接配置"),this);
             ui->tv_subsys->setCellWidget(i,4,btn);
-            connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
+            if(curUser->isSuperUser() || curUser->isAdmin())
+                connect(btn,SIGNAL(clicked()),this,SLOT(subSysCfgBtnClicked()));
+            else
+                btn->setEnabled(false);
         }
     }
     iniTag_subsys = true;
@@ -1517,12 +1500,17 @@ void ApcSubject::init_NameItems()
     if(ui->lwNI->count())
         currentNiRowChanged(ui->lwNI->currentRow());
     connect(ui->niClsView,SIGNAL(currentIndexChanged(int)),this,SLOT(loadNameItems()));
-    if(!account->isReadOnly()){
+    if(!account->isReadOnly() && isPrivilegeUser){
         connect(ui->lwNI,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niDoubleClicked(QListWidgetItem*)));
         connect(ui->lwNiCls,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(niClsDoubleClicked(QListWidgetItem*)));
-        connect(ui->lwNI,SIGNAL(itemSelectionChanged()),SLOT(selectedNIChanged()));
+
     }
+    if(isPrivilegeUser)
+        connect(ui->lwNI,SIGNAL(itemSelectionChanged()),SLOT(selectedNIChanged()));
     curSubMgr = account->getSubjectManager();
+    if(!isPrivilegeUser)
+        ui->btnNIMerge->setEnabled(false);    
+    ui->btnInspectNameConflit->setEnabled(isPrivilegeUser);
 }
 
 /**
@@ -1550,18 +1538,25 @@ void ApcSubject::init_subs()
     if(initRb)
         initRb->setChecked(true);
     connect(ui->lwFSub,SIGNAL(currentRowChanged(int)),SLOT(curFSubChanged(int)));
-    if(!account->isReadOnly()){
+    if(isFSubSetRight && !account->isReadOnly()){
         connect(ui->lwFSub,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(fsubDBClicked(QListWidgetItem*)));
         connect(ui->lwSSub,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(ssubDBClicked(QListWidgetItem*)));
         connect(ui->ssubIsDef,SIGNAL(clicked(bool)),this,SLOT(defSubCfgChanged(bool)));
     }
     connect(ui->lwSSub,SIGNAL(currentRowChanged(int)),SLOT(curSSubChanged(int)));    
     connect(ui->cmbFSubCls,SIGNAL(currentIndexChanged(int)),this,SLOT(curFSubClsChanged(int)));    
-    connect(ui->lwSSub,SIGNAL(itemSelectionChanged()),this,SLOT(SelectedSSubChanged()));
+
     if(account->isReadOnly()){
         ui->btnInspectDup->setEnabled(false);
         ui->btnInspectNameConflit->setEnabled(false);
         ui->btnSSubAdd->setEnabled(false);
+    }
+    else{
+        if(isPrivilegeUser){
+            connect(ui->lwSSub,SIGNAL(itemSelectionChanged()),this,SLOT(SelectedSSubChanged()));
+            ui->btnInspectDup->setEnabled(isPrivilegeUser);
+        }
+        ui->btnSSubAdd->setEnabled(isSSubSetRight);
     }
 }
 
@@ -1774,21 +1769,20 @@ void ApcSubject::viewNiCls(int cls)
  */
 void ApcSubject::enFSubWidget(bool en)
 {
-    ui->lwFSub->setEnabled(!en);
-    //ui->lwSSub->setEnabled(!en);
-    ui->FSubCls->setEnabled(en);
-    ui->fsubCode->setReadOnly(!en);
-    ui->fsubName->setReadOnly(!en);
-    ui->fsubRemCode->setReadOnly(!en);
-    ui->fsubWeight->setReadOnly(!en);
-    ui->fsubIsEnable->setEnabled(en);
-    ui->isUseWb->setEnabled(en);
-    ui->jdDir_N->setEnabled(en);
-    ui->jdDir_P->setEnabled(en);
+    ui->lwFSub->setEnabled(!isFSubSetRight || !en);
+    ui->FSubCls->setEnabled(isFSubSetRight && en);
+    ui->fsubCode->setReadOnly(!isFSubSetRight || !en);
+    ui->fsubName->setReadOnly(!isFSubSetRight || !en);
+    ui->fsubRemCode->setReadOnly(!isFSubSetRight || !en);
+    ui->fsubWeight->setReadOnly(!isFSubSetRight || !en);
+    ui->fsubIsEnable->setEnabled(isFSubSetRight && en);
+    ui->isUseWb->setEnabled(isFSubSetRight && en);
+    ui->jdDir_N->setEnabled(isFSubSetRight && en);
+    ui->jdDir_P->setEnabled(isFSubSetRight && en);
     ui->btnFSubEdit->setText(en?tr("取消"):tr("编辑"));
-    ui->btnFSubCommit->setEnabled(en);
-    ui->btnSSubAdd->setEnabled(en && !account->isReadOnly());
-    ui->btnSSubDel->setEnabled(en && (ui->lwSSub->currentRow() != -1));
+    ui->btnFSubCommit->setEnabled((isFSubSetRight||isSSubSetRight) && en);
+    ui->btnSSubAdd->setEnabled((isFSubSetRight||isSSubSetRight) && en && !account->isReadOnly());
+    ui->btnSSubDel->setEnabled((isFSubSetRight||isSSubSetRight) && en && (ui->lwSSub->currentRow() != -1));
     QApplication::processEvents();
 }
 
@@ -1798,13 +1792,13 @@ void ApcSubject::enFSubWidget(bool en)
  */
 void ApcSubject::enSSubWidget(bool en)
 {
-    ui->lwSSub->setEnabled(!en);
-    ui->ssubCode->setReadOnly(!en);
-    ui->ssubIsEnable->setEnabled(en);
-    ui->ssubWeight->setReadOnly(!en);
-    ui->btnSSubCommit->setEnabled(en);
+    ui->lwSSub->setEnabled(!isSSubSetRight || !en);
+    ui->ssubCode->setReadOnly(!isSSubSetRight || !en);
+    ui->ssubIsEnable->setEnabled(isSSubSetRight && en);
+    ui->ssubWeight->setReadOnly(!isSSubSetRight || !en);
+    ui->btnSSubCommit->setEnabled(isSSubSetRight && en);
     ui->btnSSubEdit->setText(en?tr("取消"):tr("编辑"));
-    ui->ssubIsDef->setEnabled(en);
+    ui->ssubIsDef->setEnabled(isSSubSetRight && en);
 }
 
 /**
@@ -1813,16 +1807,15 @@ void ApcSubject::enSSubWidget(bool en)
  */
 void ApcSubject::enNiWidget(bool en)
 {
-    ui->lwNI->setEnabled(!en);
+    ui->lwNI->setEnabled(isPrivilegeUser && !en);
     ui->btnNiEdit->setText(en?tr("取消"):tr("编辑"));
-    ui->btnNiCommit->setEnabled(en);
-    ui->niCls->setEnabled(en);
-    ui->niName->setReadOnly(!en);
-    ui->niLName->setReadOnly(!en);
-    ui->niRemCode->setReadOnly(!en);
-    ui->btnNewNI->setEnabled(!en);
-    ui->btnDelNI->setEnabled(!en);
-    //ui->btnMergeSSub->setEnabled(!en);
+    ui->btnNiCommit->setEnabled(isPrivilegeUser && en);
+    ui->niCls->setEnabled(isPrivilegeUser && en);
+    ui->niName->setReadOnly(!isPrivilegeUser || !en);
+    ui->niLName->setReadOnly(!isPrivilegeUser || !en);
+    ui->niRemCode->setReadOnly(!isPrivilegeUser || !en);
+    ui->btnNewNI->setEnabled(isPrivilegeUser && !en);
+    ui->btnDelNI->setEnabled(isPrivilegeUser && !en);
 }
 
 /**
@@ -1831,14 +1824,14 @@ void ApcSubject::enNiWidget(bool en)
  */
 void ApcSubject::enNiClsWidget(bool en)
 {
-    ui->lwNiCls->setEnabled(!en);
+    ui->lwNiCls->setEnabled(isPrivilegeUser && !en);
     ui->btnNiClsEdit->setText(en?tr("取消"):tr("编辑"));
-    ui->btnNiClsCommit->setEnabled(en);
+    ui->btnNiClsCommit->setEnabled(isPrivilegeUser && en);
     //ui->niClsCode->setReadOnly(false);
-    ui->niClsName->setReadOnly(!en);
-    ui->niClsExplain->setReadOnly(!en);
-    ui->btnNewNiCls->setEnabled(!en);
-    ui->btnDelNiCls->setEnabled(!en);
+    ui->niClsName->setReadOnly(!isPrivilegeUser || !en);
+    ui->niClsExplain->setReadOnly(!isPrivilegeUser ||!en);
+    ui->btnNewNiCls->setEnabled(isPrivilegeUser && !en);
+    ui->btnDelNiCls->setEnabled(isPrivilegeUser && !en);
 }
 
 /**
@@ -2055,14 +2048,13 @@ void ApcSubject::on_btnDelNiCls_clicked()
 void ApcSubject::on_niClsBox_toggled(bool en)
 {
     bool readonly = account->isReadOnly();
-    ui->niClsCode->setEnabled(/*!readonly && */en);
-
-    ui->niClsName->setEnabled(/*!readonly && */en);
-    ui->niClsExplain->setEnabled(/*!readonly && */en);
-    ui->btnNewNiCls->setEnabled(!readonly && en && editAction==APCEA_NONE);
-    ui->btnNiClsEdit->setEnabled(!readonly && en && curNiCls && editAction==APCEA_NONE);
-    ui->btnNiClsCommit->setEnabled(!readonly && en && (editAction==APCEA_EDIT_NICLS || editAction==APCEA_NEW_NICLS));
-    ui->btnDelNiCls->setEnabled(!readonly && en && curNiCls);
+    ui->niClsCode->setEnabled(en);
+    ui->niClsName->setEnabled(en);
+    ui->niClsExplain->setEnabled(en);
+    ui->btnNewNiCls->setEnabled(isPrivilegeUser && !readonly && en && editAction==APCEA_NONE);
+    ui->btnNiClsEdit->setEnabled(isPrivilegeUser && !readonly && en && curNiCls && editAction==APCEA_NONE);
+    ui->btnNiClsCommit->setEnabled(isPrivilegeUser && !readonly && en && (editAction==APCEA_EDIT_NICLS || editAction==APCEA_NEW_NICLS));
+    ui->btnDelNiCls->setEnabled(isPrivilegeUser && !readonly && en && curNiCls);
 }
 
 /**
@@ -2082,7 +2074,7 @@ void ApcSubject::on_btnFSubEdit_clicked()
         editAction = APCEA_EDIT_FSUB;
         enFSubWidget(true);
         ui->fsubCode->setFocus();
-        if(ui->lwSSub->selectedItems().count() > 1)
+        if(isPrivilegeUser && ui->lwSSub->selectedItems().count() > 1)
             ui->btnSSubMerge->setEnabled(true);
     }
     else if(editAction == APCEA_EDIT_FSUB){  //取消编辑
@@ -2965,6 +2957,7 @@ void ApcData::init(QByteArray *state)
 
         ui->year->setText(QString::number(y));
         ui->month->setValue(m);
+        readOnly |= !curUser->haveRight(allRights.value(Right::Account_Config_SetPeriodBegin));
         if(!readOnly){
             //确定期初余额是否可编辑（这里如果账户的第一个月份还未结账，则视为可编辑）
             PzsState state;
@@ -2973,7 +2966,8 @@ void ApcData::init(QByteArray *state)
                 return;
             }
             readOnly = readOnly || (state == Ps_Jzed);
-            ui->edtRate->addAction(ui->actSetRate,QLineEdit::TrailingPosition);
+            if(!readOnly)
+                ui->edtRate->addAction(ui->actSetRate,QLineEdit::TrailingPosition);
         }
         ui->month->setReadOnly(true);        
     }
@@ -3000,10 +2994,11 @@ void ApcData::init(QByteArray *state)
     mtSorts = mts.keys();
     if(mtSorts.count() > 1){
         qSort(mtSorts.begin(),mtSorts.end());
-        //这里应加入将本币代码移到首位的代码，但考虑到实际使用时，本币为人民币且其代码用于最小
+        //这里应加入将本币代码移到首位的代码，但考虑到实际使用时，本币为人民币且其代码最小
     }
-    if(!viewRates())
-        return;
+    viewRates();
+    //if(!viewRates())
+    //    return;
 
     smg = account->getSubjectManager(asr->subSys);
     int fsubId = extraCfg?b_fsubId:e_fsubId;
@@ -3051,55 +3046,6 @@ void ApcData::init(QByteArray *state)
 
         }
     }
-
-//    if(fsubId){
-//        FirstSubject* cFSub = smg->getFstSubject(fsubId);
-//        if(cFSub){
-//            bool f_fonded = false;
-//            for(int i = 0; i < ui->fsubs->count(); ++i){
-//                FirstSubject* fsub = ui->fsubs->item(i)->data(Qt::UserRole).value<FirstSubject*>();
-//                if(cFSub == fsub){
-//                    f_fonded = true;
-//                    ui->fsubs->setCurrentRow(i);
-//                    break;
-//                }
-//            }
-//            if(f_fonded && ssubId && ui->ssubs->count()>0){
-//                SecondSubject* cSSub = smg->getSndSubject(ssubId);
-//                if(cSSub){
-//                    bool s_fonded = false;
-//                    for(int i = 0; i < ui->ssubs->count(); ++i){
-//                        SecondSubject* ssub = ui->ssubs->item(i)->data(Qt::UserRole).value<SecondSubject*>();
-//                        if(cSSub == ssub){
-//                            s_fonded = true;
-//                            ui->ssubs->setCurrentRow(i);
-//                            break;
-//                        }
-//                    }
-//                    if(!s_fonded){
-//                        if(extraCfg)
-//                            e_ssubId=0;
-//                        else
-//                            b_ssubId=0;
-//                    }
-//                }
-//                else{
-//                    if(extraCfg)
-//                        e_ssubId=0;
-//                    else
-//                        b_ssubId=0;
-//                }
-//            }
-//        }
-//        else{
-//            if(extraCfg){
-//                e_fsubId=0;e_ssubId=0;
-//            }
-//            else{
-//                b_fsubId=0;b_ssubId=0;
-//            }
-//        }
-//    }
     iniTag = true;
 }
 
@@ -3404,19 +3350,22 @@ void ApcData::on_actSetRate_triggered()
 {
     QDialog dlg(this);
     QTableWidget tw(&dlg);
-    tw.setRowCount(ui->cmbRate->count());
+    tw.setRowCount(rates.count());
     tw.setColumnCount(2);
     QStringList titles;
     titles<<tr("币种")<<tr("汇率");
     tw.setHorizontalHeaderLabels(titles);
     QTableWidgetItem* item;
-    for(int i = 0; i < ui->cmbRate->count(); ++i){
-        int mtCode = ui->cmbRate->itemData(i).toInt();
-        item = new QTableWidgetItem(mts.value(mtCode)->name());
-        item->setData(Qt::UserRole,mtCode);
+    QHashIterator<int,Double> it(rates);
+    int i = 0;
+    while(it.hasNext()){
+        it.next();
+        item = new QTableWidgetItem(mts.value(it.key())->name());
+        item->setData(Qt::UserRole,it.key());
         tw.setItem(i,0,item);
-        item = new QTableWidgetItem(rates.value(mtCode).toString());
+        item = new QTableWidgetItem(rates.value(it.key()).toString());
         tw.setItem(i,1,item);
+        i++;
     }
     QPushButton btnOk(tr("确定"),&dlg),btnCancel(tr("取消"),&dlg);
     QHBoxLayout lb;
@@ -3432,7 +3381,7 @@ void ApcData::on_actSetRate_triggered()
         bool changed = false;
         for(int i = 0; i < tw.rowCount(); ++i){
             int mtCode = tw.item(i,0)->data(Qt::UserRole).toInt();
-            Double rate = Double(tw.item(i,1)->text().toDouble());
+            Double rate = Double(tw.item(i,1)->text().toDouble(),4);
             if(rate != rates.value(mtCode)){
                 rates[mtCode] = rate;
                 changed = true;
@@ -3449,6 +3398,8 @@ void ApcData::on_actSetRate_triggered()
                 it.next();
                 ui->cmbRate->addItem(mts.value(it.key())->name(),it.key());
             }
+            if(ui->cmbRate->count() > 0)
+                curMtChanged(0);
             //如果当前显示的一级科目是使用外币的科目，则要相应更新外币余额折算成本币后的值
             //这有待考虑，因为与外币对应的本币值不是严格按汇率换算的，它可能由用户自己输入的值为准
             //而且，如果要自动换算，则换算后的本币值，还必须保存到余额表中（否者，显示值与保存值不等同）
@@ -3457,6 +3408,25 @@ void ApcData::on_actSetRate_triggered()
             //}
         }
     }
+}
+
+/**
+ * @brief 是否存在未设置汇率的外币
+ * @return
+ */
+bool ApcData::isRateNull()
+{
+    QList<Money*> mts = account->getWaiMt();
+    if(mts.isEmpty())
+        return false;
+    bool isExist = false;
+    foreach(Money* m, mts){
+        if(rates.contains(m->code()))
+            continue;
+        rates[m->code()] = 0;
+        isExist = true;
+    }
+    return isExist;
 }
 
 
@@ -3476,16 +3446,25 @@ bool ApcData::viewRates()
         myHelper::ShowMessageBoxError(tr("在读取期初汇率时出错（%1年%2月）").arg(y).arg(m));
         return false;
     }
-    if(rates.isEmpty() && !readOnly){
+    if(isRateNull() && !readOnly){
         myHelper::ShowMessageBoxWarning(tr("在输入期初余额前，如果要涉及到外币，则必须首先设置期初汇率！"));
         bool ok;
         double rate;
-        rate = QInputDialog::getDouble(this,tr("汇率输入"),tr("请输入期初美金（%1年%2月）汇率：").arg(y).arg(m),1,0,100,4,&ok);
-        if(!ok){
-            readOnly = true;
-            return false;
+        QHashIterator<int,Double> it(rates);
+        while(it.hasNext()){
+            it.next();
+            if(it.value() != 0)
+                continue;
+            rate = QInputDialog::getDouble(this,tr("汇率输入"),
+                                           tr("请输入期初%1（%2年%3月）汇率：")
+                                           .arg(mts.value(it.key())->name())
+                                           .arg(y).arg(m),1,0,100,4,&ok);
+            if(!ok){
+                readOnly = true;
+                return false;
+            }
+            rates[it.key()] = Double(rate,4);
         }
-        rates[USD] = Double(rate,4);
         if(!account->setRates(y,m,rates)){
             myHelper::ShowMessageBoxError(tr("在保存期初汇率时出错（%1年%2月）").arg(y).arg(m));
             readOnly = true;

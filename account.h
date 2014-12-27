@@ -80,8 +80,7 @@ public:
         QString dbVersion;                  //账户文件版本号
         QString logFileName;                //账户日志文件
         QString fileName;                   //账户文件名
-        AccontTranferInfo* transInfo;       //账户转移信息        
-        QSet<User*> exclusiveUsers;         //专属用户集
+        AccontTranferInfo* transInfo;       //账户转移信息
     };
 
 

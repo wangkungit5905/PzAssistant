@@ -186,6 +186,8 @@ void LoginDialog::init()
     AppConfig::getInstance()->getCfgVar(AppConfig::CVC_ResentLoginUser,recentUserId);
     while(it.hasNext()){
         it.next();
+        if(!it.value()->isEnabled())
+            continue;
         if(it.value()->getUserId() == recentUserId)
             ruIndex = index;
         ui->cmbUsers->addItem(it.value()->getName(),it.value()->getUserId());

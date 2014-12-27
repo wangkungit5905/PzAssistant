@@ -479,8 +479,8 @@ bool Account::isValid()
 bool Account::canAccess(User *u)
 {
     if(u->isSuperUser() || u->isAdmin())
-        return true;
-    return accInfos.exclusiveUsers.contains(u);
+        return true;    
+    return u->getExclusiveAccounts().contains(accInfos.code);
 }
 
 void Account::close()

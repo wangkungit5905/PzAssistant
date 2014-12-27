@@ -13,6 +13,7 @@
 #include <QStandardItem>
 #include <QPushButton>
 #include <QVBoxLayout>
+#include <QDialog>
 
 #include "commdatastruct.h"
 #include "common.h"
@@ -21,7 +22,7 @@
 
 #define INITROWS 50  //显示业务活动的表格的初始空白行数
 
-
+class QLabel;
 class SubjectManager;
 struct BankAccount;
 class DbUtil;

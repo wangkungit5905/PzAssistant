@@ -64,7 +64,7 @@ public:
 
     //4、业务操作类：（151 - 250）
     //    会计业务类：
-    //凭证集通用操作类（41）：
+    //凭证集基本操作类（41）：
     PzSet_Common_Open    = 151,        //打开凭证集（151）
     PzSet_Common_Close   = 152,        //关闭凭证集（152）
 
@@ -86,19 +86,20 @@ public:
 
     //高级凭证集操作（44）
     PzSet_Advance_ShowExtra     = 211,  //查看余额（211）
-    PzSet_Advance_EndSet        = 212,  //凭证集结账（212）
-    PzSet_Advance_AntiEndSet    = 213,  //反结账（213）
+    PzSet_Advance_SaveExtra     = 212,  //保存统计值（212）
+    PzSet_Advance_EndSet        = 213,  //凭证集结账（213）
+    PzSet_Advance_AntiEndSet    = 214,  //反结账（214）
 
     //帐套操作（47）
     Suite_EndSuite      = 241,  //关账（帐套关账）（241）
     Suite_AntiEndSuite  = 242,  //反关账（242）
     Suite_New           = 243,  //新开帐套（243）
+    Suite_Edit          = 244,  //编辑帐套(244)
 
     //5、统计类（45）：（251 - 300）
     PzSet_ShowStat_Details  = 251,      //查看明细账
     PzSet_ShowStat_Totals   = 252,      //查看总分类账
     PzSet_ShowStat_Current  = 253,      //查看本期统计
-    PzSet_SaveStat          = 261,      //保存统计值
 
     //6、打印类（46）： （301 - 350）
     Print_Pz           = 301,    //打印凭证（301）；

@@ -5,7 +5,7 @@
 #include <QHash>
 
 #include "cal.h"
-#include "securitys.h"
+//#include "securitys.h"
 
 class PingZheng;
 class BusiAction;
@@ -459,23 +459,6 @@ enum MachineType{
    MT_COMPUTER  = 1,    //物理电脑
    MT_CLOUDY    = 2     //云账户
 };
-
-//账户简要信息，此信息来自于基本数据库的AccountInfos表
-//struct AccountBriefInfo{
-//    int id;                     //账户id
-//    QString code;               //账户代码
-//    QString fname;              //账户数据库文件名
-//    QString sname;              //账户简称
-//    QString lname;              //账户全称
-//    bool isRecent;              //是否是最近打开的账户
-//    AccountTransferState tstate;//转移状态（待转移功能加入后使用）
-//    QDateTime tinTime;          //转入时间
-//    Machine* outMachine;        //转出主机
-//    QDateTime tOutTime;         //转出时间
-//    QString hashValue;          //账户文件的Hash值
-//};
-
-
 
 /**
  * @brief 账户缓存条目结构（与本地账户缓存表对应）

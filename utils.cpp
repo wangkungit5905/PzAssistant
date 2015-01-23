@@ -5503,6 +5503,8 @@ BackupUtil::BackupUtil(QString srcDir, QString bacDir)
         backDir.setPath(BACKUP_PATH);
     else
         backDir.setPath(bacDir);
+    if(!backDir.exists())
+            backDir.mkpath(backDir.absolutePath());
     _loadBackupFiles();
 }
 

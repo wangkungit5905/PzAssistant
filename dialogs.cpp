@@ -62,11 +62,21 @@ void OpenAccountDialog::itemClicked(const QModelIndex &index)
     ui.lblFName->setText(ci->fileName);
     ui.lblCode->setText(ci->code);
     ui.lname->setText(ci->accLName);
-    //ui.lblLastTime->setText(accInfoLst[selAcc]->lastTime);
-    //ui.lblDesc->setText(accInfoLst[selAcc]->desc);    
-    ui.edtMac->setText(ci->mac->name());
     ui.edtOutTime->setText(ci->outTime.toString(Qt::ISODate));
-    ui.edtTranState->setText(states.value(ci->tState));
+    if(ci->tState == ATS_TRANSOUTED){
+        ui.lblWS->setText(tr("转出站名"));
+        ui.edtMac->setText(ci->s_ws->name());
+        ui.edtTranState->setText(tr("已转出至“%1”").arg(ci->d_ws->name()));
+    }
+    else{
+        ui.lblWS->setText(tr("来源站名"));
+        ui.edtMac->setText(ci->s_ws->name());
+        if(ci->tState == ATS_TRANSINDES)
+            ui.edtTranState->setText(tr("已转入目的站"));
+        else
+            ui.edtTranState->setText(tr("已转入非目的站"));
+    }
+    //ui.edtTranState->setText(states.value(ci->tState));
     ui.edtInTime->setText(ci->inTime.toString(Qt::ISODate));
     ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);
 }

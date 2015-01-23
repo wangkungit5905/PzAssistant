@@ -1870,17 +1870,13 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     QList<int> in_sids, fei_sids; //分别是收入类和费用类损益类二级科目的id集合
     QList<SecondSubject*> in_ssubs,fei_ssubs;
     SubjectManager* subMgr = account->getSubjectManager(suiteRecord->subSys);
-    //QList<FirstSubject*> in_subs,fei_subs; //收入类和费用类的损益类一级科目
-    //in_subs = subMgr->getSyClsSubs();
     foreach(FirstSubject* fsub, subMgr->getSyClsSubs()){
         in_ssubs<<fsub->getChildSubs(SORTMODE_NAME);
     }
-    //fei_subs = subMgr->getSyClsSubs(false);
     foreach(FirstSubject* fsub, subMgr->getSyClsSubs(false))
         fei_ssubs<<fsub->getChildSubs(SORTMODE_NAME);
     QHash<int,Double> vs;
     QHash<int,MoneyDirection> dirs;
-    //QList<int> sids = in_sids + fei_sids;
     FirstSubject* bnlrFSub = subMgr->getBnlrSub();  //本年利润一级科目
     SecondSubject* jzSSub = NULL;                   //本年利润——结转子目
     foreach(SecondSubject* ssub, bnlrFSub->getChildSubs()){

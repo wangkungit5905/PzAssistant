@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>转入账户</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout_4" stretch="1,3,2,5,1">
+  <layout class="QVBoxLayout" name="verticalLayout_3">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_3">
      <item>
@@ -107,7 +107,7 @@
      <item>
       <widget class="QGroupBox" name="groupBox">
        <property name="title">
-        <string>来源主机信息</string>
+        <string>来源站点信息</string>
        </property>
        <layout class="QGridLayout" name="gridLayout">
         <item row="3" column="1">
@@ -168,7 +168,7 @@
     </layout>
    </item>
    <item>
-    <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <layout class="QHBoxLayout" name="horizontalLayout_5">
      <item>
       <layout class="QVBoxLayout" name="verticalLayout">
        <item>
@@ -190,11 +190,18 @@
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <item>
-        <widget class="QLabel" name="label_5">
-         <property name="text">
-          <string>转入说明</string>
-         </property>
-        </widget>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <widget class="QLabel" name="label_5">
+           <property name="text">
+            <string>转入说明</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="cmbComDesc"/>
+         </item>
+        </layout>
        </item>
        <item>
         <widget class="QPlainTextEdit" name="edtInDesc"/>
@@ -204,53 +211,17 @@
     </layout>
    </item>
    <item>
-    <layout class="QVBoxLayout" name="verticalLayout_3">
-     <item>
-      <widget class="QLabel" name="label_7">
-       <property name="text">
-        <string>新主机：</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QTableWidget" name="twMachines">
-       <property name="editTriggers">
-        <set>QAbstractItemView::NoEditTriggers</set>
-       </property>
-       <property name="selectionBehavior">
-        <enum>QAbstractItemView::SelectRows</enum>
-       </property>
-       <attribute name="horizontalHeaderStretchLastSection">
-        <bool>true</bool>
-       </attribute>
-       <column>
-        <property name="text">
-         <string>工作站ID</string>
-        </property>
-       </column>
-       <column>
-        <property name="text">
-         <string>工作站类型</string>
-        </property>
-       </column>
-       <column>
-        <property name="text">
-         <string>宿主系统</string>
-        </property>
-       </column>
-       <column>
-        <property name="text">
-         <string>工作站名</string>
-        </property>
-       </column>
-       <column>
-        <property name="text">
-         <string>工作站描述</string>
-        </property>
-       </column>
-      </widget>
-     </item>
-    </layout>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_4">
@@ -266,13 +237,6 @@
         </size>
        </property>
       </spacer>
-     </item>
-     <item>
-      <widget class="QCheckBox" name="btnClear">
-       <property name="text">
-        <string>清除捎带的主机</string>
-       </property>
-      </widget>
      </item>
      <item>
       <widget class="QPushButton" name="btnOk">

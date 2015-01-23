@@ -93,7 +93,7 @@ public:
     bool ssubIsUsedInExtraTable(SecondSubject* ssub);
     //bool isSubSysImported(int subSys);
     //bool isSubSysJoinConfiged(int source, int destinate);
-    bool mergeSecondSubject(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
+    bool mergeSecondSubject(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs, bool isInclude);
     bool replaceMapSidWithReserved(SecondSubject *preSub, QList<SecondSubject *> mergedSubs);
     //货币相关
     bool initMoneys(Account* account);
@@ -221,7 +221,7 @@ private:
     bool _removeSecondSubject(SecondSubject* sub);
     bool _saveNameItem(SubjectNameItem* ni);
     bool _removeNameItem(SubjectNameItem* ni);
-    bool _mergeExtraWithinRange(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
+    bool _mergeExtraWithinRange(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs,bool isInclude);
     bool _mergeExtraWithinMonth(int year, int month, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);
     bool _mergeExtra(int point, SecondSubject* preSub, QList<SecondSubject*> mergedSubs,bool isPrimary = true);
     bool _replaceSidWithResorved(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs);

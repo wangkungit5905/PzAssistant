@@ -1730,6 +1730,7 @@ VMAppConfig::VMAppConfig(QString fileName)
     appendVersion(1,6,&VMAppConfig::updateTo1_6);
     appendVersion(1,7,&VMAppConfig::updateTo1_7);
     appendVersion(1,8,&VMAppConfig::updateTo1_8);
+    appendVersion(1,9,&VMAppConfig::updateTo1_9);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1982,7 +1983,7 @@ bool VMAppConfig::updateTo1_3()
                 "%5 text,%6 integer,%7 integer,%8 text,%9 integer,%10 text)")
             .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
             .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
-            .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
+            .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranSrcMid)
             .arg(fld_lac_tranOutTime);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -2778,6 +2779,41 @@ bool VMAppConfig::updateTo1_8()
     }
     endUpgrade(verNum,"基本库成功升级到1.8版",VUR_OK);
     return setCurVersion(1,8);
+}
+
+/**
+ * @brief VMAppConfig::updateTo1_9
+ * 1、修改账户缓存表，添加账户转移目的站字段，原先的站点字段作为来源站
+ * 2、添加常用提示短语表，并
+ * @return
+ */
+bool VMAppConfig::updateTo1_9()
+{
+    QSqlQuery q(db);
+    int verNum = 109;
+    emit startUpgrade(verNum, tr("开始更新到版本“1.9”..."));
+    QString s = QString("alter table %1 add column  %2 INTEGER").arg(tbl_localAccountCache)
+            .arg(fld_lac_tranDesMid);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("在修改本地账户缓存表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 INTEGER, %4 TEXT)")
+            .arg(tbl_base_commonPromptPhrase).arg(fld_base_cpp_class)
+            .arg(fld_base_cpp_number).arg(fld_base_cpp_phrase);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("在创建常用提示短语表时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5) values(%6,'CommonPhrases',1,0)").arg(tbl_base_version)
+            .arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+            .arg(fld_base_version_master).arg(fld_base_version_second)
+            .arg(BDVE_COMMONPHRASE);
+    if(!q.exec(s)){
+        upgradeStep(verNum,tr("在初始化常用提示短语版本号时发生错误！"),VUR_ERROR);
+        return false;
+    }
+    return setCurVersion(1,9);
 }
 
 

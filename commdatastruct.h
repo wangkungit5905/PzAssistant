@@ -472,7 +472,7 @@ struct AccountCacheItem{
         accLName = other.accLName;
         inTime = other.inTime;
         outTime = other.outTime;
-        mac = other.mac;
+        s_ws = other.s_ws;
         tState = other.tState;
         lastOpened = other.lastOpened;
     }
@@ -484,7 +484,8 @@ struct AccountCacheItem{
     QString accLName;   //账户全称
     QDateTime inTime;   //转入时间（最近一次转入账户到本主站的时间，三种转移状态下都有意义）
     QDateTime outTime;  //转出时间（已转出时有意义，其他状态无意义）
-    Machine* mac;    //要转入的目的主机（已转出），转出此账户的源主机（转入到目的机或其他机）
+    Machine* s_ws;      //转出源站  要转入的目的主机（已转出），转出此账户的源主机（转入到目的机或其他机）
+    Machine* d_ws;      //转入目的站
     AccountTransferState tState; //转移状态
     bool lastOpened;    //是否是最后打开的账户
 };
@@ -680,7 +681,16 @@ enum BaseDbVersionEnum{
     BDVE_RIGHT = 3,         //权限
     BDVE_GROUP = 4,         //组
     BDVE_USER = 5,          //用户
-    BDVE_WORKSTATION = 6    //工作站
+    BDVE_WORKSTATION = 6,   //工作站
+    BDVE_COMMONPHRASE = 11  //常用提示短语
+};
+
+/**
+ * @brief 常用提示短语类别
+ */
+enum CommonPromptPhraseClass{
+    CPPC_TRAN_IN    = 1,
+    CPPC_TRAN_OUT   = 2
 };
 
 #endif // COMMDATASTRUCT_H

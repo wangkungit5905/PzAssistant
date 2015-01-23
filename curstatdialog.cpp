@@ -1066,6 +1066,8 @@ void CurStatDialog::printCommon(PrintTask task, QPrinter *printer)
     //创建打印模板实例
     QList<int> colw(stateInfo.colPriWidths.value(stateInfo.tFormat));
     PrintTemplateStat* pt = new PrintTemplateStat(dataModel,thv,&colw);
+    pt->setYear(statUtil->year());
+    pt->setMonth(statUtil->month());
     pt->setAccountName(account->getLName());
     pt->setCreator(curUser->getName());
     pt->setPrintDate(QDate::currentDate());

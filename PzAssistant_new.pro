@@ -10,7 +10,7 @@ win32{
 }
 
 TARGET = PzAssistant
-DESTDIR = $${PWD}/../workDir_5_4/
+DESTDIR = $${PWD}/../workDir/
 TEMPLATE = app
 
 #CONFIG += qaxcontainer
@@ -81,7 +81,8 @@ SOURCES += main.cpp\
     tools/externaltoolconfigform.cpp \
     seccondialog.cpp \
     frmmessagebox.cpp \
-    iconhelper.cpp
+    iconhelper.cpp \
+    crtaccountfromolddlg.cpp
 
 HEADERS  += \
     connection.h \
@@ -157,7 +158,8 @@ HEADERS  += \
     seccondialog.h \
     frmmessagebox.h \
     myhelper.h \
-    iconhelper.h
+    iconhelper.h \
+    crtaccountfromolddlg.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -223,7 +225,8 @@ FORMS    += \
     forms/specsubcodecfgform.ui \
     forms/frmmessagebox.ui \
     forms/appcommcfgpanel.ui \
-    forms/stationcfgform.ui
+    forms/stationcfgform.ui \
+    forms/crtaccountfromolddlg.ui
 
 RESOURCES += \
     imgers.qrc \

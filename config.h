@@ -217,6 +217,16 @@ public:
     bool clearAndSaveMacs(QList<Machine *> macs,int mv,int sv);
     bool clearAndSaveRights(QList<Right*> rights,int mv,int sv);
     bool clearAndSaveRightTypes(QList<RightType*> rightTypes,int mv,int sv);
+
+    //常用提示短语
+    static bool parseVersionFromText(QString text,int &mv, int &sv);
+    bool savePhases(QList<CommonPromptPhraseClass> cs, QList<int> nums, QStringList ps);
+    bool readPhases(CommonPromptPhraseClass pClass, QHash<int,QString> &phrases);
+    bool serialCommonPhraseToBinary(QByteArray* ba);
+    bool serialCommonPhraseFromBinary(QByteArray* ba);
+
+    //other
+    FirstSubject* getFirstSubject(int subSysCode, QString subCode);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);

@@ -7,6 +7,7 @@
 #include "global.h"
 #include "logs/Logger.h"
 #include "statements.h"
+#include "pzdialog.h"
 
 
 //////////////////////////CrtPzCommand/////////////////////////////////
@@ -961,10 +962,24 @@ void ModifyMultiPropertyOnBa::redo()
     ba->integratedSetValue(newFSub,newSSub,newMt,newValue,newDir);
 }
 
+////////////////////////////ModifySndSubEnableProperty////////////////////////////
 
+ModifySndSubEnableProperty::ModifySndSubEnableProperty(SecondSubject *ssub, bool isEnabled, QUndoCommand *parent)
+:QUndoCommand(parent),_ssub(ssub)
+{
+    setText(QObject::tr("禁用子目（%1）").arg(_ssub->getName()));
+    oldValue = _ssub->isEnabled();
+    newValue = isEnabled;
+}
 
+void ModifySndSubEnableProperty::undo()
+{
+    _ssub->setEnabled(oldValue);
+    _creator->addChangedSSub(_ssub);
+}
 
-
-
-
-
+void ModifySndSubEnableProperty::redo()
+{
+    _ssub->setEnabled(newValue);
+    _creator->addChangedSSub(_ssub);
+}

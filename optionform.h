@@ -13,6 +13,7 @@ namespace Ui {
 }
 
 class QListWidgetItem;
+class MainWindow;
 
 /**
  * @brief 应用通用配置面板类
@@ -69,6 +70,7 @@ class StationCfgForm : public ConfigPanelBase
 
 public:
     explicit StationCfgForm(QWidget *parent = 0);
+    void setListener(MainWindow* listener);
     ~StationCfgForm();
 
     bool isDirty();
@@ -86,6 +88,9 @@ private slots:
 
     void on_actDel_triggered();
 
+signals:
+    void localStationChanged(Machine* ws);
+
 private:
     void loadStations();
     void showStation(Machine *m);
@@ -96,6 +101,11 @@ private:
     QList<Machine*> ms,msDels;
     bool readonly;
     QHash<int,QString> osTypes;
+    QMetaObject::Connection conn;
+
+    //本站敏感信息，如果这些信息改变了，则必须报告给主窗口
+    int localMID;
+    QString lName,lDesc;
 };
 
 

@@ -135,6 +135,7 @@ private:
     bool updateTo1_6();
     bool updateTo1_7();
     bool updateTo1_8();
+    bool updateTo1_9();
     bool updateTo2_0();
 
     QHash<int,UpgradeFun_Config> upgradeFuns;

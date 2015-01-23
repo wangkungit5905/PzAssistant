@@ -555,8 +555,9 @@ const QString fld_lac_filename      = "fname";              //账户文件名
 const QString fld_lac_isLastOpen    = "isLastOpen";         //是否是最近打开的账户
 const QString fld_lac_tranState     = "tstate";             //转移状态
 const QString fld_lac_tranInTime    = "tranInTime";         //转入时间
-const QString fld_lac_tranOutMid    = "tranOutMid";         //转出主机的MID
+const QString fld_lac_tranSrcMid    = "tranOutMid";         //转出源站ID
 const QString fld_lac_tranOutTime   = "tranOutTime";        //转出时间
+const QString fld_lac_tranDesMid    = "tranDesMid";         //转入目的站ID
 const QString fld_lac_hash          = "hashValue";          //账户文件的Hash值
 //字段索引
 const int LAC_CODE      = 1;
@@ -566,9 +567,10 @@ const int LAC_FNAME     = 4;
 const int LAC_ISLAST    = 5;
 const int LAC_TSTATE    = 6;
 const int LAC_INTIME    = 7;
-const int LAC_MAC    = 8;
+const int LAC_SMAC      = 8;
 const int LAC_OUTTIME   = 9;
-const int LAC_HASH      = 10;
+const int LAC_DMAC      = 10;
+const int LAC_HASH      = 11;
 
 /**
  *  科目系统名称表
@@ -786,4 +788,12 @@ const int FI_BASE_VER_TYPENAME = 2;
 const int FI_BASE_VER_MASTER = 3;
 const int FI_BASE_VER_SECOND = 4;
 
+//常用提示短语表
+const QString tbl_base_commonPromptPhrase = "CommonPromptPhrases";
+const QString fld_base_cpp_class = "class";     //短语类别
+const QString fld_base_cpp_number = "number";   //序号
+const QString fld_base_cpp_phrase = "phrase";   //短语
+const int FI_BASE_CPP_CLASS = 1;
+const int FI_BASE_CPP_NUMBER = 2;
+const int FI_BASE_CPP_PHRASE = 3;
 #endif // TABLES_H

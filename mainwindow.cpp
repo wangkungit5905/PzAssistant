@@ -51,6 +51,8 @@
 #include "tools/notemgrform.h"
 #include "tools/externaltoolconfigform.h"
 #include "myhelper.h"
+#include "crtaccountfromolddlg.h"
+#include "unityinspectdialog.h"
 
 #include "completsubinfodialog.h"
 
@@ -95,7 +97,7 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     extraState.setObjectName("InfoSecInStatus");
     hl2->addWidget(l);    hl2->addWidget(&extraState);
 
-    l = new QLabel(tr("凭证总数:"),this);
+    l = new QLabel(tr("凭证总数："),this);
     pzCount.setAttribute(Qt::WA_AlwaysShowToolTips,true);
     pzCount.setObjectName("InfoSecInStatus");
     pzCount.setText("   ");
@@ -103,11 +105,17 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     hl3->addWidget(l);
     hl3->addWidget(&pzCount);
 
-    l = new QLabel(tr("登录用户:"),this);
+    l = new QLabel(tr("登录用户："),this);
     lblUser.setObjectName("InfoSecInStatus");
     lblUser.setText("           ");
     QHBoxLayout* hl4 = new QHBoxLayout;
     hl4->addWidget(l);   hl4->addWidget(&lblUser);
+
+    l = new QLabel(tr("工作站："),this);
+    lblWs.setObjectName("InfoSecInStatus");
+    lblUser.setText("           ");
+    QHBoxLayout* hl5 = new QHBoxLayout;
+    hl5->addWidget(l);   hl5->addWidget(&lblWs);
 
 
     QFrame *f = new QFrame(this);
@@ -117,6 +125,7 @@ PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
     QHBoxLayout* ml = new QHBoxLayout(f);
     ml->addLayout(hl1);ml->addLayout(hl2);
     ml->addLayout(hl3);ml->addLayout(hl4);
+    ml->addLayout(hl5);
 
     lblRuntime = new QLabel;
     lblRuntime->setFrameShadow(QFrame::Sunken);
@@ -205,6 +214,18 @@ void PaStatusBar::setUser(User *user)
         lblUser.setText(user->getName());
     else
         lblUser.setText("");
+}
+
+void PaStatusBar::setWorkStation(Machine *mac)
+{
+    if(mac){
+        lblWs.setText(mac->name());
+        lblWs.setToolTip(mac->description());
+    }
+    else{
+        lblWs.clear();
+        lblWs.setToolTip("");
+    }
 }
 
 void PaStatusBar::showRuntimeMessage(QString info, AppErrorLevel level)
@@ -473,6 +494,7 @@ MainWindow::MainWindow(QWidget *parent) :
     initToolBar();
     initTvActions();
     initExternalTools();
+    ui->statusbar->setWorkStation(appCon->getLocalStation());
 
     mdiAreaWidth = ui->mdiArea->width();
     mdiAreaHeight = ui->mdiArea->height();
@@ -733,9 +755,9 @@ void MainWindow::accountInit(AccountCacheItem* ci)
         curAccount->setReadOnly(true);
         QString info;
         if(ci->tState == ATS_TRANSOUTED)
-            info = tr("账户已转出至“%1”").arg(ci->mac->name());
+            info = tr("账户已转出至“%1”").arg(ci->d_ws->name());
         else if(ci->tState == ATS_TRANSINOTHER)
-            info = tr("由“%1”转出，但不是转入至本站！").arg(ci->mac->name());
+            info = tr("由“%1”转出，但不是转入至本站！").arg(ci->s_ws->name());
         myHelper::ShowMessageBoxInfo(tr("当前账户以只读模式打开！\n%1").arg(info));
     }
     if(!curSuiteMgr)
@@ -1104,8 +1126,7 @@ void MainWindow::newAccount()
     if(!isContainRight(Right::Account_Create))
         return;
     NABaseInfoDialog dlg(this);
-    if(dlg.exec() == QDialog::Rejected)
-        return;
+    dlg.exec();
 }
 
 void MainWindow::openAccount()
@@ -1146,7 +1167,7 @@ void MainWindow::openAccount()
         return;
     }
     setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
-    AppConfig::getInstance()->setRecentOpenAccount(ci->code);
+    appCon->setRecentOpenAccount(ci->code);
     accountInit(ci);
     rfMainAct(curUser);
 }
@@ -1275,13 +1296,15 @@ void MainWindow::on_actOption_triggered()
         if(curUser->isSuperUser()){
             panels<<new PzTemplateOptionForm;   //凭证模板参数面板
             icons<<QIcon(":/images/Options/pzTemplate.png");
-            panels<<new StationCfgForm;         //工作站面板
+            StationCfgForm* sf = new StationCfgForm; //工作站面板
+            connect(sf,SIGNAL(localStationChanged(Machine*)),this,SLOT(localStationChanged(Machine*)));
+            panels<<sf;
             icons<<QIcon(":/images/Options/test1.png");
         }
         panels<<new TestPanel(form);            //测试面板
         icons<<QIcon(":/images/Options/test1.png");
         form = new ConfigPanels(panels,icons,sinfo);
-    }
+    }    
     showCommonSubWin(SUBWIN_OPTION,form,winfo);
     if(sinfo)
         delete sinfo;
@@ -1329,7 +1352,7 @@ void MainWindow::on_actTaxCompare_triggered()
     SubWindowDim* winfo = NULL;
     TaxesComparisonForm* form = NULL;
     if(!commonGroups.contains(SUBWIN_TAXCOMPARE)){
-        dbUtil->getSubWinInfo(SUBWIN_TAXCOMPARE,winfo,sinfo);
+        appCon->getSubWinInfo(SUBWIN_TAXCOMPARE,winfo);
         form = new TaxesComparisonForm(curSuiteMgr);
         connect(form,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
     }
@@ -1521,6 +1544,7 @@ void MainWindow::on_actImpAppCfg_triggered()
     QCheckBox chkMac(tr("工作站"), &dlg);
     QCheckBox chkGroup(tr("用户组"), &dlg);
     QCheckBox chkUser(tr("用户"), &dlg);
+    QCheckBox chkPhrase(tr("常用提示短语"),&dlg);
     QPushButton btnOk(tr("确定"), &dlg);
     QPushButton btnCancel(tr("取消"), &dlg);
     connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
@@ -1530,12 +1554,13 @@ void MainWindow::on_actImpAppCfg_triggered()
     lm->addWidget(&title);lm->addWidget(&chkRightType);
     lm->addWidget(&chkRight); lm->addWidget(&chkMac);
     lm->addWidget(&chkGroup); lm->addWidget(&chkUser);
+    lm->addWidget(&chkPhrase);
     lm->addLayout(&lb);
     dlg.setLayout(lm);
     if(dlg.exec() == QDialog::Rejected)
         return;
     if(!chkRight.isChecked() && !chkRightType.isChecked() && !chkMac.isChecked()
-            && !chkGroup.isChecked() && !chkUser.isChecked())
+            && !chkGroup.isChecked() && !chkUser.isChecked() && !chkPhrase.isChecked())
         return;
 
     //默认导入目录
@@ -1546,7 +1571,7 @@ void MainWindow::on_actImpAppCfg_triggered()
     QString fileName;
     QFile file;  QTextStream ts;
     int mv,sv;
-
+    bool needRestart = false;
     if(chkRightType.isChecked()){
         fileName = dirName + "/rightTypes.txt";
         if(!QFile::exists(fileName)){
@@ -1580,6 +1605,7 @@ void MainWindow::on_actImpAppCfg_triggered()
             allRightTypes = rts;
             return;
         }
+        needRestart = true;
     }
     if(chkRight.isChecked()){
         fileName = dirName + "/rights.txt";
@@ -1614,6 +1640,7 @@ void MainWindow::on_actImpAppCfg_triggered()
             allRights = rs;
             return;
         }
+        needRestart = true;
     }
     if(chkGroup.isChecked()){
         fileName = dirName + "/groups.txt";
@@ -1648,6 +1675,7 @@ void MainWindow::on_actImpAppCfg_triggered()
             allGroups = gs;
             return;
         }
+        needRestart = true;
     }
     if(chkUser.isChecked()){
         fileName = dirName + "/users.txt";
@@ -1682,6 +1710,7 @@ void MainWindow::on_actImpAppCfg_triggered()
             allUsers = us;
             return;
         }
+        needRestart = true;
     }
     if(chkMac.isChecked()){
         fileName = dirName + "/machines.txt";
@@ -1712,8 +1741,33 @@ void MainWindow::on_actImpAppCfg_triggered()
             return;
         }
         appCon->refreshMachines();
+        needRestart = true;
     }
-    myHelper::ShowMessageBoxInfo(tr("操作成功完成，需要重新启动应用以使新的设置生效！"));
+    if(chkPhrase.isChecked()){
+        fileName = dirName + "/phrases.txt";
+        if(!QFile::exists(fileName)){
+            myHelper::ShowMessageBoxWarning(tr("导入文件“phrases.txt”不存在！"));
+            return;
+        }
+        file.setFileName(fileName);
+        if(!file.open(QFile::ReadOnly|QFile::Text)){
+            myHelper::ShowMessageBoxError(tr("打开文件“phrases.txt”时出错！"));
+            return;
+        }
+        QString s(file.readLine());
+        if(!inspectVersionBeforeImport(s,BDVE_COMMONPHRASE,"phrases.txt",mv,sv))
+            return;
+        file.reset();
+        QByteArray ba = file.readAll();
+        if(!appCon->serialCommonPhraseFromBinary(&ba)){
+            myHelper::ShowMessageBoxError(tr("导入常用提示短语配置信息时发生错误！"));
+            return;
+        }
+    }
+    if(needRestart)
+        myHelper::ShowMessageBoxInfo(tr("操作成功完成，需要重新启动应用以使新的设置生效！"));
+    else
+        myHelper::ShowMessageBoxInfo(tr("操作成功完成！"));
 }
 
 void MainWindow::_closeAccount()
@@ -1909,7 +1963,7 @@ void MainWindow::openSpecPz(int pid,int bid)
         if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZEDIT)){
             appCon->getSubWinInfo(SUBWIN_PZEDIT,winfo,&cinfo);
             w = new PzDialog(month,curSuiteMgr,&cinfo);
-            w->setWindowTitle(tr("凭证窗口（新）"));
+            w->setWindowTitle(tr("凭证窗口"));
             connect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
             connect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
             connect(w,SIGNAL(rateChanged(int)),this,SLOT(rateChanged(int)));
@@ -2675,6 +2729,16 @@ void MainWindow::printProcess()
     }
 }
 
+/**
+ * @brief 本站定义改变
+ * @param ws
+ */
+void MainWindow::localStationChanged(Machine *ws)
+{
+    if(ws)
+        ui->statusbar->setWorkStation(ws);
+}
+
 //处理添加凭证动作事件
 void MainWindow::on_actAddPz_triggered()
 {
@@ -3302,66 +3366,23 @@ void MainWindow::on_actImpOtherPz_triggered()
 //    delete dlg;
 }
 
-//结转本年利润
+/**
+ * @brief 结转本年利润
+ */
 void MainWindow::on_actJzbnlr_triggered()
 {
     if(!isContainRight(Right::Pz_Advanced_jzlr))
         return;
-
-//    if(!isOpenPzSet){
-//        pzsWarning();
-//        return;
-//    }
-//    if(curPzSetState == Ps_Jzed){
-//        QMessageBox::information(this, tr("提示信息"), tr("已结账，不能添加任何凭证！"));
-//        return;
-//    }
-//    if(curPzSetState != Ps_AllVerified){
-//        QMessageBox::warning(this, tr("提示信息"), tr("当前凭证集内存在未审核凭证，不能结转！"));
-//        return;
-//    }
-//    if(!isExtraVolid){
-//        QMessageBox::warning(this, tr("提示信息"), tr("当前余额无效，请重新统计并保存余额！"));
-//        return;
-//    }
-//    //损益类凭证必须已经结转了
-//    int count;
-//    dbUtil->inspectJzPzExist(cursy,cursm,Pzd_Jzsy,count);
-//    if(count > 0){
-//        QMessageBox::warning(this, tr("提示信息"), tr("在结转本年利润前，必须先结转损益类科目到本年利润！"));
-//        return;
-//    }
-//    //创建一个结转本年利润到利润分配的特种类别空白凭证，由用户手动编辑此凭证
-//    PzData d;
-//    QDate date(cursy,cursm,1);
-//    date.setDate(cursy,cursm,date.daysInMonth());
-//    d.date = date.toString(Qt::ISODate);
-//    d.attNums = 0;
-//    d.pzNum = pzAmount+1;
-//    d.pzZbNum = pzAmount+1;
-//    d.state = Pzs_Recording;
-//    d.pzClass = Pzc_Jzlr;
-//    d.jsum = 0; d.dsum = 0;
-//    d.producer = curUser;
-//    d.verify = NULL;
-//    d.bookKeeper = NULL;
-
-//    if(dbUtil->crtNewPz(&d)){
-//        showTemInfo(tr("成功创建结转本年利润凭证！"));
-//        pzAmount++;
-//        pzRecording++;
-//        isExtraVolid = false;
-//        refreshShowPzsState();
-//        //refreshActEnanble();
-//        //如果凭证编辑窗口已打开，则定位到刚创建的凭证
-//        if(subWindows.contains(PZEDIT)){
-//            curPzModel->select();
-//            PzDialog2* dlg = static_cast<PzDialog2*>(subWindows.value(PZEDIT)->widget());
-//            dlg->naviLast();
-//        }
-//    }
-//    else
-//        showTemInfo(tr("在创建结转本年利润凭证时出错！"));
+    if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
+        return;
+    int key = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT)){
+        myHelper::ShowMessageBoxInfo(tr("请先打开凭证编辑窗口，再执行结转操作！"));
+        return;
+    }
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
+    if(w && !w->crtJzbnlr())
+        myHelper::ShowMessageBoxWarning(tr("在创建结转本年利润的凭证时发生错误!"));
 }
 
 /**
@@ -4053,28 +4074,7 @@ bool MainWindow::exportCommonSubject()
  */
 bool MainWindow::inspectVersionBeforeImport(QString versionText, BaseDbVersionEnum type, QString fileName, int &fmv, int &fsv)
 {
-    QStringList ls = versionText.split("=");
-    fmv=0,fsv=0;
-    bool vError = false;
-    if(ls.count() != 2)
-        vError = true;
-    else{
-        ls = ls.at(1).split(".");
-        if(ls.count() != 2)
-            vError = true;
-        else{
-            bool ok;
-            fmv = ls.at(0).toInt(&ok);
-            if(!ok)
-                vError = true;
-            else{
-                fsv = ls.at(1).toInt(&ok);
-                if(!ok)
-                    vError = true;
-            }
-        }
-    }
-    if(vError){
+    if(!appCon->parseVersionFromText(versionText,fmv,fsv)){
         myHelper::ShowMessageBoxWarning(tr("文件“%1”无法识别版本号！").arg(fileName));
         return false;
     }
@@ -4097,6 +4097,9 @@ bool MainWindow::inspectVersionBeforeImport(QString versionText, BaseDbVersionEn
             break;
         case BDVE_WORKSTATION:
             info = tr("工作站设置\n");
+            break;
+        case BDVE_COMMONPHRASE:
+            info = tr("常用提示短语配置\n");
             break;
         }
         info.append(tr("当前版本：%1.%2\n导入版本：%3.%4\n版本不是最新的，确定需要导入吗？")
@@ -4189,7 +4192,36 @@ void MainWindow::on_actViewLog_triggered()
 
 bool MainWindow::impTestDatas()
 {
-    if(!curUser || curUser && !curUser->isSuperUser())
-        return true;
+    QByteArray *ba = new QByteArray;
+    appCon->serialCommonPhraseToBinary(ba);
+    appCon->serialCommonPhraseFromBinary(ba);
     int i = 0;
+}
+
+/**
+ * @brief 从老账户创建新账户，即使用老账户的期末余额作为新账户的期初值来创建
+ */
+void MainWindow::on_actCrtAccoutFromOld_triggered()
+{
+    CrtAccountFromOldDlg* dlg = new CrtAccountFromOldDlg(this);
+    dlg->exec();
+}
+
+
+/**
+ * @brief 查看科目系统衔接配置
+ */
+void MainWindow::on_actShowSusSybJoinCfg_triggered()
+{
+    if(curUser->isAdmin() || curUser->isSuperUser()){
+        QList<SubSysNameItem *> subSysLst;
+        appCon->getSubSysItems(subSysLst);
+        int count = subSysLst.count();
+        if(count < 2)
+            return;
+        int preCode = subSysLst.at(count -2)->code;
+        int curCode = subSysLst.at(count -1)->code;
+        SubSysJoinCfgForm* dlg = new SubSysJoinCfgForm(preCode,curCode,0,this);
+        dlg->exec();
+    }
 }

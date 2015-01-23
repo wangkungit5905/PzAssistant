@@ -991,7 +991,8 @@ bool StatUtil::_verifyExtraUnity(QStringList& errors, bool isPre)
         if(((int)s_dir + (int)f_dir) == 0)
             sum.changeSign();
         if(sum != it.value())
-            errors<<QString(tr("%1原币余额不一致")).arg(fsub->getName());
+            errors<<QString(tr("%1原币余额不一致，相差：%2")).arg(fsub->getName())
+                    .arg((sum - it.value()).toString2());
     }
     //2、验证本币余额
     if(!errors.isEmpty())

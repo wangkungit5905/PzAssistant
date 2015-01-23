@@ -35,6 +35,7 @@ class BusiAction;
 class FirstSubject;
 class SecondSubject;
 class Money;
+class PzDialog;
 
 //1、添加凭证
 //2、插入凭证
@@ -657,6 +658,21 @@ private:
     MoneyDirection oldDir,newDir;
 };
 
-
+/**
+ * @brief The ModifySndSubEnableProperty class
+ * 修改二级科目启用性属性
+ */
+class ModifySndSubEnableProperty : public QUndoCommand
+{
+public:
+    ModifySndSubEnableProperty(SecondSubject* ssub, bool isEnabled, QUndoCommand* parent=0);
+    void setCreator(PzDialog* dlg){_creator=dlg;}
+    void undo();
+    void redo();
+private:
+    PzDialog* _creator;
+    SecondSubject* _ssub;
+    bool oldValue,newValue;
+};
 
 #endif // COMMANDS_H

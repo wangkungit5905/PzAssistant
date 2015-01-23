@@ -915,8 +915,11 @@ bool SubjectManager::saveFS(FirstSubject *fsub)
 {
     if(!dbUtil->savefstSubject(fsub))
         return false;
-    if(!fsub->delSubs.isEmpty())
-        return dbUtil->removeSndSubjects(fsub->delSubs);
+    if(!fsub->delSubs.isEmpty()){
+        if(!dbUtil->removeSndSubjects(fsub->delSubs))
+            return false;
+        fsub->delSubs.clear();
+    }
     return true;
 }
 

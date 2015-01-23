@@ -106,13 +106,11 @@ private:
     MoneyDirection dir;         //借贷方向（1：借，0：未定，-1：贷）
     Double v;                   //金额
     int num;                    //该业务活动在凭证中的序号（基于1）
-    //BusiActionEditStates witchEdited;
     bool isDeleted;
 
     friend class PingZheng;
     friend class AccountSuiteManager;
     friend class DbUtil;
-    //friend class ModifyMultiPropertyOnBa;
 };
 
 //指示凭证对象的哪个属性值被修改的标记

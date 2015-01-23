@@ -20,7 +20,7 @@ namespace Ui {
 class ApcBase;
 }
 
-
+class AppConfig;
 class Account;
 class QListWidget;
 class QStackedWidget;
@@ -279,7 +279,7 @@ private slots:
 private:
 
     bool mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem*> nameItems);
-    bool mergeSndSubject(QList<SecondSubject*> subjects, int &preSubIndex);
+    bool mergeSndSubject(QList<SecondSubject*> subjects, int &preSubIndex,bool &isCancel);
     bool notCommitWarning();
     void init_subsys();
     void init_NameItems();
@@ -350,23 +350,22 @@ public:
     bool save();
 
 private slots:
-    //void mapBtnClicked();
     void destinationSubChanged(QTableWidgetItem* item);
 private:
     void init();
     bool determineAllComplete();
-    //void cloneSndSubject();
-    //void preConfig();
 
     Ui::SubSysJoinCfgForm *ui;
+    AppConfig* appCfg;
     Account* account;
     bool isCompleted;     //科目衔接配置是否已经完成
     SubjectManager *sSmg/*,*dSmg*/;
-    int subSys;                      //对接的科目系统的代码
+    int subSys,pre_subSys;           //对接和前一个的科目系统的代码
     QList<SubSysJoinItem2*> ssjs;    //科目映射配置列表
     QList<bool> editTags;   //每个科目的映射条目被修改的标记列表
     QHash<QString,QString> subNames; //新科目系统的科目代码到科目名的映射表
     QString defJoinStr,mixedJoinStr; //默认对接和混合对接的箭头样式文本
+    QList<FirstSubject*> temFstSubs; //存放临时创建的一级科目对象
 };
 
 //显示期初余额的借贷方向
@@ -481,6 +480,7 @@ private:
     void viewCollectData();
     void watchDataChanged(bool en=true);
     void enAddBtn();
+    void getNextMonth(int y, int m, int &yy, int &mm);
 
     Ui::ApcData *ui;
     Account *account;
@@ -488,7 +488,7 @@ private:
     SubjectManager* smg;
     FirstSubject* curFSub;
     SecondSubject* curSSub;
-    QHash<int,Double> rates;
+    QHash<int,Double> srates,erates; //期初期末汇率
     QHash<int,Double> pvs,mvs;       //当前一级科目下所有二级科目的期初余额（原币、本币形式）（复合键：二级科目id+币种代码）
     QHash<int,MoneyDirection> dirs;  //当前一级科目下所有二级科目的期初余额方向
     QHash<int,Double> pvs_f,mvs_f;      //当前一级科目汇总后的期初余额（键为币种代码）

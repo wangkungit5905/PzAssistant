@@ -42,6 +42,7 @@ public:
     void setPzCounts(int repeal,int recording,int verify,int instat,int amount);
     void resetPzCounts();
     void setUser(User* user);
+    void setWorkStation(Machine* mac);
     void showRuntimeMessage(QString info, AppErrorLevel level);
 
 public slots:
@@ -54,7 +55,7 @@ private:
     void endProgress();
     void adjustProgress(int value);
 
-    QLabel curSuite,pzSetDate,pzSetState,extraState,lblUser,pzCount/*,pzRepeal,pzRecording,pzVerify,pzInstat*/;
+    QLabel curSuite,pzSetDate,pzSetState,extraState,lblUser,pzCount,lblWs/*,pzRecording,pzVerify,pzInstat*/;
     QProgressBar* pBar;
     QLabel* lblRuntime;
     int pAmount;  //进度指示器的最大值
@@ -192,6 +193,7 @@ private slots:
     void subWindowActivated(QMdiSubWindow * window);
     void specSubWinClosed(subWindowType winType);
     void printProcess();
+    void localStationChanged(Machine* ws);
 
     void on_actAddPz_triggered();
 
@@ -307,6 +309,10 @@ private slots:
     void on_actExpAppCfg_triggered();
 
     void on_actImpAppCfg_triggered();
+
+    void on_actCrtAccoutFromOld_triggered();
+
+    void on_actShowSusSybJoinCfg_triggered();
 
 private:
     void _closeAccount();

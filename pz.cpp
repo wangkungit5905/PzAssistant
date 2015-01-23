@@ -1275,17 +1275,13 @@ void PingZheng::adjustSumForBaChanged(BusiAction *ba, bool add)
 void PingZheng::watchBusiaction(BusiAction *ba, bool isWatch)
 {
     if(isWatch){
-        //connect(ba,SIGNAL(dirChanged(MoneyDirection,BusiAction*)),
-        //        this,SLOT(adjustSumForDirChanged(MoneyDirection,BusiAction*)));
         connect(ba,SIGNAL(valueChanged(Money*,Double&,MoneyDirection,BusiAction*)),
                 this,SLOT(adjustSumForValueChanged(Money*,Double&,MoneyDirection,BusiAction*)));
         connect(ba,SIGNAL(subChanged(FirstSubject*,SecondSubject*,Money*,Double,BusiAction*)),
                 this,SLOT(subChanged(FirstSubject*,SecondSubject*,Money*,Double,BusiAction*)));
     }
     else{
-        //disconnect(ba,SIGNAL(dirChanged(MoneyDirection,BusiAction*)),
-        //        this,SLOT(adjustSumForDirChanged(MoneyDirection,BusiAction*)));
-        disconnect(ba,SIGNAL(valueChanged(Money*,Double&,BusiAction*)),
+        disconnect(ba,SIGNAL(valueChanged(Money*,Double&,MoneyDirection,BusiAction*)),
                 this,SLOT(adjustSumForValueChanged(Money*,Double&,MoneyDirection,BusiAction*)));
         disconnect(ba,SIGNAL(subChanged(FirstSubject*,SecondSubject*,BusiAction*)),
                    this,SLOT(subChanged(FirstSubject*,SecondSubject*,Money*,Double,BusiAction*)));

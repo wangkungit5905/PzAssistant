@@ -1281,6 +1281,7 @@ void ApcSubject::curFSubChanged(int row)
     curSSub = NULL;
     viewFSub();
     viewSSub();
+    ui->btnInspectDup->setEnabled(!account->isReadOnly() && isPrivilegeUser);
 }
 
 /**
@@ -2122,7 +2123,7 @@ void ApcSubject::on_btnFSubCommit_clicked()
             bool isExist = true;
             account->getDbUtil()->isUsedWbForFSub(curFSub,isExist);
             if(isExist){
-                myHelper::ShowMessageBoxWarning(tr("科目“%1”的存在外币余额且不为0，不能改变该科目是否使用外币的属性！").arg(curFSub->getName()));
+                myHelper::ShowMessageBoxWarning(tr("科目“%1”先前曾使用过外币且余额不为0，不能去除该科目使用外币的属性！").arg(curFSub->getName()));
                 ui->isUseWb->setChecked(true);
             }
             else
@@ -2147,7 +2148,7 @@ void ApcSubject::on_btnFSubCommit_clicked()
         else
             curFSub->addChildSub(sub);
     }
-    if(!ids.isEmpty()){
+        if(!ids.isEmpty()){
         foreach(int id, ids)
             curFSub->removeChildSubForId(id);
     }
@@ -2357,9 +2358,6 @@ void ApcSubject::on_rdoSortbyName_toggled(bool checked)
  */
 void ApcSubject::on_btnSSubMerge_clicked()
 {
-    myHelper::ShowMessageBoxInfo(tr("科目合并功能实现还欠考虑，待完善后执行！"));
-    return;
-
     QList<QListWidgetItem*> items = ui->lwSSub->selectedItems();
     if(items.count() < 2)
         return;
@@ -2369,14 +2367,20 @@ void ApcSubject::on_btnSSubMerge_clicked()
         subjects<<ssub;
     }
     int preSubIndex = -1;
-    if(!mergeSndSubject(subjects,preSubIndex))
+    bool isCancel = false;
+    if(!mergeSndSubject(subjects,preSubIndex,isCancel))
         myHelper::ShowMessageBoxError(tr("合并科目过程出错！"));
+    if(isCancel)
+        return;
     QListWidgetItem* preItem = items.at(preSubIndex);
     foreach(QListWidgetItem* item, items){
         if(item == preItem)
             continue;
         delete ui->lwSSub->takeItem(ui->lwSSub->row(item));
     }
+    on_btnFSubCommit_clicked();
+    preSubIndex = ui->lwSSub->row(preItem);
+    curSSubChanged(preSubIndex);
 }
 
 /**
@@ -2455,28 +2459,24 @@ bool ApcSubject::mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem *> 
  * @param subjects
  * @return
  */
-bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubIndex)
+bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubIndex, bool &isCancel)
 {
-
-
     if(subjects.count() < 2)
         return true;
-    //1、确定保留的二级科目，应提示用户选择，默认选择id最小的
+    //1、确定保留的二级科目，应提示用户选择，默认选择创建时间最早的
     SecondSubject* preserveSub = subjects.first();
     for(int i = 1; i < subjects.count(); ++i){
-        if(subjects.at(i)->getId() < preserveSub->getId())
+        if(subjects.at(i)->getCreateTime() < preserveSub->getCreateTime())
             preserveSub = subjects.at(i);
     }
     preSubIndex = subjects.indexOf(preserveSub);
-    if(preSubIndex != 0)
-        subjects.swap(0,preSubIndex);
     QDialog dlg(this);
     QListWidget lw(&dlg);
     QVariant v;
     SecondSubject* ssub;
     for(int i = 0; i < subjects.count(); ++i){
         ssub = subjects.at(i);
-        QListWidgetItem* item = new QListWidgetItem(ssub->getName());
+        QListWidgetItem* item = new QListWidgetItem(QString("%1(%2)").arg(ssub->getName()).arg(ssub->getId()));
         v.setValue<SecondSubject*>(ssub);
         item->setData(Qt::UserRole,v);
         lw.addItem(item);
@@ -2495,9 +2495,12 @@ bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubInd
     lv->addWidget(&lw);
     lv->addLayout(&lh);
     dlg.setLayout(lv);
-    if(dlg.exec() == QDialog::Rejected)
+    if(dlg.exec() == QDialog::Rejected){
+        isCancel = true;
         return true;
+    }
     preserveSub = lw.currentItem()->data(Qt::UserRole).value<SecondSubject*>();
+    preSubIndex = lw.currentRow();
     subjects.removeOne(preserveSub);
     SubjectManager* sm = preserveSub->getParent()->parent();
     QList<SecondSubject*> replaceSubs;
@@ -2514,7 +2517,7 @@ bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubInd
         }
     }
     //所有科目都未被引用，可以直接移除
-    if(subjects.isEmpty()){
+    if(!canRemovedSubs.isEmpty()){
         FirstSubject* fsub = preserveSub->getParent();
         foreach(SecondSubject* sub, canRemovedSubs)
             fsub->removeChildSub(sub);
@@ -2522,13 +2525,19 @@ bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubInd
             return false;
         if(!replaceSubs.isEmpty() && !account->getDbUtil()->replaceMapSidWithReserved(preserveSub,replaceSubs))
             return false;
-        return true;
     }
+    if(subjects.isEmpty())
+        return true;
 
-    //2、确定要处理的时间范围
+    //2、如果某个待合并的子目被引用了，则必须调整分录表或余额表中被引用的子目id值
+    //确定要处理的时间范围（从最开始被引用的年月到最后被引用的年月）
     int subSysCode = sm->getSubSysCode();
     int startYear=0,startMonth=0,endYear=0,endMonth=0;
     QList<AccountSuiteRecord*> suites = account->getAllSuiteRecords();
+    if(suites.isEmpty()){
+        myHelper::ShowMessageBoxWarning(tr("该账户没有任何帐套记录！"));
+        return false;
+    }
     for(int i = 0; i < suites.count(); ++i){        
         AccountSuiteRecord* asr = suites.at(i);
         if(asr->subSys != subSysCode)
@@ -2544,7 +2553,8 @@ bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubInd
         myHelper::ShowMessageBoxWarning(tr("无法界定时间范围！"));
         return false;
     }
-    if(!account->getDbUtil()->mergeSecondSubject(startYear,startMonth,endYear,endMonth,preserveSub,subjects)){
+    int isInclued = (startYear == suites.first()->year); //是否需要包含起账时的期初余额范围
+    if(!account->getDbUtil()->mergeSecondSubject(startYear,startMonth,endYear,endMonth,preserveSub,subjects,isInclued)){
         myHelper::ShowMessageBoxError(tr("合并过程发生错误，请查看日志！"));
         return false;
     }
@@ -2590,16 +2600,21 @@ bool ApcSubject::notCommitWarning()
 
 //////////////////////////SubSysJoinCfgForm////////////////////////////////////////
 SubSysJoinCfgForm::SubSysJoinCfgForm(int src, int des, Account* account, QWidget *parent)
-    :QDialog(parent),ui(new Ui::SubSysJoinCfgForm),account(account),subSys(des)
+    :QDialog(parent),ui(new Ui::SubSysJoinCfgForm),account(account),pre_subSys(src),subSys(des)
 {
     ui->setupUi(this);
-    sSmg = account->getSubjectManager(src);
+    appCfg = AppConfig::getInstance();
+    if(account)
+        sSmg = account->getSubjectManager(src);
+    else
+        sSmg = 0;
     init();
 }
 
 SubSysJoinCfgForm::~SubSysJoinCfgForm()
 {
     delete ui;
+    qDeleteAll(temFstSubs);
 }
 
 /**
@@ -2616,13 +2631,13 @@ bool SubSysJoinCfgForm::save()
                 continue;
             editedItems<<ssjs.at(i);
         }
-        if(!account->saveSubSysJoinCfgInfo(sSmg->getSubSysCode(),subSys,editedItems))
+        if(!appCfg->getSubSysMaps(pre_subSys,subSys,editedItems))
             myHelper::ShowMessageBoxError(tr("在保存科目系统衔接配置信息时出错！"));
         if(determineAllComplete() && (QMessageBox::Yes ==
                 QMessageBox::warning(this,"",
                                      tr("如果确定所有科目都已正确对接，则单击是"),
                                      QMessageBox::Yes|QMessageBox::No))){
-            if(!AppConfig::getInstance()->setSubSysMapConfiged(sSmg->getSubSysCode(),subSys))
+            if(!appCfg->setSubSysMapConfiged(pre_subSys,subSys))
                 return false;
         }
     }
@@ -2659,15 +2674,20 @@ void SubSysJoinCfgForm::init()
     defJoinStr = "===>";
     mixedJoinStr = "----->";
     QHash<int,QString> names;
-    foreach(SubSysNameItem* item, account->getSupportSubSys())
+    QList<SubSysNameItem *> subSysLst;
+    if(account)
+        subSysLst = account->getSupportSubSys();
+    else
+        appCfg->getSubSysItems(subSysLst);
+    foreach(SubSysNameItem* item, subSysLst)
         names[item->code] = item->name;
-    ui->sSubSys->setText(names.value(sSmg->getSubSysCode()));
+    ui->sSubSys->setText(names.value(pre_subSys));
     ui->dSubSys->setText(names.value(subSys));
-    if(!account->getSubSysJoinCfgInfo(sSmg->getSubSysCode(),subSys,ssjs)){
+    if(!appCfg->getSubSysMaps(pre_subSys,subSys,ssjs)){
         myHelper::ShowMessageBoxError(tr("在读取科目系统衔接配置信息时出错！"));
         return;
     }
-    if(!AppConfig::getInstance()->getSubCodeToNameHash(subSys,subNames)){
+    if(!appCfg->getSubCodeToNameHash(subSys,subNames)){
         myHelper::ShowMessageBoxError(tr("在读取对接的科目系统的科目时发生错误！"));
         return;
     }
@@ -2681,7 +2701,12 @@ void SubSysJoinCfgForm::init()
         item = ssjs.at(i);
         ti = new QTableWidgetItem(item->scode);
         ui->tview->setItem(i,COL_INDEX_SUBCODE,ti);
-        fsub = sSmg->getFstSubject(item->scode);
+        if(sSmg)
+            fsub = sSmg->getFstSubject(item->scode);
+        else{
+            fsub = appCfg->getFirstSubject(pre_subSys,item->scode);
+            temFstSubs<<fsub;
+        }
         ti = new QTableWidgetItem(fsub?fsub->getName():"");
         ui->tview->setItem(i,COL_INDEX_SUBNAME,ti);
         ti = new QTableWidgetItem(item->isDef?defJoinStr:mixedJoinStr);
@@ -2696,7 +2721,10 @@ void SubSysJoinCfgForm::init()
     slSigns<<defJoinStr<<mixedJoinStr;
     slDisplays<<tr("默认对接")<<tr("混合对接");
     SubSysJoinCfgItemDelegate* delegate = new SubSysJoinCfgItemDelegate(subNames,slDisplays,slSigns);
-    isCompleted = account->isSubSysConfiged(subSys);
+    if(account)
+        isCompleted = account->isSubSysConfiged(subSys);
+    else
+        appCfg->getSubSysMapConfiged(pre_subSys,subSys,isCompleted);
     delegate->setReadOnly(isCompleted);
     ui->tview->setItemDelegate(delegate);
     connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(destinationSubChanged(QTableWidgetItem*)));
@@ -2967,7 +2995,7 @@ void ApcData::init(QByteArray *state)
             }
             readOnly = readOnly || (state == Ps_Jzed);
             if(!readOnly)
-                ui->edtRate->addAction(ui->actSetRate,QLineEdit::TrailingPosition);
+                ui->edtERate->addAction(ui->actSetRate,QLineEdit::TrailingPosition);
         }
         ui->month->setReadOnly(true);        
     }
@@ -2997,9 +3025,6 @@ void ApcData::init(QByteArray *state)
         //这里应加入将本币代码移到首位的代码，但考虑到实际使用时，本币为人民币且其代码最小
     }
     viewRates();
-    //if(!viewRates())
-    //    return;
-
     smg = account->getSubjectManager(asr->subSys);
     int fsubId = extraCfg?b_fsubId:e_fsubId;
     int ssubId = extraCfg?b_ssubId:e_ssubId;
@@ -3121,7 +3146,8 @@ void ApcData::curFSubChanged(int index)
     QListWidgetItem* item;
     foreach(SecondSubject* ssub, curFSub->getChildSubs(SORTMODE_NAME)){
         v.setValue<SecondSubject*>(ssub);
-        item = new QListWidgetItem(ssub->getName());
+        //item = new QListWidgetItem(ssub->getName());
+        item = new QListWidgetItem(QString("%1(%2)").arg(ssub->getName()).arg(ssub->getId()) );
         item->setData(Qt::UserRole,v);
         if(exist(ssub->getId()))
             item->setFont(boldFont);
@@ -3187,7 +3213,8 @@ void ApcData::curSSubChanged(int index)
 void ApcData::curMtChanged(int index)
 {
     int mt = ui->cmbRate->itemData(index).toInt();
-    ui->edtRate->setText(rates.value(mt).toString());
+    ui->edtSRate->setText(srates.value(mt).toString());
+    ui->edtERate->setText(erates.value(mt).toString());
 }
 
 void ApcData::adjustColWidth(int col, int oldSize, int newSize)
@@ -3244,7 +3271,7 @@ void ApcData::dataChanged(QTableWidgetItem *item)
                 pvs[key] = newValue;
                 //如果是外币金额发生改变，则自动根据汇率调整本币金额
                 if(mt != account->getMasterMt()->code()){
-                    Double mv = newValue * rates.value(mt);
+                    Double mv = newValue * erates.value(mt);
                     v.setValue<Double>(mv);
                     mvs[key] = mv;
                     ui->etables->item(row,CI_MV)->setData(Qt::EditRole,v);
@@ -3344,26 +3371,26 @@ void ApcData::on_save_clicked()
 }
 
 /**
- * @brief 更改期初汇率
+ * @brief 更改起账汇率
  */
 void ApcData::on_actSetRate_triggered()
 {
     QDialog dlg(this);
     QTableWidget tw(&dlg);
-    tw.setRowCount(rates.count());
+    tw.setRowCount(erates.count());
     tw.setColumnCount(2);
     QStringList titles;
     titles<<tr("币种")<<tr("汇率");
     tw.setHorizontalHeaderLabels(titles);
     QTableWidgetItem* item;
-    QHashIterator<int,Double> it(rates);
+    QHashIterator<int,Double> it(erates);
     int i = 0;
     while(it.hasNext()){
         it.next();
         item = new QTableWidgetItem(mts.value(it.key())->name());
         item->setData(Qt::UserRole,it.key());
         tw.setItem(i,0,item);
-        item = new QTableWidgetItem(rates.value(it.key()).toString());
+        item = new QTableWidgetItem(erates.value(it.key()).toString());
         tw.setItem(i,1,item);
         i++;
     }
@@ -3382,18 +3409,20 @@ void ApcData::on_actSetRate_triggered()
         for(int i = 0; i < tw.rowCount(); ++i){
             int mtCode = tw.item(i,0)->data(Qt::UserRole).toInt();
             Double rate = Double(tw.item(i,1)->text().toDouble(),4);
-            if(rate != rates.value(mtCode)){
-                rates[mtCode] = rate;
+            if(rate != erates.value(mtCode)){
+                erates[mtCode] = rate;
                 changed = true;
             }
         }
         if(changed){
-            if(!account->setRates(y,m,rates)){
-                myHelper::ShowMessageBoxError(tr("保存期初汇率时出错！"));
+            int yy,mm;
+            getNextMonth(y,m,yy,mm);
+            if(!account->setRates(yy,mm,erates)){
+                myHelper::ShowMessageBoxError(tr("保存起账汇率时出错！"));
                 return;
             }
             ui->cmbRate->clear();
-            QHashIterator<int,Double> it(rates);
+            QHashIterator<int,Double> it(erates);
             while(it.hasNext()){
                 it.next();
                 ui->cmbRate->addItem(mts.value(it.key())->name(),it.key());
@@ -3412,21 +3441,33 @@ void ApcData::on_actSetRate_triggered()
 
 /**
  * @brief 是否存在未设置汇率的外币
- * @return
+ * 如果是起账数据设置界面，则要求期末汇率必须完备，如果是余额显示，则期初和期末都必须完备
+ * @return true：汇率设置有遗漏
  */
 bool ApcData::isRateNull()
 {
     QList<Money*> mts = account->getWaiMt();
     if(mts.isEmpty())
         return false;
-    bool isExist = false;
+    bool isLack = false;
+    //首先检测期末汇率设置是否必须完备
     foreach(Money* m, mts){
-        if(rates.contains(m->code()))
+        if(erates.contains(m->code()))
             continue;
-        rates[m->code()] = 0;
-        isExist = true;
+        erates[m->code()] = 0;
+        isLack = true;
     }
-    return isExist;
+    if(isLack || extraCfg)
+        return isLack;
+    else{   //如果是余额显示，则还要检测期初汇率是否设置完备
+        foreach(Money* m, mts){
+            if(srates.contains(m->code()))
+                continue;
+            srates[m->code()] = 0;
+            isLack = true;
+        }
+    }
+    return isLack;
 }
 
 
@@ -3439,42 +3480,52 @@ bool ApcData::isRateNull()
 bool ApcData::viewRates()
 {
     disconnect(ui->cmbRate,SIGNAL(currentIndexChanged(int)),this,SLOT(curMtChanged(int)));
-    rates.clear();
+    srates.clear();
+    erates.clear();
     ui->cmbRate->clear();
-    ui->edtRate->clear();
-    if(!account->getRates(y,m,rates)){
-        myHelper::ShowMessageBoxError(tr("在读取期初汇率时出错（%1年%2月）").arg(y).arg(m));
+    ui->edtSRate->clear();
+    ui->edtERate->clear();
+    if(!account->getRates(y,m,srates)){
+        myHelper::ShowMessageBoxError(tr("在读取汇率时出错（%1年%2月）").arg(y).arg(m));
+        return false;
+    }
+    int yy,mm;
+    getNextMonth(y,m,yy,mm);
+    if(!account->getRates(yy,mm,erates)){
+        myHelper::ShowMessageBoxError(tr("在读取汇率时出错（%1年%2月）").arg(yy).arg(mm));
         return false;
     }
     if(isRateNull() && !readOnly){
-        myHelper::ShowMessageBoxWarning(tr("在输入期初余额前，如果要涉及到外币，则必须首先设置期初汇率！"));
+        myHelper::ShowMessageBoxWarning(tr("在配置期初数据前，如果要涉及到外币，则必须首先设置起账汇率！"));
         bool ok;
-        double rate;
-        QHashIterator<int,Double> it(rates);
+        double rate;        
+        int yy,mm;
+        getNextMonth(y,m,yy,mm);
+        QHashIterator<int,Double> it(erates);
         while(it.hasNext()){
             it.next();
             if(it.value() != 0)
                 continue;
             rate = QInputDialog::getDouble(this,tr("汇率输入"),
-                                           tr("请输入期初%1（%2年%3月）汇率：")
+                                           tr("请输入起账%1（%2年%3月）汇率：")
                                            .arg(mts.value(it.key())->name())
-                                           .arg(y).arg(m),1,0,100,4,&ok);
+                                           .arg(yy).arg(mm),1,0,100,4,&ok);
             if(!ok){
                 readOnly = true;
                 return false;
             }
-            rates[it.key()] = Double(rate,4);
+            erates[it.key()] = Double(rate,4);
         }
-        if(!account->setRates(y,m,rates)){
-            myHelper::ShowMessageBoxError(tr("在保存期初汇率时出错（%1年%2月）").arg(y).arg(m));
+        if(!account->setRates(yy,mm,erates)){
+            myHelper::ShowMessageBoxError(tr("在保存起账汇率时出错（%1年%2月）").arg(yy).arg(mm));
             readOnly = true;
             return false;
         }
         readOnly = false;
     }    
-    else if(rates.isEmpty() && readOnly)
-        myHelper::ShowMessageBoxWarning(tr("期初汇率未设置！"));
-    QHashIterator<int,Double> it(rates);
+    else if(erates.isEmpty() && readOnly)
+        myHelper::ShowMessageBoxWarning(tr("起账汇率未设置！"));
+    QHashIterator<int,Double> it(erates);
     while(it.hasNext()){
         it.next();
         ui->cmbRate->addItem(mts.value(it.key())->name(),it.key());
@@ -3618,6 +3669,18 @@ void ApcData::enAddBtn()
     if(curFSub->isUseForeignMoney())
         eitem = mtSorts.count();
     ui->add->setEnabled(eitem > ui->etables->rowCount());
+}
+
+void ApcData::getNextMonth(int y, int m, int &yy, int &mm)
+{
+    if(m == 12){
+        yy = y+1;
+        mm = 1;
+    }
+    else{
+        yy = y;
+        mm = m+1;
+    }
 }
 
 

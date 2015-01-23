@@ -19,12 +19,8 @@ class NABaseInfoDialog : public QDialog
 public:
     explicit NABaseInfoDialog(QWidget *parent = 0);
     ~NABaseInfoDialog();
-
 private slots:
-
-
     void on_btnOk_clicked();
-
 private:
     void init();
 

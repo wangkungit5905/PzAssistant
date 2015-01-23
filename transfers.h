@@ -127,6 +127,7 @@ public:
     
 private slots:
     void selectAccountChanged(int index);
+    void transInPhraseSelected(QString text);
 
     void on_cmbMachines_currentIndexChanged(int index);
 
@@ -157,6 +158,7 @@ public:
     ~TransferInDialog();
 
 private slots:
+    void transInPhraseSelected(QString text);
 
     void on_btnOk_clicked();
 
@@ -166,6 +168,7 @@ private:
     Ui::TransferInDialog *ui;
     TransferRecordManager* trMgr;    
     QString fileName;   //选择的要引入的账户的绝对文件名
+    AppConfig* conf;
 };
 
 #endif // TRANSFEROUTDIALOG_H

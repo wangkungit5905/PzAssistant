@@ -1018,10 +1018,10 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             LOG_INFO(QObject::tr("Find a second subject(id=%1) don't belong to any first subject!").arg(id));
             continue;
         }
-        int sid = q.value(SSUB_NID).toInt();
-        if(!smg->nameItems.contains(sid)){
-            LOG_INFO(QObject::tr("Find a name item(id=%1,fid=%2 %3,sid=%4) don't exist!")
-                     .arg(id).arg(fid).arg(fsub->getName()).arg(sid));
+        int nid = q.value(SSUB_NID).toInt();
+        if(!smg->nameItems.contains(nid)){
+            LOG_INFO(QObject::tr("Find a second subject reference a don't exist name item(id=%1,fid=%2 %3,nid=%4) !")
+                     .arg(id).arg(fid).arg(fsub->getName()).arg(nid));
             continue;
         }
         code = q.value(SSUB_SUBCODE).toString();
@@ -1030,7 +1030,7 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
 
         QDateTime disTime = QDateTime::fromString(q.value(SSUB_DISABLETIME).toString(),Qt::ISODate);
         int uid = q.value(SSUB_CREATOR).toInt();
-        ssub = new SecondSubject(fsub,id,smg->nameItems.value(sid),code,weight,isEnable,crtTime,disTime,allUsers.value(uid));
+        ssub = new SecondSubject(fsub,id,smg->nameItems.value(nid),code,weight,isEnable,crtTime,disTime,allUsers.value(uid));
         smg->sndSubs[id] = ssub;
         fsub->addChildSub(ssub);
         if(ssub->getWeight() == DEFALUT_SUB_WEIGHT)
@@ -1272,9 +1272,9 @@ bool DbUtil::nameItemIsUsed(SubjectNameItem *ni)
 }
 
 /**
- * @brief 查找会计分录表和余额表，是否指定的二级科目已被采用
+ * @brief 查找会计分录表和余额表，是否指定的二级科目已被引用
  * @param ssub
- * @return true：被采用了，false：未被采用
+ * @return true：被引用了，false：未被引用
  */
 bool DbUtil::ssubIsUsed(SecondSubject *ssub)
 {
@@ -1367,9 +1367,10 @@ bool DbUtil::ssubIsUsedInExtraTable(SecondSubject *ssub)
  * @param endMonth      结束月份
  * @param preSub        保留科目
  * @param mergedSubs    待合并科目
+ * @param isInclude     是否需要包含起账时的期初余额范围
  * @return
  */
-bool DbUtil::mergeSecondSubject(int startYear, int startMonth, int endYear, int endMonth, SecondSubject *preSub, QList<SecondSubject *> mergedSubs)
+bool DbUtil::mergeSecondSubject(int startYear, int startMonth, int endYear, int endMonth, SecondSubject *preSub, QList<SecondSubject *> mergedSubs,bool isInclude)
 {
     if(!db.transaction()){
         LOG_SQLERROR("Start transaction failed on merge second subject!");
@@ -1381,7 +1382,7 @@ bool DbUtil::mergeSecondSubject(int startYear, int startMonth, int endYear, int 
         LOG_ERROR("Replace second subject failed on merge second subject!");
         return false;
     }
-    if(!_mergeExtraWithinRange(startYear,startMonth,endYear,endMonth,preSub,mergedSubs)){
+    if(!_mergeExtraWithinRange(startYear,startMonth,endYear,endMonth,preSub,mergedSubs,isInclude)){
         if(!db.rollback())
             LOG_SQLERROR("Rollback transaction failed on merge second subject!");
         LOG_ERROR("Merge second subject extra failed on merge second subject!");
@@ -1403,10 +1404,12 @@ bool DbUtil::mergeSecondSubject(int startYear, int startMonth, int endYear, int 
  * @return
  */
 bool DbUtil::replaceMapSidWithReserved(SecondSubject *preSub, QList<SecondSubject *> mergedSubs)
-{
+{    
     QSqlQuery q(db);
     QString tableName = QString("%1_%2_%3").arg(tbl_ssjc_pre).arg(DEFAULT_SUBSYS_CODE)
             .arg(preSub->getParent()->parent()->getSubSysCode());
+    if(!tableExist(tableName))
+        return true;
     QString s = QString("select id,%1 from %2 where %3=%4").arg(fld_ssjc_ssubMaps)
             .arg(tableName).arg(fld_ssjc_dSub).arg(preSub->getParent()->getId());
     if(!q.exec(s)){
@@ -1863,7 +1866,7 @@ bool DbUtil::readExtraForFSub(int y, int m, int fid, QHash<int, Double> &v, QHas
 
 /**
  * @brief DbUtil::readExtraForSSub
- *  读取指定一级科目在指定年月的各币种余额
+ *  读取指定二级科目在指定年月的各币种余额
  * @param y     年
  * @param m     月
  * @param sid   二级科目id
@@ -4661,12 +4664,30 @@ bool DbUtil::_removeNameItem(SubjectNameItem *ni)
  * @param mergedSubs    待合并科目
  * @return
  */
-bool DbUtil::_mergeExtraWithinRange(int startYear, int startMonth, int endYear, int endMonth, SecondSubject *preSub, QList<SecondSubject *> mergedSubs)
+bool DbUtil::_mergeExtraWithinRange(int startYear, int startMonth, int endYear, int endMonth, SecondSubject *preSub, QList<SecondSubject *> mergedSubs,bool isInclude)
 {
-    for(int y = startYear; y < endYear; ++y){
+    //对于余额，还需要考虑起账时的期初余额，它将不会被包含在凭证所在的时间范围内，因此
+    //如果起始年月是账户的起账时间，则必须向前推进一月
+    int syy, smm;
+    if(isInclude){
+        if(startMonth == 1){
+            syy = startYear - 1;
+            smm = 12;
+        }
+        else{
+            syy = startYear;
+            smm = startMonth - 1;
+        }
+    }
+    else{
+        syy = startYear;
+        smm = startMonth;
+    }
+
+    for(int y = syy; y <= endYear; ++y){
         int sm,em;
-        if(y == startYear)
-            sm = startMonth;
+        if(y == syy)
+            sm = smm;
         else
             sm = 1;
         if(y == endYear)
@@ -4682,7 +4703,7 @@ bool DbUtil::_mergeExtraWithinRange(int startYear, int startMonth, int endYear, 
 }
 
 /**
- * @brief 将指定余额的待合并科目的余额合并到保留科目
+ * @brief 将指定年月中的待合并子目的余额合并到保留子目
  * @param year
  * @param month
  * @param preSub        保留科目
@@ -4716,11 +4737,13 @@ bool DbUtil::_mergeExtraWithinMonth(int year, int month, SecondSubject *preSub, 
 }
 
 /**
- * @brief 合并指定月份和币种的科目余额到保留科目
+ * @brief 合并指定月份和币种的待合并子目余额到保留子目
  *  余额指针唯一确定了余额的月份和币种
+ * 子目余额表分为两大类别（原币余额和本币余额）
+ *
  * @param point         余额指针
- * @param preSub        保留科目
- * @param mergedSubs    待合并科目
+ * @param preSub        保留子目
+ * @param mergedSubs    待合并子目
  * @param isPrimary     true：原币余额，false：本币余额
  * @return
  */
@@ -4734,12 +4757,13 @@ bool DbUtil::_mergeExtra(int point, SecondSubject *preSub, QList<SecondSubject *
     }
     subStr.chop(4);
     subStr.append(")");
-    QHash<int,MoneyDirection> ds;
-    QHash<int,Double> vs;
-    QList<int> rowIds;
-    Double preV;            //保留科目的余额
-    MoneyDirection preDir=MDIR_P;  //保留科目的余额方向
-    bool d_exist=false,v_exist=false;   //余额及其方向记录是否存在
+    QHash<int,MoneyDirection> ds;       //待合并子目的余额方向
+    QHash<int,Double> vs;               //待合并子目的余额值
+    QList<int> rowIds;                  //要调整的余额记录id列表
+    Double preV;                        //保留子目的余额值
+    MoneyDirection preDir=MDIR_P;       //保留子目的余额方向
+    bool d_exist=false,v_exist=false;   //保留子目的余额及其方向记录是否存在
+
     //如果是处理原币余额，则可以一次性读取余额及其方向
     if(isPrimary){
         s = QString("select id,%1,%2,%3 from %4 where %5=%6 and ").arg(fld_nse_sid)
@@ -4764,7 +4788,7 @@ bool DbUtil::_mergeExtra(int point, SecondSubject *preSub, QList<SecondSubject *
             }
         }
     }
-    else{ //否者，需要进行两次读取
+    else{ //否者，需要进行两次读取（从原币余额表中读取方向，从本币余额表中读取余额值）
         s = QString("select %1,%2 from %3 where %4=%5 and ").arg(fld_nse_sid)
                 .arg(fld_nse_dir).arg(tbl_nse_p_s).arg(fld_nse_pid).arg(point);
         s.append(subStr);
@@ -4799,6 +4823,7 @@ bool DbUtil::_mergeExtra(int point, SecondSubject *preSub, QList<SecondSubject *
                 vs[sid] = Double(q.value(2).toDouble());
             }
         }
+        //如果保留子目的值和方向没有同时存在，则视为余额记录的异常情形
         if((v_exist && !d_exist) || (!v_exist && d_exist)){
             LOG_ERROR("Extra value and direction not exist at same time!");
             return false;
@@ -4814,7 +4839,7 @@ bool DbUtil::_mergeExtra(int point, SecondSubject *preSub, QList<SecondSubject *
     while(it.hasNext()){
         it.next();
         if(!vs.contains(it.key())){
-            LOG_ERROR("Extra items not exist but extra direction items exist!");
+            LOG_ERROR("Extra value items not exist but extra direction items exist!");
             return false;
         }
         v = vs.value(it.key());
@@ -4822,6 +4847,7 @@ bool DbUtil::_mergeExtra(int point, SecondSubject *preSub, QList<SecondSubject *
             v.changeSign();
         sum += v;
     }
+    //移除待合并科目的余额记录
     QString tableName = isPrimary?tbl_nse_p_s:tbl_nse_m_s;
     if(!rowIds.isEmpty()){
         foreach(int id, rowIds){
@@ -4834,6 +4860,7 @@ bool DbUtil::_mergeExtra(int point, SecondSubject *preSub, QList<SecondSubject *
     }
     if(sum == 0) //汇总后的余额都相互抵消，则无须合并到保留科目
         return true;
+    //合并余额
     if(preDir == MDIR_D)
         preV.changeSign();
     preV += sum;
@@ -4930,19 +4957,20 @@ bool DbUtil::_replaceSidWithResorved(int startYear, int startMonth, int endYear,
 }
 
 /**
- * @brief 将指定时间范围内的凭证中包含的分录中的待合并科目用保留科目进行替换
+ * @brief 将指定时间范围内的凭证中包含的分录中的待合并子目用保留子目进行替换
  * @param startYear
  * @param startMonth
  * @param endYear
  * @param endMonth
- * @param preSub        保留科目
- * @param mergedSubs    待合并科目
+ * @param preSub        保留子目
+ * @param mergedSubs    待合并子目
  * @return
  */
 bool DbUtil::_replaceSidWithResorved2(int startYear, int startMonth, int endYear, int endMonth, SecondSubject *preSub, QList<SecondSubject *> mergedSubs)
 {
-    //反向解决方案，即首先读取所有相关分录（即分录所属凭证在参数指定的时间范围内，且其一级科目和二级科目匹配待合并科目）
-    //的id。这可以在一个查询语句完成。然后用此id列表逐条更新科目。
+    //反向解决方案，即首先读取所有相关分录（即分录所属凭证在参数指定的时间范围内，
+    //且其一级科目和二级科目匹配待合并子目）的id。这可以在一个查询语句完成。
+    //然后用此id列表逐条更新科目。
     QSqlQuery q(db);
     QDate date;
     date.setDate(startYear,startMonth,1);
@@ -5107,9 +5135,11 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
         BusiActionEditStates state = ba->getEditState();
         if(ba->getId() != UNID && state == ES_BA_INIT)
             continue;
-        //会计分录可能引用了一个新建的二级科目，因此要先保存该二级科目
-        if(ba->getSecondSubject() && ba->getSecondSubject()->getId() == 0){
-            if(!_saveSecondSubject(ba->getSecondSubject()))
+        //会计分录可能引用了一个新建的子目或改变了子目的启用性，因此要先保存该子目
+        SecondSubject* ssub = ba->getSecondSubject();
+        if(ssub && ((ssub->getId() == 0) /*||
+            ssub->getEditState().testFlag(ES_SS_ISENABLED)*/)){
+            if(!_saveSecondSubject(ssub))
                 return false;
         }
         if(ba->getId() == UNID){ //新会计分录

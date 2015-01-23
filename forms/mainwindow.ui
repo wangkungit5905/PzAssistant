@@ -166,6 +166,7 @@
      <addaction name="actSqlTool"/>
      <addaction name="actExpAppCfg"/>
      <addaction name="actImpAppCfg"/>
+     <addaction name="actCrtAccoutFromOld"/>
      <addaction name="actUpdateSql"/>
      <addaction name="actExtComSndSub"/>
     </widget>
@@ -173,8 +174,9 @@
      <property name="title">
       <string>管理员工具</string>
      </property>
-     <addaction name="actTaxCompare"/>
      <addaction name="actNoteMgr"/>
+     <addaction name="actShowSusSybJoinCfg"/>
+     <addaction name="actTaxCompare"/>
      <addaction name="actImpPzSet"/>
     </widget>
     <widget class="QMenu" name="mnuExternalTools">
@@ -1200,6 +1202,19 @@
    </property>
    <property name="toolTip">
     <string>导入安全模块设置</string>
+   </property>
+  </action>
+  <action name="actCrtAccoutFromOld">
+   <property name="text">
+    <string>创建新账户（从老账户）</string>
+   </property>
+  </action>
+  <action name="actShowSusSybJoinCfg">
+   <property name="text">
+    <string>查看科目系统衔接配置</string>
+   </property>
+   <property name="toolTip">
+    <string>查看相邻两个科目系统之间科目的对接配置</string>
    </property>
   </action>
  </widget>

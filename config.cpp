@@ -36,7 +36,11 @@ AppConfig::AppConfig()
 
 AppConfig::~AppConfig()
 {
-    exit();
+    exit();    
+    qDeleteAll(subSysNames);
+    qDeleteAll(moneyTypes);
+    qDeleteAll(machines);
+    qDeleteAll(accountCaches);
 }
 
 
@@ -866,9 +870,7 @@ bool AppConfig::getSubSysMaps2(int scode, int dcode, QHash<QString, QString> &de
  * @brief 获取指定科目系统之间的科目对接配置信息
  * @param scode     旧科目系统代码
  * @param dcode     新科目系统代码
- * @param scodes    源科目代码列表
- * @param dcodes    对接科目代码列表
- * @param isDefs    是默认对接还是混合（并入）对接
+ * @param cfgs      源科目代码列表
  * @return
  */
 bool AppConfig::getSubSysMaps(int scode, int dcode, QList<SubSysJoinItem2*>& cfgs)
@@ -955,7 +957,7 @@ bool AppConfig::saveSubSysMaps(int scode, int dcode, QList<SubSysJoinItem2 *> cf
  * @brief 获取所有非默认（混合）对接科目的对接配置
  * @param scode
  * @param dcode
- * @param codeMaps  键为源一级科目代码，值为混合对接到的一级科目代码
+ * @param codeMaps  键为源一级科目代码，值为混合对接到目的一级科目代码
  * @return
  */
 bool AppConfig::getNotDefSubSysMaps(int scode, int dcode, QHash<QString, QString> &codeMaps)
@@ -1751,6 +1753,185 @@ bool AppConfig::clearAndSaveRightTypes(QList<RightType *> rightTypes, int mv, in
 }
 
 /**
+ * @brief 解析版本号
+ * 版本字符串形如：“version=1.0”
+ * @param text
+ * @param mv
+ * @param sv
+ * @return
+ */
+bool AppConfig::parseVersionFromText(QString text, int &mv, int &sv)
+{
+    QStringList sl = text.split("=");
+    if(sl.count() != 2)
+        return false;
+    if(sl.at(0) != "version")
+        return false;
+    sl = sl.at(1).split(".");
+    if(sl.count() != 2)
+        return false;
+    bool ok;
+    mv = sl.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = sl.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+    return true;
+}
+
+bool AppConfig::savePhases(QList<CommonPromptPhraseClass> cs, QList<int> nums, QStringList ps)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start Transaction failed on save common prompt phrase!");
+        return false;
+    }
+
+    QString s = QString("insert into %1(%2,%3,%4) values(:c,:n,:p)").arg(tbl_base_commonPromptPhrase)
+            .arg(fld_base_cpp_class).arg(fld_base_cpp_number).arg(fld_base_cpp_phrase);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    for(int i = 0; i < cs.count(); ++i){
+        q.bindValue(":c",cs.at(i));
+        q.bindValue(":n",nums.at(i));
+        q.bindValue(":p",ps.at(i));
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+    }
+
+    if(!db.commit()){
+        LOG_SQLERROR("Commit Transaction failed on save common prompt phrase!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 读取指定类别的常用提示短语
+ * @param pClass
+ * @param phrases
+ * @return
+ */
+bool AppConfig::readPhases(CommonPromptPhraseClass pClass, QHash<int, QString>& phrases)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2=%3 order by %4").arg(tbl_base_commonPromptPhrase)
+            .arg(fld_base_cpp_class).arg(pClass).arg(fld_base_cpp_number);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int num = q.value(FI_BASE_CPP_NUMBER).toInt();
+        phrases[num] = q.value(FI_BASE_CPP_PHRASE).toString();
+    }
+    return true;
+}
+
+/**
+ * @brief 序列化常用提示短语配置到字节数组
+ * @param ba
+ * @return
+ */
+bool AppConfig::serialCommonPhraseToBinary(QByteArray *ba)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 order by %2,%3").arg(tbl_base_commonPromptPhrase)
+            .arg(fld_base_cpp_class).arg(fld_base_cpp_number);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    int mv,sv;
+    getAppCfgVersion(mv,sv,BDVE_COMMONPHRASE);
+    QBuffer bf(ba);
+    QTextStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
+    while(q.next()){
+        out<<q.value(FI_BASE_CPP_CLASS).toInt()<<"||";
+        out<<q.value(FI_BASE_CPP_NUMBER).toInt()<<"||";
+        out<<q.value(FI_BASE_CPP_PHRASE).toString()<<"\n";
+    }
+    bf.close();
+    return true;
+}
+
+/**
+ * @brief 从字节数组中恢复常用短语配置信息
+ * @param ba
+ * @return
+ */
+bool AppConfig::serialCommonPhraseFromBinary(QByteArray *ba)
+{
+    QBuffer bf(ba);
+    QTextStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    int mv,sv;
+    if(!parseVersionFromText(in.readLine(),mv,sv))
+        return false;
+    QList<CommonPromptPhraseClass> cs;
+    QList<int> ns; QStringList ps;
+    while(!in.atEnd()){
+        QString s = in.readLine();
+        QStringList sl = s.split("||");
+        if(sl.count() != 3){
+            LOG_ERROR(QString("Common phrase format error! text is '%1'").arg(s));
+            return false;
+        }
+        bool ok = true, ok1;
+        cs<<(CommonPromptPhraseClass)sl.at(0).toInt(&ok1);
+        ok &= ok1;
+        ns<<sl.at(1).toInt(&ok1);
+        ok &= ok1;
+        ps<<sl.at(2);
+        if(!ok){
+            LOG_ERROR(QString("Common phrase format error! text is '%1'").arg(s));
+            return false;
+        }
+    }
+    QSqlQuery q(db);
+    QString s = QString("delete from %1").arg(tbl_base_commonPromptPhrase);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!savePhases(cs,ns,ps))
+        return false;
+    if(!setAppCfgVersion(BDVE_COMMONPHRASE,mv,sv))
+        return false;
+    bf.close();
+    return true;
+}
+
+/**
+ * @brief 返回表示指定科目系统的指定代码的一级科目对象
+ * 该对象不能实际使用于账户中，仅用于临时使用（比如查看科目系统配置信息窗口使用）
+ * @param subSysCode
+ * @param subCode
+ * @return
+ */
+FirstSubject *AppConfig::getFirstSubject(int subSysCode, QString subCode)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2=%3 and %4=%5").arg(tbl_base_fsub)
+            .arg(fld_base_fsub_subsys).arg(subSysCode).arg(fld_base_fsub_subcode)
+            .arg(subCode);
+    if(!q.exec(s) || !q.first())
+        return 0;
+    QString name = q.value(FI_BASE_FSUB_SUBNAME).toString();
+    QString remCode = q.value(FI_BASE_FSUB_REMCODE).toString();
+    SubjectClass cls = (SubjectClass)q.value(FI_BASE_FSUB_CLS).toInt();
+    bool jdDir = q.value(FI_BASE_FSUB_JDDIR).toBool();
+    return new FirstSubject(0,0,cls,name,subCode,remCode,0,true,jdDir,false,"","",subSysCode);
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  账户代码必须由大于1000的四位数组成，且不能重复
@@ -1784,25 +1965,27 @@ bool AppConfig::_saveAccountCacheItem(AccountCacheItem *accInfo)
     QString s;
     bool isNew = (accInfo->id == UNID);
     if(!isNew){
-        s = QString("update %1 set %2='%3',%4='%5',%6='%7',%8=%9,%10=%11,%12='%13',%14=%15,%16='%17' where id=%18")
+        s = QString("update %1 set %2='%3',%4='%5',%6='%7',%8=%9,%10=%11,%12='%13',%14=%15,%16='%17',%18=%19 where id=%20")
                 .arg(tbl_localAccountCache).arg(fld_lac_name).arg(accInfo->accName)
                 .arg(fld_lac_lname).arg(accInfo->accLName).arg(fld_lac_filename)
                 .arg(accInfo->fileName).arg(fld_lac_isLastOpen).arg(accInfo->lastOpened?1:0)
                 .arg(fld_lac_tranState).arg(accInfo->tState).arg(fld_lac_tranInTime)
-                .arg(accInfo->inTime.toString(Qt::ISODate)).arg(fld_lac_tranOutMid)
-                .arg(accInfo->mac->getMID()).arg(fld_lac_tranOutTime)
-                .arg(accInfo->outTime.toString(Qt::ISODate)).arg(accInfo->id);
+                .arg(accInfo->inTime.toString(Qt::ISODate)).arg(fld_lac_tranSrcMid)
+                .arg(accInfo->s_ws->getMID()).arg(fld_lac_tranOutTime)
+                .arg(accInfo->outTime.toString(Qt::ISODate)).arg(fld_lac_tranDesMid)
+                .arg(accInfo->d_ws->getMID()).arg(accInfo->id);
 
     }
     else{
-        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10) values('%11','%12','%13','%14',0,%15,'%16',%17,'%18')")
+        s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11) values('%12','%13','%14','%15',0,%16,'%17',%18,'%19',%20)")
                 .arg(tbl_localAccountCache).arg(fld_lac_code).arg(fld_lac_name)
                 .arg(fld_lac_lname).arg(fld_lac_filename).arg(fld_lac_isLastOpen)
-                .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranOutMid)
-                .arg(fld_lac_tranOutTime).arg(accInfo->code).arg(accInfo->accName)
+                .arg(fld_lac_tranState).arg(fld_lac_tranInTime).arg(fld_lac_tranSrcMid)
+                .arg(fld_lac_tranOutTime).arg(fld_lac_tranDesMid).arg(accInfo->code).arg(accInfo->accName)
                 .arg(accInfo->accLName).arg(accInfo->fileName)/*.arg(accInfo->lastOpened)*/
                 .arg(accInfo->tState).arg(accInfo->inTime.toString(Qt::ISODate))
-                .arg(accInfo->mac->getMID()).arg(accInfo->outTime.toString(Qt::ISODate));
+                .arg(accInfo->s_ws->getMID()).arg(accInfo->outTime.toString(Qt::ISODate))
+                .arg(accInfo->d_ws->getMID());
 
     }
     if(!q.exec(s)){
@@ -1810,7 +1993,6 @@ bool AppConfig::_saveAccountCacheItem(AccountCacheItem *accInfo)
         return false;
     }
     if(isNew){
-        //accountCaches<<accInfo;
         s = "select last_insert_rowid()";
         if(!q.exec(s)){
             LOG_SQLERROR(s);
@@ -1895,8 +2077,8 @@ bool AppConfig::_searchAccount()
         //如果账户不存在转移记录（未升级账户文件，没有相应的转移表），则先将它视作有一条初始的本机转入本机的转移记录
         //在下次打开该账户时，升级账户时将创建相应的转移表和转移记录
         if(!q.exec(s) || !q.last()){
-            accItem->mac = getLocalStation();
-            if(!accItem->mac){
+            accItem->s_ws = getLocalStation();
+            if(!accItem->s_ws){
                 myHelper::ShowMessageBoxWarning(QObject::tr("账户文件“%1”不存在转移记录，且未配置本站信息，无法初始化转移记录，忽略此账户！"));
                 delete accItem;
                 continue;
@@ -1906,15 +2088,22 @@ bool AppConfig::_searchAccount()
             accItem->tState = ATS_TRANSINDES;
         }
         else{
-            accItem->mac = machines.value(q.value(TRANS_SMID).toInt());
-            if(!accItem->mac){
-                myHelper::ShowMessageBoxWarning(QObject::tr("账户文件“%1”来自不明站点，忽略！").arg(accItem->fileName));
+            accItem->tState = (AccountTransferState)q.value(TRANS_STATE).toInt();
+            accItem->s_ws = machines.value(q.value(TRANS_SMID).toInt());
+            accItem->d_ws = machines.value(q.value(TRANS_DMID).toInt());
+            if(!accItem->s_ws){
+                myHelper::ShowMessageBoxWarning(QObject::tr("账户文件“%1”来源站不明，忽略！").arg(accItem->fileName));
+                delete accItem;
+                continue;
+            }
+            if(!accItem->d_ws){
+                myHelper::ShowMessageBoxWarning(QObject::tr("账户文件“%1”去向站不明，忽略！").arg(accItem->fileName));
                 delete accItem;
                 continue;
             }
             accItem->outTime = QDateTime::fromString(q.value(TRANS_OUTTIME).toString(),Qt::ISODate);
             accItem->inTime = QDateTime::fromString(q.value(TRANS_INTIME).toString(),Qt::ISODate);
-            accItem->tState = (AccountTransferState)q.value(TRANS_STATE).toInt();
+
         }
         accountCaches<<accItem;
     }
@@ -1976,7 +2165,8 @@ bool AppConfig::_initAccountCaches()
         item->accLName = q.value(LAC_LNAME).toString();
         item->fileName = q.value(LAC_FNAME).toString();
         item->lastOpened = q.value(LAC_ISLAST).toBool();
-        item->mac = machines.value(q.value(LAC_MAC).toInt());
+        item->s_ws = machines.value(q.value(LAC_SMAC).toInt());
+        item->d_ws = machines.value(q.value(LAC_DMAC).toInt());
         item->outTime = q.value(LAC_OUTTIME).toDateTime();
         item->inTime = q.value(LAC_INTIME).toDateTime();
         item->tState = (AccountTransferState)q.value(LAC_TSTATE).toInt();

@@ -100,7 +100,13 @@
      <widget class="QWidget" name="pNote">
       <layout class="QHBoxLayout" name="horizontalLayout_3">
        <item>
-        <widget class="QTextEdit" name="NoteTexts"/>
+        <widget class="QTextEdit" name="NoteTexts">
+         <property name="font">
+          <font>
+           <pointsize>12</pointsize>
+          </font>
+         </property>
+        </widget>
        </item>
       </layout>
      </widget>

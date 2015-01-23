@@ -137,6 +137,8 @@ bool Account::createNewAccount(QString fileName, QString code, QString name, QSt
         error = tr("在记录首条转移记录描述信息时出错！");
         return false;
     }
+    db.close();
+    QSqlDatabase::removeDatabase(connName);
     return true;
 }
 
@@ -457,7 +459,6 @@ Account::~Account()
     qDeleteAll(suiteHash);
     qDeleteAll(suiteRecords);
     qDeleteAll(smgs);
-    qDeleteAll(subSysLst);
     qDeleteAll(banks);
 }
 

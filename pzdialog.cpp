@@ -348,7 +348,6 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     validator->setDecimals(2);
     ui->edtRate->setValidator(validator);
     connect(msgTimer, SIGNAL(timeout()),this,SLOT(msgTimeout()));
-    //connect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
     if(!psm){
         LOG_ERROR("Ping Zheng Set object is NULL!");
         return;
@@ -661,11 +660,11 @@ void PzDialog::removePz()
 bool PzDialog::crtJzhdPz()
 {
     if(pzMgr->getState() != Ps_AllVerified){
-        QMessageBox::warning(0,tr("警告信息"),tr("凭证集内存在未审核凭证，不能结转！"));
+        myHelper::ShowMessageBoxWarning(tr("凭证集内存在未审核凭证，不能结转！"));
         return true;
     }
     if(!pzMgr->getExtraState()){
-        QMessageBox::warning(0,tr("警告信息"),tr("余额无效，请重新进行统计并保存正确余额！"));
+        myHelper::ShowMessageBoxWarning(tr("余额无效，请重新进行统计并保存正确余额！"));
         return true;
     }
     //因为汇兑损益的结转要涉及到期末汇率，即下期的汇率，要求用户确认汇率是否正确
@@ -799,6 +798,31 @@ bool PzDialog::crtJzsyPz()
     }
     pzMgr->getUndoStack()->push(mainCmd);
     refreshPzContent();
+    return true;
+}
+
+/**
+ * @brief 结转损益类科目余额到本年利润
+ * @return
+ */
+bool PzDialog::crtJzbnlr()
+{
+    if(pzMgr->getState() != Ps_AllVerified){
+        myHelper::ShowMessageBoxWarning(tr("凭证集内存在未审核凭证，不能结转！"));
+        return true;
+    }
+    if(!pzMgr->getExtraState()){
+        myHelper::ShowMessageBoxWarning(tr("余额无效，请重新进行统计并保存正确余额！"));
+        return true;
+    }
+
+    //QList<PingZheng*> oldPzs;
+    //考虑到实际这个功能好像不太需要
+    //余下未实现的：
+    //1、获取原有的结转利润凭证（可能有，可能没有），如果有，提示用户是否继续创建新的覆盖原有的
+    //2、调用pzMgr创建结转利润凭证
+
+    myHelper::ShowMessageBoxWarning(tr("功能未实现，如果确实需要，请联系开发人员！"));
     return true;
 }
 
@@ -1076,7 +1100,11 @@ void PzDialog::processShortcut()
  */
 void PzDialog::save()
 {
-    //LOG_INFO("shortcut save is actived!");
+    if(!needSaveSSubs.isEmpty()){
+        foreach(SecondSubject* ssub, needSaveSSubs)
+            subMgr->saveSS(ssub);
+        needSaveSSubs.clear();
+    }
     pzMgr->save(AccountSuiteManager::SW_ALL);
 }
 
@@ -1314,11 +1342,20 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir());
         pzMgr->getUndoStack()->push(multiCmd);
         break;
-    case BT_SNDSUB:
+    case BT_SNDSUB:{
         if(isInteracting)
             return;
         fsub = curBa->getFirstSubject();
         ssub = item->data(Qt::EditRole).value<SecondSubject*>();
+        bool isEnChenged = false;
+        if(!ssub->isEnabled()){
+            if(QDialog::Rejected == myHelper::ShowMessageBoxQuesion(tr("二级科目“%1”已被禁用，是否重新启用？").arg(ssub->getName()))){
+               QVariant v; v.setValue(curBa->getSecondSubject());
+               item->setData(Qt::EditRole,v);
+               return;
+            }
+            isEnChenged = true;
+        }
         //如果是银行科目，则根据银行账户所属的币种设置币种对象
         if(subMgr->getBankSub() == fsub){
             mt = subMgr->getSubMatchMt(ssub);
@@ -1339,22 +1376,30 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         else{//如果是普通科目，且未设币种，则默认将币种设为本币
             if(!curBa->getMt()){
                 mt = account->getMasterMt();
-                v = curBa->getValue();
                 updateCols |= BUC_MTYPE;
-                updateCols |= BUC_VALUE;
             }
             else
                 mt = curBa->getMt();
+            v = curBa->getValue();
         }
-        multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir());
-        pzMgr->getUndoStack()->push(multiCmd);
+        if(isEnChenged){
+            QUndoCommand* mmd  = new QUndoCommand;
+            ModifySndSubEnableProperty* cmdSSub = new ModifySndSubEnableProperty(ssub,true,mmd);
+            cmdSSub->setCreator(this);
+            multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir(),mmd);
+            pzMgr->getUndoStack()->push(mmd);
+        }
+        else{
+            multiCmd = new ModifyMultiPropertyOnBa(curBa,fsub,ssub,mt,v,curBa->getDir());
+            pzMgr->getUndoStack()->push(multiCmd);
+        }
         if(ssub){
             QString tip = ssub->getLName();
             if(fsub == subMgr->getBankSub())
                 tip.append(tr("（帐号：%1）").arg(subMgr->getBankAccount(ssub)->accNumber));
             ui->tview->setLongName(tip);
         }
-        break;
+        break;}
     case BT_MTYPE:
         mt = item->data(Qt::EditRole).value<Money*>();
         updateCols |= BUC_MTYPE;
@@ -1938,24 +1983,24 @@ bool PzDialog::isBlankLastRow()
  * 处理拷贝、剪切和粘贴操作
  * @param witch（）
  */
-void PzDialog::copyCutPaste(ClipboardOperate witch)
-{
-    if(witch == CO_COPY){
-        QList<int> rows; bool isc;
-        ui->tview->selectedRows(rows,isc);
-        if(rows.empty())
-            return;
-        clb_Bas.clear();
-        foreach(int i, rows)
-            clb_Bas<<curPz->getBusiAction(i);
-    }
-    else if(witch == CO_CUT){
+//void PzDialog::copyCutPaste(ClipboardOperate witch)
+//{
+//    if(witch == CO_COPY){
+//        QList<int> rows; bool isc;
+//        ui->tview->selectedRows(rows,isc);
+//        if(rows.empty())
+//            return;
+//        clb_Bas.clear();
+//        foreach(int i, rows)
+//            clb_Bas<<curPz->getBusiAction(i);
+//    }
+//    else if(witch == CO_CUT){
 
-    }
-    else{
+//    }
+//    else{
 
-    }
-}
+//    }
+//}
 
 /**
  * @brief PzDialog::installInfoWatch 连接或断开凭证内容被编辑的信号

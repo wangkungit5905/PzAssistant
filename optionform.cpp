@@ -2,6 +2,7 @@
 #include "widgets.h"
 #include "subject.h"
 #include "myhelper.h"
+#include "mainwindow.h"
 #include "ui_appcommcfgpanel.h"
 #include "ui_pztemplateoptionform.h"
 #include "ui_stationcfgform.h"
@@ -179,9 +180,17 @@ StationCfgForm::StationCfgForm(QWidget *parent) : ConfigPanelBase(parent), ui(ne
     setEditState();
 }
 
+void StationCfgForm::setListener(MainWindow *listener)
+{
+    if(listener)
+        conn = connect(this,SIGNAL(localStationChanged(Machine*)),
+                       listener,SLOT(localStationChanged(Machine*)));
+}
+
 StationCfgForm::~StationCfgForm()
 {
     delete ui;
+    disconnect(conn);
 }
 
 bool StationCfgForm::isDirty()
@@ -199,17 +208,30 @@ bool StationCfgForm::isDirty()
 
 bool StationCfgForm::save()
 {
+    AppConfig* acfg = AppConfig::getInstance();
+    Machine* lm;
+    bool lmChanged = false;
     QList<Machine*> ms;
     for(int i = 0; i < ui->lwStations->count(); ++i){
         QListWidgetItem* item = ui->lwStations->item(i);
-        if(item->data(DR_ES).toBool())
-            ms<<item->data(DR_OBJ).value<Machine*>();
+        if(item->data(DR_ES).toBool()){
+            Machine* m = item->data(DR_OBJ).value<Machine*>();
+            ms<<m;
+            if(m->isLocalStation() && (localMID != m->getMID() ||
+                                       lName != m->name() ||
+                                       lDesc != m->description())){
+                lm = m;
+                lmChanged = true;
+            }
+        }
     }
-    AppConfig* acfg = AppConfig::getInstance();
+
     if(!acfg->saveMachines(ms)){
         myHelper::ShowMessageBoxError(tr("保存工作站信息时出错，请查看日志！"));
         return false;
     }
+    if(lmChanged)
+        emit localStationChanged(lm);
     if(!msDels.isEmpty()){
         foreach(Machine* mac, msDels){
             if(!acfg->removeMachine(mac)){
@@ -267,6 +289,11 @@ void StationCfgForm::loadStations()
         QVariant v; v.setValue<Machine*>(m);
         item->setData(DR_OBJ,v);
         item->setData(DR_ES,false);
+        if(m->isLocalStation()){
+            localMID = m->getMID();
+            lName = m->name();
+            lDesc = m->description();
+        }
     }
 }
 

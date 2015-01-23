@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,2,3">
+  <layout class="QHBoxLayout" name="horizontalLayout_3" stretch="1,2,5">
    <item>
     <widget class="QListWidget" name="fsubs"/>
    </item>
@@ -62,22 +62,36 @@
         </spacer>
        </item>
        <item>
+        <widget class="QComboBox" name="cmbRate"/>
+       </item>
+       <item>
         <widget class="QLabel" name="label">
          <property name="text">
-          <string>期初汇率：</string>
+          <string>期初汇率</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QComboBox" name="cmbRate"/>
-       </item>
-       <item>
-        <widget class="QLineEdit" name="edtRate">
+        <widget class="QLineEdit" name="edtSRate">
          <property name="contextMenuPolicy">
-          <enum>Qt::ActionsContextMenu</enum>
+          <enum>Qt::NoContextMenu</enum>
          </property>
          <property name="readOnly">
           <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="label_4">
+         <property name="text">
+          <string>期末汇率</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLineEdit" name="edtERate">
+         <property name="contextMenuPolicy">
+          <enum>Qt::ActionsContextMenu</enum>
          </property>
         </widget>
        </item>

@@ -2,6 +2,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QSqlError>
+#include <QTableWidget>
 
 #include "global.h"
 #include "config.h"
@@ -367,6 +368,9 @@ bool TransferRecordManager::upgradeAppCfg()
         case BDVE_WORKSTATION:
             name = tr("工作站");
             break;
+        case BDVE_COMMONPHRASE:
+            name = tr("常用提示短语");
+            break;
         }
         names<<name;
         objs<<new QByteArray(q.value(FI_TEM_APPCFG_OBJECT).toByteArray());
@@ -500,6 +504,10 @@ bool TransferRecordManager::upgradeAppCfg()
                 localMacs.clear();
                 localMacs = conf->getAllMachines();
             }
+        }
+        else if(verType == BDVE_COMMONPHRASE){
+            if(!conf->serialCommonPhraseFromBinary(objs.at(i)))
+                myHelper::ShowMessageBoxError(tr("升级常用提示短语时发生错误！"));
         }
     }
     q.finish();
@@ -654,7 +662,17 @@ TransferOutDialog::TransferOutDialog(QWidget *parent) : QDialog(parent), ui(new 
     ui->cmbAccount->setCurrentIndex(-1);
     ui->cmbMachines->setCurrentIndex(-1);
     connect(ui->cmbAccount,SIGNAL(currentIndexChanged(int)),this,SLOT(selectAccountChanged(int)));
-    ui->edtDesc->setPlainText(tr("转出做帐"));
+
+    QHash<int,QString> phrases;
+    conf->readPhases(CPPC_TRAN_OUT,phrases);
+    QList<int> keys = phrases.keys();
+    qSort(keys.begin(),keys.end());
+    for(int i = 0; i < keys.count(); ++i){
+        int key = keys.at(i);
+        ui->cmbComDesc->addItem(phrases.value(key),key);
+    }
+    ui->cmbComDesc->setCurrentIndex(-1);
+    connect(ui->cmbComDesc,SIGNAL(currentIndexChanged(QString)),this,SLOT(transInPhraseSelected(QString)));
 }
 
 TransferOutDialog::~TransferOutDialog()
@@ -695,7 +713,7 @@ QString TransferOutDialog::getDescription()
 bool TransferOutDialog::isTakeAppConInfo()
 {
     return ui->chkRightType->isChecked()||ui->chkRight->isChecked()||ui->chkUser->isChecked()||
-           ui->chkWS->isChecked()||ui->chkGroup->isChecked();
+           ui->chkWS->isChecked()||ui->chkGroup->isChecked()||ui->chkPhrases->isChecked();
 }
 
 QDir TransferOutDialog::getDirection()
@@ -719,6 +737,11 @@ void TransferOutDialog::selectAccountChanged(int index)
         if(acc->tState != ATS_TRANSINDES)
             myHelper::ShowMessageBoxWarning(tr("所选账户上次转入时目的工作站不是本站"));
     }
+}
+
+void TransferOutDialog::transInPhraseSelected(QString text)
+{
+    ui->edtDesc->setPlainText(text);
 }
 
 /**
@@ -752,7 +775,7 @@ void TransferOutDialog::on_cmbMachines_currentIndexChanged(int index)
 void TransferOutDialog::on_btnBrowser_clicked()
 {
     QFileDialog dlg;
-    dlg.setFileMode(QFileDialog::Directory);
+    dlg.setFileMode(QFileDialog::DirectoryOnly);
     dlg.setNameFilter("Sqlite files(*.dat)");
     dlg.setDirectory(dir.absolutePath());
     if(dlg.exec() == QDialog::Rejected)
@@ -825,12 +848,21 @@ void TransferOutDialog::on_btnOk_clicked()
             User::serialAllToBinary(mv,sv,ba);
             infos<<ba;
         }
-        if(ui->chkWS){
+        if(ui->chkWS->isChecked()){
             verTypes<<BDVE_WORKSTATION;
             QByteArray* ba = new QByteArray;
             int mv,sv;
             conf->getAppCfgVersion(mv,sv,BDVE_WORKSTATION);
             Machine::serialAllToBinary(mv,sv,ba);
+            infos<<ba;
+        }
+        if(ui->chkPhrases->isChecked()){
+            verTypes<<BDVE_COMMONPHRASE;
+            QByteArray* ba = new QByteArray;
+            if(!conf->serialCommonPhraseToBinary(ba)){
+                myHelper::ShowMessageBoxError(tr("在捎带常用提示短语配置信息时发生错误！"));
+
+            }
             infos<<ba;
         }
         conf->getAppCfgVersions(verTypes,verNames,mvs,svs);
@@ -841,7 +873,8 @@ void TransferOutDialog::on_btnOk_clicked()
     //2、修改本地的账户缓存记录
     AccountCacheItem* acc = accCacheItems.at(ui->cmbAccount->currentIndex());
     acc->outTime = QDateTime::currentDateTime();
-    acc->mac = rec.m_in;
+    acc->s_ws = rec.m_out;
+    acc->d_ws = rec.m_in;
     acc->tState = ATS_TRANSOUTED;
     if(!conf->saveAccountCacheItem(acc)){
         myHelper::ShowMessageBoxError(tr("在保存本地账户缓存项目时出错，无法执行转出操作！"));
@@ -923,11 +956,28 @@ TransferInDialog::TransferInDialog(QWidget *parent) : QDialog(parent), ui(new Ui
 {
     ui->setupUi(this);
     trMgr = NULL;
+    conf = AppConfig::getInstance();
+    QHash<int,QString> phrases;
+    conf->readPhases(CPPC_TRAN_IN,phrases);
+    QList<int> keys = phrases.keys();
+    qSort(keys.begin(),keys.end());
+    for(int i = 0; i < keys.count(); ++i){
+        int key = keys.at(i);
+        ui->cmbComDesc->addItem(phrases.value(key),key);
+    }
+    ui->cmbComDesc->setCurrentIndex(-1);
+    connect(ui->cmbComDesc,SIGNAL(currentIndexChanged(QString)),this,SLOT(transInPhraseSelected(QString)));
+
 }
 
 TransferInDialog::~TransferInDialog()
 {
     delete ui;
+}
+
+void TransferInDialog::transInPhraseSelected(QString text)
+{
+    ui->edtInDesc->setPlainText(text);
 }
 
 /**
@@ -967,7 +1017,6 @@ void TransferInDialog::on_btnOk_clicked()
 
     trMgr->setFilename(desFName);
     AccontTranferInfo* tranRec = trMgr->getLastTransRec();
-    AppConfig* conf = AppConfig::getInstance();
     if(tranRec->m_in == conf->getLocalStation())
         tranRec->tState = ATS_TRANSINDES;
     else
@@ -994,7 +1043,8 @@ void TransferInDialog::on_btnOk_clicked()
         ci->fileName = QFileInfo(fileName).fileName();
         ci->lastOpened = false;
     }
-    ci->mac = tranRec->m_out;
+    ci->s_ws = tranRec->m_out;
+    ci->d_ws = tranRec->m_in;
     ci->inTime = QDateTime::currentDateTime();
     ci->outTime = tranRec->t_out;
     if(tranRec->m_in->getMID() == conf->getLocalStation()->getMID())
@@ -1075,8 +1125,8 @@ void TransferInDialog::on_btnSelectFile_clicked()
         tw.setItem(0,1,new QTableWidgetItem(trInfo->m_out?QString::number(trInfo->m_out->getMID()):""));
         tw.setItem(0,2,new QTableWidgetItem(trInfo->m_out?trInfo->m_out->name():tr("未知站")));
         tw.setItem(0,3,new QTableWidgetItem(trInfo->t_out.toString(Qt::ISODate)));
-        tw.setItem(1,1,new QTableWidgetItem(acItem->mac?QString::number(acItem->mac->getMID()):""));
-        tw.setItem(1,2,new QTableWidgetItem(acItem->mac?acItem->mac->name():tr("未知站")));
+        tw.setItem(1,1,new QTableWidgetItem(acItem->s_ws?QString::number(acItem->s_ws->getMID()):""));
+        tw.setItem(1,2,new QTableWidgetItem(acItem->s_ws?acItem->s_ws->name():tr("未知站")));
         tw.setItem(1,3,new QTableWidgetItem(acItem->inTime.toString(Qt::ISODate)));
         QVBoxLayout* lm = new QVBoxLayout;
         lm->addWidget(&title);
@@ -1087,7 +1137,6 @@ void TransferInDialog::on_btnSelectFile_clicked()
         return;
     }
 
-    AppConfig* conf = AppConfig::getInstance();
     if(trInfo->m_in->getMID() != conf->getLocalStation()->getMID())
         myHelper::ShowMessageBoxWarning(tr("该账户预定转移到“%1”，如果要转移到本工作站则在本工作站只能以只读模式查看！")
                                         .arg(trInfo->m_in->name()));
@@ -1101,9 +1150,9 @@ void TransferInDialog::on_btnSelectFile_clicked()
     macTypes = conf->getMachineTypes();
     QHash<int,QString> osTypes;
     conf->getOsTypes(osTypes);
-    ui->edtMType->setText(macTypes.value(trInfo->m_in->getType()));
-    ui->edtMID->setText(QString::number(trInfo->m_in->getMID()));
-    ui->edtOsType->setText(osTypes.value(trInfo->m_in->osType(),tr("未知系统")));
-    ui->edtMDesc->setText(trInfo->m_in->description());
+    ui->edtMType->setText(macTypes.value(trInfo->m_out->getType()));
+    ui->edtMID->setText(QString::number(trInfo->m_out->getMID()));
+    ui->edtOsType->setText(osTypes.value(trInfo->m_out->osType(),tr("未知系统")));
+    ui->edtMDesc->setText(trInfo->m_out->description());
     ui->btnOk->setEnabled(true);
 }

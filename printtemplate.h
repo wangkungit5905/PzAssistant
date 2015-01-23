@@ -166,6 +166,8 @@ public:
 
     //PrintTemplateBase
     void setTitle(QString title);
+    void setYear(int y){ui->lblYear->setText(QString::number(y));}
+    void setMonth(int m){ui->lblMonth->setText(QString::number(m));}
     PrintPageType getPageType();
     void setPageNum(QString strNum);
     void setColWidth(QList<int>* colWidths);

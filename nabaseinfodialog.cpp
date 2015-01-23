@@ -2,12 +2,13 @@
 #include "ui_nabaseinfodialog.h"
 #include "account.h"
 #include "config.h"
-//#include "commdatastruct.h"
+#include "myhelper.h"
+
+#include <QFileDialog>
 
 
 NABaseInfoDialog::NABaseInfoDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::NABaseInfoDialog)
+    QDialog(parent),ui(new Ui::NABaseInfoDialog)
 {
     ui->setupUi(this);
     init();
@@ -22,16 +23,16 @@ NABaseInfoDialog::~NABaseInfoDialog()
 void NABaseInfoDialog::init()
 {
     AppConfig* cfg = AppConfig::getInstance();
+    cfg->getSubSysItems(supportSubSys);
+    foreach(SubSysNameItem* item, supportSubSys)
+        ui->cmbSubSys->addItem(item->name);
+    ui->edtStartDate->setDateTime(QDateTime::currentDateTime());    
+    ui->btnSelFile->setVisible(false);
     foreach (AccountCacheItem* item, cfg->getAllCachedAccounts())
         usedCodes<<item->code;
     qSort(usedCodes.begin(),usedCodes.end());
     int code = usedCodes.last().toInt()+1;
     ui->edtCode->setText(QString::number(code));
-    cfg->getSubSysItems(supportSubSys);
-    foreach(SubSysNameItem* item, supportSubSys){
-        ui->cmbSubSys->addItem(item->name);
-    }
-    ui->edtStartDate->setDateTime(QDateTime::currentDateTime());
 }
 
 void NABaseInfoDialog::on_btnOk_clicked()
@@ -93,7 +94,9 @@ void NABaseInfoDialog::on_btnOk_clicked()
     item->tState = ATS_TRANSINDES;
     item->inTime = QDateTime::currentDateTime();
     item->outTime = QDateTime::currentDateTime();
-    item->mac = AppConfig::getInstance()->getLocalStation();
+    Machine* locMac = AppConfig::getInstance()->getLocalStation();
+    item->s_ws = locMac;
+    item->d_ws = locMac;
     if(!AppConfig::getInstance()->saveAccountCacheItem(item)){
         QMessageBox::critical(this,"",tr("将新账户保存到本地缓存时发生错误！"));
         return;

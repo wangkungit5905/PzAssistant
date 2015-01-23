@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>424</width>
-    <height>303</height>
+    <width>574</width>
+    <height>376</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -99,6 +99,13 @@
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QPushButton" name="btnSelFile">
+       <property name="text">
+        <string>选择来源的老账户</string>
+       </property>
+      </widget>
+     </item>
      <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">

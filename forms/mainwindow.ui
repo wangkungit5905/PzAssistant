@@ -56,7 +56,9 @@
     <addaction name="actDelAcc"/>
     <addaction name="actRefreshActInfo"/>
     <addaction name="actInAccount"/>
+    <addaction name="actBatchImport"/>
     <addaction name="actEmpAccount"/>
+    <addaction name="actBatchExport"/>
     <addaction name="separator"/>
     <addaction name="actExit"/>
     <addaction name="separator"/>
@@ -81,6 +83,7 @@
      <addaction name="actFordPl"/>
      <addaction name="actJzbnlr"/>
      <addaction name="actEndAcc"/>
+     <addaction name="actCloseSuite"/>
      <addaction name="separator"/>
      <addaction name="actAntiImp"/>
      <addaction name="actAntiJz"/>
@@ -175,7 +178,6 @@
       <string>管理员工具</string>
      </property>
      <addaction name="actNoteMgr"/>
-     <addaction name="actShowSusSybJoinCfg"/>
      <addaction name="actTaxCompare"/>
      <addaction name="actImpPzSet"/>
     </widget>
@@ -1209,12 +1211,28 @@
     <string>创建新账户（从老账户）</string>
    </property>
   </action>
-  <action name="actShowSusSybJoinCfg">
+  <action name="actCloseSuite">
    <property name="text">
-    <string>查看科目系统衔接配置</string>
+    <string>关账</string>
    </property>
    <property name="toolTip">
-    <string>查看相邻两个科目系统之间科目的对接配置</string>
+    <string>关闭帐套</string>
+   </property>
+  </action>
+  <action name="actBatchExport">
+   <property name="text">
+    <string>批量转出账户</string>
+   </property>
+   <property name="toolTip">
+    <string>一次转出多个账户到指定站点</string>
+   </property>
+  </action>
+  <action name="actBatchImport">
+   <property name="text">
+    <string>批量转入账户</string>
+   </property>
+   <property name="toolTip">
+    <string>一次转入多个账户到本站</string>
    </property>
   </action>
  </widget>

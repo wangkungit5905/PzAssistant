@@ -10,6 +10,7 @@
 #include "newsndsubdialog.h"
 #include "PzSet.h"
 #include "myhelper.h"
+#include "optionform.h"
 
 
 #include <QListWidget>
@@ -19,8 +20,10 @@
 #include <QFileDialog>
 #include <QInputDialog>
 #include <QKeyEvent>
+#include <QBuffer>
 #include <QTextStream>
 #include <QTreeWidget>
+
 
 ApcBase::ApcBase(Account *account, QWidget *parent) :
     QWidget(parent),ui(new Ui::ApcBase),account(account)
@@ -333,7 +336,7 @@ void ApcSuite::curSuiteChanged(int index)
         ui->smonth->setValue(as->startMonth);
         ui->emonth->setValue(as->endMonth);
         ui->rmonth->setValue(as->recentMonth);
-        ui->isCur->setChecked(as->isClosed);
+        ui->isClosed->setChecked(as->isClosed);
         ui->isUsed->setChecked(as->isUsed);
         ui->lblSubSys->setText(subSystems.value(as->subSys)->name);
         ui->btnEdit->setEnabled(!curAccount->isReadOnly() && curUser->haveRight(allRights.value(Right::Suite_Edit)));
@@ -346,7 +349,7 @@ void ApcSuite::curSuiteChanged(int index)
         ui->emonth->clear();
         ui->rmonth->clear();
         ui->lblSubSys->clear();
-        ui->isCur->setChecked(false);
+        ui->isClosed->setChecked(false);
         ui->isUsed->setChecked(false);
         ui->btnEdit->setEnabled(false);
         ui->btnUsed->setEnabled(false);
@@ -435,19 +438,26 @@ void ApcSuite::on_btnCommit_clicked()
 {
     if(editAction == EA_NONE)
         return;
+    bool update = false;
     AccountSuiteRecord* as = suites.at(ui->lw->currentRow());
-    if(as->name != ui->name->text())
+    if(as->name != ui->name->text()){
+        update = true;
         ui->lw->currentItem()->setText(ui->name->text());
+    }
     as->name = ui->name->text();
     as->isUsed = ui->isUsed->isChecked();
-    if(editAction == EA_NEW)
+    if(editAction == EA_NEW){
+        update = true;
         account->addSuite(as);
+    }
     if(!account->saveSuite(as))
         myHelper::ShowMessageBoxError(tr("在保存帐套时发生错误！"));
     SubjectManager* sm = account->getSubjectManager(as->subSys);
     sm->setEndDate(QDate(as->year,12,31));
     stack_i.clear();
     stack_s.clear();
+    if(update)
+        emit suiteUpdated();
     editAction = EA_NONE;
     enWidget(false);
 }
@@ -2598,151 +2608,6 @@ bool ApcSubject::notCommitWarning()
 }
 
 
-//////////////////////////SubSysJoinCfgForm////////////////////////////////////////
-SubSysJoinCfgForm::SubSysJoinCfgForm(int src, int des, Account* account, QWidget *parent)
-    :QDialog(parent),ui(new Ui::SubSysJoinCfgForm),account(account),pre_subSys(src),subSys(des)
-{
-    ui->setupUi(this);
-    appCfg = AppConfig::getInstance();
-    if(account)
-        sSmg = account->getSubjectManager(src);
-    else
-        sSmg = 0;
-    init();
-}
-
-SubSysJoinCfgForm::~SubSysJoinCfgForm()
-{
-    delete ui;
-    qDeleteAll(temFstSubs);
-}
-
-/**
- * @brief 保存对配置的更改
- * @return
- */
-bool SubSysJoinCfgForm::save()
-{
-    //如果用户已经完成配置，则请求用户确定是否终结配置，并进行二级科目的对应克隆
-    if(!isCompleted){
-        QList<SubSysJoinItem2*> editedItems;
-        for(int i = 0; i < editTags.count(); ++i){
-            if(!editTags.at(i))
-                continue;
-            editedItems<<ssjs.at(i);
-        }
-        if(!appCfg->getSubSysMaps(pre_subSys,subSys,editedItems))
-            myHelper::ShowMessageBoxError(tr("在保存科目系统衔接配置信息时出错！"));
-        if(determineAllComplete() && (QMessageBox::Yes ==
-                QMessageBox::warning(this,"",
-                                     tr("如果确定所有科目都已正确对接，则单击是"),
-                                     QMessageBox::Yes|QMessageBox::No))){
-            if(!appCfg->setSubSysMapConfiged(pre_subSys,subSys))
-                return false;
-        }
-    }
-}
-
-/**
- * @brief 对接的目标科目改变了
- * @param item
- */
-void SubSysJoinCfgForm::destinationSubChanged(QTableWidgetItem *item)
-{
-    int col = item->column();
-    if(col == COL_INDEX_NEWSUBNAME){
-        SubSysJoinItem2* si = ssjs.at(item->row());
-        QString code = ui->tview->item(item->row(),COL_INDEX_NEWSUBCODE)->text();
-        if(code != si->dcode){
-            si->dcode = code;
-            editTags[item->row()] = true;
-        }
-    }
-    else if(col == COL_INDEX_SUBJOIN){
-        SubSysJoinItem2* si = ssjs.at(item->row());
-        bool v = item->text() == defJoinStr;
-        if((v && !si->isDef) || (!v && si->isDef)){
-            si->isDef = v;
-            editTags[item->row()] = true;
-        }
-    }
-}
-
-
-void SubSysJoinCfgForm::init()
-{
-    defJoinStr = "===>";
-    mixedJoinStr = "----->";
-    QHash<int,QString> names;
-    QList<SubSysNameItem *> subSysLst;
-    if(account)
-        subSysLst = account->getSupportSubSys();
-    else
-        appCfg->getSubSysItems(subSysLst);
-    foreach(SubSysNameItem* item, subSysLst)
-        names[item->code] = item->name;
-    ui->sSubSys->setText(names.value(pre_subSys));
-    ui->dSubSys->setText(names.value(subSys));
-    if(!appCfg->getSubSysMaps(pre_subSys,subSys,ssjs)){
-        myHelper::ShowMessageBoxError(tr("在读取科目系统衔接配置信息时出错！"));
-        return;
-    }
-    if(!appCfg->getSubCodeToNameHash(subSys,subNames)){
-        myHelper::ShowMessageBoxError(tr("在读取对接的科目系统的科目时发生错误！"));
-        return;
-    }
-    for(int i = 0; i < ssjs.count(); ++i)
-        editTags<<false;    
-    ui->tview->setRowCount(ssjs.count());
-    SubSysJoinItem2* item;
-    QTableWidgetItem* ti;
-    FirstSubject* fsub;
-    for(int i = 0; i < ssjs.count(); ++i){
-        item = ssjs.at(i);
-        ti = new QTableWidgetItem(item->scode);
-        ui->tview->setItem(i,COL_INDEX_SUBCODE,ti);
-        if(sSmg)
-            fsub = sSmg->getFstSubject(item->scode);
-        else{
-            fsub = appCfg->getFirstSubject(pre_subSys,item->scode);
-            temFstSubs<<fsub;
-        }
-        ti = new QTableWidgetItem(fsub?fsub->getName():"");
-        ui->tview->setItem(i,COL_INDEX_SUBNAME,ti);
-        ti = new QTableWidgetItem(item->isDef?defJoinStr:mixedJoinStr);
-        ti->setData(Qt::TextAlignmentRole,Qt::AlignCenter);
-        ui->tview->setItem(i,COL_INDEX_SUBJOIN,ti);
-        ti = new QTableWidgetItem(item->dcode);
-        ui->tview->setItem(i,COL_INDEX_NEWSUBCODE,ti);
-        ti = new QTableWidgetItem(subNames.value(item->dcode));
-        ui->tview->setItem(i,COL_INDEX_NEWSUBNAME,ti);
-    }
-    QStringList slSigns,slDisplays;
-    slSigns<<defJoinStr<<mixedJoinStr;
-    slDisplays<<tr("默认对接")<<tr("混合对接");
-    SubSysJoinCfgItemDelegate* delegate = new SubSysJoinCfgItemDelegate(subNames,slDisplays,slSigns);
-    if(account)
-        isCompleted = account->isSubSysConfiged(subSys);
-    else
-        appCfg->getSubSysMapConfiged(pre_subSys,subSys,isCompleted);
-    delegate->setReadOnly(isCompleted);
-    ui->tview->setItemDelegate(delegate);
-    connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(destinationSubChanged(QTableWidgetItem*)));
-
-}
-
-/**
- * @brief 扫描配置项列表中的所有条目，确定是否所有科目都完成了配置
- */
-bool SubSysJoinCfgForm::determineAllComplete()
-{
-    for(int i = 0; i < ui->tview->rowCount(); ++i){
-        QString code = ui->tview->item(i,COL_INDEX_NEWSUBCODE)->text();
-        if(code.isEmpty())
-            return false;
-    }
-    return true;
-}
 
 /////////////////////////////DirView////////////////////////////////////////////////
 DirView::DirView(MoneyDirection dir, int type):QTableWidgetItem(type),dir(dir)
@@ -3728,6 +3593,7 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QByteArray* cinfo
     connect(this,SIGNAL(windowShallClosed()),baseCfg,SLOT(windowShallClosed()));
     pagesWidget->addWidget(baseCfg);
     ApcSuite* suiteCfg = new ApcSuite(account,this);
+    connect(suiteCfg,SIGNAL(suiteUpdated()),this,SLOT(suiteUpdated()));
     connect(this,SIGNAL(windowShallClosed()),suiteCfg,SLOT(windowShallClosed()));
     pagesWidget->addWidget(suiteCfg);
     ApcBank* bankCfg = new ApcBank(account,this);

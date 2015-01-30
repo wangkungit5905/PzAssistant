@@ -8,14 +8,11 @@
 #include <QDir>
 #include <QLibraryInfo>
 #include <QDesktopWidget>
-//#include <QStyleFactory>
-
 #include <QtDebug>
 
 #include "global.h"
 #include "config.h"
 #include "mainwindow.h"
-#include "connection.h"
 #include "logs/FileAppender.h"
 #include "myhelper.h"
 

@@ -12,14 +12,11 @@
 #include <QUndoCommand>
 #include <QUndoView>
 #include <QProgressBar>
-//#include <QToolTip>
-
 #include <QBuffer>
 
+#include "ui_mainwindow.h"
 #include "mainwindow.h"
 #include "tables.h"
-#include "ui_mainwindow.h"
-#include "connection.h"
 #include "global.h"
 #include "databaseaccessform.h"
 #include "utils.h"
@@ -52,25 +49,12 @@
 #include "tools/externaltoolconfigform.h"
 #include "myhelper.h"
 #include "crtaccountfromolddlg.h"
-#include "unityinspectdialog.h"
-
-#include "completsubinfodialog.h"
+#include "transfers.h"
 
 
-//#include "variousutils.h"
 
-//#include "printtemplate.h"
 
-#include "ui_mainwindow.h"
 
-//临时
-#include "printtemplate.h"
-#include <QGraphicsScene>
-#include <QGraphicsView>
-#include <QGraphicsWidget>
-#include "previewdialog.h"
-#include "account.h"
-#include "cal.h"
 
 /////////////////////////////////PaStatusBar////////////////////////////////
 PaStatusBar::PaStatusBar(QWidget *parent):QStatusBar(parent)
@@ -216,7 +200,7 @@ void PaStatusBar::setUser(User *user)
         lblUser.setText("");
 }
 
-void PaStatusBar::setWorkStation(Machine *mac)
+void PaStatusBar::setWorkStation(WorkStation *mac)
 {
     if(mac){
         lblWs.setText(mac->name());
@@ -658,6 +642,20 @@ void MainWindow::initToolBar()
     btnPrint->addAction(actOutputToExcel);
     ui->tbrMain->addWidget(btnPrint);
 
+    QToolButton* btn = qobject_cast<QToolButton*>(ui->tbrMain->widgetForAction(ui->actInAccount));
+    if(btn){
+        QMenu* m = new QMenu(this);
+        m->addAction(ui->actBatchImport);
+        btn->setMenu(m);
+        //btn->setStyleSheet("QToolButton::menu-arrow {border: none;"
+        //                   "image: url(:/styles/arrow-down.png);}");
+    }
+    btn = qobject_cast<QToolButton*>(ui->tbrMain->widgetForAction(ui->actEmpAccount));
+    if(btn){
+        QMenu* m = new QMenu(this);
+        m->addAction(ui->actBatchExport);
+        btn->setMenu(m);
+    }
     //ui->tbrMain->setStyleSheet("{background: red;spacing: 20px;}");
 }
 
@@ -1289,21 +1287,7 @@ void MainWindow::on_actOption_triggered()
     ConfigPanels* form = NULL;
     if(!commonGroups.contains(SUBWIN_OPTION)){
         appCon->getSubWinInfo(SUBWIN_OPTION,winfo,sinfo);
-        QList<ConfigPanelBase*> panels;
-        QList<QIcon> icons;
-        panels<<new AppCommCfgPanel;            //通用面板
-        icons<<QIcon(":/images/Options/common.png");
-        if(curUser->isSuperUser()){
-            panels<<new PzTemplateOptionForm;   //凭证模板参数面板
-            icons<<QIcon(":/images/Options/pzTemplate.png");
-            StationCfgForm* sf = new StationCfgForm; //工作站面板
-            connect(sf,SIGNAL(localStationChanged(Machine*)),this,SLOT(localStationChanged(Machine*)));
-            panels<<sf;
-            icons<<QIcon(":/images/Options/test1.png");
-        }
-        panels<<new TestPanel(form);            //测试面板
-        icons<<QIcon(":/images/Options/test1.png");
-        form = new ConfigPanels(panels,icons,sinfo);
+        form = new ConfigPanels(sinfo);
     }    
     showCommonSubWin(SUBWIN_OPTION,form,winfo);
     if(sinfo)
@@ -1464,7 +1448,7 @@ void MainWindow::on_actExpAppCfg_triggered()
         }
     }
     if(chkMac.isChecked()){
-        QList<Machine*> macs;
+        QList<WorkStation*> macs;
         macs = appCon->getAllMachines().values();
         qSort(macs.begin(),macs.end(),byMacMID);
         QString fileName = dirName + "/machines.txt";
@@ -1479,7 +1463,7 @@ void MainWindow::on_actExpAppCfg_triggered()
             int mv, sv;
             appCon->getAppCfgVersion(mv,sv,BDVE_WORKSTATION);
             ts<<QString("version=%1.%2\n").arg(mv).arg(sv);
-            foreach(Machine* m, macs)
+            foreach(WorkStation* m, macs)
                 ts<<m->serialToText()<<"\n";
             ts.flush();
             file.close();
@@ -1726,10 +1710,10 @@ void MainWindow::on_actImpAppCfg_triggered()
         ts.setDevice(&file);
         if(!inspectVersionBeforeImport(ts.readLine(),BDVE_WORKSTATION,"machines.txt",mv,sv))
             return;
-        QList<Machine*> macs;
+        QList<WorkStation*> macs;
         while(!ts.atEnd()){
             QString text = ts.readLine();
-            Machine* mac = Machine::serialFromText(text);
+            WorkStation* mac = WorkStation::serialFromText(text);
             if(!mac){
                 myHelper::ShowMessageBoxWarning(tr("导入权限类型时出现错误，请查看日志！"));
                 return;
@@ -2532,6 +2516,8 @@ void MainWindow::commonSubWindowClosed(MyMdiSubWindow *subWin)
             if(w){
                 cinfo = w->getCommonState();
                 w->closeAllPage();
+                if(curSSPanel)
+                    disconnect(w,SIGNAL(suiteChanged()),curSSPanel,SLOT(suiteUpdated()));
                 delete w;
             }
         }
@@ -2733,7 +2719,7 @@ void MainWindow::printProcess()
  * @brief 本站定义改变
  * @param ws
  */
-void MainWindow::localStationChanged(Machine *ws)
+void MainWindow::localStationChanged(WorkStation *ws)
 {
     if(ws)
         ui->statusbar->setWorkStation(ws);
@@ -4118,8 +4104,9 @@ void MainWindow::on_actAccProperty_triggered()
     AccountPropertyConfig* dlg = NULL;
     if(!commonGroups.contains(SUBWIN_ACCOUNTPROPERTY)){
         appCon->getSubWinInfo(SUBWIN_ACCOUNTPROPERTY,winfo,&cinfo);
-        //dbUtil->getSubWinInfo(SUBWIN_ACCOUNTPROPERTY,pinfo);
         dlg = new AccountPropertyConfig(curAccount,&cinfo);
+        if(curSSPanel)
+            connect(dlg,SIGNAL(suiteChanged()),curSSPanel,SLOT(suiteUpdated()));
     }
     showCommonSubWin(SUBWIN_ACCOUNTPROPERTY,dlg,winfo);
     if(winfo)
@@ -4190,38 +4177,62 @@ void MainWindow::on_actViewLog_triggered()
         delete winfo;
 }
 
-bool MainWindow::impTestDatas()
-{
-    QByteArray *ba = new QByteArray;
-    appCon->serialCommonPhraseToBinary(ba);
-    appCon->serialCommonPhraseFromBinary(ba);
-    int i = 0;
-}
+
 
 /**
  * @brief 从老账户创建新账户，即使用老账户的期末余额作为新账户的期初值来创建
  */
 void MainWindow::on_actCrtAccoutFromOld_triggered()
 {
-    CrtAccountFromOldDlg* dlg = new CrtAccountFromOldDlg(this);
-    dlg->exec();
-}
-
-
-/**
- * @brief 查看科目系统衔接配置
- */
-void MainWindow::on_actShowSusSybJoinCfg_triggered()
-{
-    if(curUser->isAdmin() || curUser->isSuperUser()){
-        QList<SubSysNameItem *> subSysLst;
-        appCon->getSubSysItems(subSysLst);
-        int count = subSysLst.count();
-        if(count < 2)
-            return;
-        int preCode = subSysLst.at(count -2)->code;
-        int curCode = subSysLst.at(count -1)->code;
-        SubSysJoinCfgForm* dlg = new SubSysJoinCfgForm(preCode,curCode,0,this);
+    if(curUser && (curUser->isAdmin() || curUser->isSuperUser())){
+        CrtAccountFromOldDlg* dlg = new CrtAccountFromOldDlg(this);
         dlg->exec();
     }
 }
+
+/**
+ * @brief 关账
+ */
+void MainWindow::on_actCloseSuite_triggered()
+{
+    if(curSuiteMgr && curUser && (curUser->isAdmin() || curUser->isSuperUser())){
+        if(!curSuiteMgr->closeSuite())
+            myHelper::ShowMessageBoxError(tr("保存帐套记录时发生错误！"));
+        else
+            curSSPanel->suiteUpdated();
+    }
+}
+
+/**
+ * @brief 批量转出账户
+ */
+void MainWindow::on_actBatchExport_triggered()
+{
+    if(curAccount)
+        return;
+    if(curUser && (curUser->isAdmin() || curUser->isSuperUser())){
+        BatchOutputDialog* dlg = new BatchOutputDialog(this);
+        dlg->exec();
+    }
+}
+
+/**
+ * @brief 批量转入账户
+ */
+void MainWindow::on_actBatchImport_triggered()
+{
+    if(curAccount)
+        return;
+    if(curUser && (curUser->isAdmin() || curUser->isSuperUser())){
+        BatchImportDialog* dlg = new BatchImportDialog(this);
+        dlg->exec();
+    }
+}
+
+
+
+bool MainWindow::impTestDatas()
+{
+        int i = 0;
+}
+

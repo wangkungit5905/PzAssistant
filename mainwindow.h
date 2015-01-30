@@ -20,6 +20,8 @@ class QUndoStack;
 class QUndoView;
 class QProgressBar;
 
+class WorkStation;
+
 namespace Ui {
     class MainWindow;
 }
@@ -42,7 +44,7 @@ public:
     void setPzCounts(int repeal,int recording,int verify,int instat,int amount);
     void resetPzCounts();
     void setUser(User* user);
-    void setWorkStation(Machine* mac);
+    void setWorkStation(WorkStation* mac);
     void showRuntimeMessage(QString info, AppErrorLevel level);
 
 public slots:
@@ -193,7 +195,7 @@ private slots:
     void subWindowActivated(QMdiSubWindow * window);
     void specSubWinClosed(subWindowType winType);
     void printProcess();
-    void localStationChanged(Machine* ws);
+    void localStationChanged(WorkStation* ws);
 
     void on_actAddPz_triggered();
 
@@ -312,7 +314,13 @@ private slots:
 
     void on_actCrtAccoutFromOld_triggered();
 
-    void on_actShowSusSybJoinCfg_triggered();
+    //void on_actShowSusSybJoinCfg_triggered();
+
+    void on_actCloseSuite_triggered();
+
+    void on_actBatchExport_triggered();
+
+    void on_actBatchImport_triggered();
 
 private:
     void _closeAccount();

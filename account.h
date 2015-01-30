@@ -11,20 +11,20 @@
 #include "securitys.h"
 #include "appmodel.h"
 #include "common.h"
-#include "transfers.h"
 
 class AccountSuiteManager;
 class DbUtil;
 class SubjectManager;
+class WorkStation;
 
 /**
  * @brief The AccontTranferInfo struct
  *  账户转移记录
  */
-struct AccontTranferInfo{
+struct AccountTranferInfo{
     int id;
     AccountTransferState tState;    //转移状态
-    Machine *m_out, *m_in;          //转出（源）/转入（目的）工作站
+    WorkStation *m_out, *m_in;          //转出（源）/转入（目的）工作站
     QDateTime t_out, t_in;          //转出/转入时间
     QString desc_out,desc_in;       //转出/转入描述
 };
@@ -80,7 +80,7 @@ public:
         QString dbVersion;                  //账户文件版本号
         QString logFileName;                //账户日志文件
         QString fileName;                   //账户文件名
-        AccontTranferInfo* transInfo;       //账户转移信息
+        AccountTranferInfo* transInfo;       //账户转移信息
     };
 
 
@@ -93,7 +93,7 @@ public:
     bool isValid();
     bool canAccess(User* u);
     void close();
-    AccontTranferInfo* getRecentTransferInfo(){return accInfos.transInfo;}
+    AccountTranferInfo* getRecentTransferInfo(){return accInfos.transInfo;}
     bool saveAccountInfo();
     bool isOpen(){return isOpened;}
     DbUtil* getDbUtil(){return dbUtil;}

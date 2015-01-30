@@ -2,7 +2,7 @@
 #include "ui_newsndsubdialog.h"
 #include "subject.h"
 
-//#include <QCompleter>
+#include <QKeyEvent>
 
 NewSndSubDialog::NewSndSubDialog(FirstSubject *fsub, QWidget *parent) :
     QDialog(parent),ui(new Ui::NewSndSubDialog),fsub(fsub)

@@ -3,26 +3,6 @@
 
 #include <QPrinter>
 
-//表名代码
-//#define FSTSUBTABLE 1         //一级科目
-//#define SNDSUBTABLE 2         //二级科目信息表
-//#define ACTIONSTABLE 3        //业务活动表
-//#define PINGZHENGTABLE 4      //凭证表
-//#define FSTSUBCLASSTABLE 5    //一级科目类别表
-//#define FSAGENTTABLE 6        //一级科目到二级科目的中间表
-//#define SNDSUBCLSTABLE 7      //二级科目类别表
-//#define ACCOUNTINFO    8      //账户信息表
-//#define EXCHANGERATE   9      //汇率表
-//#define ACCOUNTBOOKGROUP 10   //凭证分册类别表
-//#define SUJECTEXTRA 11        //科目余额表
-//#define REPORTSTRUCTS 12      //报表结构信息表
-//#define PZSETSTATE 13         //凭证集状态表
-//#define BANKS  14             //开户行帐号信息表
-//#define BALANCESHEET 15       //资产负债表
-//#define INCOMESTATMENTS_OLD 16    //利润表（老）
-//#define INCOMESTATMENTS_NEW 17    //利润表（新）
-//#define REPORTADDITIONINFO  18    //报表其他信息表
-
 //一级科目余额方向表（SubjectExtraDirs）
 //（各科目的字段名由代表科目类别的字母代码加上科目国标代码组成）
 //A（资产类）B（负债类）C（共同类）D（所有者权益类）E（成本类）F（损益类）
@@ -204,13 +184,6 @@
 #define CFG_NAME  2       //变量名（name TEXT）（1：整型，2：实型，3：字符串）
 #define CFG_VALUE 3       //变量值（value TEXT）
 
-//凭证集状态描述表（pzsStateNames）
-//CREATE TABLE pzsStateNames(id INTEGER PRIMARY KEY, code INTEGER, state TEXT)
-
-//凭证状态名表（pzStateNames）
-//CREATE TABLE pzStateNames(id INTEGER PRIMARY KEY, code INTEGER, state TEXT)
-
-
 ///////////////////////////////////////////////////////
 
 //货币类型代码
@@ -253,23 +226,9 @@ enum PzsState{
 #define RPT_CASH    3     //现金流量表
 #define RPT_OWNER   4     //所有者权益变动表
 
-//报表类型代码
-//#define RPT_OLD     1     //老式
-//#define RPT_NEW     2     //新式
-
 //科目系统代码
 #define SUBSYS_OLE  1     //老式
 #define SUBSYS_NEW  2     //新式
-
-//凭证打印模板
-//#define LEFTMARGIN 10;
-//#define RIGHTMARGIN 10;
-//#define TOPMARGIN 10;
-//#define BUTTOMMARGIN 10;
-
-//const int PZPRINTE_MAXROWS = 8;      //在凭证打印模板中最多可以有的业务活动行数(不包括标题和合计行)
-//const int PZPRINTE_MIDGAP  = 120;    //两张凭证之间的间隔距离(一张A4纸打印2张凭证)
-//const int PZPRINTE_TITLEHEIGHT = 15; //会计分录列表标题条高度
 
 //////////////////////凭证大类代码/////////////////////////////////////////
 enum PzdClass{

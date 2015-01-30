@@ -121,44 +121,7 @@ private:
     bool textChangeReson; //组合框的文本是怎么改变的（true：鼠标选择组合框的下拉列表中的一个项目，false：用户输入到组合框的文本编辑区域）
     QComboBox* com;       //显示当前一级科目下的可选的二级科目的组合框
     QListWidget* lw;      //智能提示列表框（显示所有带有指定前缀的名称条目）
-
-    //bool editFinished;    //
 };
-
-////编辑和显示明细科目
-//class SndSubComboBox2 : public QComboBox
-//{
-//    Q_OBJECT
-//public:
-//    SndSubComboBox2(int pid, SubjectManager* subMgr, QWidget *parent = 0);
-//    ~SndSubComboBox2();
-//    void setRowColNum(int row, int col);
-
-//protected:
-//    //void focusOutEvent(QFocusEvent* e);
-//    void keyPressEvent(QKeyEvent* e );
-
-//signals:
-//    void newMappingItem(int fid, int sid, int row, int col);
-//    void newSndSubject(int fid, QString name, int row, int col);
-//    void dataEditCompleted(int col, bool isMove);
-//    void editNextItem(int row, int col);   //这一信号仅用于设置明细科目余额值的表中
-
-//private:
-//    bool findSubMapper(int fid, int sid, int& id);
-//    bool findSubName(QString name, int& sid);
-
-//    int pid;   //所属的总账科目id
-//    int row,col; //编辑器所处的行列位置
-//    QListView* listview;   //智能提示列表框，用来供用户选择科目
-//    QSqlQueryModel* model; //提取科目的数据模型（Fsagent和SecSubjects的连接查询）
-//    QSqlTableModel* smodel; //从SecSubjects表提取，方便后续添加新科目（作为Listview的数据模型）
-//    int rows;   //用以保存smodel的行数，因为smodel.rowCount()方法不一定返回正确的行数，因为模型类的实现一次不会返回所有行
-//    QString* keys;   //接收到的字母或数字键（数字表示科目代码，字母表示科目助记符）
-//    QStringList snames;//二级科目名称列表，用于输入二级科目名称时，提供一个输入完成器
-
-//    SubjectManager* subMgr;
-//};
 
 //编辑和显示币种
 class MoneyTypeComboBox : public QComboBox

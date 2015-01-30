@@ -1302,10 +1302,11 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         ssub = fsub->getDefaultSubject();
         if(fsub == subMgr->getYjsjSub() && row > 0){
             BusiAction* ba = curPz->getBusiAction(row-1);
-            if(ba && ba->getFirstSubject()){
-                if(ba->getFirstSubject() == subMgr->getZysrSub())
+            FirstSubject* pfsub = ba?ba->getFirstSubject():0;
+            if(pfsub){
+                if(pfsub == subMgr->getZysrSub() || pfsub == subMgr->getYsSub())
                     ssub = subMgr->getXxseSSub();
-                else if(ba->getFirstSubject() == subMgr->getZycbSub())
+                else if(pfsub == subMgr->getZycbSub() || pfsub == subMgr->getYfSub())
                     ssub = subMgr->getJxseSSub();
             }
         }

@@ -5,13 +5,12 @@
 #include <QHash>
 
 #include "cal.h"
-//#include "securitys.h"
 
 class PingZheng;
 class BusiAction;
 class User;
 class FirstSubject;
-class Machine;
+class WorkStation;
 
 const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
 const int UNCLASS   = 0;    //未知的分类
@@ -484,8 +483,8 @@ struct AccountCacheItem{
     QString accLName;   //账户全称
     QDateTime inTime;   //转入时间（最近一次转入账户到本主站的时间，三种转移状态下都有意义）
     QDateTime outTime;  //转出时间（已转出时有意义，其他状态无意义）
-    Machine* s_ws;      //转出源站  要转入的目的主机（已转出），转出此账户的源主机（转入到目的机或其他机）
-    Machine* d_ws;      //转入目的站
+    WorkStation* s_ws;      //转出源站  要转入的目的主机（已转出），转出此账户的源主机（转入到目的机或其他机）
+    WorkStation* d_ws;      //转入目的站
     AccountTransferState tState; //转移状态
     bool lastOpened;    //是否是最后打开的账户
 };
@@ -682,6 +681,7 @@ enum BaseDbVersionEnum{
     BDVE_GROUP = 4,         //组
     BDVE_USER = 5,          //用户
     BDVE_WORKSTATION = 6,   //工作站
+    BDVE_SPECSUBJECT = 7,   //特定科目
     BDVE_COMMONPHRASE = 11  //常用提示短语
 };
 

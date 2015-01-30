@@ -11,174 +11,245 @@
 #include "commdatastruct.h"
 #include "utils.h"
 #include "myhelper.h"
+#include "securitys.h"
 
 #include "ui_transferoutdialog.h"
 
-
-Machine::Machine(int id, MachineType type, int mid, bool isLocal, QString name, QString desc,int osType)
-    :id(id),type(type),mid(mid),isLocal(isLocal),sname(name),desc(desc),_osType(osType)
+/////////////////////////AccountTransferUtil/////////////////////////////////////////////
+AccountTransferUtil::AccountTransferUtil(bool out, QObject *parent):QObject(parent),trMode(out)
 {
-}
-
-Machine::Machine(Machine &other)
-{
-    id = other.id;
-    type = other.type;
-    mid = other.mid;
-    isLocal = other.isLocal;
-    sname = other.sname;
-    desc = other.desc;
-    _osType = other._osType;
-}
-
-/**
- * @brief 序列化对象到文本
- * @return
- */
-QString Machine::serialToText()
-{
-    QStringList ls;
-    for(int i = 0; i < 6; ++i)
-        ls<<"";
-    ls[SOFI_WS_MID] = QString::number(mid);
-    ls[SOFI_WS_TYPE] = QString::number((int)type);
-    ls[SOFI_WS_ISLOCAL] = (isLocal?"1":"0");
-    ls[SOFI_WS_NAME] = sname;
-    ls[SOFI_WS_DESC] = desc;
-    ls[SOFI_WS_OSTYPE] = QString::number(_osType);
-    return ls.join("||");
-}
-
-Machine *Machine::serialFromText(QString serialText)
-{
-    QStringList ls = serialText.split("||");
-    if(ls.count() != 6)
-        return 0;
-    bool ok;
-    int mid = ls.at(SOFI_WS_MID).toInt(&ok);
-    if(!ok)
-        return 0;
-    MachineType type = (MachineType)ls.at(SOFI_WS_TYPE).toInt(&ok);
-    if(!ok)
-        return 0;
-    if(type != MT_COMPUTER && type != MT_COMPUTER){
-        LOG_ERROR(QString("Create Workstation Object failed! Reason is type code invalid! text is '%1'").arg(serialText));
-        return 0;
-    }
-    bool isLocal = (ls.at(SOFI_WS_ISLOCAL) == "0")?false:true;
-    int osType = ls.at(SOFI_WS_OSTYPE).toInt(&ok);
-    if(!ok)
-        LOG_ERROR(QString("Create Workstation Object have Warning! Reason is Operate System code invalid! text is '%1'").arg(serialText));
-    Machine* mac = new Machine(UNID,type,mid,isLocal,ls.at(SOFI_WS_NAME),ls.at(SOFI_WS_DESC),osType);
-    return mac;
-}
-
-void Machine::serialAllToBinary(int mv, int sv, QByteArray *ds)
-{
-    QList<Machine*> macs = AppConfig::getInstance()->getAllMachines().values();
-    qSort(macs.begin(),macs.end(),byMacMID);
-    QBuffer bf(ds);
-    QTextStream out(&bf);
-    bf.open(QIODevice::WriteOnly);
-    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
-    foreach(Machine* m, macs)
-        out<<m->serialToText()<<"\n";
-    bf.close();
-}
-
-bool Machine::serialAllFromBinary(QList<Machine *> &macs, int &mv, int &sv, QByteArray *ds)
-{
-    QBuffer bf(ds);
-    QTextStream in(&bf);
-    bf.open(QIODevice::ReadOnly);
-    QStringList sl = in.readLine().split("=");
-    if(sl.count() != 2)
-        return false;
-    sl = sl.at(1).split(".");
-    if(sl.count() != 2)
-        return false;
-    bool ok;
-    mv = sl.at(0).toInt(&ok);
-    if(!ok)
-        return false;
-    sv = sl.at(1).toInt(&ok);
-    if(!ok)
-        return false;
-
-    while(!in.atEnd()){
-        Machine* m = serialFromText(in.readLine());
-        if(!m)
-            return false;
-        macs<<m;
-    }
-    return true;
-}
-
-bool Machine::operator ==(const Machine &other) const
-{
-    if(mid != other.mid)
-        return false;
-    if( type != other.type || _osType != other._osType ||
-           sname != other.sname || desc != other.desc)
-        return false;
-    return true;
-}
-
-bool Machine::operator !=(const Machine &other) const
-{
-    return !(*this == other);
-}
-
-bool byMacMID(Machine *mac1, Machine *mac2)
-{
-    return mac1->getMID() < mac2->getMID();
-}
-
-////////////////////////////////////TransferRecordManager////////////////////////////
-
-TransferRecordManager::TransferRecordManager(QString filename, QWidget *parent):QObject(parent),p(parent)
-{
+    appCfg = AppConfig::getInstance();
     trRec = NULL;
     db = QSqlDatabase::addDatabase("QSQLITE",TRANSFER_MANAGER_CONNSTR);
-    connected = false;
-    isExistTemAppCfgTable = false;
-    macUpdated = false;
-    isTranOut = (p->objectName() == "TransferOutDialog");
-    conf = AppConfig::getInstance();
-    localMacs = conf->getAllMachines();
-    setFilename(filename);
+    bkDirName = DATABASE_PATH + TEM_BACKUP_DIRNAME + "/";
+    if(!trMode)
+        localMacs = appCfg->getAllMachines();
 }
 
-TransferRecordManager::~TransferRecordManager()
+AccountTransferUtil::~AccountTransferUtil()
 {
     if(db.isOpen())
         db.close();
     QSqlDatabase::removeDatabase(TRANSFER_MANAGER_CONNSTR);
+    QDir bkDir(bkDirName);
+    if(bkDir.exists())
+        bkDir.removeRecursively();
 }
 
 /**
- * @brief TransferRecordManager::setFilename
- * @param filename  账户文件名（路径名）
+ * @brief 转出账户
+ * @param fileName      账户文件名
+ * @param desDirName    转出目录名
+ * @param intent        转出意图
+ * @param info          操作信息
+ * @param desWS         转出目的站点
+ * @param isTake        是否捎带应用配置信息
+ * @param cfgs          应用配置信息
  * @return
  */
-bool TransferRecordManager::setFilename(QString filename)
+bool AccountTransferUtil::transferOut(QString fileName, QString desDirName, QString intent, QString &info,WorkStation* desWS,bool isTake,TakeAppCfgInfos* cfgs)
 {
-    if(filename.isEmpty())
+    if(!trMode)
         return false;
-    if(trRec){
-        delete trRec;
-        trRec = NULL;
+    //1、备份
+    if(!backup(fileName)){
+        info.append(tr("转出前，备份账户文件时发生错误！"));
+        return false;
     }
-    if(db.isOpen()){
-        connected = false;
-        db.close();
-    }
-    db.setDatabaseName(filename);
+    //2、建立连接并读取账户代码
+    QString lFileName = DATABASE_PATH + fileName;
+    db.setDatabaseName(lFileName);
     if(!db.open()){
-        myHelper::ShowMessageBoxError(tr("无法建立与选定账户文件的数据库连接！"));
-        connected = false;
+        info.append(tr("转出操作时无法建立与本地账户“%1”的数据库连接！\n").arg(fileName));
+        return false;
     }
-    connected = true;
+    QString aCode;
+    if(!getAccountCode(aCode)){
+        info.append(tr("转出操作时无法读取本地账户“%1”的账户代码！\n").arg(fileName));
+        return false;
+    }
+    //3、新建转出记录、修改本地账户缓存记录
+    AccountTranferInfo trRec;
+    trRec.id = 0;
+    trRec.tState = ATS_TRANSOUTED;
+    trRec.m_out = appCfg->getLocalStation();
+    trRec.m_in = desWS;
+    trRec.desc_out = intent;
+    trRec.t_out = QDateTime::currentDateTime();
+    if(!saveTransferRecord(&trRec)){
+        info.append(tr("在往转出账户“%1”加入新转移记录时发生错误！\n").arg(fileName));
+        restore(fileName);
+        return false;
+    }
+    AccountCacheItem* aci = appCfg->getAccountCacheItem(aCode);
+    aci->tState = ATS_TRANSOUTED;
+    aci->s_ws=appCfg->getLocalStation();
+    aci->d_ws=desWS;
+    aci->outTime=QDateTime::currentDateTime();
+    if(!appCfg->saveAccountCacheItem(aci)){
+        info.append(tr("在为账户“%1”保存本地账户缓存记录时发生错误！").arg(aci->fileName));
+        restore(aci->fileName);
+        return false;
+    }
+    //4、捎带应用配置信息
+    if(isTake && !attechAppCfgInfo(cfgs)){
+        info.append(tr("捎带应用配置信息时发生错误！"));
+        restore(aci->fileName);
+        return false;
+    }
+    //5、拷贝文件
+    QString sf = DATABASE_PATH + fileName;
+    QString df;
+    if(!desDirName.endsWith("/"))
+        desDirName.append("/");
+    df = desDirName + fileName;
+    if(QFile::exists(df)){
+        if(!myHelper::ShowMessageBoxQuesion(tr("转出目录存在同名文件“%1”，是否覆盖？").arg(fileName)) == QDialog::Rejected){
+            QFile file(df);
+            file.rename(df+".bak");
+        }
+        else
+            QFile::remove(df);
+    }
+    if(!QFile::copy(sf,df)){
+        info.append(tr("在转出操作时将账户文件“%1”拷贝到转出目录时发生错误！\n").arg(fileName));
+        info.append(tr("请手工拷贝账户文件“%1”到转出目录！\n").arg(fileName));
+        return false;
+    }
+    //6、删除备份
+    QDir dir(bkDirName);
+    dir.remove(fileName);
+    return true;
+}
+
+/**
+ * @brief 转入账户
+ * @param fileName  转入账户文件名（路径名）
+ * @param info      操作信息
+ * @return
+ */
+bool AccountTransferUtil::transferIn(QString fileName, QString &info)
+{
+    if(trMode)
+        return false;
+    //1、建立连接
+    if(!QFile::exists(fileName)){
+        info.append(tr("文件“%1”不存在\n").arg(fileName));
+        return false;
+    }
+    if(!setAccontFile(fileName)){
+        info.append(tr("与文件“%1”的数据库连接无法打开！\n").arg(fileName));
+        return false;
+    }
+    //2、判断是否可以转入
+    getLastTransRec();
+    if(!trRec){
+        info.append(tr("从文件“%1”中读取账户最近转移记录时发生错误！\n").arg(fileName));
+        return false;
+    }
+    if(trRec->tState != ATS_TRANSOUTED){
+        info.append(tr("账户“%1”未执行转出操作！\n").arg(fileName));
+        return false;
+    }
+    //如果执行转入操作的工作站内存在对应的缓存账户，且缓存项的转移状态是已转入的目的站，则表示
+    //此账户的转移状态异常，原因可能是手工人为地修改了账户的转移状态，使其在整个工作组集内的转移状态不一致
+    QString accCode,accName,accLName;
+    if(!getAccountBaseInfos(accCode,accName,accLName)){
+        info.append(tr("转入操作时无法读取账户“%1”的账户基本信息（账户代码，简称及全称）！\n").arg(fileName));
+        return false;
+    }
+    AccountCacheItem* acItem = appCfg->getAccountCacheItem(accCode);
+    QString err;
+    if(!canTransferIn(acItem,err)){
+        info.append(err);
+        return false;
+    }
+    WorkStation* locWs = appCfg->getLocalStation();
+    if(trRec->m_in != locWs)
+        info.append(tr("账户“%1”预定转入“%2”而不是本站，账户将不能修改！\n")
+                    .arg(accName).arg(trRec->m_in->name()));
+    //3、如果本地存在同名账户，则备份本地账户
+    QFileInfo fi(fileName);
+    QString fn = fi.fileName();
+    QString lf = DATABASE_PATH + fn;
+    if(QFile::exists(lf)){
+        if(!backup(fn,true)){
+            info.append(tr("备份文件“%1”到主备份目录时发生错误！").arg(fn));
+            return false;
+        }
+        QDir dir(DATABASE_PATH);
+        dir.remove(fn);
+    }
+    //4、拷贝文件到账户目录
+    if(!QFile::copy(fileName,lf)){
+        info.append(tr("将转入账户文件“%1”拷贝到账户目录时发生错误！").arg(fn));
+        if(!restore(fn,true))
+            info.append(tr("恢复原始账户文件“%1”出错！").arg(fn));
+        return false;
+    }
+    //5、再次建立连接
+    if(!setAccontFile(lf)){
+        info.append(tr("与转入账户文件“%1”再次建立连接时，发生无法打开的错误！").arg(fn));
+        if(!restore(fn,true))
+            info.append(tr("恢复原始账户文件“%1”出错！").arg(fn));
+        return false;
+    }
+    getLastTransRec();
+    //6、如果账户带有升级配置，则执行升级
+    if(!upgradeAppCfg()){
+        info.append(tr("在从转入账户“%1”升级应用配置信息时，发生错误！").arg(fn));
+        if(!restore(fn,true))
+            info.append(tr("恢复原始账户文件“%1”出错！").arg(fn));
+        return false;
+    }
+    //7、更改账户转移记录，和本地账户缓存记录
+    if(!acItem){
+        acItem = new AccountCacheItem;
+        acItem->id = UNID;
+        acItem->code = accCode;
+        acItem->accName = accName;
+        acItem->accLName = accLName;
+        acItem->fileName = QFileInfo(fileName).fileName();
+        acItem->lastOpened = false;
+    }
+    acItem->s_ws = trRec->m_out;
+    acItem->d_ws = trRec->m_in;
+    acItem->inTime = QDateTime::currentDateTime();
+    acItem->outTime = trRec->t_out;
+    if(trRec->m_in->getMID() == locWs->getMID())
+        acItem->tState = ATS_TRANSINDES;
+    else
+        acItem->tState = ATS_TRANSINOTHER;
+    if(!appCfg->saveAccountCacheItem(acItem)){
+        info.append(tr("在保存账户“%1”的缓存账户条目时出错！\n").arg(accName));
+        if(!restore(fn,true))
+            info.append(tr("恢复原始账户文件“%1”出错！").arg(fn));
+        return false;
+    }
+    return true;
+}
+
+bool AccountTransferUtil::setAccontFile(QString fname)
+{
+    if(trMode)//仅在转入操作时调用
+        return false;
+    if(db.isOpen()){
+        db.close();
+        if(trRec){
+            delete trRec;
+            trRec = 0;
+        }
+    }
+    db.setDatabaseName(fname);
+    return db.open();
+}
+
+/**
+ * @brief 转移账户是否存在捎带应用配置信息的临时表
+ * @return
+ */
+bool AccountTransferUtil::isExistAppCfgInfo()
+{
     QSqlQuery q(db);
     QString s = QString("select count() from sqlite_master where type='table' and name='%1'").arg(tbl_tem_appcfg);
     if(!q.exec(s)){
@@ -187,26 +258,122 @@ bool TransferRecordManager::setFilename(QString filename)
     }
     q.first();
     int c = q.value(0).toInt();
-    isExistTemAppCfgTable = (c == 1);
-    trRec = getLastTransRec();
-    q.finish();
-    //如果是执行转入操作，且账户捎带了应用配置信息，则与本站进行版本比较只有在高于本站版本时才可以应用
-    if(isExistTemAppCfgTable && !isTranOut && !upgradeAppCfg()){
-        myHelper::ShowMessageBoxError(tr("应用配置信息更新过程发生错误，可能使应用无法处于最新有效的运行状态！"));
+    return (c == 1);
+}
+
+/**
+ * @brief 让转出的账户文件捎带执行转出操作的主机上的应用配置信息，
+ *        这将在账户文件内创建临时保存配置信息的表，此方法只在执行转出操作时调用
+ * @param verTypes
+ * @param verNames
+ * @param mvs
+ * @param svs
+ * @param infos
+ * @return
+ */
+bool AccountTransferUtil::attechAppCfgInfo(TakeAppCfgInfos* cfgs)
+{
+    if(!trMode)
+        return true;
+    if(cfgs->verTypes.isEmpty())
+        return true;
+
+    bool isExistTemAppCfgTable = isExistAppCfgInfo();
+    QSqlQuery q(db);
+    QString s;
+    if(!isExistTemAppCfgTable){
+        s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 TEXT, %4 INTEGER, %5 INTEGER, %6 BLOB)")
+                .arg(tbl_tem_appcfg).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+                .arg(fld_base_version_master).arg(fld_base_version_second).arg(fld_tem_appcfg_obj);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            myHelper::ShowMessageBoxError(tr("创建临时应用配置表失败！"));
+            return false;
+        }
+    }
+    else{
+        s = QString("delete from %1").arg(tbl_tem_appcfg);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    };
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save Application config infomation!");
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:type,:name,:mv,:sv,:infos)")
+            .arg(tbl_tem_appcfg).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
+            .arg(fld_base_version_master).arg(fld_base_version_second).arg(fld_tem_appcfg_obj);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    for(int i = 0; i < cfgs->verTypes.count(); ++i){
+        q.bindValue(":type",cfgs->verTypes.at(i));
+        q.bindValue(":name",cfgs->verNames.at(i));
+        q.bindValue(":mv",cfgs->mvs.at(i));
+        q.bindValue(":sv",cfgs->svs.at(i));
+        q.bindValue(":infos",*cfgs->infos.at(i));
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save Application config infomation!");
+        return false;
     }
     return true;
 }
 
 /**
- * @brief TransferRecordManager::appendTransferRecord
- *  在转移记录表的最后添加或保存一条转移记录
- * @param rec
+ * @brief 备份账户目录下的指定账户文件到主备份目录或临时备份目录
+ * @param filename  不带路径的文件名
  * @return
  */
-bool TransferRecordManager::saveTransferRecord(AccontTranferInfo *rec)
+bool AccountTransferUtil::backup(QString filename, bool isMasteBD)
 {
-    if(!connected)
-        return false;
+    if(isMasteBD){
+        BackupUtil bu;
+        return bu.backup(filename,BackupUtil::BR_TRANSFERIN);
+    }
+    else{
+        QDir bkDir(bkDirName);
+        if(!bkDir.exists())
+            bkDir.mkpath(bkDirName);
+        QString fname = DATABASE_PATH + filename;
+        QString bkname = bkDirName + filename;
+        if(bkDir.exists(filename))
+            bkDir.remove(filename);
+        return QFile::copy(fname,bkname);
+    }
+}
+
+/**
+ * @brief 从主备份目录或临时备份目录中恢复指定账户文件
+ * @param filename
+ * @return
+ */
+bool AccountTransferUtil::restore(QString filename, bool isMasteBD)
+{
+    if(isMasteBD){
+        BackupUtil bu;
+        QString err;
+        return bu.restore(filename,BackupUtil::BR_TRANSFERIN,err);
+    }
+    else{
+        QDir dir(DATABASE_PATH);
+        if(dir.exists(filename))
+            dir.remove(filename);
+        QString sname = bkDirName + filename;
+        QString dname = DATABASE_PATH + filename;
+        return QFile::copy(dname,sname);
+    }
+}
+
+bool AccountTransferUtil::saveTransferRecord(AccountTranferInfo *rec)
+{
     QSqlQuery q(db);
     QString s;
     bool newRec = rec->id == UNID;
@@ -257,82 +424,14 @@ bool TransferRecordManager::saveTransferRecord(AccontTranferInfo *rec)
 }
 
 /**
- * @brief TransferRecordManager::attechMachineInfo
- *  让转出的账户文件捎带执行转出操作的主机上的应用配置信息，将在账户文件内创建临时保存配置信息的表
- *  此方法只在执行转出操作时调用
+ * @brief 升级应用配置信息
  * @return
  */
-bool TransferRecordManager::attechAppCfgInfo(QList<BaseDbVersionEnum> &verTypes, QStringList &verNames, QList<int> &mvs, QList<int> &svs, QList<QByteArray*> &infos)
+bool AccountTransferUtil::upgradeAppCfg()
 {
-    if(!connected)
-        return false;
-    if(trRec && trRec->tState != ATS_TRANSINDES) //只有在账户已转入目标主机的情况下，才可以执行转出操作
-        return true;
-    if(verTypes.isEmpty())
+    if(!isExistAppCfgInfo())
         return true;
     QSqlQuery q(db);
-    QString s;
-    if(!isExistTemAppCfgTable){
-        s = QString("create table %1(id INTEGER PRIMARY KEY, %2 INTEGER, %3 TEXT, %4 INTEGER, %5 INTEGER, %6 BLOB)")
-                .arg(tbl_tem_appcfg).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
-                .arg(fld_base_version_master).arg(fld_base_version_second).arg(fld_tem_appcfg_obj);
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            myHelper::ShowMessageBoxError(tr("创建临时应用配置表失败！"));
-            return false;
-        }
-    }
-    else{
-        s = QString("delete from %1").arg(tbl_tem_appcfg);
-        if(!q.exec(s)){
-            LOG_SQLERROR(s);
-            return false;
-        }
-    };
-    if(!db.transaction()){
-        LOG_SQLERROR("Start transaction failed on save Application config infomation!");
-        return false;
-    }
-    s = QString("insert into %1(%2,%3,%4,%5,%6) values(:type,:name,:mv,:sv,:infos)")
-            .arg(tbl_tem_appcfg).arg(fld_base_version_typeEnum).arg(fld_base_version_typeName)
-            .arg(fld_base_version_master).arg(fld_base_version_second).arg(fld_tem_appcfg_obj);
-    if(!q.prepare(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    for(int i = 0; i < verTypes.count(); ++i){
-        q.bindValue(":type",verTypes.at(i));
-        q.bindValue(":name",verNames.at(i));
-        q.bindValue(":mv",mvs.at(i));
-        q.bindValue(":sv",svs.at(i));
-        q.bindValue(":infos",*infos.at(i));
-        if(!q.exec()){
-            LOG_SQLERROR(q.lastQuery());
-            return false;
-        }
-    }
-    if(!db.commit()){
-        LOG_SQLERROR("Commit transaction failed on save Application config infomation!");
-        return false;
-    }
-    return true;
-}
-
-/**
- * @brief TransferRecordManager::updateMachines
- *  升级应用配置信息
- *  此方法只在执行转入操作时调用
- * @return
- */
-bool TransferRecordManager::upgradeAppCfg()
-{
-    if(!connected)
-        return false;
-    QSqlQuery q(db);
-    if(trRec && trRec->tState != ATS_TRANSOUTED)
-        return true;
-    if(!isExistTemAppCfgTable)
-        return true;
     QString s = QString("select * from %1").arg(tbl_tem_appcfg);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
@@ -345,7 +444,7 @@ bool TransferRecordManager::upgradeAppCfg()
     while(q.next()){
         int bmv,bsv,smv,ssv; //本站或转入捎带的主次版本号
         BaseDbVersionEnum verType = (BaseDbVersionEnum)q.value(FI_TEM_APPCFG_VERTYPE).toInt();
-        conf->getAppCfgVersion(bmv,bsv,verType);
+        appCfg->getAppCfgVersion(bmv,bsv,verType);
         smv = q.value(FI_TEM_APPCFG_MASTER).toInt();
         ssv = q.value(FI_TEM_APPCFG_SECOND).toInt();
         if((bmv > smv) || ((bmv == smv) && (bsv >= ssv)))
@@ -377,7 +476,7 @@ bool TransferRecordManager::upgradeAppCfg()
     }
     //显示给用户哪些配置信息需升级
     if(verTypes.empty()){
-        myHelper::ShowMessageBoxInfo(tr("导入文件附带应用配置升级信息，但版本不高于本站配置，因此无须升级！"));
+        myHelper::ShowMessageBoxInfo(tr("导入文件“%1”附带应用配置升级信息，但版本不高于本站配置，因此无须升级！").arg(db.databaseName()));
         q.finish();
         clearTemAppCfgTable();
         return true;
@@ -399,7 +498,7 @@ bool TransferRecordManager::upgradeAppCfg()
             if(!ok1)
                 myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
             else{
-                ok2 = conf->clearAndSaveRightTypes(rts,mv,sv);
+                ok2 = appCfg->clearAndSaveRightTypes(rts,mv,sv);
                 if(!ok2)
                     myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
             }
@@ -420,7 +519,7 @@ bool TransferRecordManager::upgradeAppCfg()
             if(!ok1)
                 myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
             else{
-                ok2 = conf->clearAndSaveRights(rs,mv,sv);
+                ok2 = appCfg->clearAndSaveRights(rs,mv,sv);
                 if(!ok2)
                     myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
             }
@@ -441,7 +540,7 @@ bool TransferRecordManager::upgradeAppCfg()
             if(!ok1)
                 myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
             else{
-                ok2 = conf->clearAndSaveGroups(gs,mv,sv);
+                ok2 = appCfg->clearAndSaveGroups(gs,mv,sv);
                 if(!ok2)
                     myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
             }
@@ -462,7 +561,7 @@ bool TransferRecordManager::upgradeAppCfg()
             if(!ok1)
                 myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
             else{
-                ok2 = conf->clearAndSaveUsers(us,mv,sv);
+                ok2 = appCfg->clearAndSaveUsers(us,mv,sv);
                 if(!ok2)
                     myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
             }
@@ -478,19 +577,19 @@ bool TransferRecordManager::upgradeAppCfg()
             }
         }
         else if(verType == BDVE_WORKSTATION){
-            QList<Machine*> macs;
-            ok1 = Machine::serialAllFromBinary(macs,mv,sv,objs.at(i));
+            QList<WorkStation*> macs;
+            ok1 = WorkStation::serialAllFromBinary(macs,mv,sv,objs.at(i));
             if(!ok1)
                 myHelper::ShowMessageBoxError(tr("升级“%1”配置信息时发生错误！").arg(names.at(i)));
             else{
-                int localId = conf->getLocalStationId();
-                foreach(Machine* m, macs){
+                int localId = appCfg->getLocalStationId();
+                foreach(WorkStation* m, macs){
                     if(m->getMID() == localId)
                         m->setLocalMachine(true);
                     else
                         m->setLocalMachine(false);
                 }
-                ok2 = conf->clearAndSaveMacs(macs,mv,sv);
+                ok2 = appCfg->clearAndSaveMacs(macs,mv,sv);
                 if(!ok2)
                     myHelper::ShowMessageBoxError(tr("保存“%1”配置信息时发生错误！").arg(names.at(i)));
             }
@@ -500,13 +599,13 @@ bool TransferRecordManager::upgradeAppCfg()
                 return false;
             }
             else{
-                conf->refreshMachines();
+                appCfg->refreshMachines();
                 localMacs.clear();
-                localMacs = conf->getAllMachines();
+                localMacs = appCfg->getAllMachines();
             }
         }
         else if(verType == BDVE_COMMONPHRASE){
-            if(!conf->serialCommonPhraseFromBinary(objs.at(i)))
+            if(!appCfg->serialCommonPhraseFromBinary(objs.at(i)))
                 myHelper::ShowMessageBoxError(tr("升级常用提示短语时发生错误！"));
         }
     }
@@ -517,11 +616,10 @@ bool TransferRecordManager::upgradeAppCfg()
 }
 
 /**
- * @brief TransferRecordManager::clearTemMachineTable
- *  删除捎带应用配置信息的临时表
+ * @brief 删除捎带应用配置信息的表格
  * @return
  */
-bool TransferRecordManager::clearTemAppCfgTable()
+bool AccountTransferUtil::clearTemAppCfgTable()
 {
     QSqlQuery q(db);
     QString s = QString("drop table if exists %1").arg(tbl_tem_appcfg);
@@ -529,22 +627,78 @@ bool TransferRecordManager::clearTemAppCfgTable()
         LOG_SQLERROR(s);
         return false;
     }
-    isExistTemAppCfgTable = false;
     return true;
 }
 
 /**
- * @brief TransferRecordManager::getAccountInfo
- *  获取账户的基本信息
- * @param accId
- * @param accName
- * @param accLName
+ * @brief 获取转入账户的最近的转移记录
  * @return
  */
-bool TransferRecordManager::getAccountInfo(QString &accCode, QString &accName, QString &accLName)
+AccountTranferInfo* AccountTransferUtil::getLastTransRec()
 {
-    if(!connected)
+    if(trRec)
+        return trRec;
+    if(!db.isOpen()){
+        LOG_SQLERROR("Database base connect don't opened!");
+        return NULL;
+    }
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_transfer);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return NULL;
+    }
+    if(!q.last())
+        return NULL;
+    trRec = new AccountTranferInfo;
+    trRec->tState = (AccountTransferState)q.value(TRANS_STATE).toInt();
+    int smid = q.value(TRANS_SMID).toInt();
+    int dmid = q.value(TRANS_DMID).toInt();
+    //检测源主机和目标主机是否在本机上存在，如果不存在，则视为异常
+    if(!localMacs.contains(smid) || !localMacs.contains(dmid)){
+        myHelper::ShowMessageBoxWarning(tr("转入账户的最后转移记录中包含未知的源或目标站点，请先纠正之！"));
+        return NULL;
+    }
+    trRec->id = q.value(0).toInt();
+    trRec->m_in = localMacs.value(dmid);
+    trRec->m_out = localMacs.value(smid);
+    trRec->t_in = q.value(TRANS_INTIME).toDateTime();
+    trRec->t_out = q.value(TRANS_OUTTIME).toDateTime();
+    s = QString("select * from %1 where %2=%3").arg(tbl_transferDesc)
+            .arg(fld_transDesc_tid).arg(trRec->id);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return NULL;
+    }
+    if(q.first()){
+        trRec->desc_in = q.value(TRANSDESC_IN).toString();
+        trRec->desc_out = q.value(TRANSDESC_OUT).toString();
+    }
+    return trRec;
+}
+
+/**
+ * @brief 获取账户代码
+ * @param aCode
+ * @return
+ */
+bool AccountTransferUtil::getAccountCode(QString &aCode)
+{
+    QString s = QString("select %1 from %2 where %3=%4").arg(fld_acci_value)
+            .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ACODE);
+    QSqlQuery q(db);
+    if(!q.exec(s) || !q.first())
         return false;
+    aCode = q.value(0).toString();
+    return true;
+}
+
+bool AccountTransferUtil::getAccountBaseInfos(QString &acode, QString &sname, QString &lname)
+{
+    if(!db.isOpen()){
+        LOG_SQLERROR("Database base connect don't opened!");
+        return false;
+    }
     QSqlQuery q(db);
     QString s = QString("select * from %1 where %2=%3 or %2=%4 or %2=%5").arg(tbl_accInfo)
             .arg(fld_acci_code).arg(Account::ACODE).arg(Account::SNAME).arg(Account::LNAME);
@@ -557,67 +711,87 @@ bool TransferRecordManager::getAccountInfo(QString &accCode, QString &accName, Q
         fld = (Account::InfoField)q.value(ACCINFO_CODE).toInt();
         switch(fld){
         case Account::ACODE:
-            accCode = q.value(ACCINFO_VALUE ).toString();
+            acode = q.value(ACCINFO_VALUE).toString();
             break;
         case Account::SNAME:
-            accName = q.value(ACCINFO_VALUE).toString();
+            sname = q.value(ACCINFO_VALUE).toString();
             break;
         case Account::LNAME:
-            accLName = q.value(ACCINFO_VALUE).toString();
+            lname = q.value(ACCINFO_VALUE).toString();
         }
     }
     return true;
 }
 
 /**
- * @brief TransferRecordManager::getLastTransRec
- *  返回账户最后一个转移记录
+ * @brief 基于账户的最近转移记录和本地缓存条目，判断该账户是否可以转入
+ * @param trRec
+ * @param acItem
  * @return
  */
-AccontTranferInfo *TransferRecordManager::getLastTransRec()
+bool AccountTransferUtil::canTransferIn(AccountCacheItem *acItem, QString &infos)
 {
-    if(!connected)
-        return NULL;
-    if(trRec)
-        return trRec;
-    QSqlQuery q(db);
-    QString s = QString("select * from %1").arg(tbl_transfer);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return NULL;
+    if(trMode)
+        return false;
+    QString name,lname;
+    if(acItem){
+        name = acItem->accName;
+        lname = acItem->accLName;
     }
-    if(!q.last())
-        return NULL;
-    trRec = new AccontTranferInfo;
-    trRec->tState = (AccountTransferState)q.value(TRANS_STATE).toInt();
-    smid = q.value(TRANS_SMID).toInt();
-    dmid = q.value(TRANS_DMID).toInt();
-    //检测源主机和目标主机是否在本机上存在，如果不存在，则视为异常
-    if(!localMacs.contains(smid) || !localMacs.contains(dmid)){
-        if(isTranOut){
-            myHelper::ShowMessageBoxError(tr("转出账户的最后转移记录中包含未知的源或目标主机，请先纠正之！"));
-            return false;
-        }
-        else
-            myHelper::ShowMessageBoxWarning(tr("转入账户的最后转移记录中包含未知的源或目标主机！"));
+    if(!trRec){
+        infos.append(tr("最近转移记录为空！\n"));
+        return false;
     }
-    trRec->id = q.value(0).toInt();
-    trRec->m_in = localMacs.value(dmid);
-    trRec->m_out = localMacs.value(smid);
-    trRec->t_in = q.value(TRANS_INTIME).toDateTime();
-    trRec->t_out = q.value(TRANS_OUTTIME).toDateTime();
-    s = QString("select * from %1 where %2=%3").arg(tbl_transferDesc)
-            .arg(fld_transDesc_tid).arg(trRec->id);
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        delete trRec;
-        return NULL;
+    if(trRec->tState != ATS_TRANSOUTED){
+        infos.append(tr("账户未执行转出操作，不能转入！\n"));
+        return false;
     }
-    if(q.first()){
-        trRec->desc_in = q.value(TRANSDESC_IN).toString();
-        trRec->desc_out = q.value(TRANSDESC_OUT).toString();
+    //为了确保账户编辑的连续性，账户的转移必须按时间顺序，以直线的方式转移
+    //即账户A从站点A转出到目的站B，如果要回到站点A，必须从站点B转出，再转入站点A
+    //在此期间，站点B不能接受以站点B为目的账的账户A的转入（也就是说，站点B将不再接受
+    //账户A的转入，因为如果站点B对账户A做出了修改，此时再转入则将冲掉修改数据，
+    //这就确保了账户A编辑动作的连续性），当然此时其他站点转入账户A只能以只读的形式。
+    if(acItem && acItem->tState == ATS_TRANSINDES){
+        QDialog dlg;
+        QLabel title(tr("转移状态异常"),&dlg);
+        title.setAlignment(Qt::AlignCenter);
+        QTableWidget tw(&dlg);
+        tw.setColumnCount(4);
+        tw.setRowCount(2);
+        tw.horizontalHeader()->setStretchLastSection(true);
+        QStringList titles;
+        titles<<tr("账户")<<"MID"<<tr("工作站名")<<tr("转入/出时间");
+        tw.setHorizontalHeaderLabels(titles);
+        tw.setColumnWidth(0,80); tw.setColumnWidth(1,50);
+        tw.setColumnWidth(2,80);
+        tw.setItem(0,0,new QTableWidgetItem(tr("转入账户")));
+        tw.setItem(1,0,new QTableWidgetItem(tr("缓存账户")));
+        tw.setItem(0,1,new QTableWidgetItem(trRec->m_out?QString::number(trRec->m_out->getMID()):""));
+        tw.setItem(0,2,new QTableWidgetItem(trRec->m_out?trRec->m_out->name():tr("未知站")));
+        tw.setItem(0,3,new QTableWidgetItem(trRec->t_out.toString(Qt::ISODate)));
+        tw.setItem(1,1,new QTableWidgetItem(acItem->s_ws?QString::number(acItem->s_ws->getMID()):""));
+        tw.setItem(1,2,new QTableWidgetItem(acItem->s_ws?acItem->s_ws->name():tr("未知站")));
+        tw.setItem(1,3,new QTableWidgetItem(acItem->inTime.toString(Qt::ISODate)));
+        QVBoxLayout* lm = new QVBoxLayout;
+        lm->addWidget(&title);
+        lm->addWidget(&tw);
+        dlg.setLayout(lm);
+        dlg.resize(600,300);
+        dlg.exec();
+        QHash<AccountTransferState, QString> trStateNames = appCfg->getAccTranStates();
+        infos.append(tr("转入账户“%1”的转移记录异常！\n").arg(acItem->accName));
+        infos.append(tr("本地账户缓存记录如下：\n"));
+        infos.append(tr("源站：%1，转出时间：%2，目的站：%3，转入时间：%4，转移状态：%5\n")
+                     .arg(acItem->s_ws->name()).arg(acItem->outTime.toString(Qt::ISODate))
+                     .arg(acItem->d_ws->name()).arg(acItem->inTime.toString(Qt::ISODate))
+                     .arg(trStateNames.value(acItem->tState)));
+        infos.append(tr("账户最近转移记录如下：\n"));
+        infos.append(tr("源站：%1，转出时间：%2，目的站：%3，转移状态：%4\n")
+                     .arg(trRec->m_out->name()).arg(trRec->t_out.toString(Qt::ISODate))
+                     .arg(trRec->m_in->name()).arg(trStateNames.value(trRec->tState)));
+        return false;
     }
-    return trRec;
+    return true;
 }
 
 ///////////////////////////TransferOutDialog//////////////////////////////////////////
@@ -631,7 +805,7 @@ TransferOutDialog::TransferOutDialog(QWidget *parent) : QDialog(parent), ui(new 
     lm = conf->getLocalStation();
     if(lm){
         ui->edtLocalMac->setText(tr("%1（%2）").arg(lm->name()).arg(lm->getMID()));
-        Machine* ms = conf->getMasterStation();
+        WorkStation* ms = conf->getMasterStation();
         if(ms && (lm->getMID() == ms->getMID()) && curUser->isSuperUser()) //主站
             ui->gbIsTake->setChecked(true);
     }
@@ -650,14 +824,9 @@ TransferOutDialog::TransferOutDialog(QWidget *parent) : QDialog(parent), ui(new 
     }
     foreach(AccountCacheItem* acc, accCacheItems)
         ui->cmbAccount->addItem(acc->accName);
-    foreach(Machine* mac, localMacs)
+    foreach(WorkStation* mac, localMacs)
         ui->cmbMachines->addItem(mac->name());
     QString path = conf->getDirName(AppConfig::DIR_TRANSOUT);
-    if(path.isEmpty())
-        path = QDir::homePath();
-    dir.setPath(path);
-    if(!dir.exists())
-        dir.setPath(QDir::homePath());
     ui->edtDir->setText(path);
     ui->cmbAccount->setCurrentIndex(-1);
     ui->cmbMachines->setCurrentIndex(-1);
@@ -692,7 +861,7 @@ QString TransferOutDialog::getAccountFileName()
 }
 
 
-Machine* TransferOutDialog::getDestiMachine()
+WorkStation* TransferOutDialog::getDestiMachine()
 {
     int index = ui->cmbMachines->currentIndex();
     if(index == -1)
@@ -714,11 +883,6 @@ bool TransferOutDialog::isTakeAppConInfo()
 {
     return ui->chkRightType->isChecked()||ui->chkRight->isChecked()||ui->chkUser->isChecked()||
            ui->chkWS->isChecked()||ui->chkGroup->isChecked()||ui->chkPhrases->isChecked();
-}
-
-QDir TransferOutDialog::getDirection()
-{
-    return dir;
 }
 
 /**
@@ -757,7 +921,7 @@ void TransferOutDialog::on_cmbMachines_currentIndexChanged(int index)
         ui->edtMDesc->clear();
         return;
     }
-    Machine* mac = localMacs.at(index);
+    WorkStation* mac = localMacs.at(index);
     if(mac){
         ui->edtMID->setText(QString::number(mac->getMID()));
         if(mac->getType() == MT_COMPUTER)
@@ -777,14 +941,13 @@ void TransferOutDialog::on_btnBrowser_clicked()
     QFileDialog dlg;
     dlg.setFileMode(QFileDialog::DirectoryOnly);
     dlg.setNameFilter("Sqlite files(*.dat)");
-    dlg.setDirectory(dir.absolutePath());
+    dlg.setDirectory(conf->getDirName(AppConfig::DIR_TRANSOUT));
     if(dlg.exec() == QDialog::Rejected)
         return;
     QStringList files = dlg.selectedFiles();
     if(files.empty())
         return;
     ui->edtDir->setText(files.first());
-    dir.setPath(files.first());
 }
 
 /**
@@ -796,109 +959,70 @@ void TransferOutDialog::on_btnOk_clicked()
     DontTranReason reason;
     if(!canTransferOut(reason))
         return;
-    //1、在转出账户中添加一条转出记录
-    QString sn = DATABASE_PATH + getAccountFileName();
-    TransferRecordManager trMgr(sn,this);
-    AccontTranferInfo rec;
-    rec.id = UNID;
-    rec.desc_out = ui->edtDesc->toPlainText();
-    rec.m_in = getDestiMachine();
-    rec.m_out = lm;
-    rec.tState = ATS_TRANSOUTED;
-    rec.t_out = QDateTime::currentDateTime();
-    if(!trMgr.saveTransferRecord(&rec)){
-        myHelper::ShowMessageBoxError(tr("在添加转移记录时出错！"));
-        return;
-    }
+    AccountTransferUtil trUtil;
+    AccountCacheItem* aci = accCacheItems.at(ui->cmbAccount->currentIndex());
+    QString infos;
+    QString desDir = ui->edtDir->text();
+    WorkStation* desWs = localMacs.at(ui->cmbMachines->currentIndex());
     bool isTake = isTakeAppConInfo();
+    TakeAppCfgInfos cfgs;
     if(isTake){
-        QList<BaseDbVersionEnum> verTypes;
-        QStringList verNames;
-        QList<int> mvs, svs;
-        QList<QByteArray*> infos;
         if(ui->chkRightType->isChecked()){
-            verTypes<<BDVE_RIGHTTYPE;
+            cfgs.verTypes<<BDVE_RIGHTTYPE;
             QByteArray* ba = new QByteArray;
             int mv,sv;
             conf->getAppCfgVersion(mv,sv,BDVE_RIGHTTYPE);
             RightType::serialAllToBinary(mv,sv,ba);
-            infos<<ba;
+            cfgs.infos<<ba;
         }
         if(ui->chkRight->isChecked()){
-            verTypes<<BDVE_RIGHT;
+            cfgs.verTypes<<BDVE_RIGHT;
             QByteArray* ba = new QByteArray;
             int mv,sv;
             conf->getAppCfgVersion(mv,sv,BDVE_RIGHT);
             Right::serialAllToBinary(mv,sv,ba);
-            infos<<ba;
+            cfgs.infos<<ba;
         }
         if(ui->chkGroup->isChecked()){
-            verTypes<<BDVE_GROUP;
+            cfgs.verTypes<<BDVE_GROUP;
             QByteArray* ba = new QByteArray;
             int mv,sv;
             conf->getAppCfgVersion(mv,sv,BDVE_GROUP);
             UserGroup::serialAllToBinary(mv,sv,ba);
-            infos<<ba;
+            cfgs.infos<<ba;
         }
         if(ui->chkUser->isChecked()){
-            verTypes<<BDVE_USER;
+            cfgs.verTypes<<BDVE_USER;
             QByteArray* ba = new QByteArray;
             int mv,sv;
             conf->getAppCfgVersion(mv,sv,BDVE_USER);
             User::serialAllToBinary(mv,sv,ba);
-            infos<<ba;
+            cfgs.infos<<ba;
         }
         if(ui->chkWS->isChecked()){
-            verTypes<<BDVE_WORKSTATION;
+            cfgs.verTypes<<BDVE_WORKSTATION;
             QByteArray* ba = new QByteArray;
             int mv,sv;
             conf->getAppCfgVersion(mv,sv,BDVE_WORKSTATION);
-            Machine::serialAllToBinary(mv,sv,ba);
-            infos<<ba;
+            WorkStation::serialAllToBinary(mv,sv,ba);
+            cfgs.infos<<ba;
         }
         if(ui->chkPhrases->isChecked()){
-            verTypes<<BDVE_COMMONPHRASE;
+            cfgs.verTypes<<BDVE_COMMONPHRASE;
             QByteArray* ba = new QByteArray;
             if(!conf->serialCommonPhraseToBinary(ba)){
                 myHelper::ShowMessageBoxError(tr("在捎带常用提示短语配置信息时发生错误！"));
 
             }
-            infos<<ba;
+            cfgs.infos<<ba;
         }
-        conf->getAppCfgVersions(verTypes,verNames,mvs,svs);
-        if(!trMgr.attechAppCfgInfo(verTypes,verNames,mvs,svs,infos))
-            myHelper::ShowMessageBoxError(tr("写入捎带站点信息时出错，无法捎带站点信息！"));
+        conf->getAppCfgVersions(cfgs.verTypes,cfgs.verNames,cfgs.mvs,cfgs.svs);
     }
-
-    //2、修改本地的账户缓存记录
-    AccountCacheItem* acc = accCacheItems.at(ui->cmbAccount->currentIndex());
-    acc->outTime = QDateTime::currentDateTime();
-    acc->s_ws = rec.m_out;
-    acc->d_ws = rec.m_in;
-    acc->tState = ATS_TRANSOUTED;
-    if(!conf->saveAccountCacheItem(acc)){
-        myHelper::ShowMessageBoxError(tr("在保存本地账户缓存项目时出错，无法执行转出操作！"));
+    if(!trUtil.transferOut(aci->fileName,desDir,ui->edtDesc->toPlainText(),infos,desWs,isTake,&cfgs)){
+        myHelper::ShowMessageBoxError(infos);
         return;
     }
-
-    //3、拷贝账户文件到指定位置
-    QString dn = dir.absolutePath() + QDir::separator() + getAccountFileName();
-    if(QFile::exists(dn)){
-        if(QMessageBox::warning(this,tr("警告信息"),tr("选定的目录下存在同名文件，要覆盖吗？\n如果不覆盖，则老的文件将被添加后缀“bak”"),
-                                QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
-            QFile::remove(dn);
-        else
-            QFile::rename(dn,dn+".bak");
-    }
-    if(!QFile::copy(sn,dn)){
-        myHelper::ShowMessageBoxError(tr("账户文件拷贝失败！"));
-        return;
-    }
-    conf->saveDirName(AppConfig::DIR_TRANSOUT,dir.absolutePath());
-
-    //4、移除本地账户文件中创建的临时表（因为捎带信息只保存在承载的账户文件上，而在本地文件上不需要此）
-    if(isTake)
-        trMgr.clearTemAppCfgTable();
+    conf->saveDirName(AppConfig::DIR_TRANSOUT,desDir);
     accept();
 }
 
@@ -955,7 +1079,7 @@ bool TransferOutDialog::canTransferOut(DontTranReason &reason)
 TransferInDialog::TransferInDialog(QWidget *parent) : QDialog(parent), ui(new Ui::TransferInDialog)
 {
     ui->setupUi(this);
-    trMgr = NULL;
+    trUtil = NULL;
     conf = AppConfig::getInstance();
     QHash<int,QString> phrases;
     conf->readPhases(CPPC_TRAN_IN,phrases);
@@ -972,6 +1096,8 @@ TransferInDialog::TransferInDialog(QWidget *parent) : QDialog(parent), ui(new Ui
 
 TransferInDialog::~TransferInDialog()
 {
+    if(trUtil)
+        delete trUtil;
     delete ui;
 }
 
@@ -986,80 +1112,24 @@ void TransferInDialog::transInPhraseSelected(QString text)
  */
 void TransferInDialog::on_btnOk_clicked()
 {    
-    //1、拷贝账户文件到工作目录（最好在拷贝前备份账户文件）
-    QDir dir(DATABASE_PATH);
-    QString fname = QFileInfo(fileName).fileName();
-    BackupUtil bu;
-    bool isBackup = false;
-    if(dir.exists(fname)){
-        if(myHelper::ShowMessageBoxQuesion(tr("本站拥有同名账户，要覆盖它吗？")) == QDialog::Rejected)
-            return;
-        if(!bu.backup(fname,BackupUtil::BR_TRANSFERIN)){
-            myHelper::ShowMessageBoxWarning(tr("在转入账户前执行备份操作出错！"));
-            return;
-        }
-        isBackup = true;
-        dir.remove(fname);
-    }
-    QString desFName = DATABASE_PATH + fname;
-    QString error;
-    if(!QFile::copy(fileName,desFName)){
-        myHelper::ShowMessageBoxError(tr("文件拷贝操作出错，请手工将账户文件拷贝到工作目录"));
-        if(isBackup && !bu.restore(fname,BackupUtil::BR_TRANSFERIN,error))
-            myHelper::ShowMessageBoxWarning(tr("无法恢复被覆盖的账户文件！"));
+    if(!trUtil)
+        return;
+    if(ui->edtInDesc->toPlainText().isEmpty()){
+        myHelper::ShowMessageBoxWarning(tr("未填写转入意图！"));
         return;
     }
-
-    //2、修改账户的转移记录
-    //（1）状态（转入目标机或转入其他机）
-    //（2）设置用户输入的转入描述信息及其转入时间
-    //（3）转出时间、转出源主机、转入目的主机、转出描述等内容不变    
-
-    trMgr->setFilename(desFName);
-    AccontTranferInfo* tranRec = trMgr->getLastTransRec();
-    if(tranRec->m_in == conf->getLocalStation())
-        tranRec->tState = ATS_TRANSINDES;
-    else
-        tranRec->tState = ATS_TRANSINOTHER;
-    tranRec->desc_in = ui->edtInDesc->toPlainText();
-    tranRec->t_in = QDateTime::currentDateTime();
-    if(!trMgr->saveTransferRecord(tranRec)){
-        myHelper::ShowMessageBoxError(tr("保存转移记录时出错！"));
-        if(isBackup && !bu.restore(/*fname,BackupUtil::BR_TRANSFERIN,*/error))
-            myHelper::ShowMessageBoxWarning(tr("无法恢复被覆盖的账户文件！"));
-        reject();
+    QString infos;
+    if(!trUtil->transferIn(fileName,infos)){
+        ui->stateTxt->appendPlainText(infos);
+        ui->stateTxt->appendPlainText(tr("转入账户失败！\n"));
+        ui->btnOk->setEnabled(false);
     }
-
-    //3、修改本地账户缓存，对应于转入账户的条目（也有可能转入的是新账户，即在本地缓存中还没有）
-    QString code,accName,accLName;
-    trMgr->getAccountInfo(code,accName,accLName);
-    AccountCacheItem* ci = conf->getAccountCacheItem(code);
-    if(!ci){
-        ci = new AccountCacheItem;
-        ci->id = UNID;
-        ci->code = code;
-        ci->accName = accName;
-        ci->accLName = accLName;
-        ci->fileName = QFileInfo(fileName).fileName();
-        ci->lastOpened = false;
+    else{
+        myHelper::ShowMessageBoxInfo(tr("成功转入账户！\n") + infos);
+        QFileInfo fi(fileName);
+        conf->saveDirName(AppConfig::DIR_TRANSIN,fi.absolutePath());
+        accept();
     }
-    ci->s_ws = tranRec->m_out;
-    ci->d_ws = tranRec->m_in;
-    ci->inTime = QDateTime::currentDateTime();
-    ci->outTime = tranRec->t_out;
-    if(tranRec->m_in->getMID() == conf->getLocalStation()->getMID())
-        ci->tState = ATS_TRANSINDES;
-    else
-        ci->tState = ATS_TRANSINOTHER;
-    if(!conf->saveAccountCacheItem(ci)){
-        myHelper::ShowMessageBoxError(tr("在保存缓存账户条目时出错！"));
-        if(isBackup && !bu.restore(fname,BackupUtil::BR_TRANSFERIN,error))
-            myHelper::ShowMessageBoxWarning(tr("无法恢复被覆盖的账户文件！"));
-        return;
-    }
-    QString path = QFileInfo(fileName).path();
-    conf->saveDirName(AppConfig::DIR_TRANSIN,path);
-    accept();
 }
 
 /**
@@ -1083,16 +1153,14 @@ void TransferInDialog::on_btnSelectFile_clicked()
         return;
     fileName = files.first();
     ui->edtFileName->setText(fileName);
-    if(!trMgr)
-        trMgr = new TransferRecordManager(fileName,this);
-    else
-        trMgr->setFilename(files.first());
+    trUtil = new AccountTransferUtil(false,this);
+    trUtil->setAccontFile(fileName);
     QString accCode,accName,accLName;
-    if(!trMgr->getAccountInfo(accCode,accName,accLName)){
+    if(!trUtil->getAccountBaseInfos(accCode,accName,accLName)){
         myHelper::ShowMessageBoxError(tr("获取该账户基本信息，可能是无效的账户文件！"));
         return;
     }
-    AccontTranferInfo* trInfo = trMgr->getLastTransRec();
+    AccountTranferInfo* trInfo = trUtil->getLastTransRec();
     if(!trInfo){
         myHelper::ShowMessageBoxError(tr("未能获取该账户的最近转移记录！"));
         return;
@@ -1101,42 +1169,10 @@ void TransferInDialog::on_btnSelectFile_clicked()
         myHelper::ShowMessageBoxWarning(tr("该账户没有执行转出操作，不能转入本工作站！"));
         return;
     }
-    //源站不明，也要忽略
-    //if(trInfo->m_out)
-
-    //如果执行转入操作的工作站内存在对应的缓存账户，且缓存项的转移状态是已转入的目的站，则表示
-    //此账户的转移状态异常，原因可能是手工人为地修改了账户的转移状态，使其在整个工作组集内的转移状态不一致
     AccountCacheItem* acItem = AppConfig::getInstance()->getAccountCacheItem(accCode);
-    if(acItem && acItem->tState == ATS_TRANSINDES){
-        QDialog dlg(this);
-        QLabel title(tr("转移状态异常"),&dlg);
-        title.setAlignment(Qt::AlignCenter);
-        QTableWidget tw(&dlg);
-        tw.setColumnCount(4);
-        tw.setRowCount(2);
-        tw.horizontalHeader()->setStretchLastSection(true);
-        QStringList titles;
-        titles<<tr("账户")<<"MID"<<tr("工作站名")<<tr("转入/出时间");
-        tw.setHorizontalHeaderLabels(titles);
-        tw.setColumnWidth(0,80); tw.setColumnWidth(1,50);
-        tw.setColumnWidth(2,80);
-        tw.setItem(0,0,new QTableWidgetItem(tr("转入账户")));
-        tw.setItem(1,0,new QTableWidgetItem(tr("缓存账户")));
-        tw.setItem(0,1,new QTableWidgetItem(trInfo->m_out?QString::number(trInfo->m_out->getMID()):""));
-        tw.setItem(0,2,new QTableWidgetItem(trInfo->m_out?trInfo->m_out->name():tr("未知站")));
-        tw.setItem(0,3,new QTableWidgetItem(trInfo->t_out.toString(Qt::ISODate)));
-        tw.setItem(1,1,new QTableWidgetItem(acItem->s_ws?QString::number(acItem->s_ws->getMID()):""));
-        tw.setItem(1,2,new QTableWidgetItem(acItem->s_ws?acItem->s_ws->name():tr("未知站")));
-        tw.setItem(1,3,new QTableWidgetItem(acItem->inTime.toString(Qt::ISODate)));
-        QVBoxLayout* lm = new QVBoxLayout;
-        lm->addWidget(&title);
-        lm->addWidget(&tw);
-        dlg.setLayout(lm);
-        dlg.resize(600,300);
-        dlg.exec();
+    QString infos;
+    if(!trUtil->canTransferIn(acItem,infos))
         return;
-    }
-
     if(trInfo->m_in->getMID() != conf->getLocalStation()->getMID())
         myHelper::ShowMessageBoxWarning(tr("该账户预定转移到“%1”，如果要转移到本工作站则在本工作站只能以只读模式查看！")
                                         .arg(trInfo->m_in->name()));
@@ -1155,4 +1191,176 @@ void TransferInDialog::on_btnSelectFile_clicked()
     ui->edtOsType->setText(osTypes.value(trInfo->m_out->osType(),tr("未知系统")));
     ui->edtMDesc->setText(trInfo->m_out->description());
     ui->btnOk->setEnabled(true);
+}
+
+
+//////////////////////////////BatchOutputDialog////////////////////////////////
+BatchOutputDialog::BatchOutputDialog(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::BatchOutputDialog)
+{
+    ui->setupUi(this);
+    appCfg = AppConfig::getInstance();
+    macTypes = appCfg->getMachineTypes();
+    appCfg->getOsTypes(osTypes);
+    accounts = appCfg->getAllCachedAccounts();
+    ui->twAccounts->setRowCount(accounts.count());
+    WorkStation* lm = appCfg->getLocalStation();
+    AccountCacheItem* ai;
+    for(int row = 0; row < accounts.count(); ++row){
+        ai = accounts.at(row);
+        if(ai->tState == ATS_TRANSINDES && ai->d_ws == lm){
+            QCheckBox* btn = new QCheckBox(ui->twAccounts);
+            ui->twAccounts->setCellWidget(row,CI_SEL,btn);
+        }
+        else{
+            QHash<AccountTransferState, QString> states = appCfg->getAccTranStates();
+            ui->twAccounts->setItem(row,CI_SEL,new QTableWidgetItem(states.value(ai->tState)));
+        }
+        ui->twAccounts->setItem(row,CI_CODE,new QTableWidgetItem(ai->code));
+        ui->twAccounts->setItem(row,CI_NAME,new QTableWidgetItem(ai->accName));
+        ui->twAccounts->setItem(row,CI_INTENT,new QTableWidgetItem(tr("转出做帐")));
+    }
+    QList<WorkStation*> macs = appCfg->getAllMachines().values();
+    qSort(macs.begin(),macs.end(),byMacMID);
+    WorkStation* locMac = appCfg->getLocalStation();
+    foreach(WorkStation* mac, macs){
+        if(mac == locMac)
+            continue;
+        QVariant v;
+        v.setValue<WorkStation*>(mac);
+        ui->cmbMacs->addItem(mac->name(),v);
+    }
+    ui->cmbMacs->setCurrentIndex(-1);
+    connect(ui->cmbMacs,SIGNAL(currentIndexChanged(int)),this,SLOT(selectMacChanged(int)));
+}
+
+BatchOutputDialog::~BatchOutputDialog()
+{
+    delete ui;
+}
+
+void BatchOutputDialog::selectMacChanged(int index)
+{
+    desWs = ui->cmbMacs->currentData().value<WorkStation*>();
+    ui->macId->setText(QString::number(desWs->getMID()));
+    ui->macType->setText(macTypes.value(desWs->getType()));
+    ui->macOsType->setText(osTypes.value(desWs->osType()));
+    ui->macDesc->setText(desWs->description());
+}
+
+void BatchOutputDialog::on_btnSelDir_clicked()
+{
+    QFileDialog dlg;
+    dlg.setFileMode(QFileDialog::DirectoryOnly);
+    dlg.setNameFilter("Sqlite files(*.dat)");
+    QString dirName = appCfg->getDirName(AppConfig::DIR_TRANSOUT);
+    dlg.setDirectory(dirName);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    QStringList files = dlg.selectedFiles();
+    if(files.empty())
+        return;
+    ui->edtDir->setText(files.first());
+}
+
+/**
+ * @brief 批量转出
+ */
+void BatchOutputDialog::on_btnOk_clicked()
+{
+    QList<int> sels;
+    int row = 0;
+    for(int i = 0; i < accounts.count(); ++i){
+        QCheckBox* btn = qobject_cast<QCheckBox*>(ui->twAccounts->cellWidget(row,CI_SEL));
+        if(!btn || (btn && btn->checkState() == Qt::Unchecked)){
+            row++;
+            continue;
+        }
+        sels<<i;
+        row++;
+    }
+    if(sels.isEmpty()){
+        if(!accounts.isEmpty())
+            myHelper::ShowMessageBoxInfo(tr("未选择任何账户！"));
+        return;
+    }
+    if(ui->cmbMacs->currentIndex() == -1){
+        myHelper::ShowMessageBoxWarning(tr("请选择转出目的工作站！"));
+        return;
+    }
+    QString desDir = ui->edtDir->text();
+    if(desDir.isEmpty()){
+        desDir = appCfg->getDirName(AppConfig::DIR_TRANSOUT);
+        ui->edtDir->setText(desDir);
+    }
+    ui->stateTxt->appendPlainText(tr("您选择了 %1 个账户，批量转出至文件夹“%2”\n")
+                                  .arg(sels.count()).arg(desDir));
+    AccountTransferUtil trUtil;
+    QString infos;
+    foreach(int i, sels){
+        AccountCacheItem* aci = accounts.at(i);
+        if(!trUtil.transferOut(aci->fileName,desDir,ui->twAccounts->item(i,CI_INTENT)->text(),infos,desWs)){
+            ui->stateTxt->appendPlainText(infos);
+            ui->stateTxt->appendPlainText(tr("账户“%1”转出失败！\n").arg(aci->fileName));
+        }
+        else
+            ui->stateTxt->appendPlainText(tr("账户“%1”成功转出！\n").arg(aci->fileName));
+    }
+    appCfg->saveDirName(AppConfig::DIR_TRANSOUT,desDir);
+    ui->btnOk->setEnabled(false);
+    ui->btnCancel->setText(tr("关闭"));
+}
+
+////////////////////////////BatchImportDialog///////////////////////////////////////////
+BatchImportDialog::BatchImportDialog(QWidget *parent) :
+    QDialog(parent),
+    ui(new Ui::BatchImportDialog)
+{
+    ui->setupUi(this);
+}
+
+BatchImportDialog::~BatchImportDialog()
+{
+    delete ui;
+}
+
+void BatchImportDialog::on_btnSel_clicked()
+{
+    QFileDialog dlg(this);
+    dlg.setFileMode(QFileDialog::ExistingFiles);
+    dlg.setNameFilter("Sqlite files(*.dat)");
+    QString path = AppConfig::getInstance()->getDirName(AppConfig::DIR_TRANSIN);
+    if(path.isEmpty() || !QFileInfo::exists(path))
+        path = QDir::homePath();
+    dlg.setDirectory(path);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    ui->edtDir->setText(path);
+    files = dlg.selectedFiles();
+    for(int i = 0; i < files.count(); ++i){
+        QFileInfo fi(files.at(i));
+        QString fn = fi.baseName();
+        QListWidgetItem* item = new QListWidgetItem(fn,ui->lwAccs);
+    }
+}
+
+void BatchImportDialog::on_btnImp_clicked()
+{
+    if(files.isEmpty()){
+        myHelper::ShowMessageBoxWarning(tr("您还未选择任何要导入的账户文件！"));
+        return;
+    }
+    AccountTransferUtil trUtil(false,this);
+    for(int i = 0; i < files.count(); ++i){
+        QString infos;
+        bool r = trUtil.transferIn(files.at(i),infos);
+        ui->stateTxt->appendPlainText(infos);
+        if(!r)
+            ui->stateTxt->appendPlainText(tr("导入账户“%1”失败！\n").arg(ui->lwAccs->item(i)->text()));
+        else
+            ui->stateTxt->appendPlainText(tr("成功导入账户“%1”！\n").arg(ui->lwAccs->item(i)->text()));
+        QApplication::processEvents();
+    }
+    ui->btnImp->setEnabled(false);
 }

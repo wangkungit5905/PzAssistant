@@ -5,7 +5,7 @@
 #include "aboutform.h"
 #include "ui_aboutform.h"
 #include "config.h"
-#include "transfers.h"
+#include "securitys.h"
 
 AboutForm::AboutForm(QString copyRightText, QWidget *parent) :
     QWidget(parent),
@@ -13,7 +13,7 @@ AboutForm::AboutForm(QString copyRightText, QWidget *parent) :
 {
     ui->setupUi(this);
 
-    Machine* mac = AppConfig::getInstance()->getLocalStation();
+    WorkStation* mac = AppConfig::getInstance()->getLocalStation();
     if(mac)
         ui->edtWsName->setText(mac->name());
     else

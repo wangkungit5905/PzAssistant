@@ -4,6 +4,7 @@
 #include "myhelper.h"
 
 #include <QPixmap>
+#include <QMouseEvent>
 
 frmMessageBox::frmMessageBox(QWidget *parent) :
     QDialog(parent),

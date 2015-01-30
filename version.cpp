@@ -1731,6 +1731,7 @@ VMAppConfig::VMAppConfig(QString fileName)
     appendVersion(1,7,&VMAppConfig::updateTo1_7);
     appendVersion(1,8,&VMAppConfig::updateTo1_8);
     appendVersion(1,9,&VMAppConfig::updateTo1_9);
+    //appendVersion(2,0,&VMAppConfig::updateTo2_0);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -2816,7 +2817,11 @@ bool VMAppConfig::updateTo1_9()
     return setCurVersion(1,9);
 }
 
-
+/**
+ * @brief VMAppConfig::updateTo2_0
+ * 1、修改特定科目配置表的定义增加特定科目泛称
+ * @return
+ */
 bool VMAppConfig::updateTo2_0()
 {
     return true;

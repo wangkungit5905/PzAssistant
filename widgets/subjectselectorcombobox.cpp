@@ -3,6 +3,8 @@
 
 #include <QTreeView>
 #include <QWidget>
+#include <QLineEdit>
+#include <QHeaderView>
 
 SubjectSelectorComboBox::SubjectSelectorComboBox(QWidget *parent):QComboBox(parent)
 {

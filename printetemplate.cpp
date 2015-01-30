@@ -1,4 +1,4 @@
-
+#include <QFontDatabase>
 #include <QDate>
 
 #include "printtemplate.h"

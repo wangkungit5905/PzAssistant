@@ -1,5 +1,9 @@
 #include "fstsubeditcombobox.h"
 
+#include <QHeaderView>
+#include <QLineEdit>
+#include <QKeyEvent>
+
 FstSubEditComboBox::FstSubEditComboBox(SubjectManager *subMgr, QWidget *parent):
     QComboBox(parent),subMgr(subMgr)
 {

@@ -4,12 +4,13 @@
 #include <QInputDialog>
 #include <QFileInfo>
 #include <QDir>
+#include <QBuffer>
+#include <QTextStream>
 
 #include "global.h"
 #include "config.h"
 #include "tables.h"
 #include "version.h"
-#include "transfers.h"
 #include "globalVarNames.h"
 #include "subject.h"
 #include "myhelper.h"
@@ -1640,7 +1641,7 @@ bool AppConfig::clearAndSaveGroups(QList<UserGroup *> groups,int mv,int sv)
     return true;
 }
 
-bool AppConfig::clearAndSaveMacs(QList<Machine *> macs,int mv, int sv)
+bool AppConfig::clearAndSaveMacs(QList<WorkStation *> macs,int mv, int sv)
 {
     QSqlQuery q(db);
     if(!db.transaction()){
@@ -1653,7 +1654,7 @@ bool AppConfig::clearAndSaveMacs(QList<Machine *> macs,int mv, int sv)
         db.rollback();
         return false;
     }
-    foreach(Machine* mac, macs){
+    foreach(WorkStation* mac, macs){
         if(!_saveMachine(mac)){
             db.rollback();
             return false;
@@ -2016,6 +2017,7 @@ bool AppConfig::_searchAccount()
     filters << "*.dat";
     dir.setNameFilters(filters);
     QFileInfoList filelist = dir.entryInfoList(filters, QDir::Files);
+    WorkStation* locMac = getLocalStation();
     QList<AccountCacheItem*> accItems;  //扫描到的账户
     if(filelist.empty())
         return true;
@@ -2100,10 +2102,12 @@ bool AppConfig::_searchAccount()
                 myHelper::ShowMessageBoxWarning(QObject::tr("账户文件“%1”去向站不明，忽略！").arg(accItem->fileName));
                 delete accItem;
                 continue;
-            }
+            }            
             accItem->outTime = QDateTime::fromString(q.value(TRANS_OUTTIME).toString(),Qt::ISODate);
             accItem->inTime = QDateTime::fromString(q.value(TRANS_INTIME).toString(),Qt::ISODate);
-
+            if(accItem->tState == ATS_TRANSINDES && accItem->d_ws != locMac){
+                accItem->tState = ATS_TRANSINOTHER;
+            }
         }
         accountCaches<<accItem;
     }
@@ -2208,7 +2212,7 @@ bool AppConfig::_initMachines()
         name = q.value(MACS_NAME).toString();
         desc = q.value(MACS_DESC).toString();
         int osType = q.value(MACS_OSTYPE).toInt();
-        Machine* m = new Machine(id,mtype,mid,isLocal,name,desc,osType);
+        WorkStation* m = new WorkStation(id,mtype,mid,isLocal,name,desc,osType);
         machines[m->getMID()] = m;
     }
     if(!machines.contains(localId)){
@@ -2216,7 +2220,7 @@ bool AppConfig::_initMachines()
         return false;
     }
     else if(!machines.value(localId)->isLocalStation()){
-        foreach(Machine*m, machines){
+        foreach(WorkStation*m, machines){
             if(m->getMID() == localId)
                 m->setLocalMachine(true);
             else
@@ -2363,7 +2367,7 @@ bool AppConfig::_initSpecNameItemClses()
     return true;
 }
 
-bool AppConfig::_saveMachine(Machine *mac)
+bool AppConfig::_saveMachine(WorkStation *mac)
 {
     if(!mac)
         return false;
@@ -2526,6 +2530,52 @@ QHash<AppConfig::SpecSubCode, QString> AppConfig::getAllSpecSubCodeForSubSys(int
 }
 
 /**
+ * @brief 获取所有特定科目在系统中的泛称
+ * @param witchs
+ * @param names
+ * @return
+ */
+void AppConfig::getSpecSubGenricNames(QList<SpecSubCode> &gcodes, QStringList &gnames)
+{
+    gcodes<<SSC_CASH<<SSC_BANK<<SSC_GDZC<<SSC_CWFY<<SSC_BNLR<<SSC_LRFP<<SSC_YS
+            <<SSC_YF<<SSC_YJSJ<<SSC_ZYSR<<SSC_ZYCB;
+    gnames<<QObject::tr("现金")<<QObject::tr("银行")<<QObject::tr("固定资产")<<QObject::tr("财务费用")
+        <<QObject::tr("本年利润")<<QObject::tr("利润分配")<<QObject::tr("应收账款")<<QObject::tr("应付账款")
+        <<QObject::tr("应交税金")<<QObject::tr("主营业务收入")<<QObject::tr("主营业务成本");
+}
+
+/**
+ * @brief 获取指定科目系统的所有特定科目配置
+ * @param subSys    科目系统代码
+ * @param codes     特定科目代码
+ * @param names     特定科目名称
+ * @return
+ */
+bool AppConfig::getAllSpecSubNameForSubSys(int subSys, QStringList &codes, QStringList &names)
+{
+    QSqlQuery q(db);
+//    "select specSubCodeConfig.code,FirstSubs.subName from specSubCodeConfig "
+//    "join FirstSubs on specSubCodeConfig.subSys=FirstSubs.subCls  and "
+//    "specSubCodeConfig.code=FirstSubs.subCode where specSubCodeConfig.subSys=2 "
+//    "order by specSubCodeConfig.subEnum"
+    QString s = QString("select %1.%3,%2.%4 from %1 join %2 on %1.%5=%2.%6 and "
+                        "%1.%3=%2.%7 where %1.%5=%8 order by %1.%9")
+            .arg(tbl_base_sscc).arg(tbl_base_fsub).arg(fld_base_sscc_code)
+            .arg(fld_base_fsub_subname).arg(fld_base_sscc_subSys)
+            .arg(fld_base_fsub_subsys).arg(fld_base_fsub_subcode).arg(subSys)
+            .arg(fld_base_sscc_enum);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        codes<<q.value(0).toString();
+        names<<q.value(1).toString();
+    }
+    return true;
+}
+
+/**
  * @brief AppConfig::setSpecSubCode
  * @param subSys
  * @param witch
@@ -2584,13 +2634,57 @@ QHash<int, SubjectClass> AppConfig::getSubjectClassMaps(int subSys)
 }
 
 /**
+ * @brief 保存针对指定科目系统的特定科目设置
+ * @param subSys
+ * @param codes
+ * @param names
+ * @return
+ */
+bool AppConfig::saveSpecSubNameForSysSys(int subSys, const QList<SpecSubCode> &gcodes, const QStringList &codes, const QStringList &names)
+{
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save special subject config for one subsys");
+        return false;
+    }
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where %2=%3").arg(tbl_base_sscc)
+            .arg(fld_base_sscc_subSys).arg(subSys);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    //中间好像还要检查科目代码对应的科目名称是否和基本库中的一级科目表一致？
+    s = QString("insert into %1(%2,%3,%4) values(%5,:gcode,:code)").arg(tbl_base_sscc)
+            .arg(fld_base_sscc_subSys).arg(fld_base_sscc_enum).arg(fld_base_sscc_code)
+            .arg(subSys);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+
+    for(int i = 0; i < gcodes.count(); ++i){
+        q.bindValue(":gcode",gcodes.at(i));
+        q.bindValue(":code",codes.at(i));
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save special subject config for one subsys");
+        return false;
+    }
+    return true;
+}
+
+/**
  * @brief AppConfig::getMasterStation
  * 返回主站对象
  * @return
  */
-Machine *AppConfig::getMasterStation()
+WorkStation *AppConfig::getMasterStation()
 {
-    foreach(Machine* m, machines){
+    foreach(WorkStation* m, machines){
         if(m->getMID() == msId)
             return m;
     }
@@ -2617,9 +2711,9 @@ QHash<MachineType, QString> AppConfig::getMachineTypes()
  *  获取本机对象
  * @return
  */
-Machine *AppConfig::getLocalStation()
+WorkStation *AppConfig::getLocalStation()
 {
-    QHashIterator<int,Machine*> it(machines);
+    QHashIterator<int,WorkStation*> it(machines);
     while(it.hasNext()){
         it.next();
         if(it.value()->isLocalStation())
@@ -2634,18 +2728,18 @@ Machine *AppConfig::getLocalStation()
  * @param mac
  * @return
  */
-bool AppConfig::saveMachine(Machine *mac)
+bool AppConfig::saveMachine(WorkStation *mac)
 {
     return _saveMachine(mac);
 }
 
-bool AppConfig::saveMachines(QList<Machine *> macs)
+bool AppConfig::saveMachines(QList<WorkStation *> macs)
 {
     if(!db.transaction()){
         LOG_SQLERROR("Start transaction failed on save machines list!");
         return false;
     }
-    foreach(Machine* mac, macs){
+    foreach(WorkStation* mac, macs){
         if(!_saveMachine(mac))
             return false;
     }
@@ -2658,7 +2752,7 @@ bool AppConfig::saveMachines(QList<Machine *> macs)
     return true;
 }
 
-bool AppConfig::removeMachine(Machine *mac)
+bool AppConfig::removeMachine(WorkStation *mac)
 {
     if(!mac)
         return false;
@@ -2773,6 +2867,8 @@ QString AppConfig::getDirName(DirectoryName witch)
     }
     appIni->beginGroup(SEGMENT_DIR);
     QString dir = appIni->value(key).toString();
+    if(dir.isEmpty())
+        dir = QDir::home().absolutePath();
     appIni->endGroup();
     return dir;
 }

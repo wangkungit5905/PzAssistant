@@ -36,6 +36,7 @@ public:
     Account* getAccount(){return account;}
     AccountSuiteRecord* getSuiteRecord(){return suiteRecord;}
     bool isSuiteClosed(){return suiteRecord->isClosed;} //是否已关账
+    bool closeSuite();
     SubjectManager* getSubjectManager();
     int getSubSysCode(){return suiteRecord->subSys;}
     bool open(int m);

@@ -10,7 +10,7 @@
 
 class QSettings;
 class VersionManager;
-class Machine;
+class WorkStation;
 struct RightType;
 class Right;
 class UserGroup;
@@ -125,19 +125,22 @@ public:
     bool isSpecSubCodeConfiged(int subSys);
     QString getSpecSubCode(int subSys, SpecSubCode witch);
     QHash<SpecSubCode,QString> getAllSpecSubCodeForSubSys(int subSys);
+    void getSpecSubGenricNames(QList<SpecSubCode> &gcodes, QStringList &gnames);
+    bool getAllSpecSubNameForSubSys(int subSys,QStringList &codes,QStringList &names);
     bool setSpecSubCode(int subSys, SpecSubCode witch, QString code);
     QHash<int,SubjectClass> getSubjectClassMaps(int subSys);
+    bool saveSpecSubNameForSysSys(int subSys,const QList<SpecSubCode> &gcodes,const QStringList &codes,const QStringList &names);
 
-    Machine* getMasterStation();
+    WorkStation* getMasterStation();
     QHash<MachineType,QString> getMachineTypes();
-    Machine* getLocalStation();
+    WorkStation* getLocalStation();
     int getLocalStationId(){return localId;}
-    Machine* getMachine(int id){return machines.value(id);}
-    QHash<int,Machine*> getAllMachines(){return machines;}
+    WorkStation* getMachine(int id){return machines.value(id);}
+    QHash<int,WorkStation*> getAllMachines(){return machines;}
     bool refreshMachines(){return _initMachines();}
-    bool saveMachine(Machine* mac);
-    bool saveMachines(QList<Machine*> macs);
-    bool removeMachine(Machine* mac);
+    bool saveMachine(WorkStation* mac);
+    bool saveMachines(QList<WorkStation*> macs);
+    bool removeMachine(WorkStation* mac);
     bool getOsTypes(QHash<int, QString> &types);
 
     bool getPzTemplateParameter(PzTemplateParameter* parameter);
@@ -214,7 +217,7 @@ public:
     //批量保存安全模块设置信息方法
     bool clearAndSaveUsers(QList<User*> users,int mv,int sv);
     bool clearAndSaveGroups(QList<UserGroup*> groups,int mv,int sv);
-    bool clearAndSaveMacs(QList<Machine *> macs,int mv,int sv);
+    bool clearAndSaveMacs(QList<WorkStation *> macs,int mv,int sv);
     bool clearAndSaveRights(QList<Right*> rights,int mv,int sv);
     bool clearAndSaveRightTypes(QList<RightType*> rightTypes,int mv,int sv);
 
@@ -238,12 +241,12 @@ private:
     bool _initSubSysNames();
     bool _initSpecSubCodes();
     bool _initSpecNameItemClses();
-    bool _saveMachine(Machine* mac);
+    bool _saveMachine(WorkStation* mac);
     QString _getKeyNameForDir(DirectoryName witch);
     AppConfig();
 
     QHash<int, Money*> moneyTypes;
-    QHash<int, Machine*> machines;
+    QHash<int, WorkStation*> machines;
     int msId;   //主站标识
     int localId; //本站标识
     QHash<int, SubSysNameItem*> subSysNames;

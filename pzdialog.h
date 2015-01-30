@@ -13,15 +13,8 @@
 #define INFO_TIMEOUT  5000   //状态信息显示的超时时间
 const int BA_TABLE_MAXROWS = 50;    //会计分录表格预留的最大行数
 
-//#define PZEW_SD_COUNT 9      //状态信息个数
 #define PZEW_DEF_WIDTH  1000 //默认宽度
 #define PZEW_DEF_HEIGHT 600  //默认高度
-//const int PZEW_DEFROWHEIGHT = 30;   //默认表格行高
-//const int PZEW_DEFCW_SUMMARY   400  //摘要列列宽
-//const int PZEW_DEFCW_FS        80   //一级科目列列宽
-//const int PZEW_DEFCW_SS        100  //而积极科目列列宽
-//const int PZEW_DEFCW_MT        80   //币种列列宽
-//const int PZEW_DEFCW_V         150  //金额列列宽
 
 namespace Ui {
     class pzDialog;

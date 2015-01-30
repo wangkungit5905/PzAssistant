@@ -1,4 +1,3 @@
-//#include <QSqlQuery>
 #include <QDebug>
 #include <QMessageBox>
 #include <QFileDialog>
@@ -9,27 +8,12 @@
 #include <QSqlRelationalDelegate>
 #include <QMouseEvent>
 
-//#ifdef Q_OS_WIN32
-//#include <qaxobject.h>
-//#endif
-
-
-
-
 #include "dialogs.h"
 #include "config.h"
-
 #include "utils.h"
 #include "global.h"
-#include "connection.h"
 #include "account.h"
 #include "tables.h"
-//#include "ExcelFormat.h"
-
-//using namespace ExcelFormat;
-
-//#define	FW_NORMAL	400
-//#define	FW_BOLD		700
 
 
 
@@ -76,6 +60,7 @@ void OpenAccountDialog::itemClicked(const QModelIndex &index)
         else
             ui.edtTranState->setText(tr("已转入非目的站"));
     }
+    ui.edtDes->setText(ci->d_ws->name());
     //ui.edtTranState->setText(states.value(ci->tState));
     ui.edtInTime->setText(ci->inTime.toString(Qt::ISODate));
     ui.buttonBox->button(QDialogButtonBox::Open)->setEnabled(true);

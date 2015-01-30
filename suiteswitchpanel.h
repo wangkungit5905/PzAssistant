@@ -35,6 +35,7 @@ public:
 
     
 public slots:
+    void suiteUpdated();
     void switchToSuite(int y);
 private slots:
     void curSuiteChanged(QListWidgetItem * current, QListWidgetItem * previous);
@@ -51,6 +52,7 @@ signals:
     void pzsetClosed(AccountSuiteManager* accSmg, int month);
 private:
     void init();
+    void initSuiteList();
     void initSuiteContent(AccountSuiteRecord* as);
     void crtTableRow(int row, int m, QTableWidget* tw, bool viewAndEdit=true);
     void witchSuiteMonth(int &month, QObject* sender, ColType col);

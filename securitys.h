@@ -9,6 +9,8 @@
 #include <QSqlQuery>
 #include <QVariant>
 
+#include "commdatastruct.h"
+
 static int USER_GROUP_ROOT_ID = 1;        //超级用户组ID
 static int USER_GROUP_ADMIN_ID = 2;       //管理员组ID
 
@@ -264,6 +266,47 @@ private:
     QString name;
     QSet<Right*> rights;
 };
+
+//工作站类
+class WorkStation
+{
+public:
+    WorkStation(int id, MachineType type,int mid,bool isLocal,QString name,QString desc,int osType=1);
+    WorkStation(WorkStation& other);
+    int getId(){return id;}
+    int getMID(){return mid;}
+    void setMID(int id){mid=id;}
+    MachineType getType(){return type;}
+    void setType(MachineType type){this->type=type;}
+    bool isLocalStation(){return isLocal;}
+    void setLocalMachine(bool local){isLocal=local;}
+    QString name(){return sname;}
+    void setName(QString name){sname=name;}
+    QString description(){return desc;}
+    void setDescription(QString desc){this->desc=desc;}
+    int osType(){return _osType;}
+    void setOsType(int type){_osType = type;}
+
+    QString serialToText();
+    static WorkStation* serialFromText(QString serialText);
+    static void serialAllToBinary(int mv, int sv, QByteArray* ds);
+    static bool serialAllFromBinary(QList<WorkStation*> &macs, int &mv, int &sv, QByteArray* ds);
+
+    bool operator ==(const WorkStation &other) const;
+    bool operator !=(const WorkStation &other) const;
+private:
+    int id;
+    MachineType type;   //主机类型（电脑(1)、云(2)）
+    int mid;            //主机标识
+    bool isLocal;       //是否是本机
+    QString sname;      //主机简称
+    QString desc;       //主机全称（或描述信息）
+    int _osType;         //宿主操作系统类型
+
+    friend class AppConfig;
+};
+Q_DECLARE_METATYPE(WorkStation*)
+bool byMacMID(WorkStation *mac1, WorkStation *mac2);
 
 extern QHash<int,User*> allUsers;
 extern QHash<int,RightType*> allRightTypes; //权限类别

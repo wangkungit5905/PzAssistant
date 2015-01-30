@@ -14,7 +14,6 @@
 #include "ui_apcdata.h"
 #include "ui_apcreport.h"
 #include "ui_apclog.h"
-#include "ui_subsysjoincfgform.h"
 
 namespace Ui {
 class ApcBase;
@@ -27,6 +26,7 @@ class QStackedWidget;
 class SubjectManager;
 class FirstSubject;
 class SecondSubject;
+class SubSysJoinCfgForm;
 
 
 class ApcBase : public QWidget
@@ -86,9 +86,10 @@ private slots:
 
     void on_btnUpgrade_clicked();
 
+signals:
+    void suiteUpdated();
 private:
     void enWidget(bool en);
-
 
     Ui::ApcSuite *ui;
     Account* account;
@@ -331,42 +332,7 @@ private:
     QBrush color_enabledSub,color_disabledSub;//启用和禁用科目的颜色
 };
 
-/**
- * @brief 配置科目系统衔接的窗口类
- */
-class SubSysJoinCfgForm : public QDialog
-{
-    Q_OBJECT
 
-    static const int COL_INDEX_SUBCODE = 0;     //源科目代码列
-    static const int COL_INDEX_SUBNAME = 1;     //源科目名称列
-    static const int COL_INDEX_SUBJOIN = 2;     //映射按钮列
-    static const int COL_INDEX_NEWSUBCODE = 3;	//新科目代码列
-    static const int COL_INDEX_NEWSUBNAME = 4;	//新科目名称列
-
-public:
-    explicit SubSysJoinCfgForm(int src, int des, Account* account, QWidget *parent = 0);
-    ~SubSysJoinCfgForm();
-    bool save();
-
-private slots:
-    void destinationSubChanged(QTableWidgetItem* item);
-private:
-    void init();
-    bool determineAllComplete();
-
-    Ui::SubSysJoinCfgForm *ui;
-    AppConfig* appCfg;
-    Account* account;
-    bool isCompleted;     //科目衔接配置是否已经完成
-    SubjectManager *sSmg/*,*dSmg*/;
-    int subSys,pre_subSys;           //对接和前一个的科目系统的代码
-    QList<SubSysJoinItem2*> ssjs;    //科目映射配置列表
-    QList<bool> editTags;   //每个科目的映射条目被修改的标记列表
-    QHash<QString,QString> subNames; //新科目系统的科目代码到科目名的映射表
-    QString defJoinStr,mixedJoinStr; //默认对接和混合对接的箭头样式文本
-    QList<FirstSubject*> temFstSubs; //存放临时创建的一级科目对象
-};
 
 //显示期初余额的借贷方向
 class DirView : public QTableWidgetItem
@@ -428,10 +394,6 @@ private:
     bool readOnly;
     bool isFSub;           //是否用于一级科目的余额表格（默认为false）
     QHash<int,Money*> mts;
-
-//    Money* oldMt;
-//    MoneyDirection oldDir;
-//    Double oldPv,oldMv;
 };
 
 
@@ -561,7 +523,9 @@ public slots:
     void closeAllPage();
 private slots:
     void pageChanged(int index);
+    void suiteUpdated(){emit suiteChanged();}
 signals:
+    void suiteChanged();
     void windowShallClosed();
 private:
     void createIcons();

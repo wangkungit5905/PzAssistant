@@ -94,7 +94,7 @@ void NABaseInfoDialog::on_btnOk_clicked()
     item->tState = ATS_TRANSINDES;
     item->inTime = QDateTime::currentDateTime();
     item->outTime = QDateTime::currentDateTime();
-    Machine* locMac = AppConfig::getInstance()->getLocalStation();
+    WorkStation* locMac = AppConfig::getInstance()->getLocalStation();
     item->s_ws = locMac;
     item->d_ws = locMac;
     if(!AppConfig::getInstance()->saveAccountCacheItem(item)){

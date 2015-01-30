@@ -5655,9 +5655,11 @@ QString BackupUtil::_getReasonTag(BackupUtil::BackupReason reason)
     case BR_UPGRADE:
         return "UP";
     case BR_TRANSFERIN:
-        return "TR";
+        return "TIN";
     case BR_REMOVE:
         return "DEL";
+    case BR_TRANSFEROUT:
+        return "TOUT";
     }
 }
 

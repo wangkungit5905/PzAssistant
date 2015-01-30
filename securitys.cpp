@@ -791,7 +791,125 @@ bool Operate::isPermition(User* user)
 }
 
 
+///////////////////////////////////////////////////////////////////////
+WorkStation::WorkStation(int id, MachineType type, int mid, bool isLocal, QString name, QString desc,int osType)
+    :id(id),type(type),mid(mid),isLocal(isLocal),sname(name),desc(desc),_osType(osType)
+{
+}
 
+WorkStation::WorkStation(WorkStation &other)
+{
+    id = other.id;
+    type = other.type;
+    mid = other.mid;
+    isLocal = other.isLocal;
+    sname = other.sname;
+    desc = other.desc;
+    _osType = other._osType;
+}
+
+/**
+ * @brief 序列化对象到文本
+ * @return
+ */
+QString WorkStation::serialToText()
+{
+    QStringList ls;
+    for(int i = 0; i < 6; ++i)
+        ls<<"";
+    ls[SOFI_WS_MID] = QString::number(mid);
+    ls[SOFI_WS_TYPE] = QString::number((int)type);
+    ls[SOFI_WS_ISLOCAL] = (isLocal?"1":"0");
+    ls[SOFI_WS_NAME] = sname;
+    ls[SOFI_WS_DESC] = desc;
+    ls[SOFI_WS_OSTYPE] = QString::number(_osType);
+    return ls.join("||");
+}
+
+WorkStation *WorkStation::serialFromText(QString serialText)
+{
+    QStringList ls = serialText.split("||");
+    if(ls.count() != 6)
+        return 0;
+    bool ok;
+    int mid = ls.at(SOFI_WS_MID).toInt(&ok);
+    if(!ok)
+        return 0;
+    MachineType type = (MachineType)ls.at(SOFI_WS_TYPE).toInt(&ok);
+    if(!ok)
+        return 0;
+    if(type != MT_COMPUTER && type != MT_COMPUTER){
+        LOG_ERROR(QString("Create Workstation Object failed! Reason is type code invalid! text is '%1'").arg(serialText));
+        return 0;
+    }
+    bool isLocal = (ls.at(SOFI_WS_ISLOCAL) == "0")?false:true;
+    int osType = ls.at(SOFI_WS_OSTYPE).toInt(&ok);
+    if(!ok)
+        LOG_ERROR(QString("Create Workstation Object have Warning! Reason is Operate System code invalid! text is '%1'").arg(serialText));
+    WorkStation* mac = new WorkStation(UNID,type,mid,isLocal,ls.at(SOFI_WS_NAME),ls.at(SOFI_WS_DESC),osType);
+    return mac;
+}
+
+void WorkStation::serialAllToBinary(int mv, int sv, QByteArray *ds)
+{
+    QList<WorkStation*> macs = AppConfig::getInstance()->getAllMachines().values();
+    qSort(macs.begin(),macs.end(),byMacMID);
+    QBuffer bf(ds);
+    QTextStream out(&bf);
+    bf.open(QIODevice::WriteOnly);
+    out<<QString("version=%1.%2\n").arg(mv).arg(sv);
+    foreach(WorkStation* m, macs)
+        out<<m->serialToText()<<"\n";
+    bf.close();
+}
+
+bool WorkStation::serialAllFromBinary(QList<WorkStation *> &macs, int &mv, int &sv, QByteArray *ds)
+{
+    QBuffer bf(ds);
+    QTextStream in(&bf);
+    bf.open(QIODevice::ReadOnly);
+    QStringList sl = in.readLine().split("=");
+    if(sl.count() != 2)
+        return false;
+    sl = sl.at(1).split(".");
+    if(sl.count() != 2)
+        return false;
+    bool ok;
+    mv = sl.at(0).toInt(&ok);
+    if(!ok)
+        return false;
+    sv = sl.at(1).toInt(&ok);
+    if(!ok)
+        return false;
+
+    while(!in.atEnd()){
+        WorkStation* m = serialFromText(in.readLine());
+        if(!m)
+            return false;
+        macs<<m;
+    }
+    return true;
+}
+
+bool WorkStation::operator ==(const WorkStation &other) const
+{
+    if(mid != other.mid)
+        return false;
+    if( type != other.type || _osType != other._osType ||
+           sname != other.sname || desc != other.desc)
+        return false;
+    return true;
+}
+
+bool WorkStation::operator !=(const WorkStation &other) const
+{
+    return !(*this == other);
+}
+
+bool byMacMID(WorkStation *mac1, WorkStation *mac2)
+{
+    return mac1->getMID() < mac2->getMID();
+}
 
 
 

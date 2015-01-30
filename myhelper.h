@@ -1,9 +1,12 @@
 #ifndef MYHELPER_H
 #define MYHELPER_H
 
-#include <QtCore>
-#include <QtGui>
+#include <QApplication>
 #include <QDesktopWidget>
+#include <QSettings>
+#include <QTranslator>
+#include <QFile>
+
 #include "frmmessagebox.h"
 #include "config.h"
 

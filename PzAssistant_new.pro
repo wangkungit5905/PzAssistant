@@ -16,7 +16,6 @@ TEMPLATE = app
 #CONFIG += qaxcontainer
 
 SOURCES += main.cpp\
-    connection.cpp \
     config.cpp \
     appmodel.cpp \
     dialogs.cpp \
@@ -73,7 +72,6 @@ SOURCES += main.cpp\
     newsndsubdialog.cpp \
     importovaccdlg.cpp \
     optionform.cpp \
-    widgets/configpanels.cpp \
     excel/ExcelUtil.cpp \
     taxescomparisonform.cpp \
     outputexceldlg.cpp \
@@ -82,10 +80,11 @@ SOURCES += main.cpp\
     seccondialog.cpp \
     frmmessagebox.cpp \
     iconhelper.cpp \
-    crtaccountfromolddlg.cpp
+    crtaccountfromolddlg.cpp \
+    batchoutputdialog.cpp \
+    batchimportdialog.cpp
 
 HEADERS  += \
-    connection.h \
     config.h \
     global.h \
     appmodel.h \
@@ -149,7 +148,6 @@ HEADERS  += \
     newsndsubdialog.h \
     importovaccdlg.h \
     optionform.h \
-    widgets/configpanels.h \
     excel/ExcelUtil.h \
     taxescomparisonform.h \
     outputexceldlg.h \
@@ -159,7 +157,9 @@ HEADERS  += \
     frmmessagebox.h \
     myhelper.h \
     iconhelper.h \
-    crtaccountfromolddlg.h
+    crtaccountfromolddlg.h \
+    batchoutputdialog.h \
+    batchimportdialog.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -226,7 +226,10 @@ FORMS    += \
     forms/frmmessagebox.ui \
     forms/appcommcfgpanel.ui \
     forms/stationcfgform.ui \
-    forms/crtaccountfromolddlg.ui
+    forms/crtaccountfromolddlg.ui \
+    forms/batchoutputdialog.ui \
+    forms/batchimportdialog.ui \
+    forms/specsubcfgform.ui
 
 RESOURCES += \
     imgers.qrc \

@@ -9,6 +9,7 @@
 #include <QSqlQueryModel>
 #include <QSqlRecord>
 #include <QDate>
+#include <QDir>
 
 #include "cal.h"
 #include "common.h"
@@ -674,7 +675,8 @@ public:
     enum BackupReason{
         BR_UPGRADE      = 1,    //账户升级
         BR_TRANSFERIN   = 2,    //账户转入
-        BR_REMOVE       = 3     //账户移除
+        BR_REMOVE       = 3,    //账户移除
+        BR_TRANSFEROUT  = 4     //账户转出
     };
 
     BackupUtil(QString srcDir="", QString bacDir="");

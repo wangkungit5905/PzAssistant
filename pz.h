@@ -9,8 +9,6 @@
 #include "common.h"
 #include "securitys.h"
 #include "commdatastruct.h"
-//#include "appmodel.h"
-//#include "otherAsist.h"
 #include "subject.h"
 
 class PingZheng;

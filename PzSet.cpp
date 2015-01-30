@@ -5,6 +5,7 @@
 #include "dbutil.h"
 #include "statutil.h"
 #include "commands.h"
+#include "myhelper.h"
 
 
 
@@ -31,6 +32,25 @@ AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *accoun
 AccountSuiteManager::~AccountSuiteManager()
 {
     delete undoStack;
+}
+
+/**
+ * @brief 关闭帐套（关账）
+ * @return
+ */
+bool AccountSuiteManager::closeSuite()
+{
+    //关账前置条件（帐套中最后一月的凭证集必须已结账）
+    if(isPzSetOpened()){
+        myHelper::ShowMessageBoxWarning(tr("凭证集未关闭，不能关账！"));
+        return true;
+    }
+    if(getState(12) != Ps_Jzed){
+        myHelper::ShowMessageBoxWarning(tr("帐套内最后月份的凭证集未结账，不能关账！"));
+        return true;
+    }
+    suiteRecord->isClosed = true;
+    return dbUtil->saveSuite(suiteRecord);
 }
 
 SubjectManager *AccountSuiteManager::getSubjectManager()

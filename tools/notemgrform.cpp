@@ -9,6 +9,7 @@
 #include <QDateTime>
 #include <QMenu>
 #include <QVariant>
+#include <QCloseEvent>
 
 NoteMgrForm::NoteMgrForm(Account *account, QWidget *parent) :
     QWidget(parent),ui(new Ui::NoteMgrForm),account(account)

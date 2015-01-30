@@ -42,6 +42,14 @@ void SuiteSwitchPanel::setJzState(AccountSuiteManager *sm, int month, bool jzed)
 }
 
 /**
+ * @brief 当账户的帐套更新后（比如新增或移除帐套操作），更新面板界面
+ */
+void SuiteSwitchPanel::suiteUpdated()
+{
+    initSuiteList();
+}
+
+/**
  * @brief 切换到指定年份的帐套
  * @param y
  */
@@ -205,6 +213,26 @@ void SuiteSwitchPanel::init()
     icon_close = QIcon(":/images/pzs_close.png");
     icon_edit = QIcon(":/images/pzs_edit.png");
     icon_lookup = QIcon(":/images/pzs_lookup.png");
+    initSuiteList();
+}
+
+/**
+ * @brief 初始化帐套列表
+ */
+void SuiteSwitchPanel::initSuiteList()
+{
+    if(ui->lstSuite->count() != 0){
+        disconnect(ui->lstSuite,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
+                this,SLOT(curSuiteChanged(QListWidgetItem*,QListWidgetItem*)));
+        QList<QWidget*> ts;
+        for(int i = 0; i < ui->stackedWidget->count(); ++i)
+            ts<<ui->stackedWidget->widget(i);
+        foreach(QWidget* w, ts){
+            ui->stackedWidget->removeWidget(w);
+            delete w;
+        }
+        ui->lstSuite->clear();
+    }
     QListWidgetItem* li;
     foreach(AccountSuiteRecord* as, account->getAllSuiteRecords()){
         suiteRecords[as->id] = as;
@@ -216,18 +244,18 @@ void SuiteSwitchPanel::init()
             curSuite = account->getSuiteMgr(as->id);
         initSuiteContent(as);
     }
-    connect(ui->lstSuite,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
-            this,SLOT(curSuiteChanged(QListWidgetItem*,QListWidgetItem*)));
     if(curSuite){
         int asrId = curSuite->getSuiteRecord()->id;
         for(int i = 0; i < ui->lstSuite->count(); ++i){
             if(ui->lstSuite->item(i)->data(ROLE_CUR_SUITE).toInt() == asrId){
                 ui->lstSuite->item(i)->setIcon(icon_selected);
-                ui->lstSuite->setCurrentRow(i);                
+                ui->lstSuite->setCurrentRow(i);
                 break;
             }
         }
     }
+    connect(ui->lstSuite,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
+            this,SLOT(curSuiteChanged(QListWidgetItem*,QListWidgetItem*)));
 }
 
 void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
@@ -244,21 +272,31 @@ void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)
     tw->setColumnWidth(COL_MONTH,40);
     tw->setColumnWidth(COL_OPEN,40);
     tw->setColumnWidth(COL_VIEW,40);
-    for(int row = 0,m = as->startMonth; m <= as->endMonth; ++row,++m){
-        bool viewAndEdit=true;
-        if(!as->isClosed){
-            PzsState state;
-            account->getDbUtil()->getPzsState(as->year,m,state);
-            if(state != Ps_Jzed)
-                viewAndEdit = false;
+
+    bool isClose = true;
+    foreach(AccountSuiteRecord* asr, suiteRecords.values()){
+        if((asr->year == (as->year - 1)) && !asr->isClosed){
+            isClose = false;
+            break;
         }
-        crtTableRow(row,m,tw,viewAndEdit);
     }
-    if(!as->isClosed && as->endMonth < 12){
-        tw->insertRow(tw->rowCount());
-        QPushButton* btn = new QPushButton(tr("新键"));
-        tw->setCellWidget(tw->rowCount()-1,1,btn);
-        connect(btn,SIGNAL(clicked()),this,SLOT(newPzSet()));
+    if(isClose){    //只有前一帐套已关账，才能显示凭证集列表
+        for(int row = 0,m = as->startMonth; m <= as->endMonth; ++row,++m){
+            bool viewAndEdit=true;
+            if(!as->isClosed){
+                PzsState state;
+                account->getDbUtil()->getPzsState(as->year,m,state);
+                if(state != Ps_Jzed)
+                    viewAndEdit = false;
+            }
+            crtTableRow(row,m,tw,viewAndEdit);
+        }
+        if(!as->isClosed && as->endMonth < 12){
+            tw->insertRow(tw->rowCount());
+            QPushButton* btn = new QPushButton(tr("新键"));
+            tw->setCellWidget(tw->rowCount()-1,1,btn);
+            connect(btn,SIGNAL(clicked()),this,SLOT(newPzSet()));
+        }
     }
     ui->stackedWidget->addWidget(tw);
 }

@@ -1933,6 +1933,42 @@ FirstSubject *AppConfig::getFirstSubject(int subSysCode, QString subCode)
 }
 
 /**
+ * @brief 返回是否开启智能子目设置功能
+ * @return
+ */
+bool AppConfig::isOnSmartSSubSet()
+{
+    appIni->beginGroup(SEGMENT_SMARTSSUB);
+    bool on = appIni->value("on").toBool();
+    appIni->endGroup();
+    return on;
+}
+
+/**
+ * @brief 返回与指定科目相关的智能子目设置相关的设置信息
+ * @param subCode
+ * @param witch
+ * @return
+ */
+QString AppConfig::getSmartSSubFix(QString subCode, AppConfig::SmartSSubFix witch)
+{
+    appIni->beginGroup(SEGMENT_SMARTSSUB);
+    QString ws;
+    switch(witch){
+    case SSF_PREFIXE:
+        ws = KEY_SMART_PREFIXE;
+        break;
+    case SSF_SUFFIXE:
+        ws = KEY_SMART_SUFFIXE;
+        break;
+    }
+    QString key = QString("%1_%2").arg(ws).arg(subCode);
+    QString str = appIni->value(key).toString();
+    appIni->endGroup();
+    return str;
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  账户代码必须由大于1000的四位数组成，且不能重复

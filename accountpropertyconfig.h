@@ -189,13 +189,58 @@ private:
     BankCfgItemDelegate* delegate;
 };
 
+/**
+ * @brief 智能子目适配配置项结构
+ */
+struct SmartSSubAdapteItem{
+    int id;
+    int subSys;         //科目系统代码
+    FirstSubject* fsub; //关联主目
+    SecondSubject* ssub;//适配子目
+    QString keys;       //关键词
+};
+
+/**
+ * @brief 编辑智能子目适配项的对话框类
+ */
+class SmartSSubAdapteEditDlg : public QDialog
+{
+    Q_OBJECT
+public:
+    SmartSSubAdapteEditDlg(SubjectManager* sm, bool isEdit=true, QWidget* parent=0);
+    FirstSubject* getFirstSubject(){return _fsub;}
+    void setFirstSubject(FirstSubject* fsub);
+    SecondSubject* getSecondSubject(){return _ssub;}
+    void setSecondSubject(SecondSubject* ssub);
+    QString getKeys(){return edtKeys.text();}
+    void setKeys(QString keys);
+private slots:
+    void currentAdapteItemChanged(int currentRow);
+    void firstSubjectChanged(int index);
+private:
+    void loadSSubs();
+
+    QHBoxLayout h1,h2,h3;
+    QVBoxLayout* lm;
+    QLabel lab1,lab2;
+    QPushButton btnOk,btnCancel;
+    QLineEdit edtKeys;
+    QComboBox cmbFSubs;
+    QListWidget lw;
+    SubjectManager* _sm;
+    FirstSubject* _fsub;
+    SecondSubject* _ssub;
+    bool _isEdit;     //false：导入默认配置项时的确认对话框，true：编辑对话框
+};
+
 class ApcSubject : public QWidget
 {
     Q_OBJECT
     enum APC_SUB_PAGEINDEX{
-        APCS_SYS = 0,   //科目系统页
-        APCS_SUB = 1,   //科目页
-        APCS_NAME= 2    //名称条目页
+        APCS_SYS = 0,           //科目系统页
+        APCS_SUB = 1,           //科目页
+        APCS_NAME= 2,           //名称条目页
+        APCS_SMARTADAPTE = 3    //智能适配子目
     };
 
     enum APC_SUB_EDIT_ACTION{
@@ -237,6 +282,10 @@ private slots:
     void selectedNIChanged();
     void niDoubleClicked(QListWidgetItem * item);
     void loadNameItems();
+    //智能适配配置相关
+    void subjectSystemChanged(int index);
+    void SmartTableMenuRequested(const QPoint & pos);
+
     void on_btnNiEdit_clicked();
 
     void on_btnNiCommit_clicked();
@@ -277,6 +326,16 @@ private slots:
 
     void on_btnInspectDup_clicked();
 
+    void on_btnLoadDefs_clicked();
+
+    void on_btnSaveSmart_clicked();
+
+    void on_actAddSmartItem_triggered();
+
+    void on_actEditSmartItem_triggered();
+
+    void on_actRemoveSmartItem_triggered();
+
 private:
 
     bool mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem*> nameItems);
@@ -285,6 +344,8 @@ private:
     void init_subsys();
     void init_NameItems();
     void init_subs();
+    void init_smarts();
+    void loadSmartItems(SubjectManager* sm);
 
     void loadFSub(int subSys);
     void loadSSub(SortByMode sortBy = SORTMODE_NAME);
@@ -312,6 +373,7 @@ private:
     bool iniTag_subsys;
     bool iniTag_ni;
     bool iniTag_sub;
+    bool iniTag_smart;
 
     Account* account;
     QHash<int,QStringList> NiClasses; //名称条目类别表
@@ -328,6 +390,9 @@ private:
     SecondSubject* curSSub;
     SubjectNameItem* curNI;            //当前选中的名称条目
     int curNiCls;                      //当前选中的名称条目类别
+
+    QList<SmartSSubAdapteItem *> SmartAdaptes;      //智能子目适配配置项列表
+    QList<SmartSSubAdapteItem *> SmartAdaptes_del;  //被移除的配置项
 
     QBrush color_enabledSub,color_disabledSub;//启用和禁用科目的颜色
 };

@@ -487,6 +487,18 @@ const int FI_NOTE_CREATETIME = 2;
 const int FI_NOTE_LASTTIME = 3;
 const int FI_NOTE_CONTENT = 4;
 
+//包含型子目智能适配配置表
+const QString tbl_SmartSSubAdapter = "SmartSSubAdapters";
+const QString fld_ssa_subSys = "subSys";    //科目系统代码
+const QString fld_ssa_fsub = "fsub";        //一级科目id
+const QString fld_ssa_subStr = "keySubStr"; //包含的文本（如有多个，则用中文的逗号分隔）
+const QString fld_ssa_ssub = "ssub";        //二级科目id
+const int FI_SSA_SUBSYS = 1;
+const int FI_SSA_FSUB = 2;
+const int FI_SSA_SUBSTR = 3;
+const int FI_SSA_SSUB = 4;
+
+
 //账户数据库中可能驻留的临时表
 const QString tbl_tem_appcfg = "tem_app_cfg";
 const QString fld_tem_appcfg_obj = "objText";   //保存序列化对象后的文本

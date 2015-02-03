@@ -76,6 +76,14 @@ public:
         CVC_GdzcCzRate = 0,            //固定资产折旧残值率
     };
 
+    /**
+     * @brief 指示访问智能子目设置的哪类信息
+     */
+    enum SmartSSubFix{
+        SSF_PREFIXE = 1,    //客户名前的前缀
+        SSF_SUFFIXE = 2     //客户名后的后缀
+    };
+
     //凭证打印模板参数名
     const QString SEGMENT_DEBUG = "Debug";
     const QString SEGMENT_PZ_TEMPLATE = "PzTemplate";
@@ -101,6 +109,9 @@ public:
     const QString SEGMENT_STATIONS = "Stations";
     const QString KEY_STATION_MSID = "masterStationId";
     const QString KEY_STATION_LOID = "localStationId";
+    const QString SEGMENT_SMARTSSUB = "SmartSSubSet";
+    const QString KEY_SMART_PREFIXE = "prifixe";
+    const QString KEY_SMART_SUFFIXE = "suffixe";
 
     ~AppConfig();
 
@@ -230,6 +241,10 @@ public:
 
     //other
     FirstSubject* getFirstSubject(int subSysCode, QString subCode);
+
+    //智能子目设置相关信息（前缀、后缀等）
+    bool isOnSmartSSubSet();
+    QString getSmartSSubFix(QString subCode,SmartSSubFix witch);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);

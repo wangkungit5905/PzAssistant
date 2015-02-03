@@ -11,6 +11,7 @@
 #include "PzSet.h"
 #include "utils.h"
 #include "subject.h"
+#include "accountpropertyconfig.h"
 //#include "config.h"
 //#include "account.h"
 
@@ -1087,6 +1088,42 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
 //            }
 //        }
 //    }
+
+    //如果配置了包含型的子目智能适配功能，则初始化此
+    if(!tableExist(tbl_SmartSSubAdapter)){
+        s = QString("create table %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 INTEGER,%4 TEXT,%5 INTEGER)")
+                .arg(tbl_SmartSSubAdapter).arg(fld_ssa_subSys).arg(fld_ssa_fsub).arg(fld_ssa_subStr)
+                .arg(fld_ssa_ssub);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    else{
+        s = QString("select %1,%2,%3 from %4 where %5=%6 order by %1")
+                .arg(fld_ssa_fsub).arg(fld_ssa_subStr).arg(fld_ssa_ssub)
+                .arg(tbl_SmartSSubAdapter).arg(fld_ssa_subSys).arg(subSys);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        while(q.next()){
+            int id = q.value(0).toInt();
+            FirstSubject* fsub = smg->fstSubHash.value(id);
+            if(!fsub){
+                LOG_ERROR(QString("Table %1 reference a invalid first subject(fsubID=%2)").arg(tbl_SmartSSubAdapter).arg(id));
+                continue;
+            }
+            QString keys = q.value(1).toString();
+            id = q.value(2).toInt();
+            SecondSubject* ssub = smg->sndSubs.value(id);
+            if(!ssub){
+                LOG_ERROR(QString("Table %1 reference a invalid second subject(ssubID=%2)").arg(tbl_SmartSSubAdapter).arg(id));
+                continue;
+            }
+            fsub->addSmartAdapteSSub(keys,ssub);
+        }
+    }
     return true;
 }
 
@@ -4329,6 +4366,108 @@ bool DbUtil::saveSubWinInfo(int winEnum, QByteArray *state)
 }
 
 /**
+ * @brief 装载指定科目系统的所有智能子目适配配置项
+ * @param items
+ * @return
+ */
+bool DbUtil::loadSmartSSubAdaptes(SubjectManager* sm, QList<SmartSSubAdapteItem *> &items)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2=%3 order by %4,%5").arg(tbl_SmartSSubAdapter)
+            .arg(fld_ssa_subSys).arg(sm->getSubSysCode()).arg(fld_ssa_fsub).arg(fld_ssa_ssub);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        SmartSSubAdapteItem* item = new SmartSSubAdapteItem;
+        item->id = q.value(0).toInt();
+        item->subSys = sm->getSubSysCode();
+        int id = q.value(FI_SSA_FSUB).toInt();
+        item->fsub = sm->getFstSubject(id);
+        if(!item->fsub){
+            LOG_ERROR(QString("Fond a invalid first subject in smart second subject adapter config item(id=%1,fid=%2)").arg(item->id).arg(id));
+            continue;
+        }
+        id =  q.value(FI_SSA_SSUB).toInt();
+        item->ssub = sm->getSndSubject(id);
+        if(!item->ssub){
+            LOG_ERROR(QString("Fond a invalid second subject in smart second subject adapter config item(id=%1,fid=%2)").arg(item->id).arg(id));
+            continue;
+        }
+        item->keys = q.value(FI_SSA_SUBSTR).toString();
+        items<<item;
+    }
+    return true;
+}
+
+/**
+ * @brief 保存智能子目适配配置项
+ * @param items
+ * @param del   是否是删除
+ * @return
+ */
+bool DbUtil::saveSmartSSubAdapters(QList<SmartSSubAdapteItem *> &items, bool del)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(del){
+        s = QString("delete from %1 where id=:id").arg(tbl_SmartSSubAdapter);
+        if(!q.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        foreach(SmartSSubAdapteItem* item, items){
+            q.bindValue(":id",item->id);
+            if(!q.exec()){
+                LOG_SQLERROR(q.lastQuery());
+                return false;
+            }
+        }
+        return true;
+    }
+    s = QString("update %1 set %2=:keys where %3=:subsys and %4=:fsub and %5=:ssub")
+            .arg(tbl_SmartSSubAdapter).arg(fld_ssa_subStr).arg(fld_ssa_subSys)
+            .arg(fld_ssa_fsub).arg(fld_ssa_ssub);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QSqlQuery q2(db),q3(db);
+    s = QString("insert into %1(%2,%3,%4,%5) values(:subsys,:fsub,:ssub,:keys)")
+            .arg(tbl_SmartSSubAdapter).arg(fld_ssa_subSys).arg(fld_ssa_fsub)
+            .arg(fld_ssa_ssub).arg(fld_ssa_subStr);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(SmartSSubAdapteItem* item, items){
+        q.bindValue(":keys",item->keys);
+        q.bindValue(":subsys",item->subSys);
+        q.bindValue(":fsub",item->fsub->getId());
+        q.bindValue(":ssub",item->ssub->getId());
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+        if(q.numRowsAffected() == 0){
+            q2.bindValue(":keys",item->keys);
+            q2.bindValue(":subsys",item->subSys);
+            q2.bindValue(":fsub",item->fsub->getId());
+            q2.bindValue(":ssub",item->ssub->getId());
+            if(!q2.exec()){
+                LOG_SQLERROR(q.lastQuery());
+                return false;
+            }
+            q3.exec("select last_insert_rowid()");
+            q3.first();
+            item->id = q3.value(0).toInt();
+        }
+    }
+    return true;
+}
+
+/**
  * @brief DbUtil::saveAccInfoPiece
  *  保存账户信息片段
  * @param code
@@ -6394,3 +6533,5 @@ bool DbUtil::initNoteTable()
     }
     return true;
 }
+
+

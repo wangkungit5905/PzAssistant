@@ -23,6 +23,7 @@
 #include <QBuffer>
 #include <QTextStream>
 #include <QTreeWidget>
+#include <QMenu>
 
 
 ApcBase::ApcBase(Account *account, QWidget *parent) :
@@ -1106,6 +1107,88 @@ BankAccount *ApcBank::fondBankAccount(int id)
     return NULL;
 }
 
+//////////////////////////////SmartSSubAdapteEditDlg/////////////////////////////////////
+SmartSSubAdapteEditDlg::SmartSSubAdapteEditDlg(SubjectManager *sm, bool isEdit, QWidget *parent)
+    :QDialog(parent),_isEdit(isEdit),_sm(sm)
+{
+    _fsub=0; _ssub=0;
+    setWindowTitle(tr("配置适配子目"));
+    lab1.setText(tr("一级科目"));
+    lab2.setText(tr("关键字"));
+    FSubItrator* it = sm->getFstSubItrator();
+    while(it->hasNext()){
+        it->next();
+        FirstSubject* fsub = it->value();
+        if(!fsub->isEnabled())
+            continue;
+        QVariant v;
+        v.setValue<FirstSubject*>(fsub);
+        cmbFSubs.addItem(fsub->getName(),v);
+    }
+    cmbFSubs.setCurrentIndex(-1);
+    btnOk.setText(tr("确定"));
+    btnCancel.setText((_isEdit)?tr("取消"):tr("忽略"));
+    h1.addWidget(&lab1); h1.addWidget(&cmbFSubs);
+    h2.addWidget(&lab2); h2.addWidget(&edtKeys);
+    h3.addWidget(&btnOk); h3.addWidget(&btnCancel);
+    lm = new QVBoxLayout;
+    lm->addLayout(&h1);lm->addLayout(&h2);
+    lm->addWidget(&lw);lm->addLayout(&h3);
+    connect(&btnOk,SIGNAL(clicked()),this,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),this,SLOT(reject()));
+    setLayout(lm);
+    resize(300,400);
+    connect(&lw,SIGNAL(currentRowChanged(int)),this,SLOT(currentAdapteItemChanged(int)));
+    connect(&cmbFSubs,SIGNAL(currentIndexChanged(int)),this,SLOT(firstSubjectChanged(int)));
+}
+
+void SmartSSubAdapteEditDlg::setFirstSubject(FirstSubject *fsub)
+{
+    _fsub=fsub;
+    int index = cmbFSubs.findText(fsub->getName());
+    cmbFSubs.setCurrentIndex(index);
+}
+
+void SmartSSubAdapteEditDlg::setSecondSubject(SecondSubject *ssub)
+{
+    _ssub=ssub;
+    for(int i = 0; i < lw.count(); ++i){
+        SecondSubject* sub = lw.item(i)->data(Qt::UserRole).value<SecondSubject*>();
+        if(ssub == sub){
+            lw.setCurrentRow(i,QItemSelectionModel::Select);
+            return;
+        }
+    }
+}
+
+void SmartSSubAdapteEditDlg::setKeys(QString keys)
+{
+    edtKeys.setText(keys);
+}
+
+void SmartSSubAdapteEditDlg::currentAdapteItemChanged(int currentRow)
+{
+    if(currentRow == -1)
+        return;
+    _ssub = lw.item(currentRow)->data(Qt::UserRole).value<SecondSubject*>();
+}
+
+void SmartSSubAdapteEditDlg::firstSubjectChanged(int index)
+{
+    _fsub = cmbFSubs.currentData().value<FirstSubject*>();
+    loadSSubs();
+}
+
+void SmartSSubAdapteEditDlg::loadSSubs()
+{
+    lw.clear();
+    foreach(SecondSubject* ssub, _fsub->getChildSubs(SORTMODE_NAME)){
+        QListWidgetItem* item = new QListWidgetItem(ssub->getName(),&lw);
+        QVariant v; v.setValue<SecondSubject*>(ssub);
+        item->setData(Qt::UserRole,v);
+    }
+}
+
 ///////////////////////////ApcSubject////////////////////////////////////////////
 ApcSubject::ApcSubject(Account *account, QWidget *parent) :
     QWidget(parent), ui(new Ui::ApcSubject),account(account)
@@ -1115,6 +1198,7 @@ ApcSubject::ApcSubject(Account *account, QWidget *parent) :
     iniTag_subsys = false;
     iniTag_sub = false;
     iniTag_ni = false;
+    iniTag_smart = false;
     editAction = APCEA_NONE;
     curFSub = NULL;
     curSSub = NULL;
@@ -1128,6 +1212,8 @@ ApcSubject::ApcSubject(Account *account, QWidget *parent) :
 
 ApcSubject::~ApcSubject()
 {
+    if(!SmartAdaptes.isEmpty())
+        qDeleteAll(SmartAdaptes);
     delete ui;
 }
 
@@ -1372,6 +1458,8 @@ void ApcSubject::on_tw_currentChanged(int index)
     case APCS_SUB:
         init_subs();
         break;
+    case APCS_SMARTADAPTE:
+        init_smarts();
     }
 }
 
@@ -1568,6 +1656,45 @@ void ApcSubject::init_subs()
             ui->btnInspectDup->setEnabled(isPrivilegeUser);
         }
         ui->btnSSubAdd->setEnabled(isSSubSetRight);
+    }
+}
+
+void ApcSubject::init_smarts()
+{
+    if(iniTag_smart)
+        return;
+    foreach(SubSysNameItem* item, subSysNames){
+        ui->cmbSubSys->addItem(item->name,item->code);
+    }
+    if(!subSysNames.isEmpty()){
+        ui->cmbSubSys->setCurrentIndex(0);
+        subjectSystemChanged(0);
+    }
+    connect(ui->cmbSubSys,SIGNAL(currentIndexChanged(int)),this,SLOT(subjectSystemChanged(int)));
+    connect(ui->twSmarts,SIGNAL(customContextMenuRequested(QPoint)),this,SLOT(SmartTableMenuRequested(QPoint)));
+    iniTag_smart = true;
+}
+
+/**
+ * @brief  将指定科目系统中所有的智能子目适配配置项装载到表中
+ * @param sm
+ */
+void ApcSubject::loadSmartItems(SubjectManager *sm)
+{
+    account->getDbUtil()->loadSmartSSubAdaptes(sm,SmartAdaptes);
+    ui->twSmarts->setRowCount(SmartAdaptes.count());
+    QVariant v;
+    for(int i = 0; i < SmartAdaptes.count(); ++i){
+        SmartSSubAdapteItem* ai = SmartAdaptes.at(i);
+        QTableWidgetItem* item = new QTableWidgetItem(ai->fsub->getName());
+        v.setValue<FirstSubject*>(ai->fsub);
+        item->setData(Qt::UserRole,v);
+        ui->twSmarts->setItem(i,0,item);
+        item = new QTableWidgetItem(ai->ssub->getName());
+        v.setValue<SecondSubject*>(ai->ssub);
+        item->setData(Qt::UserRole,v);
+        ui->twSmarts->setItem(i,1,item);
+        ui->twSmarts->setItem(i,2,new QTableWidgetItem(ai->keys));
     }
 }
 
@@ -1862,6 +1989,36 @@ void ApcSubject::loadNameItems()
         item->setData(Qt::UserRole,v);
         ui->lwNI->addItem(item);
     }
+}
+
+/**
+ * @brief 在智能适配页面选择一个科目系统
+ * @param index
+ */
+void ApcSubject::subjectSystemChanged(int index)
+{
+    int subSysCode = ui->cmbSubSys->itemData(index).toInt();
+    SubjectManager* sm = account->getSubjectManager(subSysCode);
+    //视情况保存当前表格中显示的内容
+    qDeleteAll(SmartAdaptes);
+    ui->twSmarts->clearContents();
+    loadSmartItems(sm);
+}
+
+/**
+ * @brief 创建子目智能适配表格的上下文菜单
+ * @param pos
+ */
+void ApcSubject::SmartTableMenuRequested(const QPoint &pos)
+{
+    QMenu m;
+    m.addAction(ui->actAddSmartItem);
+    int row = ui->twSmarts->rowAt(pos.y());
+    if(row >= 0 && row <= ui->twSmarts->rowCount()){
+        m.addAction(ui->actEditSmartItem);
+        m.addAction(ui->actRemoveSmartItem);
+    }
+    m.exec(ui->twSmarts->mapToGlobal(pos));
 }
 
 /**
@@ -2430,6 +2587,202 @@ void ApcSubject::on_btnInspectDup_clicked()
         ui->btnInspectDup->setEnabled(false);
     }
 }
+
+/**
+ * @brief 由默认的配置模板初始化智能适配配置项并装入表格
+ */
+void ApcSubject::on_btnLoadDefs_clicked()
+{
+    QString fname = QFileDialog::getOpenFileName(this,tr("选择模板文件"),".");
+    if(fname.isEmpty())
+        return;
+    QFile file(fname);
+    if(!file.open(QFile::ReadOnly|QFile::Text)){
+        myHelper::ShowMessageBoxError(tr("文件“%1”打开失败！").arg(fname));
+        return;
+    }
+    qDeleteAll(SmartAdaptes);
+    SmartAdaptes.clear();
+    int subSysCode = ui->cmbSubSys->itemData(ui->cmbSubSys->currentIndex()).toInt();
+    SubjectManager* sm = account->getSubjectManager(subSysCode);
+    QTextStream ts(&file);
+    int row = 0;
+    while(!ts.atEnd()){
+        QString line = ts.readLine();
+        QStringList ls = line.split("||");
+        if(ls.count() != 4){
+            myHelper::ShowMessageBoxError(tr("文件格式错误：%1").arg(line));
+            return;
+        }
+        FirstSubject* fsub = sm->getFstSubject(ls.at(1));
+        if(!fsub){
+            myHelper::ShowMessageBoxError(tr("无效的一级科目代码：%1").arg(line));
+            return;
+        }
+        SecondSubject* ssub = fsub->getChildSub(ls.at(3));
+        if(!ssub){
+            //显示一个对话框由用户来抉择采用哪个二级科目来适配当前的关键字
+            SmartSSubAdapteEditDlg dlg(sm,false,this);
+            dlg.setFirstSubject(fsub);
+            dlg.setKeys(ls.at(2));
+            if(dlg.exec() == QDialog::Rejected)
+                continue;
+            ssub = dlg.getSecondSubject();
+            if(!ssub){
+                myHelper::ShowMessageBoxWarning(tr("您未选择适配的二级科目，该条将忽略！"));
+                continue;
+            }
+        }
+        //fsub->addSmartAdapteSSub(ls.at(2),ssub);
+        SmartSSubAdapteItem* ai = new SmartSSubAdapteItem;
+        ai->id = 0;
+        ai->subSys = subSysCode;
+        ai->fsub = fsub;
+        ai->ssub = ssub;
+        ai->keys = ls.at(2);
+        SmartAdaptes<<ai;
+        ui->twSmarts->insertRow(row);
+        QVariant v;
+        QTableWidgetItem* item = new QTableWidgetItem(fsub->getName());
+        v.setValue<FirstSubject*>(fsub);
+        item->setData(Qt::UserRole,v);
+        ui->twSmarts->setItem(row,0,item);
+        item = new QTableWidgetItem(ssub->getName());
+        v.setValue<SecondSubject*>(ssub);
+        item->setData(Qt::UserRole,v);
+        ui->twSmarts->setItem(row,1,item);
+        ui->twSmarts->setItem(row,2,new QTableWidgetItem(ls.at(2)));
+        row++;
+    }
+}
+
+void ApcSubject::on_btnSaveSmart_clicked()
+{
+    if(!SmartAdaptes_del.isEmpty()){
+        if(!account->getDbUtil()->saveSmartSSubAdapters(SmartAdaptes_del,true)){
+            myHelper::ShowMessageBoxError(tr("在保存智能适配子目配置项时发生错误！"));
+            return;
+        }
+        qDeleteAll(SmartAdaptes_del);
+        SmartAdaptes_del.clear();
+    }
+    QList<SmartSSubAdapteItem*> items;
+    for(int i = 0; i < ui->twSmarts->rowCount(); ++i){
+        FirstSubject* fsub = ui->twSmarts->item(i,0)->data(Qt::UserRole).value<FirstSubject*>();
+        SecondSubject* ssub = ui->twSmarts->item(i,1)->data(Qt::UserRole).value<SecondSubject*>();
+        QString keys = ui->twSmarts->item(i,2)->text();
+        SmartSSubAdapteItem* ai = SmartAdaptes.at(i);
+        if(ai->id == 0){
+            items<<ai;
+            continue;
+        }
+        bool changed = false;
+        if(ai->fsub != fsub){
+            changed = true;
+            ai->fsub = fsub;
+        }
+        if(ai->ssub != ssub){
+            changed = true;
+            ai->ssub = ssub;
+        }
+        if(ai->keys != keys){
+            changed = true;
+            ai->keys = keys;
+        }
+        if(changed)
+            items<<ai;
+    }
+    if(items.isEmpty())
+        return;
+    if(!account->getDbUtil()->saveSmartSSubAdapters(items))
+        myHelper::ShowMessageBoxError(tr("在保存智能适配子目配置项时发生错误！"));
+}
+
+/**
+ * @brief 添加包含型智能子目配置项
+ */
+void ApcSubject::on_actAddSmartItem_triggered()
+{
+    int subSysCode = ui->cmbSubSys->itemData(ui->cmbSubSys->currentIndex()).toInt();
+    SubjectManager* sm = account->getSubjectManager(subSysCode);
+    SmartSSubAdapteEditDlg dlg(sm,true,this);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    FirstSubject* fsub = dlg.getFirstSubject();
+    SecondSubject* ssub = dlg.getSecondSubject();
+    QString keys = dlg.getKeys();
+    if(!fsub || !ssub || keys.isEmpty()){
+        myHelper::ShowMessageBoxWarning(tr("配置项目不全！\n可能未选项一级科目、二级科目或关键字为空！"));
+        return;
+    }
+    int row = ui->twSmarts->currentRow();
+    if(row == -1)
+        row = ui->twSmarts->rowCount();
+    SmartSSubAdapteItem* ai = new SmartSSubAdapteItem;
+    ai->id=0;
+    ai->subSys=subSysCode;
+    ai->fsub=fsub;
+    ai->ssub=ssub;
+    ai->keys = keys;
+    SmartAdaptes.insert(row,ai);
+    ui->twSmarts->insertRow(row);
+    QTableWidgetItem* item = new QTableWidgetItem(fsub->getName());
+    QVariant v; v.setValue<FirstSubject*>(fsub);
+    item->setData(Qt::UserRole,v);
+    ui->twSmarts->setItem(row,0,item);
+    item = new QTableWidgetItem(ssub->getName());
+    v.setValue<SecondSubject*>(ssub);
+    item->setData(Qt::UserRole,v);
+    ui->twSmarts->setItem(row,1,item);
+    item = new QTableWidgetItem(keys);
+    ui->twSmarts->setItem(row,2,item);
+}
+
+/**
+ * @brief 编辑包含型智能子目配置项
+ */
+void ApcSubject::on_actEditSmartItem_triggered()
+{
+    int subSysCode = ui->cmbSubSys->itemData(ui->cmbSubSys->currentIndex()).toInt();
+    SubjectManager* sm = account->getSubjectManager(subSysCode);
+    int row = ui->twSmarts->currentRow();
+    SmartSSubAdapteEditDlg dlg(sm,true,this);
+    FirstSubject* fsub1 = ui->twSmarts->item(row,0)->data(Qt::UserRole).value<FirstSubject*>();
+    dlg.setFirstSubject(fsub1);
+    SecondSubject* ssub1 = ui->twSmarts->item(row,1)->data(Qt::UserRole).value<SecondSubject*>();
+    dlg.setSecondSubject(ssub1);
+    QString keys1 = ui->twSmarts->item(row,2)->text();
+    dlg.setKeys(keys1);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+
+    FirstSubject* fsub2 = dlg.getFirstSubject();
+    if(fsub1 != fsub2){
+        QVariant v; v.setValue<FirstSubject*>(fsub2);
+        ui->twSmarts->item(row,0)->setData(Qt::UserRole,v);
+        ui->twSmarts->item(row,0)->setText(fsub2->getName());
+    }
+    SecondSubject* ssub2 = dlg.getSecondSubject();
+    if(ssub1 != ssub2){
+        QVariant v; v.setValue<SecondSubject*>(ssub2);
+        ui->twSmarts->item(row,1)->setData(Qt::UserRole,v);
+        ui->twSmarts->item(row,1)->setText(ssub2->getName());
+    }
+    QString keys2 = dlg.getKeys();
+    if(keys1 != keys2)
+        ui->twSmarts->item(row,2)->setText(keys2);
+}
+
+/**
+ * @brief 移除包含型智能子目配置项
+ */
+void ApcSubject::on_actRemoveSmartItem_triggered()
+{
+    int row = ui->twSmarts->currentRow();
+    ui->twSmarts->removeRow(row);
+    SmartAdaptes_del<<SmartAdaptes.takeAt(row);
+}
+
 
 
 /**
@@ -3766,6 +4119,12 @@ void AccountPropertyConfig::createIcons()
     connect(contentsWidget,SIGNAL(currentRowChanged(int)),
          this, SLOT(pageChanged(int)));
 }
+
+
+
+
+
+
 
 
 

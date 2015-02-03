@@ -20,6 +20,7 @@ const int nsv = 6;  //此版本号前使用老存储机制，此版本后（包�
 class SubjectManager;
 class FirstSubject;
 class PingZheng;
+struct SmartSSubAdapteItem;
 
 class DbUtil
 {
@@ -210,6 +211,10 @@ public:
     //子窗口状态访问函数
     bool getSubWinInfo(int winEnum, QByteArray *state);
     bool saveSubWinInfo(int winEnum, QByteArray *state);
+
+    //智能子目适配项访问函数
+    bool loadSmartSSubAdaptes(SubjectManager* sm, QList<SmartSSubAdapteItem *> &items);
+    bool saveSmartSSubAdapters(QList<SmartSSubAdapteItem *> &items,bool del=false);
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool _readAccountSuites(QList<AccountSuiteRecord*>& suites);
@@ -268,6 +273,7 @@ private:
 
     //笔记功能函数
     bool initNoteTable();
+
 
 private:
     QSqlDatabase db;

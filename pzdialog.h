@@ -199,10 +199,12 @@ private:
     void showInfomation(QString info,AppErrorLevel level = AE_OK);
     bool isBlankLastRow();
     void installInfoWatch(bool install = true);
+    SecondSubject* getAdapterSSub(FirstSubject* fsub, QString summary, QString prefixe, QString suffix);
 
 
 
     Ui::pzDialog *ui;
+    AppConfig* appCfg;
     Account* account;            //账户对象
     SubjectManager* subMgr;      //科目管理对象
     AccountSuiteManager* pzMgr;             //凭证集
@@ -240,6 +242,12 @@ private:
 
     //上下文菜单
     QAction* actModifyRate;
+
+    //智能子目设置
+    bool smartSSubSet;      //是否开启智能子目设置功能的标记
+
+    QHash<QString,QString> prefixes,suffixes; //包裹客户名的前缀和后缀，键为科目代码
+                            //分录的摘要信息（XX[prefixe][客户名][suffixe]XX）,X代表其他任意字符
 };
 
 class HistoryPzForm : public QDialog

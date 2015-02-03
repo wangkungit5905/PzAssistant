@@ -463,11 +463,64 @@ void FirstSubject::setDefaultSubject(SecondSubject *ssub)
     witchEdited |= ES_FS_DEFSUB;
 }
 
+/**
+ * @brief 返回指定名称的子目
+ * @param name
+ * @return
+ */
+SecondSubject *FirstSubject::getChildSub(QString name)
+{
+    foreach(SecondSubject* ssub, childSubs){
+        if(ssub->getName() == name)
+            return ssub;
+    }
+    return 0;
+}
+
 SecondSubject *FirstSubject::getDefaultSubject()
 {
     if(!defSub && !childSubs.isEmpty())
         defSub = childSubs.first();
     return defSub;
+}
+
+/**
+ * @brief 添加智能适配子目
+ * @param keys  关键字列表
+ * @param ssub  适配的子目
+ */
+void FirstSubject::addSmartAdapteSSub(QString key, SecondSubject *ssub)
+{
+    if(keys.contains(key) || ssub==0)
+        return;
+    keys<<key;
+    adapteSSubs<<ssub;
+}
+
+/**
+ * @返回summary参数中包含的与某个关键字适配的子目
+ * @param summary
+ * @return
+ */
+SecondSubject *FirstSubject::getAdapteSSub(QString summary)
+{
+    for(int i = 0; i < keys.count(); ++i){
+        QString key = keys.at(i);
+        if(summary.contains(key))
+            return adapteSSubs.at(i);
+    }
+    return 0;
+}
+
+/**
+ * @brief 返回所有智能适配条目
+ * @param keys
+ * @param ssubs
+ */
+void FirstSubject::getAllAdapteItems(QStringList &keys, QList<SecondSubject *> &ssubs)
+{
+    keys = this->keys;
+    ssubs = adapteSSubs;
 }
 
 

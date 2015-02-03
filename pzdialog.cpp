@@ -339,6 +339,7 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
 {
     ui->setupUi(this);
     curPz = NULL;
+    appCfg = AppConfig::getInstance();
     initResources();
     //setCommonState(sinfo);
     msgTimer = new QTimer(this);
@@ -367,6 +368,19 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
 
     account = pzMgr->getAccount();
     subMgr = pzMgr->getSubjectManager();
+
+    smartSSubSet = appCfg->isOnSmartSSubSet();
+    QString subCode = subMgr->getYsSub()->getCode();
+    prefixes[subCode] = appCfg->getSmartSSubFix(subCode,AppConfig::SSF_PREFIXE);
+    suffixes[subCode] = appCfg->getSmartSSubFix(subCode,AppConfig::SSF_SUFFIXE);
+    if(prefixes.value(subCode).isEmpty() || suffixes.value(subCode).isEmpty())
+        smartSSubSet=false;
+    subCode = subMgr->getYfSub()->getCode();
+    prefixes[subCode] = appCfg->getSmartSSubFix(subCode,AppConfig::SSF_PREFIXE);
+    suffixes[subCode] = appCfg->getSmartSSubFix(subCode,AppConfig::SSF_SUFFIXE);
+    if(prefixes.value(subCode).isEmpty() || suffixes.value(subCode).isEmpty())
+        smartSSubSet=false;
+
     delegate = new ActionEditItemDelegate(subMgr,this);
     connect(delegate,SIGNAL(reqCopyPrevAction(int)),this,SLOT(copyPrewAction(int)));
     //connect(delegate,SIGNAL(updateSndSubject(int,int,SecondSubject*)),
@@ -1285,8 +1299,8 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         return;
     ModifyMultiPropertyOnBa* multiCmd;
     ModifyBaSummaryCmd* scmd;
-    FirstSubject* fsub;
-    SecondSubject* ssub;
+    FirstSubject* fsub=0;
+    SecondSubject* ssub=0;
     Double v=0.0;
     Money* mt;
     MoneyDirection dir;
@@ -1299,7 +1313,8 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         break;
     case BT_FSTSUB:
         fsub = item->data(Qt::EditRole).value<FirstSubject*>();
-        ssub = fsub->getDefaultSubject();
+        //ssub = fsub->getDefaultSubject();
+        //自动依据上一条分录设置应交税金的适配子目
         if(fsub == subMgr->getYjsjSub() && row > 0){
             BusiAction* ba = curPz->getBusiAction(row-1);
             FirstSubject* pfsub = ba?ba->getFirstSubject():0;
@@ -1310,6 +1325,20 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                     ssub = subMgr->getJxseSSub();
             }
         }
+        //如果是应收应付科目，则提取摘要中的客户关键字信息自动适配子目
+        else if(smartSSubSet && !curBa->getSummary().isEmpty() && !curBa->getSecondSubject() &&
+                (fsub == subMgr->getYsSub() || fsub == subMgr->getYfSub())){
+            SecondSubject* sub;
+            sub = getAdapterSSub(fsub,curBa->getSummary(),prefixes.value(fsub->getCode()),
+                                 suffixes.value(fsub->getCode()));
+            if(sub)
+                ssub = sub;
+        }
+        else if(fsub->isHaveSmartAdapte()){
+            ssub = fsub->getAdapteSSub(curBa->getSummary());
+        }
+        if(!ssub)
+            ssub = fsub->getDefaultSubject();
         updateCols |= BUC_FSTSUB;
         updateCols |= BUC_SNDSUB;
         //如果是银行科目（其二级科目决定了匹配的币种），则根据银行账户的货币属性设置当前的币种
@@ -2031,6 +2060,29 @@ void PzDialog::installInfoWatch(bool install)
         //disconnect(ui->edtComment,SIGNAL(modificationChanged(bool)),this,SLOT(pzMemInfoModified(bool)));
 
     }
+}
+
+/**
+ * @brief 从摘要信息中提取客户名信息，并试图从指定主目中找出与此名称对应的子目
+ * @param fsub      一级科目对象
+ * @param summary   分录的摘要信息（XX[prefixe][客户名][suffixe]XX）,X代表其他任意字符
+ * @param prefixe   客户名的前缀
+ * @param suffix    客户名的后缀
+ * @return
+ */
+SecondSubject *PzDialog::getAdapterSSub(FirstSubject *fsub, QString summary, QString prefixe, QString suffix)
+{
+    int pi = summary.indexOf(prefixe);
+    if(pi==-1)
+        return 0;
+    int si = summary.indexOf(suffix);
+    if(si==-1)
+        return 0;
+    int index = pi+prefixe.count();
+    if((si - index) <= 1)
+        return  0;
+    QString name = summary.mid(index,si-index);
+    return fsub->getChildSub(name);
 }
 
 /**

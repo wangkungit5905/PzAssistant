@@ -4233,6 +4233,20 @@ void MainWindow::on_actBatchImport_triggered()
 
 bool MainWindow::impTestDatas()
 {
-        int i = 0;
+//    QString summary = tr("收宁波派士运费 00122312");
+//    QString prefixe = tr("收");
+//    QString suffixe = tr("运费");
+//    int pi = summary.indexOf(prefixe);
+//    if(pi==-1)
+//        return 0;
+//    int si = summary.indexOf(suffixe);
+//    if(si==-1)
+//        return 0;
+//    int index = pi+prefixe.count();
+//    if((si - index) <= 1)
+//        return  0;
+//    QString name = summary.mid(index,si-index);
+
+    int i = 0;
 }
 

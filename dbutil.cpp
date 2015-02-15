@@ -1121,7 +1121,8 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
                 LOG_ERROR(QString("Table %1 reference a invalid second subject(ssubID=%2)").arg(tbl_SmartSSubAdapter).arg(id));
                 continue;
             }
-            fsub->addSmartAdapteSSub(keys,ssub);
+            QSet<QString> keySets = QSet<QString>::fromList(keys.split(QObject::tr("，")));
+            fsub->addSmartAdapteSSub(keySets,ssub);
         }
     }
     return true;
@@ -4426,7 +4427,7 @@ bool DbUtil::saveSmartSSubAdapters(QList<SmartSSubAdapteItem *> &items, bool del
         }
         return true;
     }
-    s = QString("update %1 set %2=:keys where %3=:subsys and %4=:fsub and %5=:ssub")
+    s = QString("update %1 set %2=:keys,%3=:subsys,%4=:fsub,%5=:ssub where  id=:id")
             .arg(tbl_SmartSSubAdapter).arg(fld_ssa_subStr).arg(fld_ssa_subSys)
             .arg(fld_ssa_fsub).arg(fld_ssa_ssub);
     if(!q.prepare(s)){
@@ -4442,15 +4443,7 @@ bool DbUtil::saveSmartSSubAdapters(QList<SmartSSubAdapteItem *> &items, bool del
         return false;
     }
     foreach(SmartSSubAdapteItem* item, items){
-        q.bindValue(":keys",item->keys);
-        q.bindValue(":subsys",item->subSys);
-        q.bindValue(":fsub",item->fsub->getId());
-        q.bindValue(":ssub",item->ssub->getId());
-        if(!q.exec()){
-            LOG_SQLERROR(q.lastQuery());
-            return false;
-        }
-        if(q.numRowsAffected() == 0){
+        if(item->id == 0){
             q2.bindValue(":keys",item->keys);
             q2.bindValue(":subsys",item->subSys);
             q2.bindValue(":fsub",item->fsub->getId());
@@ -4462,6 +4455,17 @@ bool DbUtil::saveSmartSSubAdapters(QList<SmartSSubAdapteItem *> &items, bool del
             q3.exec("select last_insert_rowid()");
             q3.first();
             item->id = q3.value(0).toInt();
+        }
+        else{
+            q.bindValue(":keys",item->keys);
+            q.bindValue(":subsys",item->subSys);
+            q.bindValue(":fsub",item->fsub->getId());
+            q.bindValue(":ssub",item->ssub->getId());
+            q.bindValue(":id",item->id);
+            if(!q.exec()){
+                LOG_SQLERROR(q.lastQuery());
+                return false;
+            }
         }
     }
     return true;
@@ -4513,7 +4517,8 @@ bool DbUtil::_readAccountSuites(QList<AccountSuiteRecord *> &suites)
         as->year = q.value(ACCS_YEAR).toInt();
         as->subSys = q.value(ACCS_SUBSYS).toInt();
         as->recentMonth = q.value(ACCS_RECENTMONTH).toInt();
-        as->isCur = q.value(ACCS_ISCUR).toInt();
+        //as->isCur = q.value(ACCS_ISCUR).toInt();
+        as->isCur=false;
         as->isClosed = q.value(ACCS_ISCLOSED).toBool();
         as->name = q.value(ACCS_NAME).toString();
         as->startMonth = q.value(ACCS_STARTMONTH).toInt();
@@ -4640,7 +4645,7 @@ bool DbUtil::_saveFirstSubject(FirstSubject *sub)
         if(estate.testFlag(ES_FS_DEFSUB)){
             s = QString("update %1 set %2=%3 where %4=%5 and id!=%6 and %2=%7").arg(tbl_ssub)
                     .arg(fld_ssub_weight).arg(INIT_WEIGHT).arg(fld_ssub_fid)
-                    .arg(sub->getId()).arg(sub->getDefaultSubject()->getId())
+                    .arg(sub->getId()).arg(sub->getDefaultSubject()?sub->getDefaultSubject()->getId():0)
                     .arg(DEFALUT_SUB_WEIGHT);
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
@@ -5334,17 +5339,18 @@ bool DbUtil::_saveBusiactionsInPz(PingZheng *pz)
         ba->setEditState(ES_BA_INIT);
     }
     for(int i = 0; i < pz->baDels.count(); ++i){
-        ba = pz->baDels.takeAt(0);
+        ba = pz->baDels.at(i);
         if(ba->getId() != UNID){
             s = QString("delete from %1 where id=%2").arg(tbl_ba).arg(ba->getId());
             if(!q.exec(s)){
                 LOG_SQLERROR(s);
                 return false;
             }
-        }
-        ba->id = UNID;
+            ba->id = UNID;
+        }        
         pz->ba_saveAfterDels<<ba;
     }
+    pz->baDels.clear();
     return true;
 }
 

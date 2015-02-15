@@ -204,7 +204,7 @@ void SuiteSwitchPanel::newPzSet()
 
 void SuiteSwitchPanel::init()
 {
-    setMaximumWidth(240);
+    setMaximumWidth(220);
     btn_tip_edit = tr("编辑");
     btn_tip_view = tr("查看");
     icon_selected = QIcon(":/images/accSuiteSelected.png");
@@ -234,28 +234,25 @@ void SuiteSwitchPanel::initSuiteList()
         ui->lstSuite->clear();
     }
     QListWidgetItem* li;
-    foreach(AccountSuiteRecord* as, account->getAllSuiteRecords()){
+    QList<AccountSuiteRecord*> suites = account->getAllSuiteRecords();
+    foreach(AccountSuiteRecord* as, suites){
         suiteRecords[as->id] = as;
         li = new QListWidgetItem(ui->lstSuite);
         li->setData(ROLE_CUR_SUITE,as->id);
         li->setIcon(icon_unSelected);
         li->setText(as->name);
-        if(as->isCur)
-            curSuite = account->getSuiteMgr(as->id);
         initSuiteContent(as);
-    }
-    if(curSuite){
-        int asrId = curSuite->getSuiteRecord()->id;
-        for(int i = 0; i < ui->lstSuite->count(); ++i){
-            if(ui->lstSuite->item(i)->data(ROLE_CUR_SUITE).toInt() == asrId){
-                ui->lstSuite->item(i)->setIcon(icon_selected);
-                ui->lstSuite->setCurrentRow(i);
-                break;
-            }
-        }
     }
     connect(ui->lstSuite,SIGNAL(currentItemChanged(QListWidgetItem*,QListWidgetItem*)),
             this,SLOT(curSuiteChanged(QListWidgetItem*,QListWidgetItem*)));
+    //默认，当账户刚打开时，总是打开最后的帐套
+    if(!suites.isEmpty()){
+        curSuite = account->getSuiteMgr();
+        int row = suites.count()-1;
+        ui->lstSuite->setCurrentRow(row);
+        ui->stackedWidget->setCurrentIndex(row);
+        ui->lstSuite->item(row)->setIcon(icon_selected);
+    }
 }
 
 void SuiteSwitchPanel::initSuiteContent(AccountSuiteRecord *as)

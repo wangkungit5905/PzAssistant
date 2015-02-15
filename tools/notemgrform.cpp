@@ -3,6 +3,7 @@
 #include "tables.h"
 #include "account.h"
 #include "dbutil.h"
+#include "myhelper.h"
 
 #include <QSqlQuery>
 #include <QMessageBox>
@@ -20,6 +21,8 @@ NoteMgrForm::NoteMgrForm(Account *account, QWidget *parent) :
     readNotes();
     connect(ui->lwTitles,SIGNAL(customContextMenuRequested(QPoint)),
             this,SLOT(titleListContextMenuRequested(QPoint)));
+    sc_save = new QShortcut(QKeySequence("Ctrl+s"),this);
+    connect(sc_save,SIGNAL(activated()),this,SLOT(on_btnSave_clicked()));
 }
 
 NoteMgrForm::~NoteMgrForm()
@@ -161,7 +164,7 @@ void NoteMgrForm::on_actDelNote_triggered()
 void NoteMgrForm::readNotes()
 {
     if(!dbUtil->readNotes(notes)){
-        QMessageBox::critical(this,"",tr("读取笔记失败！"));
+        myHelper::ShowMessageBoxError(tr("读取笔记失败！"));
         return;
     }
     foreach(NoteStruct* note, notes){
@@ -195,10 +198,37 @@ bool NoteMgrForm::saveNotes()
     return true;
 }
 
+/**
+ * @brief 将当前显示的笔记内容记录到笔记的列表项内部
+ */
+void NoteMgrForm::recordNoteContent()
+{
+    int row = ui->lwTitles->currentRow();
+    if(row == -1)
+        return;
+    NoteStruct* curNote = notes.at(row);
+    QListWidgetItem* item = ui->lwTitles->currentItem();
+    if(ui->edtTitle->text() != curNote->title){
+        item->setData(NDR_MODIFY_TAG,true);
+        item->setText(ui->edtTitle->text());
+        curNote->title = ui->edtTitle->text();
+    }
+    QTextDocument* doc = ui->NoteTexts->document();
+    if(doc->isModified()){
+        item->setData(NDR_MODIFY_TAG,true);
+        curNote->content = doc->toHtml("utf-8");
+        curNote->lastEditTime = QDateTime::currentDateTime().toMSecsSinceEpoch();
+        doc->setModified(false);
+    }
+}
+
 void NoteMgrForm::on_btnSave_clicked()
 {
+    bool isNote = ui->stackedWidget->currentIndex() == 1;
+    if(isNote)
+        recordNoteContent();
     if(!saveNotes())
-        QMessageBox::warning(this,"",tr("保存笔记失败"));
+        myHelper::ShowMessageBoxError(tr("保存笔记失败"));
     else
         ui->btnSave->setEnabled(false);
 }

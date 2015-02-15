@@ -5365,112 +5365,7 @@ bool BusiUtil::isAccMtS(int sid)
 //}
 
 ////////////////////////////////////////////////////////////////////////////
-//获取子窗口信息
-//bool VariousUtils::getSubWinInfo(int winEnum, SubWindowDim*& info, QByteArray*& otherInfo)
-//{
 
-//}
-
-//保存字窗口信息
-//bool VariousUtils::saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo)
-//{
-
-//}
-
-//读取子窗口信息
-//QVariant VariousUtils::getSubWinInfo2(int winEnum)
-//{
-//    QSqlQuery q;
-//    QString s;
-
-//    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-//    if(q.exec(s) && q.first()){
-//        QVariant v;
-//        QByteArray ba = q.value(SWI_TBL).toByteArray();
-//        QBuffer bf(&ba);
-//        bf.open(QIODevice::ReadOnly);
-//        QDataStream in(&bf);
-//        in>>v;
-//        return v;
-//    }
-//    return QVariant();
-//}
-
-//保存子窗口信息
-//bool VariousUtils::saveSubWinInfo2(int winEnum, QVariant otherInfo)
-//{
-//    QSqlQuery q;
-//    QString s;
-//    bool r;
-
-//    //一定要将QVariant类型序列化到字节数组中，才能在数据库中保存
-//    QByteArray ba;
-//    QBuffer buffer(&ba);
-//    buffer.open(QIODevice::WriteOnly);
-//    QDataStream out(&buffer);
-//    out<<otherInfo;
-//    buffer.close();
-
-//    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-//    if(q.exec(s) && q.first()){
-//        int id = q.value(0).toInt();
-//        s = QString("update subWinInfos set winEnum=:enum,tblInfo=:info where id=:id");
-//        r = q.prepare(s);
-//        q.bindValue(":enum",winEnum);
-//        q.bindValue(":info",ba);
-//        q.bindValue(":id",id);
-//    }
-//    else{
-//        s = QString("insert into subWinInfos(winEnum,tblInfo) "
-//                    "values(:enum,:info)");
-//        r = q.prepare(s);
-//        q.bindValue(":enum",winEnum);
-//        q.bindValue(":info",ba);
-//    }
-//    r = q.exec();
-//    return r;
-//}
-
-//获取子窗口信息
-//bool VariousUtils::getSubWinInfo3(int winEnum,QByteArray*& ba)
-//{
-//    QSqlQuery q;
-//    QString s;
-
-//    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-//    if(q.exec(s) && q.first()){
-//        ba = new QByteArray(q.value(FI_BASE_SWI_TBL).toByteArray());
-//        return true;
-//    }
-//    return false;
-//}
-
-//保存字窗口信息
-//bool VariousUtils::saveSubWinInfo3(int winEnum, QByteArray* otherInfo)
-//{
-//    QSqlQuery q;
-//    QString s;
-//    bool r;
-
-//    s = QString("select * from subWinInfos where winEnum = %1").arg(winEnum);
-//    if(q.exec(s) && q.first()){
-//        int id = q.value(0).toInt();
-//        s = QString("update subWinInfos set winEnum=:enum,tblInfo=:info where id=:id");
-//        r = q.prepare(s);
-//        q.bindValue(":enum",winEnum);
-//        q.bindValue(":info",*otherInfo);
-//        q.bindValue(":id",id);
-//    }
-//    else{
-//        s = QString("insert into subWinInfos(winEnum,tblInfo) "
-//                    "values(:enum,:info)");
-//        r = q.prepare(s);
-//        q.bindValue(":enum",winEnum);
-//        q.bindValue(":info",*otherInfo);
-//    }
-//    r = q.exec();
-//    return r;
-//}
 
 //因为原先表示方向的是整形宏定义常量，现在用枚举常量来代替，因此提供这些转换函数
 void transferDirection(const QHash<int,int> &sd, QHash<int,MoneyDirection>& dd)
@@ -5488,6 +5383,180 @@ void transferAntiDirection(const QHash<int, MoneyDirection> &sd, QHash<int, int>
     while(it.hasNext()){
         it.next();
         dd[it.key()] = it.value();
+    }
+}
+
+////////////////////////////////PaUtils/////////////////////////////////
+/**
+ * @brief 从summary中提取月份及其对应的发票号序列
+ * 比如"收宁波开源运费 12月00124567/68/69 11月30018765/23/24"
+ * 它将提取到的月份是[12,11]，对应的发票号是
+ * [[00124567,00124568,00124569],[30018765,30018723,30018724]]
+ * @param summary       分录中的摘要内容
+ * @param months        涉及到的月份序列
+ * @param invoiceNums   发票号序列（每项对应一个月份）
+ */
+void PaUtils::extractInvoiceNum(QString summary, QList<int> &months, QList<QStringList> &invoiceNums)
+{
+    //最一般的摘要内容如下：
+    //"收宁波开源运费 12月00124567/68/69 21232244/45/46 11月30018765/23/24"
+    //另外要注意的一个表示连续发票号的模式：
+    //收青岛铃诚运费 10月02207918-21 还有 收众望控股运费 12月00453242/44-56
+
+    //算法设计要点：
+    //最好的方式是先确定XX月的出现地方，这样就可以知道有几个月份，逐一提取某个具体月份的子串
+    //再在子串上分离出多个不同前缀的发票序列子串，在此子串上提取同一前缀的发票号，直至全部完成。
+
+    //1、先确定发票涉及到的月份序列
+    QRegExp re_m(QObject::tr("(\\d{1,2})(月)(\\d{8})"));
+    int pos = re_m.indexIn(summary);
+    if(pos == -1)
+        return;
+    QList<int> ps;
+    while(pos != -1){
+        ps<<pos;
+        months<<re_m.cap(1).toInt();
+        invoiceNums<<QStringList();
+        pos += re_m.captureCount();
+        pos = re_m.indexIn(summary,pos);
+    }
+    //2、解析每个月份的号码序列（它可能有两种表达方式，连续型和断续型，可能两种都使用或只使用其一）
+    QRegExp re("((\\d{8})(/\\d{2,4}){0,})|((\\d{8})(-\\d{2,2}){0,})");
+    for(int i=0; i<ps.count(); ++i){
+        QString ms;
+        if(i < ps.count()-1)
+            ms = summary.mid(ps.at(i),ps.at(i+1)-ps.at(i));
+        else
+            ms = summary.mid(ps.at(i),summary.count()-1);
+        int pos = re.indexIn(ms);
+        while(pos != -1){
+            getNumberFromSequence(re.cap(0),invoiceNums[i]);
+            pos += re.captureCount();
+            pos = re.indexIn(ms,pos);
+        }
+    }
+
+//    //这个模式已经可以处理形如“收宁波开源运费 12月00124567/68/69 11月30018765/23/24”的摘要内容
+//    QString pattern = QObject::tr("(\\d{1,2})(月)(\\d{8})(/\\d{2,4}){0,}");
+//    //这个模式好像不能匹配同一月份有多个发票序列的情形，因为后面跟随的附加序列没有指定出现的次数
+//    //QString pattern = QObject::tr("(\\d{1,2})(月)(\\d{8})(/\\d{2,4}){0,}(\\s?\\d{8})(/\\d{2,4}){0,}");
+//    QRegExp re(pattern);
+//    int pos = re.indexIn(summary);
+//    if(pos == -1)
+//        return;
+//    int len = 0;
+//    int m = 0;
+//    QString iNum;
+//    QStringList capTexts;
+//    int ms = 0; //月份数目
+//    while(pos != -1){
+//        capTexts = re.capturedTexts();
+//        len = re.matchedLength();
+//        m = re.cap(1).toInt();    //月份
+//        iNum = re.cap(3);      //发票号
+//        months<<m;
+//        invoiceNums<<QStringList();
+//        invoiceNums[ms]<<iNum;
+//        if(re.cap(4).isEmpty())     //没有其他相同前缀的发票号
+//            return;
+//        QString s = summary.mid(pos+11,len-11);
+//        QStringList nums;
+//        getSuffixeNumber(s,iNum,nums);
+//        if(nums.isEmpty())
+//            continue;
+//        invoiceNums[ms]<<nums;
+//        pos+=len;
+//        pos = re.indexIn(summary,pos);
+//        ms++;
+    //    }
+}
+
+/**
+ * @brief 从摘要中提取发票号及其相关的美金金额
+ * 这个主要使用在提取应收和应付对应发票的美金金额
+ * 比如从 "收宁波开源运费 00124567（$123.78）"提取
+ * @param summary
+ * @param invoiceNum
+ * @param value
+ */
+void PaUtils::extractUSD(QString summary, bool &isYs, QString &invoiceNum, Double &value)
+{
+    QString pattern = QObject::tr("(%1|%2)(.{1,}运费\\s)(\\d{8})((（|\\()(\\$)([1-9]\\d*(\\.\\d+)?)(）|\\)))?")
+            .arg(QObject::tr("应收")).arg(QObject::tr("应付"));
+    QRegExp re(pattern);
+    int pos = re.indexIn(summary);
+    if(pos == -1)
+        return;
+    if(re.cap(1) == QObject::tr("应收"))
+        isYs = true;
+    else
+        isYs = false;
+    invoiceNum = re.cap(3);
+    value = Double(re.cap(7).toDouble());
+
+}
+
+/**
+ * @brief 从一个发票号序列中提取发票号，它可以是连续的发票号或断续的发票号
+ * @param text          原始文本
+ * @param InvoiceNums   提取到的发票号码
+ */
+void PaUtils::getNumberFromSequence(QString text, QStringList &InvoiceNums)
+{
+    QRegExp re1("(\\d{8})(/\\d{2,4}){0,}");  //断续型
+    QRegExp re2("(\\d{8})(-\\d{2,2}){0,}");  //连续型
+    int i1 = re1.indexIn(text);
+    if(i1 == -1)
+        return;
+    re2.indexIn(text);
+    QStringList cs1 = re1.capturedTexts();
+    QStringList cs2 = re2.capturedTexts();
+    if(cs1.at(2).isEmpty() && cs2.at(2).isEmpty()){
+        InvoiceNums<<cs1.at(1);
+        return;
+    }
+    if(!cs1.at(2).isEmpty()){   //处理断续型
+        InvoiceNums<<re1.cap(1);
+        QString suff = text.mid(i1+8,re1.captureCount()-8);
+        getSuffixeNumber(suff,re1.cap(1),InvoiceNums);
+
+    }
+    else{                       //处理连续型
+        InvoiceNums<<re2.cap(1);
+        QString endNumStr = re2.cap(2).right(2); //连续型的后缀长度固定为2
+        int si = re2.cap(1).right(endNumStr.count()).toInt()+1;
+        int ei = endNumStr.toInt();
+        if(si > ei)    //遵循升序
+            return;
+        QString prefix = re2.cap(1).left(6);
+        for(int i = si; i <= ei; ++i){
+            if(i < 10)
+                InvoiceNums<<prefix+"0"+QString::number(i);
+            else
+                InvoiceNums<<prefix+QString::number(i);
+        }
+    }
+}
+
+/**
+ * @brief 从给定断续型起始发票号和后缀序列，提取发票号码
+ * @param text              发票号后缀序列
+ * @param entireInvoiceNum  完整的发票号（通常是整个发票号序列中的第一个号码）
+ * @param nums              生成的具有相同前缀的发票号码
+ */
+void PaUtils::getSuffixeNumber(QString text, QString entireInvoiceNum, QStringList &nums)
+{
+    QRegExp re("(/)(\\d{2,4})");
+    int pos = re.indexIn(text);
+    if(pos == -1)
+        return;
+    int len = 0;
+    while(pos != -1){
+        QString suffNum = re.cap(2);
+        nums<<entireInvoiceNum.left(8-suffNum.count()) + suffNum;
+        len = re.matchedLength();
+        pos += len;
+        pos = re.indexIn(text,pos);
     }
 }
 
@@ -5695,3 +5764,5 @@ QString BackupUtil::_cutSuffix(QString fileName)
         return fname;
     }
 }
+
+

@@ -10,8 +10,8 @@
 
 
 /////////////////PzSetMgr///////////////////////////////////////////
-AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *account, User *user, QObject *parent):QObject(parent),
-    suiteRecord(as),account(account),user(user),curM(0)
+AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *account, /*User *user, */QObject *parent):QObject(parent),
+    suiteRecord(as),account(account),curM(0)
 {
     dbUtil = account->getDbUtil();
     undoStack = new QUndoStack(this);
@@ -25,8 +25,6 @@ AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *accoun
     curM=0;
     pzs=NULL;
     dirty = false;
-    if(!user)
-        user = curUser;
 }
 
 AccountSuiteManager::~AccountSuiteManager()
@@ -1924,7 +1922,7 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     pz->setEncNumber(0);
     pz->setPzClass(Pzc_JzsyIn);
     pz->setPzState(Pzs_Recording);
-    pz->setRecordUser(user);
+    pz->setRecordUser(curUser);
     SecondSubject* ssub;
     BusiAction* ba;
     Double sum = 0.0;
@@ -1963,7 +1961,7 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     pz->setEncNumber(0);
     pz->setPzClass(Pzc_JzsyFei);
     pz->setPzState(Pzs_Recording);
-    pz->setRecordUser(user);
+    pz->setRecordUser(curUser);
     for(int i = 0; i < fei_ssubs.count(); ++i){
         ssub = fei_ssubs.at(i);
         if(!vs.contains(ssub->getId()))
@@ -2044,7 +2042,7 @@ bool AccountSuiteManager::crtDtfyImpPz(int y,int m,QList<PzData*> pzds)
 //创建当期计提待摊费用凭证
 bool AccountSuiteManager::crtDtfyTxPz()
 {
-    return Dtfy::createTxPz(suiteRecord->year,curM,user);
+    return Dtfy::createTxPz(suiteRecord->year,curM,curUser);
 }
 
 //删除当期计提待摊费用凭证

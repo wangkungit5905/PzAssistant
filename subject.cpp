@@ -459,7 +459,8 @@ void FirstSubject::setDefaultSubject(SecondSubject *ssub)
     if(defSub)
         defSub->setWeight(INIT_WEIGHT);
     defSub = ssub;
-    defSub->setWeight(DEFALUT_SUB_WEIGHT);
+    if(defSub)
+        defSub->setWeight(DEFALUT_SUB_WEIGHT);
     witchEdited |= ES_FS_DEFSUB;
 }
 
@@ -479,8 +480,8 @@ SecondSubject *FirstSubject::getChildSub(QString name)
 
 SecondSubject *FirstSubject::getDefaultSubject()
 {
-    if(!defSub && !childSubs.isEmpty())
-        defSub = childSubs.first();
+    //if(!defSub && !childSubs.isEmpty())
+    //    defSub = childSubs.first();
     return defSub;
 }
 
@@ -489,12 +490,30 @@ SecondSubject *FirstSubject::getDefaultSubject()
  * @param keys  关键字列表
  * @param ssub  适配的子目
  */
-void FirstSubject::addSmartAdapteSSub(QString key, SecondSubject *ssub)
-{
-    if(keys.contains(key) || ssub==0)
+void FirstSubject::addSmartAdapteSSub(QSet<QString> keySets, SecondSubject *ssub)
+{    
+    if(keys.contains(keySets) || ssub==0)
         return;
-    keys<<key;
+    //如果加入的关键字集合是原有某个集合的子集，且适配的子目相同，则可以忽略
+    for(int i = 0; i < keys.count(); ++i){
+        QSet<QString> set = keys.at(i);
+        if(set.contains(keySets) && adapteSSubs.at(i) == ssub)
+            return;
+    }
+    keys<<keySets;
     adapteSSubs<<ssub;
+}
+
+void FirstSubject::removeSmartAdapteSSub(QSet<QString> keySets, SecondSubject *ssub)
+{
+    for(int i = 0; i < keys.count(); ++i){
+        QSet<QString> set = keys.at(i);
+        if(set == keySets && adapteSSubs.at(i) == ssub){
+            keys.removeAt(i);
+            adapteSSubs.removeAt(i);
+            return;
+        }
+    }
 }
 
 /**
@@ -504,25 +523,24 @@ void FirstSubject::addSmartAdapteSSub(QString key, SecondSubject *ssub)
  */
 SecondSubject *FirstSubject::getAdapteSSub(QString summary)
 {
-    for(int i = 0; i < keys.count(); ++i){
-        QString key = keys.at(i);
-        if(summary.contains(key))
-            return adapteSSubs.at(i);
+    for(int i = 0; i< keys.count(); ++i){
+        QSet<QString> keySets = keys.at(i);
+        foreach(QString key, keySets){
+            if(summary.contains(key))
+                return adapteSSubs.at(i);
+        }
     }
     return 0;
 }
 
 /**
- * @brief 返回所有智能适配条目
- * @param keys
- * @param ssubs
+ * @brief 清除所有包含型子目智能适配的配置信息
  */
-void FirstSubject::getAllAdapteItems(QStringList &keys, QList<SecondSubject *> &ssubs)
+void FirstSubject::clearSmartAdaptes()
 {
-    keys = this->keys;
-    ssubs = adapteSSubs;
+    keys.clear();
+    adapteSSubs.clear();
 }
-
 
 //针对一级科目的排序比较函数
 bool byNameThan_fs(FirstSubject *fs1, FirstSubject *fs2)

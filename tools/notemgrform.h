@@ -2,6 +2,7 @@
 #define NOTEMGRFORM_H
 
 #include <QWidget>
+#include <QShortcut>
 
 class QListWidgetItem;
 
@@ -45,12 +46,14 @@ private slots:
 private:
     void readNotes();
     bool saveNotes();
+    void recordNoteContent();
 
     Ui::NoteMgrForm *ui;
     QList<NoteStruct*> notes;
     QList<NoteStruct*> delNotes;  //被删除的笔记id列表
     Account* account;
     DbUtil* dbUtil;
+    QShortcut* sc_save;
 };
 
 #endif // NOTEMGRFORM_H

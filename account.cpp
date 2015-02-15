@@ -822,13 +822,19 @@ AccountSuiteManager *Account::getSuiteMgr(int suiteId)
         return suiteHash.value(suiteId);
     int key = 0;
     AccountSuiteRecord* record = NULL;
-    if(suiteId == 0){
+    //默认是返回有当前标记的帐套对象，如果没有，则返回最后的帐套
+    if(suiteId == 0){        
         foreach(AccountSuiteRecord* asr, suiteRecords){
             if(asr->isCur){
                 key = asr->id;
                 record = asr;
                 break;
             }
+        }
+        if(!record){
+            record = suiteRecords.last();
+            record->isCur = true;
+            key = record->id;
         }
     }
     else{

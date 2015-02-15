@@ -125,10 +125,11 @@ bool AccountTransferUtil::transferOut(QString fileName, QString desDirName, QStr
 /**
  * @brief 转入账户
  * @param fileName  转入账户文件名（路径名）
- * @param info      操作信息
+ * @param reason    转入说明
+ * @param info      出错信息
  * @return
  */
-bool AccountTransferUtil::transferIn(QString fileName, QString &info)
+bool AccountTransferUtil::transferIn(QString fileName, QString reason, QString &info)
 {
     if(trMode)
         return false;
@@ -224,6 +225,14 @@ bool AccountTransferUtil::transferIn(QString fileName, QString &info)
         info.append(tr("在保存账户“%1”的缓存账户条目时出错！\n").arg(accName));
         if(!restore(fn,true))
             info.append(tr("恢复原始账户文件“%1”出错！").arg(fn));
+        return false;
+    }
+    //8、修改账户文件的转移记录
+    trRec->tState=acItem->tState;
+    trRec->t_in=acItem->inTime;
+    trRec->desc_in=reason;
+    if(!saveTransferRecord(trRec)){
+        myHelper::ShowMessageBoxError(tr("在修改并保存转入账户文件的转移条目时发生错误！"));
         return false;
     }
     return true;
@@ -1119,7 +1128,7 @@ void TransferInDialog::on_btnOk_clicked()
         return;
     }
     QString infos;
-    if(!trUtil->transferIn(fileName,infos)){
+    if(!trUtil->transferIn(fileName,ui->edtInDesc->toPlainText(),infos)){
         ui->stateTxt->appendPlainText(infos);
         ui->stateTxt->appendPlainText(tr("转入账户失败！\n"));
         ui->btnOk->setEnabled(false);
@@ -1354,7 +1363,7 @@ void BatchImportDialog::on_btnImp_clicked()
     AccountTransferUtil trUtil(false,this);
     for(int i = 0; i < files.count(); ++i){
         QString infos;
-        bool r = trUtil.transferIn(files.at(i),infos);
+        bool r = trUtil.transferIn(files.at(i),"",infos);
         ui->stateTxt->appendPlainText(infos);
         if(!r)
             ui->stateTxt->appendPlainText(tr("导入账户“%1”失败！\n").arg(ui->lwAccs->item(i)->text()));

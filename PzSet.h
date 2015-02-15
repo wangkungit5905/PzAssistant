@@ -31,7 +31,7 @@ public:
         SW_STATE = 3    //凭证集状态和余额状态
     };
 
-    AccountSuiteManager(AccountSuiteRecord* as, Account* account,User* user = NULL,QObject* parent = 0);
+    AccountSuiteManager(AccountSuiteRecord* as, Account* account,QObject* parent = 0);
     ~AccountSuiteManager();
     Account* getAccount(){return account;}
     AccountSuiteRecord* getSuiteRecord(){return suiteRecord;}
@@ -190,7 +190,6 @@ private:
     AccountSuiteRecord* suiteRecord;
     DbUtil* dbUtil;
     StatUtil* statUtil;
-    User* user;
     QUndoStack* undoStack;
 };
 

@@ -4230,7 +4230,7 @@ void MainWindow::on_actBatchImport_triggered()
 }
 
 
-
+#include "lookysyfitemform.h"
 bool MainWindow::impTestDatas()
 {
 //    QString summary = tr("收宁波派士运费 00122312");
@@ -4247,6 +4247,86 @@ bool MainWindow::impTestDatas()
 //        return  0;
 //    QString name = summary.mid(index,si-index);
 
+//    QRegExp re(tr("(\\d{1,2})(月)(\\d{8})((/\\d{2,4}){0,})"));
+//    QString t1 = tr("收宁波开源运费 12月00124567");
+//    QString t2 = tr("收宁波开源运费 12月00124567/68/69 11月30018765/23/24");
+//    int pos = re.indexIn(t2);
+//    QStringList capTexts;
+//    int len = 0;
+//    while(pos != -1){
+//        capTexts = re.capturedTexts();
+//        len = re.matchedLength();
+//        pos = re.indexIn(t2,pos+len);
+//    }
+
+
+    //int count = re.captureCount();
+
+//    QRegExp re("(\\d{8})(-\\d{2,2}){0,}");
+//    QString text = "02207918-21";
+//    int count = re.captureCount();
+//    int pos = re.indexIn(text);
+//    QStringList ts = re.capturedTexts();
+//    int len = re.matchedLength();
+//    pos = re.indexIn(text,pos+len);
+//    ts = re.capturedTexts();
+
+//    QString t = tr("收宁波开源运费 12月00124567/68/69 21232244/45/46 11月30018765-69");
+//    QString t1 = tr("收宁波开源运费 12月00124567/68/69 21232244/45/46");
+//    QString t2 = tr("收宁波开源运费 12月00124567/68/69 11月30018765/23/24");
+//    QString t3 = tr("收三友控股运费 8月00608186 02325680 12月00360372 1月01382176-77");
+//    QList<int> ms;
+//    QList<QStringList> iNums;
+//    PaUtils::extractInvoiceNum(t3,ms,iNums);
+
+//    QString t1 = QObject::tr("收宁波开源运费 00124567（$123.78）");
+//    QString t2 = QObject::tr("付宁波开源运费 00124567($123.56)");
+//    QString p1 = QObject::tr("(%1|%2)(.{1,}运费\\s)(\\d{8})(（|\\()(\\$)(\\d{1,})(）|\\))").arg(QObject::tr("收")).arg(QObject::tr("付"));
+//    QString p2 = QObject::tr("(%1.{1,}运费\\s\\d{8}\\(\\$)(\\d{1,})\\)").arg(QObject::tr("付"));
+//    QRegExp re1(p1);
+//    int pos = re1.indexIn(t1);
+//    QRegExp re2(p2);
+//    pos = re1.indexIn(t2);
+//    QString ivoiceNum;
+//    bool isys;
+//    Double value;
+//    PaUtils::extractUSD(t1,isys,ivoiceNum,value);
+//    PaUtils::extractUSD(t2,isys,ivoiceNum,value);
+
+    /////////////////////////////////////////////////////////////
+    //三友控股（2014-8）
+//    00592188			100
+//    00592189（$84.4）	520.54
+//    00592190			2745
+//    00608186($390)		2405.33
+//    02325680($3578.81)  22072.31
+//    三友控股（2014-12）
+//    00360370			500
+//    00360372($35.2)		216.02
+//    三友控股（2015-1)
+//    03182176($117.6)	719.59
+//    03182177($300)		1835.7
+//    03111743			2110
+//    03111745			2715
+
+    //    SubjectManager* sm = curAccount->getSubjectManager(2);
+    //    FirstSubject* fsub = sm->getYsSub();
+    //    SecondSubject* ssub = fsub->getChildSub(tr("三友控股"));
+    //    QHash<int,QList<int> >timeRange;
+    //    timeRange[2014] = QList<int>();
+    //    timeRange[2014]<<8<<12;
+    //    timeRange[2015] = QList<int>();
+    //    timeRange[2015]<<1;
+    //    QList<QStringList> invoiceNums;
+    //    invoiceNums<<QStringList()<<QStringList()<<QStringList();
+    //    invoiceNums.first()<<"00592188"<<"00592189"<<"00592190"<<"00608186"<<"02325680";
+    //    invoiceNums[1]<<"00360370"<<"00360372"<<"11112222";
+    //    invoiceNums[2]<<"01382176"<<"01382177"<<"03111743"<<"03111745";
+    //    LookYsYfItemForm* form = new LookYsYfItemForm(curAccount,this);
+    //    form->show();
+    //    form->move(800,100);
+    //    //form->resize(36,36);
+    //    form->findItem(fsub,ssub,timeRange,invoiceNums);
     int i = 0;
 }
 

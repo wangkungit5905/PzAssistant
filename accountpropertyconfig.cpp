@@ -2368,10 +2368,13 @@ void ApcSubject::on_btnSSubCommit_clicked()
     curSSub->setEnabled(ui->ssubIsEnable->isChecked());
     curSSub->setWeight(ui->ssubWeight->text().toInt());
     //如果用户将本不是默认的科目设置为默认了
-    if(ui->ssubIsDef->isChecked() && !stack_ints.at(2)){
-        curFSub->setDefaultSubject(curSSub);
+    if(ui->ssubIsDef->isChecked() ^ stack_ints.at(2)){
+        if(ui->ssubIsDef->isChecked())
+            curFSub->setDefaultSubject(curSSub);
+        else
+            curFSub->setDefaultSubject(0);
         if(!curSubMgr->saveFS(curFSub))
-            myHelper::ShowMessageBoxError(tr("在将当前二级科目保存为当前一级科目的默认科目时出错！"));
+            myHelper::ShowMessageBoxError(tr("在当前一级科目的默认科目时出错！"));
     }
     if(!curSubMgr->saveSS(curSSub))
         myHelper::ShowMessageBoxError(tr("在将二级科目保存到账户数据库中时出错！"));
@@ -2383,6 +2386,8 @@ void ApcSubject::on_btnSSubCommit_clicked()
             ui->lwSSub->currentItem()->setForeground(color_disabledSub);
     }
     enSSubWidget(false);
+    stack_ints.clear();
+    stack_strs.clear();
 }
 
 /**
@@ -2606,6 +2611,7 @@ void ApcSubject::on_btnLoadDefs_clicked()
     int subSysCode = ui->cmbSubSys->itemData(ui->cmbSubSys->currentIndex()).toInt();
     SubjectManager* sm = account->getSubjectManager(subSysCode);
     QTextStream ts(&file);
+    ts.setCodec("UTF-8");
     int row = 0;
     while(!ts.atEnd()){
         QString line = ts.readLine();
@@ -2663,6 +2669,10 @@ void ApcSubject::on_btnSaveSmart_clicked()
             myHelper::ShowMessageBoxError(tr("在保存智能适配子目配置项时发生错误！"));
             return;
         }
+        foreach(SmartSSubAdapteItem* ai, SmartAdaptes_del){
+            QSet<QString> set = QSet<QString>::fromList(ai->keys.split(tr("，")));
+            ai->fsub->removeSmartAdapteSSub(set,ai->ssub);
+        }
         qDeleteAll(SmartAdaptes_del);
         SmartAdaptes_del.clear();
     }
@@ -2696,6 +2706,25 @@ void ApcSubject::on_btnSaveSmart_clicked()
         return;
     if(!account->getDbUtil()->saveSmartSSubAdapters(items))
         myHelper::ShowMessageBoxError(tr("在保存智能适配子目配置项时发生错误！"));
+    //内存对象更新
+    QHash<FirstSubject*, QList<int> > ps;
+    for(int i = 0; i < SmartAdaptes.count(); ++i){
+        SmartSSubAdapteItem* as = SmartAdaptes.at(i);
+        if(!ps.contains(as->fsub))
+            ps[as->fsub]=QList<int>();
+        ps[as->fsub]<<i;
+    }
+    QHashIterator<FirstSubject*, QList<int> > it(ps);
+    while(it.hasNext()){
+        it.next();
+        FirstSubject* fsub = it.key();
+        fsub->clearSmartAdaptes();
+        foreach(int i, it.value()){
+            SmartSSubAdapteItem* as = SmartAdaptes.at(i);
+            QSet<QString> set = QSet<QString>::fromList(as->keys.split(tr("，")));
+            fsub->addSmartAdapteSSub(set,as->ssub);
+        }
+    }
 }
 
 /**

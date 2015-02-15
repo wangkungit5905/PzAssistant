@@ -21,7 +21,7 @@ namespace Ui {
     class HistoryPzForm;
 }
 
-
+class LookYsYfItemForm;
 
 //编辑和显示凭证的会计分录的类
 class BaTableWidget : public QTableWidget
@@ -148,6 +148,7 @@ public:
 
     //由ModifySndSubEnableProperty对象回调以记录这些子目被修改了需要保存
     void addChangedSSub(SecondSubject* ssub){needSaveSSubs.insert(ssub);}
+    void LookYsYfFormTellBye(){lookAssistant=0;}
 public slots:
     void save();
     void setPzState(PzState state);
@@ -188,6 +189,8 @@ signals:
     void showMessage(QString info, AppErrorLevel levelS=AE_OK);
     void selectedBaChanged(QList<int> rows, bool conti);
     void rateChanged(int month);
+    void findMatchBas(FirstSubject* fsub, SecondSubject* ssub, QHash<int,QList<int> >timeRange, QList<QStringList> invoiceNums);
+
 private:
     void adjustTableSize();
     void initResources();
@@ -239,6 +242,7 @@ private:
     QShortcut* sc_copy;      //拷贝会计分录
     QShortcut* sc_cut;       //剪切会计分录
     QShortcut* sc_paster;    //粘贴会计分录
+    QShortcut* sc_look;      //启动查找应收应付对应分录助手
 
     //上下文菜单
     QAction* actModifyRate;
@@ -248,6 +252,7 @@ private:
 
     QHash<QString,QString> prefixes,suffixes; //包裹客户名的前缀和后缀，键为科目代码
                             //分录的摘要信息（XX[prefixe][客户名][suffixe]XX）,X代表其他任意字符
+    LookYsYfItemForm* lookAssistant; //查找应收应付相关分录助手
 };
 
 class HistoryPzForm : public QDialog

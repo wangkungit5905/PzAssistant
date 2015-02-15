@@ -58,7 +58,7 @@ public:
     AccountTransferUtil(bool out = true, QObject* parent=0);
     ~AccountTransferUtil();
     bool transferOut(QString fileName, QString desDirName, QString intent, QString &info,WorkStation* desWS=0,bool isTake=false,TakeAppCfgInfos* cfgs=0);
-    bool transferIn(QString fileName,QString &info);
+    bool transferIn(QString fileName,QString reason,QString &info);
 
     bool setAccontFile(QString fname);
     bool getAccountBaseInfos(QString &acode, QString &sname,QString &lname);

@@ -489,6 +489,14 @@ void StatUtil::_calEndExtra(bool isFst)
             vp.changeSign();
             vm.changeSign();
         }
+        else if(vp==0 && vm!=0){    //这发生在结转汇兑损益的情况，原币不变本币变
+            if(vm > 0)
+                dir = MDIR_J;
+            else{
+                dir = MDIR_D;
+                vm.changeSign();
+            }
+        }
         else
             dir = MDIR_P;
         if(dir == MDIR_P){ //本期借贷相抵（平），则余额值和方向同期初

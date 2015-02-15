@@ -82,7 +82,8 @@ SOURCES += main.cpp\
     iconhelper.cpp \
     crtaccountfromolddlg.cpp \
     batchoutputdialog.cpp \
-    batchimportdialog.cpp
+    batchimportdialog.cpp \
+    lookysyfitemform.cpp
 
 HEADERS  += \
     config.h \
@@ -159,7 +160,8 @@ HEADERS  += \
     iconhelper.h \
     crtaccountfromolddlg.h \
     batchoutputdialog.h \
-    batchimportdialog.h
+    batchimportdialog.h \
+    lookysyfitemform.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -229,7 +231,8 @@ FORMS    += \
     forms/crtaccountfromolddlg.ui \
     forms/batchoutputdialog.ui \
     forms/batchimportdialog.ui \
-    forms/specsubcfgform.ui
+    forms/specsubcfgform.ui \
+    forms/lookysyfitemform.ui
 
 RESOURCES += \
     imgers.qrc \

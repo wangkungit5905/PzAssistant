@@ -16,6 +16,8 @@
 #include "keysequence.h"
 #include "widgets.h"
 #include "myhelper.h"
+#include "utils.h"
+#include "lookysyfitemform.h"
 
 #include "ui_pzdialog.h"
 #include "ui_historypzform.h"
@@ -360,11 +362,13 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
     sc_copy = new QShortcut(QKeySequence("Ctrl+c"),this);
     sc_cut = new QShortcut(QKeySequence("Ctrl+x"),this);
     sc_paster = new QShortcut(QKeySequence("Ctrl+v"),this);
+    sc_look = new QShortcut(QKeySequence("F12"),this);
     connect(sc_save,SIGNAL(activated()),this,SLOT(processShortcut()));
     connect(sc_copyprev,SIGNAL(activated()),this,SLOT(processShortcut()));
     connect(sc_copy,SIGNAL(activated()),this,SLOT(processShortcut()));
     connect(sc_cut,SIGNAL(activated()),this,SLOT(processShortcut()));
     connect(sc_paster,SIGNAL(activated()),this,SLOT(processShortcut()));
+    connect(sc_look,SIGNAL(activated()),this,SLOT(processShortcut()));
 
     account = pzMgr->getAccount();
     subMgr = pzMgr->getSubjectManager();
@@ -414,13 +418,16 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
         connect(actModifyRate,SIGNAL(triggered()),this,SLOT(modifyRate()));
     }
     setCommonState(sinfo);
+    lookAssistant=0;
 }
 
 PzDialog::~PzDialog()
 {
-    //delete msgTimer;
+    if(lookAssistant)
+        disconnect(this,SIGNAL(findMatchBas(FirstSubject*,SecondSubject*,QHash<int,QList<int> >,QList<QStringList>)),
+                   lookAssistant,SLOT(findItem(FirstSubject*,SecondSubject*,QHash<int,QList<int> >,QList<QStringList>)));
+    delete lookAssistant;
     delete ui;
-    //
 }
 
 void PzDialog::setCommonState(QByteArray *info)
@@ -1062,7 +1069,18 @@ void PzDialog::moneyTypeChanged(int index)
 void PzDialog::processShortcut()
 {
     if(sender() == sc_save)
-        save();
+        save();    
+    else if(sender() == sc_look){
+        if(!lookAssistant){
+            lookAssistant = new LookYsYfItemForm(account,this);
+            lookAssistant->show();
+            lookAssistant->move(mapToGlobal(pos()));
+            connect(this,SIGNAL(findMatchBas(FirstSubject*,SecondSubject*,QHash<int,QList<int> >,QList<QStringList>)),
+                    lookAssistant,SLOT(findItem(FirstSubject*,SecondSubject*,QHash<int,QList<int> >,QList<QStringList>)));
+        }
+        else
+            lookAssistant->setHidden(!lookAssistant->isHidden());
+    }
     //编辑会计分录相关的快捷键
     else if(ui->tview->hasFocus()){
         if(sender() == sc_copyprev){
@@ -1313,7 +1331,6 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
         break;
     case BT_FSTSUB:
         fsub = item->data(Qt::EditRole).value<FirstSubject*>();
-        //ssub = fsub->getDefaultSubject();
         //自动依据上一条分录设置应交税金的适配子目
         if(fsub == subMgr->getYjsjSub() && row > 0){
             BusiAction* ba = curPz->getBusiAction(row-1);
@@ -1323,20 +1340,44 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                     ssub = subMgr->getXxseSSub();
                 else if(pfsub == subMgr->getZycbSub() || pfsub == subMgr->getYfSub())
                     ssub = subMgr->getJxseSSub();
+                else if(fsub->isHaveSmartAdapte())
+                    ssub = fsub->getAdapteSSub(curBa->getSummary());
             }
         }
         //如果是应收应付科目，则提取摘要中的客户关键字信息自动适配子目
-        else if(smartSSubSet && !curBa->getSummary().isEmpty() && !curBa->getSecondSubject() &&
+        else if(smartSSubSet && !curBa->getSummary().isEmpty() && /*!curBa->getSecondSubject() &&*/
                 (fsub == subMgr->getYsSub() || fsub == subMgr->getYfSub())){
             SecondSubject* sub;
             sub = getAdapterSSub(fsub,curBa->getSummary(),prefixes.value(fsub->getCode()),
                                  suffixes.value(fsub->getCode()));
-            if(sub)
+            if(sub){
                 ssub = sub;
+                //如果是收回应收或付出应付的分录，则自动查找对应发票号的应收应付分录
+                QString prefixChar = curBa->getSummary().left(1);
+                if(prefixChar == tr("收") || prefixChar == tr("付")){
+                    QList<int> months;
+                    QList<QStringList> invoiceNums;
+                    PaUtils::extractInvoiceNum(curBa->getSummary(),months,invoiceNums);
+                    if(!months.isEmpty()){
+                        QHash<int,QList<int> > range;
+                        int curY = pzMgr->year(); int curM = pzMgr->month();
+                        for(int i=0; i < months.count(); ++i){
+                            int m = months.at(i);
+                            int y = curY;
+                            if(m > curM)
+                                y--;
+                            if(!range.contains(y))
+                                range[y] = QList<int>();
+                            range[y]<<m;
+                        }
+                        emit findMatchBas(fsub,ssub,range,invoiceNums);
+                    }
+                }
+            }
         }
-        else if(fsub->isHaveSmartAdapte()){
+        //如果一级科目设置了包含型的子目自动适配关键字，则适配子目
+        else if(fsub->isHaveSmartAdapte())
             ssub = fsub->getAdapteSSub(curBa->getSummary());
-        }
         if(!ssub)
             ssub = fsub->getDefaultSubject();
         updateCols |= BUC_FSTSUB;
@@ -1356,6 +1397,13 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             }
             else
                 updateCols |= BUC_MTYPE;
+        }
+        else if(!curBa->getMt()){
+            curBa->setMt(account->getMasterMt(),curBa->getValue());
+            mt = curBa->getMt();
+            v = curBa->getValue();
+            updateCols |= BUC_MTYPE;
+            updateCols |= BUC_VALUE;
         }
         //如果新的一级科目使用外币，或者不使用外币且当前货币是本币，则无须调整币种和金额
         else if(fsub->isUseForeignMoney() || (!fsub->isUseForeignMoney() && curBa->getMt() == account->getMasterMt())){
@@ -1377,14 +1425,14 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             return;
         fsub = curBa->getFirstSubject();
         ssub = item->data(Qt::EditRole).value<SecondSubject*>();
-        bool isEnChenged = false;
+        bool isEnChanged = false;
         if(!ssub->isEnabled()){
             if(QDialog::Rejected == myHelper::ShowMessageBoxQuesion(tr("二级科目“%1”已被禁用，是否重新启用？").arg(ssub->getName()))){
                QVariant v; v.setValue(curBa->getSecondSubject());
                item->setData(Qt::EditRole,v);
                return;
             }
-            isEnChenged = true;
+            isEnChanged = true;
         }
         //如果是银行科目，则根据银行账户所属的币种设置币种对象
         if(subMgr->getBankSub() == fsub){
@@ -1412,7 +1460,7 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                 mt = curBa->getMt();
             v = curBa->getValue();
         }
-        if(isEnChenged){
+        if(isEnChanged){
             QUndoCommand* mmd  = new QUndoCommand;
             ModifySndSubEnableProperty* cmdSSub = new ModifySndSubEnableProperty(ssub,true,mmd);
             cmdSSub->setCreator(this);

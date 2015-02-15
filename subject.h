@@ -134,10 +134,11 @@ public:
     SecondSubject* getDefaultSubject();
 
     //子目智能适配功能
-    void addSmartAdapteSSub(QString key, SecondSubject* ssub);
+    void addSmartAdapteSSub(QSet<QString> keySets, SecondSubject* ssub);
+    void removeSmartAdapteSSub(QSet<QString> keySets, SecondSubject* ssub);
     SecondSubject* getAdapteSSub(QString summary);
     bool isHaveSmartAdapte(){return !keys.isEmpty();}
-    void getAllAdapteItems(QStringList &keys,QList<SecondSubject*> &ssubs);
+    void clearSmartAdaptes();
 
 private:
     SubjectManager* _parent;
@@ -161,7 +162,7 @@ private:
     QList<SecondSubject*> childSubs;  //该一级科目包含的二级科目
     QList<SecondSubject*> delSubs;    //暂存被移除的子目
     SecondSubject* defSub;  //默认子目
-    QStringList keys;                   //智能子目适配关键字列表
+    QList<QSet<QString> > keys;         //智能子目适配关键字列表
     QList<SecondSubject*> adapteSSubs;  //适配子目列表（顺序和关键字列表必须一致）
 
     friend class SubjectManager;

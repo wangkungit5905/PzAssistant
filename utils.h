@@ -591,10 +591,12 @@ private:
 
 ///////////////////////////////////////////////////////////////
 
-//提供各种各样的使用函数的类(不能插入断点，郁闷中？)
-class VariousUtils{
+//提供各种各样的实用函数的类
+class PaUtils
+{
 public:
-
+    static void extractInvoiceNum(QString summary, QList<int> &months, QList<QStringList> &invoiceNums);
+    static void extractUSD(QString summary, bool &isYs, QString &invoiceNum, Double &value);
     //将整数集合转为简写的文本形式（每个连续的数字区段用比如“4-8”的形式，多个区段用逗号分隔）
 //    static QString IntSetToStr(QSet<int> set)
 //    {
@@ -646,18 +648,11 @@ public:
 //        }
 //        return true;
 //    }
+    static void getNumberFromSequence(QString text, QStringList &InvoiceNums);
+private:
 
-    //获取子窗口信息
-    //static bool getSubWinInfo(int winEnum, SubWindowDim*& info, QByteArray*& otherInfo);
+    static void getSuffixeNumber(QString text, QString entireInvoiceNum, QStringList &nums);
 
-    //保存字窗口信息
-    //static bool saveSubWinInfo(int winEnum, SubWindowDim* info, QByteArray* otherInfo = NULL);
-
-    //获取子窗口信息
-    //static bool getSubWinInfo3(int winEnum, QByteArray*& ba);
-
-    //保存字窗口信息
-    //static bool saveSubWinInfo3(int winEnum, QByteArray* otherInfo);
 };
 
 void transferDirection(const QHash<int, int> &sd, QHash<int, MoneyDirection> &dd);

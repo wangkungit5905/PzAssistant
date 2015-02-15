@@ -2812,6 +2812,56 @@ void ApcSubject::on_actRemoveSmartItem_triggered()
     SmartAdaptes_del<<SmartAdaptes.takeAt(row);
 }
 
+/**
+ * @brief 名称条目配置页面中模糊定位文本改变
+ * @param arg1
+ */
+void ApcSubject::on_edtNI_NampInput_textEdited(const QString &arg1)
+{
+    if(!ni_fuzzyNameIndexes.isEmpty()){
+        foreach(int row, ni_fuzzyNameIndexes){
+            QListWidgetItem* item = ui->lwNI->item(row);
+            item->setBackground(QBrush());
+        }
+    }
+    ni_fuzzyNameIndexes.clear();
+    if(ui->edtNI_NampInput->text().isEmpty())
+        return;
+    for(int i = 0; i < ui->lwNI->count(); ++i){
+        QListWidgetItem* item = ui->lwNI->item(i);
+        if(item->text().contains(ui->edtNI_NampInput->text())){
+            item->setBackground(Qt::lightGray);
+            ni_fuzzyNameIndexes<<i;
+        }
+    }
+    if(!ni_fuzzyNameIndexes.isEmpty())
+        ui->lwNI->scrollToItem(ui->lwNI->item(ni_fuzzyNameIndexes.first()),QAbstractItemView::PositionAtTop);
+}
+
+/**
+ * @brief 科目配置页面，在二级科目列表上的模糊定位文本改变
+ */
+void ApcSubject::on_edtSSubNameInput_textEdited()
+{
+    if(!ssub_fuzzyNameIndexes.isEmpty()){
+        foreach(int row, ssub_fuzzyNameIndexes){
+            QListWidgetItem* item = ui->lwSSub->item(row);
+            item->setBackground(QBrush());
+        }
+    }
+    ssub_fuzzyNameIndexes.clear();
+    if(ui->edtSSubNameInput->text().isEmpty())
+        return;
+    for(int i = 0; i < ui->lwSSub->count(); ++i){
+        QListWidgetItem* item = ui->lwSSub->item(i);
+        if(item->text().contains(ui->edtSSubNameInput->text())){
+            item->setBackground(Qt::lightGray);
+            ssub_fuzzyNameIndexes<<i;
+        }
+    }
+    if(!ssub_fuzzyNameIndexes.isEmpty())
+        ui->lwSSub->scrollToItem(ui->lwSSub->item(ssub_fuzzyNameIndexes.first()),QAbstractItemView::PositionAtTop);
+}
 
 
 /**
@@ -3190,6 +3240,8 @@ ApcData::ApcData(Account *account, bool isCfg, QByteArray* state, QWidget *paren
     boldFont.setBold(true);
     if(!isCfg)
         init(state);
+    connect(ui->nameInput,SIGNAL(textEdited(QString)),this,SLOT(nameChanged(QString)));
+    connect(ui->rdoPrefixe,SIGNAL(toggled(bool)),this,SLOT(searchModeChanged(bool)));
 }
 
 ApcData::~ApcData()
@@ -3557,6 +3609,24 @@ void ApcData::monthChanged(int m)
 }
 
 /**
+ * @brief 输入名称快速模糊定位
+ * @param arg1
+ */
+void ApcData::nameChanged(const QString &name)
+{
+    fuzzySearch(ui->rdoPrefixe->isChecked());
+}
+
+/**
+ * @brief 名称模糊搜索模式改变
+ * @param isPre
+ */
+void ApcData::searchModeChanged(bool isPre)
+{
+    fuzzySearch(isPre);
+}
+
+/**
  * @brief ApcData::windowShallClosed
  *  容器窗口将关闭，在这里执行一些未保存的更改
  */
@@ -3685,6 +3755,9 @@ void ApcData::on_actSetRate_triggered()
         }
     }
 }
+
+
+
 
 /**
  * @brief 是否存在未设置汇率的外币
@@ -3930,6 +4003,40 @@ void ApcData::getNextMonth(int y, int m, int &yy, int &mm)
     }
 }
 
+void ApcData::fuzzySearch(bool isPre)
+{
+    if(!fuzzyNameIndexes.isEmpty()){
+        for(int i = 0; i < fuzzyNameIndexes.count(); ++i){
+            QListWidgetItem* item = ui->ssubs->item(fuzzyNameIndexes.at(i));
+            item->setBackground(QBrush());
+        }
+    }
+    fuzzyNameIndexes.clear();
+    if(ui->nameInput->text().isEmpty())
+        return;
+    if(isPre){
+        for(int i = 0; i < ui->ssubs->count(); ++i){
+            QListWidgetItem* item = ui->ssubs->item(i);
+            if(item->text().startsWith(ui->nameInput->text())){
+                item->setBackground(QBrush(Qt::lightGray));
+                fuzzyNameIndexes<<i;
+            }
+        }
+    }
+    else{
+        for(int i = 0; i < ui->ssubs->count(); ++i){
+            QListWidgetItem* item = ui->ssubs->item(i);
+            if(item->text().contains(ui->nameInput->text())){
+                item->setBackground(QBrush(Qt::lightGray));
+                fuzzyNameIndexes<<i;
+            }
+        }
+    }
+    if(!fuzzyNameIndexes.isEmpty())
+        ui->ssubs->scrollToItem(ui->ssubs->item(fuzzyNameIndexes.first()),QAbstractItemView::PositionAtTop);
+
+}
+
 
 
 
@@ -4148,62 +4255,6 @@ void AccountPropertyConfig::createIcons()
     connect(contentsWidget,SIGNAL(currentRowChanged(int)),
          this, SLOT(pageChanged(int)));
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 

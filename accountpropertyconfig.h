@@ -336,6 +336,10 @@ private slots:
 
     void on_actRemoveSmartItem_triggered();
 
+    void on_edtNI_NampInput_textEdited(const QString &arg1);
+
+    void on_edtSSubNameInput_textEdited();
+
 private:
 
     bool mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem*> nameItems);
@@ -395,6 +399,8 @@ private:
     QList<SmartSSubAdapteItem *> SmartAdaptes_del;  //被移除的配置项
 
     QBrush color_enabledSub,color_disabledSub;//启用和禁用科目的颜色
+    QList<int> ni_fuzzyNameIndexes; //名称条目配置页面中模糊定位索引
+    QList<int> ssub_fuzzyNameIndexes;
 };
 
 
@@ -491,6 +497,8 @@ private slots:
     void adjustColWidth(int col, int oldSize, int newSize);
     void dataChanged(QTableWidgetItem *item);
     void monthChanged(int m);
+    void nameChanged(const QString &name);
+    void searchModeChanged(bool isPre);
     void windowShallClosed();
 
     void on_add_clicked();
@@ -498,6 +506,8 @@ private slots:
     void on_save_clicked();
 
     void on_actSetRate_triggered();
+
+
 
 private:
     bool isRateNull();
@@ -508,6 +518,7 @@ private:
     void watchDataChanged(bool en=true);
     void enAddBtn();
     void getNextMonth(int y, int m, int &yy, int &mm);
+    void fuzzySearch(bool isPre=true);
 
     Ui::ApcData *ui;
     Account *account;
@@ -532,6 +543,7 @@ private:
     //需要保存的专有状态信息（b：期初编辑，e：余额显示）
     qint16 b_fsubId,b_ssubId,e_fsubId,e_ssubId,e_y;
     qint8 e_m;
+    QList<int> fuzzyNameIndexes;    //名称模糊搜索定位索引
 };
 
 class ApcReport : public QWidget

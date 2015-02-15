@@ -91,7 +91,7 @@
       <attribute name="title">
        <string>科目</string>
       </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout" stretch="1,2,2,1">
+      <layout class="QHBoxLayout" name="horizontalLayout_13" stretch="1,2,2,2">
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_3">
          <item>
@@ -339,14 +339,21 @@
        <item>
         <layout class="QVBoxLayout" name="verticalLayout_2">
          <item>
-          <widget class="QLabel" name="label_11">
-           <property name="text">
-            <string>二级科目</string>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QLabel" name="label_11">
+             <property name="text">
+              <string>二级科目</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLineEdit" name="edtSSubNameInput"/>
+           </item>
+          </layout>
          </item>
          <item>
           <widget class="QListWidget" name="lwSSub">
@@ -710,6 +717,16 @@
             <enum>QAbstractItemView::ExtendedSelection</enum>
            </property>
           </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="label_38">
+           <property name="text">
+            <string>快速模糊定位</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="edtNI_NampInput"/>
          </item>
         </layout>
        </item>

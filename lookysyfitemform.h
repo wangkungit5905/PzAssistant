@@ -3,11 +3,13 @@
 
 #include <QWidget>
 #include <QSqlDatabase>
+#include <QTimer>
 
 namespace Ui {
 class LookYsYfItemForm;
 }
 
+class QShortcut;
 class Account;
 class PzDialog;
 class FirstSubject;
@@ -31,10 +33,12 @@ public:
     ~LookYsYfItemForm();
 
 protected:
+    void leaveEvent(QEvent * event);
+    void enterEvent(QEvent * event);
     void mouseMoveEvent(QMouseEvent *e);
     void mousePressEvent(QMouseEvent *e);
     void mouseReleaseEvent(QMouseEvent *e);
-    void mouseDoubleClickEvent(QMouseEvent * event);
+    //void mouseDoubleClickEvent(QMouseEvent * event);
 
 public slots:
     void show();
@@ -44,10 +48,11 @@ private slots:
     void closeWindow();
     void yearChanged(int index);
     void monthChanged(int m);
-
-    void on_btnMin_clicked();
+    void flickerIcon();
 
     void on_btnSearch_clicked();
+
+    void on_btnQuit_clicked();
 
 private:
     void _search();
@@ -56,7 +61,7 @@ private:
     Ui::LookYsYfItemForm *ui;
     QPoint mousePoint;              //鼠标拖动自定义标题栏时的坐标
     bool mousePressed;              //鼠标是否按下
-    QAction* actClose;      //
+    QAction* actQuit;      //
     bool isNormal;          //
     PzDialog* parent;       //
     Account* account;
@@ -66,6 +71,9 @@ private:
     QList<int> _range;   //搜索时间范围（3位一组，依次是年份，开始月份，结束月份）
     QStringList _invoiceNums;
     QHash<int,Money*> mtTypes;
+    QTimer _timer;
+    QPixmap _iconPix;
+    QShortcut* sc_look;
 };
 
 #endif // LOOKYSYFITEMFORM_H

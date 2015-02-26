@@ -423,10 +423,11 @@ PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidg
 
 PzDialog::~PzDialog()
 {
-    if(lookAssistant)
+    if(lookAssistant){
         disconnect(this,SIGNAL(findMatchBas(FirstSubject*,SecondSubject*,QHash<int,QList<int> >,QList<QStringList>)),
                    lookAssistant,SLOT(findItem(FirstSubject*,SecondSubject*,QHash<int,QList<int> >,QList<QStringList>)));
-    delete lookAssistant;
+        delete lookAssistant;
+    }
     delete ui;
 }
 

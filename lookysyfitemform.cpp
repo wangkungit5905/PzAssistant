@@ -12,13 +12,17 @@ LookYsYfItemForm::LookYsYfItemForm(Account *account, QWidget *parent) : QWidget(
     ui(new Ui::LookYsYfItemForm),account(account)
 {
     ui->setupUi(this);
+    _iconPix = QPixmap(":/images/accountRefresh.png");
+    ui->icon->setPixmap(_iconPix);
+    sc_look = new QShortcut(QKeySequence("F12"),this);
+    connect(sc_look,SIGNAL(activated()),this,SLOT(hide()));
     ui->tw->setColumnWidth(TI_MONEY,50);
     setWindowFlags(Qt::FramelessWindowHint|Qt::WindowStaysOnTopHint|Qt::Tool);
     //setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_DeleteOnClose);
     mousePressed = false;
-    actClose = new QAction(tr("关闭"),this);
-    connect(actClose,SIGNAL(triggered()),this,SLOT(closeWindow()));
+    actQuit = new QAction(tr("关闭"),this);
+    connect(actQuit,SIGNAL(triggered()),this,SLOT(closeWindow()));
     isNormal = false;
     ui->detailWidget->setHidden(true);
     ui->icon->setHidden(false);
@@ -28,12 +32,41 @@ LookYsYfItemForm::LookYsYfItemForm(Account *account, QWidget *parent) : QWidget(
     _fsub = 0; _ssub = 0;
     this->parent = qobject_cast<PzDialog*>(parent);
     _turnOn();
+    _timer.setSingleShot(false);
+    _timer.setInterval(500);
+    connect(&_timer,SIGNAL(timeout()),this,SLOT(flickerIcon()));
     connect(ui->cmbYear,SIGNAL(currentIndexChanged(int)),this,SLOT(yearChanged(int)));
 }
 
 LookYsYfItemForm::~LookYsYfItemForm()
 {
     delete ui;
+}
+
+void LookYsYfItemForm::leaveEvent(QEvent *event)
+{
+    QMouseEvent* e = static_cast<QMouseEvent*>(event);
+    if(e && isNormal){
+        isNormal = false;
+        ui->detailWidget->setHidden(true);
+        ui->icon->setHidden(false);
+        show();
+    }
+}
+
+void LookYsYfItemForm::enterEvent(QEvent *event)
+{
+    QMouseEvent* e = static_cast<QMouseEvent*>(event);
+    if(e && !isNormal){
+        isNormal = true;
+        ui->icon->setHidden(true);
+        ui->detailWidget->setHidden(false);
+        if(_timer.isActive()){
+            _timer.stop();
+            ui->icon->setPixmap(_iconPix);
+        }
+        show();
+    }
 }
 
 void LookYsYfItemForm::mouseMoveEvent(QMouseEvent *e)
@@ -53,7 +86,7 @@ void LookYsYfItemForm::mousePressEvent(QMouseEvent *e)
     }
     else if(e->button() == Qt::RightButton && !isNormal){
         QMenu menu;
-        menu.addAction(actClose);
+        menu.addAction(actQuit);
         menu.exec(e->globalPos());
     }
 }
@@ -64,15 +97,19 @@ void LookYsYfItemForm::mouseReleaseEvent(QMouseEvent *e)
         mousePressed = false;
 }
 
-void LookYsYfItemForm::mouseDoubleClickEvent(QMouseEvent *event)
-{
-    if(!isNormal){
-        isNormal = true;
-        ui->icon->setHidden(true);
-        ui->detailWidget->setHidden(false);
-    }
-    show();
-}
+//void LookYsYfItemForm::mouseDoubleClickEvent(QMouseEvent *event)
+//{
+//    if(!isNormal){
+//        isNormal = true;
+//        ui->icon->setHidden(true);
+//        ui->detailWidget->setHidden(false);
+//        if(_timer.isActive()){
+//            _timer.stop();
+//            ui->icon->setPixmap(_iconPix);
+//        }
+//    }
+//    show();
+//}
 
 void LookYsYfItemForm::closeWindow()
 {
@@ -130,6 +167,20 @@ void LookYsYfItemForm::monthChanged(int m)
     }
 }
 
+void LookYsYfItemForm::flickerIcon()
+{
+    static int count = 0;
+    if(count == 6){
+        _timer.stop();
+        return;
+    }
+    if(count%2 == 1)
+        ui->icon->setPixmap(_iconPix);
+    else
+        ui->icon->setPixmap(QPixmap());
+    count++;
+}
+
 void LookYsYfItemForm::show()
 {
     if(isNormal)
@@ -148,8 +199,11 @@ void LookYsYfItemForm::show()
  */
 void LookYsYfItemForm::findItem(FirstSubject* fsub, SecondSubject* ssub, QHash<int,QList<int> >timeRange, QList<QStringList> invoiceNums)
 {
-    if(!fsub || !ssub || timeRange.isEmpty() || invoiceNums.isEmpty())
+    if(!fsub || !ssub || timeRange.isEmpty() || invoiceNums.isEmpty()){
+        ui->btnSearch->setEnabled(false);
         return;
+    }
+    ui->btnSearch->setEnabled(true);
     _fsub = fsub;
     ui->fsub->setText(fsub->getName());
     _ssub = ssub;
@@ -177,14 +231,6 @@ void LookYsYfItemForm::findItem(FirstSubject* fsub, SecondSubject* ssub, QHash<i
     else
         yearChanged(0);
     _search();
-}
-
-void LookYsYfItemForm::on_btnMin_clicked()
-{
-    isNormal = false;
-    ui->detailWidget->setHidden(true);
-    ui->icon->setHidden(false);
-    show();
 }
 
 void LookYsYfItemForm::on_btnSearch_clicked()
@@ -276,6 +322,9 @@ void LookYsYfItemForm::_search()
         item = new QTableWidgetItem(sumwv.toString());
         ui->tw->setItem(row,TI_WVALUE,item);
     }
+    //闪烁图标以提醒用户，我已经帮你找到了对应的应收应付项
+    if(!isNormal && ui->tw->rowCount() > 0)
+        _timer.start();
 }
 
 void LookYsYfItemForm::_turnOn(bool on)
@@ -288,4 +337,10 @@ void LookYsYfItemForm::_turnOn(bool on)
         disconnect(ui->spnUp,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
         disconnect(ui->spnDown,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
     }
+}
+
+
+void LookYsYfItemForm::on_btnQuit_clicked()
+{
+    closeWindow();
 }

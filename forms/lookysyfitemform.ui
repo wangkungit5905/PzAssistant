@@ -52,14 +52,17 @@
        <height>0</height>
       </size>
      </property>
+     <property name="focusPolicy">
+      <enum>Qt::ClickFocus</enum>
+     </property>
      <property name="autoFillBackground">
       <bool>false</bool>
      </property>
+     <property name="styleSheet">
+      <string notr="true">border: 1px solid green;padding: 0px;</string>
+     </property>
      <property name="text">
       <string/>
-     </property>
-     <property name="pixmap">
-      <pixmap resource="../imgers.qrc">:/images/accountRefresh.png</pixmap>
      </property>
      <property name="scaledContents">
       <bool>true</bool>
@@ -112,6 +115,9 @@
           <height>0</height>
          </size>
         </property>
+        <property name="focusPolicy">
+         <enum>Qt::ClickFocus</enum>
+        </property>
         <property name="editTriggers">
          <set>QAbstractItemView::NoEditTriggers</set>
         </property>
@@ -152,6 +158,9 @@
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QPushButton" name="btnSearch">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="text">
            <string>重新搜索</string>
           </property>
@@ -201,9 +210,9 @@
          </spacer>
         </item>
         <item>
-         <widget class="QPushButton" name="btnMin">
+         <widget class="QPushButton" name="btnQuit">
           <property name="text">
-           <string>最小化</string>
+           <string>退出助手</string>
           </property>
          </widget>
         </item>
@@ -214,8 +223,6 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../imgers.qrc"/>
- </resources>
+ <resources/>
  <connections/>
 </ui>

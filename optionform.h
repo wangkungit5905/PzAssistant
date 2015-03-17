@@ -94,6 +94,7 @@ private slots:
 
 private:
     void init();
+    bool isAutoHideLeftPanel;
     Ui::AppCommCfgPanel *ui;    
 };
 

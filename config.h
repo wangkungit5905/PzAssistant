@@ -112,6 +112,8 @@ public:
     const QString SEGMENT_SMARTSSUB = "SmartSSubSet";
     const QString KEY_SMART_PREFIXE = "prifixe";
     const QString KEY_SMART_SUFFIXE = "suffixe";
+    const QString SEGMENT_USER_INTFACE = "UserInterface";
+    const QString KEY_INTERFACE_AUTOHIDELEFTPANEL = "isAutoHideLeftPanel";
 
     ~AppConfig();
 
@@ -245,6 +247,10 @@ public:
     //智能子目设置相关信息（前缀、后缀等）
     bool isOnSmartSSubSet();
     QString getSmartSSubFix(QString subCode,SmartSSubFix witch);
+
+    //应用程序界面设置
+    bool isAutoHideLeftDock();
+    void setAutoHideLeftDock(bool on);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);

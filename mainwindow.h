@@ -133,6 +133,7 @@ public:
     bool AccountVersionMaintain(QString fname);
 protected:
     void closeEvent(QCloseEvent *event);
+    void mouseMoveEvent(QMouseEvent * event);
 
 private slots:
     //文件菜单

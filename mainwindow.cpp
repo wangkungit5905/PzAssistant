@@ -461,6 +461,11 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
     setCentralWidget(ui->mdiArea);
+    appCon = AppConfig::getInstance();
+    if(appCon->isAutoHideLeftDock()){
+        ui->mdiArea->setMouseTracking(true);
+        setMouseTracking(true);
+    }
 
     curSuiteMgr = NULL;
     sortBy = true; //默认按凭证号进行排序
@@ -473,7 +478,7 @@ MainWindow::MainWindow(QWidget *parent) :
     //setStyleSheet("QMainWindow::separator:hover {background: red;}");
 
 
-    appCon = AppConfig::getInstance();
+
     initActions();
     initToolBar();
     initTvActions();
@@ -1873,6 +1878,22 @@ void MainWindow::closeEvent(QCloseEvent *event)
     } else {
         event->accept();
     }
+}
+
+void MainWindow::mouseMoveEvent(QMouseEvent *event)
+{
+    if(event->button() != Qt::NoButton)
+        return;
+    if(!curAccount)
+        return;
+    int x = event->x();
+    QDockWidget* dw = dockWindows.value(TV_SUITESWITCH);
+    if(x < 10 && dw->isHidden())
+        dw->show();
+    else if(x > dw->width() && !dw->isHidden())
+        dw->hide();
+
+    QMainWindow::mouseMoveEvent(event);
 }
 
 void MainWindow::exit()

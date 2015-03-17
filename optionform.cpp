@@ -196,11 +196,20 @@ AppCommCfgPanel::~AppCommCfgPanel()
 
 bool AppCommCfgPanel::isDirty()
 {
+    if(ui->chkAutoHideLeftPanel->isChecked() ^ isAutoHideLeftPanel){
+        return true;
+    }
     return false;
 }
 
 bool AppCommCfgPanel::save()
 {
+    if(!isDirty())
+        return true;
+    if(ui->chkAutoHideLeftPanel->isChecked() ^ isAutoHideLeftPanel){
+        isAutoHideLeftPanel = ui->chkAutoHideLeftPanel->isChecked();
+        AppConfig::getInstance()->setAutoHideLeftDock(isAutoHideLeftPanel);
+    }
     return true;
 }
 
@@ -239,6 +248,8 @@ void AppCommCfgPanel::init()
         ui->rdoRes->setChecked(true);
     else
         ui->rdoDir->setChecked(true);
+    isAutoHideLeftPanel = appCfg->isAutoHideLeftDock();
+    ui->chkAutoHideLeftPanel->setChecked(isAutoHideLeftPanel);
 }
 
 //////////////////////PzTemplateOptionForm//////////////////////////////////

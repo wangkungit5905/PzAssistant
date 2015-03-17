@@ -900,7 +900,7 @@
     <string>插入凭证</string>
    </property>
    <property name="toolTip">
-    <string>在当前凭证之后插入凭证</string>
+    <string>在当前凭证之前插入凭证</string>
    </property>
   </action>
   <action name="actReassignPzNum">

@@ -128,11 +128,11 @@ void LookYsYfItemForm::yearChanged(int index)
         if(_range.at(i) == y){
             _turnOn(false);
             AccountSuiteRecord* asr = account->getSuiteRecord(y);
-            ui->spnUp->setMinimum(asr->startMonth);
+            ui->spnUp->setMinimum(asr?asr->startMonth:1);
             ui->spnUp->setMaximum(_range.at(i+2));
             ui->spnUp->setValue(_range.at(i+1));
             ui->spnDown->setMinimum(_range.at(i+1));
-            ui->spnDown->setMaximum(asr->endMonth);
+            ui->spnDown->setMaximum(asr?asr->endMonth:12);
             ui->spnDown->setValue(_range.at(i+2));
             _turnOn();
             break;

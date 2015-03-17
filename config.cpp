@@ -1969,6 +1969,30 @@ QString AppConfig::getSmartSSubFix(QString subCode, AppConfig::SmartSSubFix witc
 }
 
 /**
+ * @brief 获取是否自动隐藏左侧停靠面板（帐套切换）的设置信息
+ * @return
+ */
+bool AppConfig::isAutoHideLeftDock()
+{
+    appIni->beginGroup(SEGMENT_USER_INTFACE);
+    bool r = appIni->value(KEY_INTERFACE_AUTOHIDELEFTPANEL,false).toBool();
+    appIni->endGroup();
+    return r;
+}
+
+/**
+ * @brief 设置是否自动隐藏左侧停靠面板（帐套切换）的设置信息
+ * @param on
+ * @return
+ */
+void AppConfig::setAutoHideLeftDock(bool on)
+{
+    appIni->beginGroup(SEGMENT_USER_INTFACE);
+    appIni->setValue(KEY_INTERFACE_AUTOHIDELEFTPANEL,on);
+    appIni->endGroup();
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  账户代码必须由大于1000的四位数组成，且不能重复

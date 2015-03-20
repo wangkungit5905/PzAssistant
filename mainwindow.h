@@ -9,6 +9,7 @@
 #include <QDockWidget>
 #include <QStatusBar>
 
+#include <QSystemTrayIcon>
 
 #include "dialogs.h"
 #include "dialog3.h"
@@ -135,12 +136,18 @@ protected:
     void closeEvent(QCloseEvent *event);
     void mouseMoveEvent(QMouseEvent * event);
 
+public slots:
+    void showMainWindow();
+    void exit();
+
 private slots:
+    void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
+
     //文件菜单
     void newAccount();
     void openAccount();
     void closeAccount();
-    void exit();
+
 
     //数据菜单
     void viewSubjectExtra();      //显示科目余额
@@ -368,6 +375,9 @@ private:
     bool exportCommonSubject();
     bool inspectVersionBeforeImport(QString versionText, BaseDbVersionEnum type, QString fileName,int &mv, int &sv);
 
+    void loadSettings();
+    void createTray();
+
     Ui::MainWindow *ui;
 
     //ToolBars
@@ -407,5 +417,16 @@ private:
     QHash<int,int> historyPzMonth;                 //每个账套视图当前装载的历史凭证的月份数
     QList<ExternalToolCfgItem*> eTools;            //外部工具配置项列表
     AppConfig* appCon;
+
+public:
+    bool showSplashScreen_;
+    bool showTrayIcon_;
+    //bool startingTray_;
+    bool isMinimizeToTray_;
+    bool minimizingTray_ ;
+
+    QMenu *trayMenu_;
+    QAction *_actShowMainWindow;
+    QSystemTrayIcon *_traySystem;
  };
 #endif // MAINWINDOW_H

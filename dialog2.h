@@ -4,7 +4,6 @@
 #include <QtGlobal>
 
 #include "ui_printselectdialog.h"
-#include "ui_logindialog.h"
 #include "ui_searchdialog.h"
 
 class PingZheng;
@@ -34,33 +33,6 @@ private:
     PingZheng* curPz;         //当前显示的凭证（可能在凭证编辑对话框或历史凭证对话框中）
     QList<PingZheng*> pzSets; //可选的凭证集合
 };
-
-
-
-
-
-////////////////////登录对话框类///////////////////////////////////////////
-class LoginDialog : public QDialog
-{
-    Q_OBJECT
-
-public:
-    explicit LoginDialog(QWidget *parent = 0);
-    ~LoginDialog();
-    User* getLoginUser();
-
-private slots:
-    void on_btnLogin_clicked();
-
-    void on_btnCancel_clicked();
-
-private:
-    void init();
-
-    Ui::LoginDialog *ui;
-};
-
-
 
 //凭证搜索对话框类
 class SearchDialog : public QDialog

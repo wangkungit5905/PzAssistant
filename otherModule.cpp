@@ -29,7 +29,7 @@ Gdzc::Gdzc()
 }
 
 //读取已有的固定资产条目时调用的构造函数
-Gdzc::Gdzc(int id,int code,GdzcType* productClass,int subCls,QString name,QString model,QDate buyDate,
+Gdzc::Gdzc(int id,int code,GdzcClass* productClass,int subCls,QString name,QString model,QDate buyDate,
      double prime,double remain,double min,int zjMonths,QString otherInfo):
     id(id),code(code),productClass(productClass),subClass(subCls),name(name),model(model),
     buyDate(buyDate),primev(prime),remainv(remain),minv(min),otherInfo(otherInfo)
@@ -42,7 +42,7 @@ Gdzc::Gdzc(int id,int code,GdzcType* productClass,int subCls,QString name,QStrin
     loadZjInfos();
 }
 
-void Gdzc::setProductClass(GdzcType* type)
+void Gdzc::setProductClass(GdzcClass* type)
 {
     this->productClass = type;
     if(type->getZjMonth() != 0)

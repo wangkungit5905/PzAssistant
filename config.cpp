@@ -14,6 +14,7 @@
 #include "globalVarNames.h"
 #include "subject.h"
 #include "myhelper.h"
+#include "otherModule.h"
 
 
 QSettings* AppConfig::appIni=0;
@@ -201,6 +202,7 @@ bool AppConfig::readPzStates(QHash<PzState, QString>& names)
     }
     return true;
 }
+
 
 /**
  * @brief AppConfig::readPzSetStates
@@ -1993,6 +1995,25 @@ void AppConfig::setAutoHideLeftDock(bool on)
 }
 
 /**
+ * @brief 关闭主窗口时是否最小化到系统托盘区
+ * @return
+ */
+bool AppConfig::minToTrayClose()
+{
+    appIni->beginGroup(SEGMENT_USER_INTFACE);
+    bool r = appIni->value(KEY_INTERFACE_MIN_TO_TRAY,false).toBool();
+    appIni->endGroup();
+    return r;
+}
+
+void AppConfig::setMinToTrayClose(bool on)
+{
+    appIni->beginGroup(SEGMENT_USER_INTFACE);
+    appIni->setValue(KEY_INTERFACE_MIN_TO_TRAY,on);
+    appIni->endGroup();
+}
+
+/**
  * @brief AppConfig::_isValidAccountCode
  *  判断账户代码是否有效
  *  账户代码必须由大于1000的四位数组成，且不能重复
@@ -2517,6 +2538,28 @@ int AppConfig::addAccountInfo(QString code, QString aName, QString lName, QStrin
     appIni->endGroup();
 
     return c;
+}
+
+/**
+ * @brief 读取所有固定资产类别
+ * @param gcs
+ * @return
+ */
+bool AppConfig::readAllGdzcClasses(QHash<int, GdzcClass *> gcs)
+{
+    QSqlQuery q(db);
+    QString s = QString("select code,name,zjMonths from gdzc_classes");
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int code = q.value(0).toInt();
+        int zjMonths = q.value(2).toInt();
+        QString name = q.value(1).toString();
+        allGdzcProductCls[code] = new GdzcClass(code,name,zjMonths);
+    }
+    return true;
 }
 
 /**

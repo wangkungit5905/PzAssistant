@@ -94,8 +94,12 @@ private slots:
 
 private:
     void init();
-    bool isAutoHideLeftPanel;
-    Ui::AppCommCfgPanel *ui;    
+
+    Ui::AppCommCfgPanel *ui;
+    bool _autoHideLeftPanel;
+    bool _minToTray;
+    AppConfig* _appCfg;
+
 };
 
 /**

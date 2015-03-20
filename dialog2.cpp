@@ -2,6 +2,7 @@
 #include "global.h"
 #include "pz.h"
 #include "securitys.h"
+#include "myhelper.h"
 
 
 ////////////////////////PrintSelectDialog////////////////////////////////////
@@ -170,60 +171,6 @@ bool PrintSelectDialog::strToIntSet(QString s, QSet<int> &set)
 
 
 //////////////////////////LoginDialog///////////////////////////
-LoginDialog::LoginDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::LoginDialog)
-{
-    ui->setupUi(this);
-    init();
-}
-
-void LoginDialog::init()
-{    
-    QHashIterator<int,User*> it(allUsers);
-    int ruIndex = 0, index = 0;
-    int recentUserId;
-    AppConfig::getInstance()->getCfgVar(AppConfig::CVC_ResentLoginUser,recentUserId);
-    while(it.hasNext()){
-        it.next();
-        if(!it.value()->isEnabled())
-            continue;
-        if(it.value()->getUserId() == recentUserId)
-            ruIndex = index;
-        ui->cmbUsers->addItem(it.value()->getName(),it.value()->getUserId());
-        index++;
-    }
-    ui->cmbUsers->setCurrentIndex(ruIndex);
-    ui->edtPw->setFocus();
-}
-
-LoginDialog::~LoginDialog()
-{
-    delete ui;
-}
-
-User* LoginDialog::getLoginUser()
-{
-    int userId = ui->cmbUsers->itemData(ui->cmbUsers->currentIndex()).toInt();
-    return allUsers.value(userId);
-}
-
-//登录
-void LoginDialog::on_btnLogin_clicked()
-{
-
-    int userId =ui->cmbUsers->itemData(ui->cmbUsers->currentIndex()).toInt();
-    if(allUsers.value(userId)->verifyPw(ui->edtPw->text()))
-        accept();
-    else
-        QMessageBox::warning(this, tr("警告信息"), tr("密码不正确"));
-}
-
-//取消登录
-void LoginDialog::on_btnCancel_clicked()
-{
-    QDialog::reject();
-}
 
 
 

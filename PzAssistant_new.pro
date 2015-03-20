@@ -4,7 +4,7 @@
 #
 #-------------------------------------------------
 
-QT       += core widgets sql xml printsupport
+QT       += core widgets sql xml printsupport network
 win32{
     QT += axcontainer
 }
@@ -83,7 +83,13 @@ SOURCES += main.cpp\
     crtaccountfromolddlg.cpp \
     batchoutputdialog.cpp \
     batchimportdialog.cpp \
-    lookysyfitemform.cpp
+    lookysyfitemform.cpp \
+    application/mainapplication.cpp \
+    application/splashscreen.cpp \
+    application/paapplock.cpp \
+    #application/qtlockedfile_win.cpp \
+    #application/qtlockedfile_unix.cpp \
+    application/qtlockedfile.cpp
 
 HEADERS  += \
     config.h \
@@ -161,7 +167,11 @@ HEADERS  += \
     crtaccountfromolddlg.h \
     batchoutputdialog.h \
     batchimportdialog.h \
-    lookysyfitemform.h
+    lookysyfitemform.h \
+    application/mainapplication.h \
+    application/splashscreen.h \
+    application/paapplock.h \
+    application/qtlockedfile.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -233,6 +243,8 @@ FORMS    += \
     forms/batchimportdialog.ui \
     forms/specsubcfgform.ui \
     forms/lookysyfitemform.ui
+
+INCLUDEPATH +=  $$PWD/application
 
 RESOURCES += \
     imgers.qrc \

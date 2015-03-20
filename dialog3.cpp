@@ -561,7 +561,7 @@ void GdzcAdminDialog::nameChanged(const QString &text)
 //固定资产类型改变
 void GdzcAdminDialog::productClassChanged(int index)
 {
-    GdzcType* t = allGdzcProductCls.value(ui->cmbProCls->itemData(index).toInt());
+    GdzcClass* t = allGdzcProductCls.value(ui->cmbProCls->itemData(index).toInt());
     curGdzc->setProductClass(t);
     isChanged[ui->lvGdzc->currentRow()] = true;
     //如果该类别没有指定折旧年限，则必须启用折旧月份输入部件

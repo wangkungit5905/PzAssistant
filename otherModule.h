@@ -13,9 +13,9 @@
 #include "global.h"
 
 //固定资产类别类
-class GdzcType{
+class GdzcClass{
 public:
-    GdzcType(int code,QString name,int zjMonths):
+    GdzcClass(int code,QString name,int zjMonths):
         code(code),name(name),zjMonths(zjMonths){}
     int getCode(){return code;}
     QString getName(){return name;}
@@ -52,10 +52,10 @@ public:
     };
 
     Gdzc();
-    Gdzc(int id,int code,GdzcType* productClass,int subCls, QString name,QString model,QDate buyDate,
+    Gdzc(int id,int code,GdzcClass* productClass,int subCls, QString name,QString model,QDate buyDate,
          double prime,double remain, double min,int zjMonths=0,QString otherInfo="");
-    GdzcType* getProductClass(){return productClass;}
-    void setProductClass(GdzcType* productClass);
+    GdzcClass* getProductClass(){return productClass;}
+    void setProductClass(GdzcClass* productClass);
     int getSubClass(){return subClass;}
     void setSubClass(int subCls){subClass=subCls;}
     QString getName(){return name;}
@@ -105,7 +105,7 @@ private:
 
     int id;                //固定资产标识（数据库记录的唯一性标识）
     int code;              //固定资产代码（应用内的唯一性标识）
-    GdzcType* productClass;//产品类别
+    GdzcClass* productClass;//产品类别
     int subClass;          //科目类别
     QString name;          //名称
     QString model;         //厂牌型号

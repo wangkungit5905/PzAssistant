@@ -196,9 +196,11 @@ AppCommCfgPanel::~AppCommCfgPanel()
 
 bool AppCommCfgPanel::isDirty()
 {
-    if(ui->chkAutoHideLeftPanel->isChecked() ^ isAutoHideLeftPanel){
+    if(ui->chkAutoHideLeftPanel->isChecked() ^ _autoHideLeftPanel){
         return true;
     }
+    if(ui->chkMinToTray->isChecked() ^ _minToTray)
+        return true;
     return false;
 }
 
@@ -206,9 +208,13 @@ bool AppCommCfgPanel::save()
 {
     if(!isDirty())
         return true;
-    if(ui->chkAutoHideLeftPanel->isChecked() ^ isAutoHideLeftPanel){
-        isAutoHideLeftPanel = ui->chkAutoHideLeftPanel->isChecked();
-        AppConfig::getInstance()->setAutoHideLeftDock(isAutoHideLeftPanel);
+    if(ui->chkAutoHideLeftPanel->isChecked() ^ _autoHideLeftPanel){
+        _autoHideLeftPanel = ui->chkAutoHideLeftPanel->isChecked();
+        _appCfg->setAutoHideLeftDock(_autoHideLeftPanel);
+    }
+    if(ui->chkMinToTray->isChecked() ^ _minToTray){
+        _minToTray = ui->chkMinToTray->isChecked();
+        _appCfg->setMinToTrayClose(_minToTray);
     }
     return true;
 }
@@ -225,7 +231,7 @@ void AppCommCfgPanel::styleChanged(bool checked)
         else
             cssName = "pink";
         myHelper::SetStyle(cssName);
-        AppConfig::getInstance()->setAppStyleName(cssName);
+        _appCfg->setAppStyleName(cssName);
     }
 }
 
@@ -236,20 +242,22 @@ void AppCommCfgPanel::styleFromChanged(bool checked)
 
 void AppCommCfgPanel::init()
 {
-    AppConfig* appCfg = AppConfig::getInstance();
-    QString styleName = appCfg->getAppStyleName();
+    _appCfg = AppConfig::getInstance();
+    QString styleName = _appCfg->getAppStyleName();
     if(styleName == "navy")
         ui->rdoNavy->setChecked(true);
     else if(styleName == "black")
         ui->rdoBlack->setChecked(true);
     else
         ui->rdoPink->setChecked(true);
-    if(appCfg->getStyleFrom())
+    if(_appCfg->getStyleFrom())
         ui->rdoRes->setChecked(true);
     else
         ui->rdoDir->setChecked(true);
-    isAutoHideLeftPanel = appCfg->isAutoHideLeftDock();
-    ui->chkAutoHideLeftPanel->setChecked(isAutoHideLeftPanel);
+    _autoHideLeftPanel = _appCfg->isAutoHideLeftDock();
+    ui->chkAutoHideLeftPanel->setChecked(_autoHideLeftPanel);
+    _minToTray = _appCfg->minToTrayClose();
+    ui->chkMinToTray->setChecked(_minToTray);
 }
 
 //////////////////////PzTemplateOptionForm//////////////////////////////////

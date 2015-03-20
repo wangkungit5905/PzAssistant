@@ -15,6 +15,7 @@
 #include <QBuffer>
 
 #include "ui_mainwindow.h"
+#include "mainapplication.h"
 #include "mainwindow.h"
 #include "tables.h"
 #include "global.h"
@@ -456,8 +457,8 @@ int mdiAreaWidth;
 int mdiAreaHeight;
 
 MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    QMainWindow(parent),ui(new Ui::MainWindow),
+    isMinimizeToTray_(false)
 {
     ui->setupUi(this);
     setCentralWidget(ui->mdiArea);
@@ -475,10 +476,6 @@ MainWindow::MainWindow(QWidget *parent) :
     curSSPanel = NULL;
     etMapper = NULL;
 
-    //setStyleSheet("QMainWindow::separator:hover {background: red;}");
-
-
-
     initActions();
     initToolBar();
     initTvActions();
@@ -494,14 +491,15 @@ MainWindow::MainWindow(QWidget *parent) :
             this, SLOT(setActiveSubWindow(QWidget*)));
     connect(ui->mdiArea,SIGNAL(subWindowActivated(QMdiSubWindow*)),this,SLOT(subWindowActivated(QMdiSubWindow*)));
 
-
-    on_actLogin_triggered(); //显示登录窗口
+    loadSettings();
+    rfLogin();
+    ui->statusbar->setUser(curUser);
     if(!curUser)
         return;
 
     bool ok = true;
-    AppConfig* appCfg = AppConfig::getInstance();
-    AccountCacheItem* ci = appCfg->getRecendOpenAccount();
+    createTray();
+    AccountCacheItem* ci = appCon->getRecendOpenAccount();
     if(ci){
         if(!AccountVersionMaintain(ci->fileName)){
             setWindowTitle(QString("%1---%2").arg(appTitle)
@@ -1870,14 +1868,12 @@ bool MainWindow::isExecAccountTransform()
 //退出应用
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    ui->mdiArea->closeAllSubWindows();
-    if(curAccount)       //为了在下次打开应用时自动打开最后打开的账户
-        closeAccount();
-    if (ui->mdiArea->currentSubWindow()) {
+    if(appCon->minToTrayClose()){
+        hide();
         event->ignore();
-    } else {
-        event->accept();
+        return;
     }
+    exit();
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event)
@@ -1896,12 +1892,49 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
     QMainWindow::mouseMoveEvent(event);
 }
 
+void MainWindow::showMainWindow()
+{
+    if(isHidden())
+        show();
+//    if (!trayClick || isHidden()){
+//        if (oldState & Qt::WindowFullScreen) {
+//        show();
+//        } else if (oldState & Qt::WindowMaximized) {
+//        showMaximized();
+//        } else {
+//        showNormal();
+//        Settings settings;
+//        restoreGeometry(settings.value("GeometryState").toByteArray());
+//        }
+//        activateWindow();
+//      } else {
+//        if (minimizingTray_)
+//            emit signalPlaceToTray();
+//        else
+//            showMinimized();
+//      }
+}
+
 void MainWindow::exit()
 {
-    if(curAccount)
-        closeAccount();
     ui->mdiArea->closeAllSubWindows();
+    if(curAccount)
+        closeAccount();    
     close();
+    qApp->quit();
+}
+
+/**
+ * @brief 处理系统托盘图标的鼠标动作
+ * @param reason
+ */
+void MainWindow::trayIconActivated(QSystemTrayIcon::ActivationReason reason)
+{
+    if(reason == QSystemTrayIcon::Context){
+        _actShowMainWindow->setEnabled(isHidden());
+    }
+    else if(reason == QSystemTrayIcon::DoubleClick)
+        showMaximized();
 }
 
 ///////////////////////数据菜单处理槽部分/////////////////////////////////////
@@ -4117,6 +4150,41 @@ bool MainWindow::inspectVersionBeforeImport(QString versionText, BaseDbVersionEn
     return true;
 }
 
+void MainWindow::loadSettings()
+{
+    showSplashScreen_ = true;
+    showTrayIcon_ = false;
+    minimizingTray_ = false;
+}
+
+/**
+ * @brief 创建系统托盘图标
+ */
+void MainWindow::createTray()
+{
+    _traySystem = new QSystemTrayIcon(QIcon(":images/accSuite.png"), this);
+    connect(_traySystem,SIGNAL(activated(QSystemTrayIcon::ActivationReason)),
+            this,SLOT(trayIconActivated(QSystemTrayIcon::ActivationReason)));
+    _traySystem->setToolTip(tr("凭证助手"));
+    trayMenu_ = new QMenu(this);
+    _actShowMainWindow = new QAction(tr("显示主界面"),this);
+    connect(_actShowMainWindow, SIGNAL(triggered()), this, SLOT(showMainWindow()));
+    QFont font_ = _actShowMainWindow->font();
+    font_.setBold(true);
+    _actShowMainWindow->setFont(font_);
+    trayMenu_->addAction(_actShowMainWindow);
+    //trayMenu_->addAction(updateAllFeedsAct_);
+    //trayMenu_->addAction(markAllFeedsRead_);
+    //trayMenu_->addSeparator();
+
+    //trayMenu_->addAction(optionsAct_);
+    trayMenu_->addSeparator();
+
+    trayMenu_->addAction(ui->actExit);
+    _traySystem->setContextMenu(trayMenu_);
+    _traySystem->show();
+}
+
 //显示账户属性对话框
 void MainWindow::on_actAccProperty_triggered()
 {
@@ -4250,7 +4318,6 @@ void MainWindow::on_actBatchImport_triggered()
     }
 }
 
-
 #include "lookysyfitemform.h"
 bool MainWindow::impTestDatas()
 {
@@ -4348,6 +4415,7 @@ bool MainWindow::impTestDatas()
     //    form->move(800,100);
     //    //form->resize(36,36);
     //    form->findItem(fsub,ssub,timeRange,invoiceNums);
+    _traySystem->showMessage(tr("凭证助手"),tr("你好，这是消息！"));
     int i = 0;
 }
 

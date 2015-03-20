@@ -14,6 +14,7 @@ class WorkStation;
 struct RightType;
 class Right;
 class UserGroup;
+class GdzcClass;
 struct ExternalToolCfgItem;
 
 //通过访问应用程序的基本库来存取配置信息
@@ -114,6 +115,7 @@ public:
     const QString KEY_SMART_SUFFIXE = "suffixe";
     const QString SEGMENT_USER_INTFACE = "UserInterface";
     const QString KEY_INTERFACE_AUTOHIDELEFTPANEL = "isAutoHideLeftPanel";
+    const QString KEY_INTERFACE_MIN_TO_TRAY = "minimalToSystemTray";
 
     ~AppConfig();
 
@@ -132,6 +134,7 @@ public:
     bool readPzSetStates(QHash<PzsState,QString>& snames, QHash<PzsState,QString>& lnames);
     void setUsedReportType(int accId, int rt){}
     int addAccountInfo(QString code, QString aName, QString lName, QString filename);
+    bool readAllGdzcClasses(QHash<int,GdzcClass*> gcs);
 
     int getSpecNameItemCls(SpecNameItemClass witch);
     void setSpecNameItemcls(SpecNameItemClass witch, int code);
@@ -251,6 +254,8 @@ public:
     //应用程序界面设置
     bool isAutoHideLeftDock();
     void setAutoHideLeftDock(bool on);
+    bool minToTrayClose();
+    void setMinToTrayClose(bool on);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);

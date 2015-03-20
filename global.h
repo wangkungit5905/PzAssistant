@@ -12,7 +12,7 @@
 #include "logs/Logger.h"
 
 class BusiAction;
-class GdzcType;
+class GdzcClass;
 
 //动态属性名（应用于所有在运行时需要保存对象的编辑状态属性名）
 extern const char* ObjEditState;
@@ -54,7 +54,7 @@ extern QHash<int,QString> MTS;         //所有币种代码到名称的映射表
 extern QHash<int,QString> allMts;      //当前打开账户所用的所有币种代码到名称的映射表
 
 //固定资产相关变量
-extern QHash<int,GdzcType*> allGdzcProductCls; //所有固定资产产品类别表，键为固定资产类别的代码
+extern QHash<int,GdzcClass*> allGdzcProductCls; //所有固定资产产品类别表，键为固定资产类别的代码
 extern QHash<int,QString> allGdzcSubjectCls; //所有固定资产产品科目类别名表，键为明细科目代码
 
 //凭证类别和凭证状态
@@ -85,8 +85,6 @@ extern QList<BusiAction*> clb_Bas;       //存放要粘贴的会计分录对象�
 extern QString lastModifyTime;   //账户最后修改时间
 
 //全局函数
-extern int appInit();          //应用初始化
-extern void appExit();          //应用退出前的执行例程
 extern QString dirStr(int dir); //输出借贷方向的文字表达
 extern QString dirVStr(double v); //根据值的符号输出借贷方向的文字表达
 extern QString removeRightZero(QString str); //移除两位精度的实数的最后一位或二位0

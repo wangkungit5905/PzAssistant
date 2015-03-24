@@ -10,7 +10,6 @@ QString orgName = "SSC";
 QString appName = "PingZheng Assistant";
 QString appTitle;
 QString versionStr;
-QString aboutStr;
 Logger::LogLevel logLevel;
 
 int DEFAULT_SUBSYS_CODE = 1;

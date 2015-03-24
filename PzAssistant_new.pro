@@ -3,6 +3,26 @@
 # Project created by QtCreator 2011-01-19T12:59:18
 #
 #-------------------------------------------------
+# VCS revision info
+REVFILE = VersionRev.h
+QMAKE_DISTCLEAN += $$REVFILE
+# tortoisehg-2.8 running in win32 hangs with 3 \ in sources, but works fine in linux
+THG_WIN32_FIXME = '\\\"'
+
+REVISION_NUM = $$system(git rev-list --count HEAD)
+count(REVISION_NUM, 1) {
+    VERSION_REV = git-$$REVISION_NUM-$$system(git rev-parse --short HEAD)
+} else {
+    VERSION_REV = 0
+}
+message(VCS revision: $$VERSION_REV BuildNumber: $$REVISION_NUM)
+win32 {
+    system(echo $${LITERAL_HASH}define REVISION_STR $$VERSION_REV > $$REVFILE)
+    system(echo $${LITERAL_HASH}define REVISION_NUMBER $$REVISION_NUM >> $$REVFILE)
+} else {
+    system(echo \\$${LITERAL_HASH}define REVISION_STR $$THG_WIN32_FIXME$$VERSION_REV$$THG_WIN32_FIXME > $$REVFILE)
+    system(echo \\$${LITERAL_HASH}define REVISION_NUMBER $$THG_WIN32_FIXME$$REVISION_NUM$$THG_WIN32_FIXME >> $$REVFILE)
+}
 
 QT       += core widgets sql xml printsupport network
 win32{
@@ -12,8 +32,6 @@ win32{
 TARGET = PzAssistant
 DESTDIR = $${PWD}/../workDir/
 TEMPLATE = app
-
-#CONFIG += qaxcontainer
 
 SOURCES += main.cpp\
     config.cpp \
@@ -40,7 +58,6 @@ SOURCES += main.cpp\
     cal.cpp \
     subjectsearchform.cpp \
     viewpzseterrorform.cpp \
-    aboutform.cpp \
     pzdsform.cpp \
     dbutil.cpp \
     logs/logview.cpp \
@@ -87,9 +104,9 @@ SOURCES += main.cpp\
     application/mainapplication.cpp \
     application/splashscreen.cpp \
     application/paapplock.cpp \
-    #application/qtlockedfile_win.cpp \
-    #application/qtlockedfile_unix.cpp \
-    application/qtlockedfile.cpp
+    application/qtlockedfile.cpp \
+    common/padialog.cpp \
+    aboutdialog.cpp
 
 HEADERS  += \
     config.h \
@@ -119,7 +136,6 @@ HEADERS  += \
     cal.h \
     subjectsearchform.h \
     viewpzseterrorform.h \
-    aboutform.h \
     pzdsform.h \
     dbutil.h \
     logs/logview.h \
@@ -171,7 +187,10 @@ HEADERS  += \
     application/mainapplication.h \
     application/splashscreen.h \
     application/paapplock.h \
-    application/qtlockedfile.h
+    application/qtlockedfile.h \
+    common/padialog.h \
+    aboutdialog.h \
+    VersionRev.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -203,7 +222,6 @@ FORMS    += \
     forms/printTemplates/dtfyjttxhztable.ui \
     forms/subjectsearchform.ui \
     forms/viewpzseterrorform.ui \
-    forms/aboutform.ui \
     forms/pzdsform.ui \
     forms/logview.ui \
     forms/versionmanager.ui \
@@ -244,13 +262,15 @@ FORMS    += \
     forms/specsubcfgform.ui \
     forms/lookysyfitemform.ui
 
-INCLUDEPATH +=  $$PWD/application
+INCLUDEPATH +=  $$PWD/application \
+                $$PWD/common
 
 RESOURCES += \
     imgers.qrc \
     config.qrc \
     tableprinterresource.qrc \
-    tableprinterresource.qrc
+    tableprinterresource.qrc \
+    files.qrc
 
 OTHER_FILES += \
     PrjExplain/ProjectExplain.txt \
@@ -260,7 +280,6 @@ OTHER_FILES += \
     PrjExplain/操作指南.txt \
     revisionHistorys \
     账户文本版本说明.txt \
-    ini/revisionHistorys.ini \
     PrjExplain/任务需求分析.txt \
     bugs.txt
 

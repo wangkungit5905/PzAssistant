@@ -111,6 +111,11 @@ void AppConfig::setAppStyleName(QString styleName)
     appIni->sync();
 }
 
+QString AppConfig::getSettingFileName()
+{
+    return appIni->fileName();
+}
+
 /**
  * @brief AppConfig::getStyleFrom
  * 样式表文件来自于哪里

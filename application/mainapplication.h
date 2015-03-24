@@ -6,6 +6,8 @@
 #include "mainwindow.h"
 #include "paapplock.h"
 
+#define mainApp MainApplication::getInstance()
+
 /**
  * @brief 登录对话框类
  */
@@ -17,6 +19,8 @@ public:
     explicit LoginDialog(QWidget *parent = 0);
     ~LoginDialog();
     User* getLoginUser();
+
+
 
 private slots:
     void on_btnLogin_clicked();
@@ -53,6 +57,8 @@ public:
 
     static MainApplication *getInstance();
 
+    QString settingFile();/*{return "./config/app/appSetting.ini";}*/
+
 public slots:
   void quitApplication();
 
@@ -67,12 +73,11 @@ private:
 private:
     AppConfig* _appCfg;
     PaAppLock* appLock;
-    QWidget *closingWidget_;
     MainWindow* mainWindow_;
     SplashScreen *splashScreen_;
 
     bool _isClosing;
-    bool showSplashScreen_;
+    bool showSplashScreen_;     //是否显示启动界面
     QString _initErrorDetails;  //应用初始化出错时的详情
 };
 

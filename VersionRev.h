@@ -1,0 +1,2 @@
+#define REVISION_STR "git-87-5c3a069"
+#define REVISION_NUMBER "87"

@@ -21,7 +21,6 @@ extern QString orgName;        //创建应用程序的组织名
 extern QString appName;        //应用程序名
 extern QString appTitle;       //应用程序主窗口标题
 extern QString versionStr;     //版本号字符串
-extern QString aboutStr;       //版权声明字符串
 extern Logger::LogLevel logLevel; //应用程序的日志级别
 
 extern int DEFAULT_SUBSYS_CODE;   //默认科目系统代码

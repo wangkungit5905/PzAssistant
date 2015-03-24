@@ -1,5 +1,1 @@
-<RCC>
-    <qresource prefix="/files">
-        <file>ini/revisionHistorys.ini</file>
-    </qresource>
-</RCC>
+<RCC/>

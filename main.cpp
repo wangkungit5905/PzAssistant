@@ -38,6 +38,5 @@ int main(int argc, char *argv[])
 
     Logger::write(QDateTime::currentDateTime(),Logger::Must,"",0,"", QObject::tr("Quit PzAssistant!"));
     cfg->setLogLevel(logLevel);
-    //appExit();
     return exitCode;
 }

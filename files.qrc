@@ -1,0 +1,7 @@
+<RCC>
+    <qresource prefix="/files">
+        <file>files/AUTHORS</file>
+        <file>files/HISTORY</file>
+        <file>files/COPYING</file>
+    </qresource>
+</RCC>

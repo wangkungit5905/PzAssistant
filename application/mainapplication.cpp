@@ -71,7 +71,7 @@ void LoginDialog::on_btnCancel_clicked()
 
 /////////////////MainApplication/////////////////////////////////////////
 MainApplication::MainApplication(int &argc, char** argv): QApplication(argc, argv),
-    _appCfg(0),_isClosing(false),closingWidget_(0),mainWindow_(0)
+    _appCfg(0),_isClosing(false),mainWindow_(0)
 {
     appLock = new PaAppLock(this);
     if(appLock->existInstance()){
@@ -181,8 +181,6 @@ void MainApplication::quitApplication()
     if(mainWindow_)
         delete mainWindow_;
     qWarning() << "quitApplication 2";
-    if(closingWidget_)
-        delete closingWidget_;
     _appCfg->saveGlobalVar();
     _appCfg->exit();
 }
@@ -231,7 +229,6 @@ MainApplication::AppErrorCode MainApplication::init()
     //设置应用程序的版本号
     int master = 1;
     int second = 0;
-    aboutStr = qApp->tr("凭证助手，版权属于小灵猫工作室所有。\n版本号：%1.%2").arg(master).arg(second);
 
 
 
@@ -272,10 +269,19 @@ MainApplication *MainApplication::getInstance()
     return static_cast<MainApplication*>(QCoreApplication::instance());
 }
 
+/**
+ * @brief 返回应用所使用的设置文件名
+ * @return
+ */
+QString MainApplication::settingFile()
+{
+    return _appCfg->getSettingFileName();
+}
+
 void MainApplication::showSplashScreen()
 {
     if(showSplashScreen_){
-        splashScreen_ = new SplashScreen(QPixmap(":/images/images/splashScreen.png"));
+        splashScreen_ = new SplashScreen(QPixmap(":images/accProperty/suiteInfo.png"));
         splashScreen_->show();
         processEvents();
     }

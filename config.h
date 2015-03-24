@@ -127,6 +127,7 @@ public:
     void setLogLevel(Logger::LogLevel level);
     QString getAppStyleName();
     void setAppStyleName(QString styleName);
+    QString getSettingFileName();
     bool getStyleFrom();
     void setStyleFrom(bool fromRes=true);
     bool readPingzhenClass(QHash<PzClass,QString>& pzClasses);

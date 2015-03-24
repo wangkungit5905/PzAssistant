@@ -27,7 +27,7 @@
 #include "securitys.h"
 #include "commdatastruct.h"
 #include "viewpzseterrorform.h"
-#include "aboutform.h"
+#include "aboutdialog.h"
 #include "dbutil.h"
 #include "logs/logview.h"
 #include "version.h"
@@ -2068,8 +2068,10 @@ void MainWindow::generateBalanceSheet()
 ////////////////////////帮助菜单处理槽部分////////////////////////////////////////
 void MainWindow::about()
 {
-    AboutForm* form = new AboutForm(aboutStr);
-    form->show();
+//    AboutForm* form = new AboutForm(aboutStr);
+//    form->show();
+    AboutDialog* dlg = new AboutDialog(this);
+    dlg->show();
 }
 
 void MainWindow::showTemInfo(QString info)

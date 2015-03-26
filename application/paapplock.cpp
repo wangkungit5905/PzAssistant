@@ -1,4 +1,5 @@
 #include "paapplock.h"
+#include <QDir>
 
 #if defined(Q_OS_WIN)
 #include <QLibrary>
@@ -11,15 +12,6 @@ static PProcessIdToSessionId pProcessIdToSessionId = 0;
 #include <time.h>
 #include <unistd.h>
 #endif
-
-namespace QtLP_Private {
-#include "qtlockedfile.cpp"
-#if defined(Q_OS_WIN)
-#include "qtlockedfile_win.cpp"
-#else
-#include "qtlockedfile_unix.cpp"
-#endif
-}
 
 
 PaAppLock::PaAppLock(QObject *parent, QString appId) :
@@ -52,28 +44,26 @@ PaAppLock::PaAppLock(QObject *parent, QString appId) :
     lockFileName += QLatin1Char('-') + QString::number(::getuid(), 16);
 #endif
 
-    lockFile.setFileName(lockFileName);
-    lockFile.open(QIODevice::ReadWrite);
+    QString dirName = QDir::homePath() + "/.PzAssistant/";
+    QDir dir;
+    if(!dir.exists(dirName))
+        dir.mkdir(dirName);
+    lockFileName =dirName  + lockFileName;
+    lockFile = new QLockFile(lockFileName);
+}
+
+PaAppLock::~PaAppLock()
+{
+    lockFile->unlock();
+    delete lockFile;
 }
 
 bool PaAppLock::existInstance()
 {
-    if (lockFile.isLocked())
+    if(lockFile->isLocked())
         return false;
 
-    if (!lockFile.lock(QtLP_Private::QtLockedFile::WriteLock, false))
+    if(!lockFile->tryLock())
         return true;
-
-//    bool res = server->listen(socketName);
-//#if defined(Q_OS_UNIX) && (QT_VERSION >= QT_VERSION_CHECK(4,5,0))
-//    // ### Workaround
-//    if (!res && server->serverError() == QAbstractSocket::AddressInUseError) {
-//        QFile::remove(QDir::cleanPath(QDir::tempPath())+QLatin1Char('/')+socketName);
-//        res = server->listen(socketName);
-//    }
-//#endif
-//    if (!res)
-//        qWarning("QtSingleCoreApplication: listen on local socket failed, %s", qPrintable(server->errorString()));
-//    QObject::connect(server, SIGNAL(newConnection()), SLOT(receiveConnection()));
     return false;
 }

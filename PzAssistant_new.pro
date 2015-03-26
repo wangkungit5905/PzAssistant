@@ -6,22 +6,34 @@
 # VCS revision info
 REVFILE = VersionRev.h
 QMAKE_DISTCLEAN += $$REVFILE
-# tortoisehg-2.8 running in win32 hangs with 3 \ in sources, but works fine in linux
-THG_WIN32_FIXME = '\\\"'
 
-REVISION_NUM = $$system(git rev-list --count HEAD)
-count(REVISION_NUM, 1) {
-    VERSION_REV = git-$$REVISION_NUM-$$system(git rev-parse --short HEAD)
+BUILD_NUM = $$system(git rev-list --count HEAD)
+count(BUILD_NUM, 1) {
+    BUILD_EXPLAIN = git-$$BUILD_NUM-$$system(git rev-parse --short HEAD)
 } else {
-    VERSION_REV = 0
+    BUILD_EXPLAIN = 0
 }
-message(VCS revision: $$VERSION_REV BuildNumber: $$REVISION_NUM)
+#message(VCS revision: $$BUILD_EXPLAIN BuildNumber: $$BUILD_NUM)
+
 win32 {
-    system(echo $${LITERAL_HASH}define REVISION_STR $$VERSION_REV > $$REVFILE)
-    system(echo $${LITERAL_HASH}define REVISION_NUMBER $$REVISION_NUM >> $$REVFILE)
-} else {
-    system(echo \\$${LITERAL_HASH}define REVISION_STR $$THG_WIN32_FIXME$$VERSION_REV$$THG_WIN32_FIXME > $$REVFILE)
-    system(echo \\$${LITERAL_HASH}define REVISION_NUMBER $$THG_WIN32_FIXME$$REVISION_NUM$$THG_WIN32_FIXME >> $$REVFILE)
+    system(echo $${LITERAL_HASH}define VER_MASTE 1 > $$REVFILE)
+    system(echo $${LITERAL_HASH}define VER_SECOND 1 >>$$REVFILE)
+    system(echo $${LITERAL_HASH}define VER_REVISION 0 >>$$REVFILE)
+    system(echo $${LITERAL_HASH}define BUILD_STR \"$$BUILD_EXPLAIN\0\">>$$REVFILE)
+    system(echo $${LITERAL_HASH}define BUILD_NUMBER $$BUILD_NUM>>$$REVFILE)
+    #This don't exec
+    #BUILD_DATE = $$system(echo %DATE:~0,9%)
+    BUILD_DATE = $$system(date /T)
+    system(echo $${LITERAL_HASH}define APP_BUILD_DATE \"$$BUILD_DATE\" >> $$REVFILE)
+}
+else {
+    system(echo \\$${LITERAL_HASH}define VER_MASTE 1 > $$REVFILE)
+    system(echo \\$${LITERAL_HASH}define VER_SECOND 1 >>$$REVFILE)
+    system(echo \\$${LITERAL_HASH}define VER_REVISION 0 >>$$REVFILE)
+    system(echo \\$${LITERAL_HASH}define BUILD_STR \\\"$$BUILD_EXPLAIN\\\" >> $$REVFILE)
+    system(echo \\$${LITERAL_HASH}define BUILD_NUMBER \\\"$$BUILD_NUM\\\" >> $$REVFILE)
+    BUILD_DATE = $$system(date '+%Y-%m-%d')
+    system(echo \\$${LITERAL_HASH}define APP_BUILD_DATE \\\"$$BUILD_DATE\\\" >> $$REVFILE)
 }
 
 QT       += core widgets sql xml printsupport network
@@ -29,7 +41,12 @@ win32{
     QT += axcontainer
 }
 
-TARGET = PzAssistant
+debug {
+    TARGET = PzAssistantd
+}
+else {
+    TARGET = PzAssistant
+}
 DESTDIR = $${PWD}/../workDir/
 TEMPLATE = app
 
@@ -104,7 +121,6 @@ SOURCES += main.cpp\
     application/mainapplication.cpp \
     application/splashscreen.cpp \
     application/paapplock.cpp \
-    application/qtlockedfile.cpp \
     common/padialog.cpp \
     aboutdialog.cpp
 
@@ -187,7 +203,6 @@ HEADERS  += \
     application/mainapplication.h \
     application/splashscreen.h \
     application/paapplock.h \
-    application/qtlockedfile.h \
     common/padialog.h \
     aboutdialog.h \
     VersionRev.h
@@ -275,12 +290,7 @@ RESOURCES += \
 OTHER_FILES += \
     PrjExplain/ProjectExplain.txt \
     todos.txt \
-    PrjExplain/数据库移植注意事txt \
-    PrjExplain/配置变量.txt \
-    PrjExplain/操作指南.txt \
     revisionHistorys \
-    账户文本版本说明.txt \
-    PrjExplain/任务需求分析.txt \
     bugs.txt
 
 win32{

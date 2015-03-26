@@ -25,16 +25,17 @@ AboutDialog::AboutDialog(QWidget *parent):PaDialog(parent,Qt::MSWindowsFixedSize
 
     //版本信息页
     QString revisionStr;
-    if (QString("%1").arg(REVISION_STR) != "0") {
-        revisionStr = "<BR>" + tr("Revision") + " " + QString("%1").arg(REVISION_STR);
+    if (!QString(BUILD_STR).isEmpty()) {
+        revisionStr = "<BR>" + tr("Revision") + " " + QString("%1").arg(BUILD_STR);
     }
-    versionStr = QString("%1.%2").arg(STRPRODUCTVER).arg(REVISION_NUMBER);
+    versionStr = QString("%1.%2.%3.%4").arg(VER_MASTE).arg(VER_SECOND)
+            .arg(VER_REVISION).arg(BUILD_NUMBER);
     QString appInfo =
           "<html><style>a { color: blue; text-decoration: none; }</style><body>"
           "<CENTER>"
           "<IMG SRC=\":/images/accSuite.png\">"
           "<P>"
-          + tr("版本：") + " " + "<B>" + QString(versionStr) + "</B>" + QString(" (%1)").arg(STRDATE)
+          + tr("版本：") + " " + "<B>" + QString(versionStr) + "</B>" + QString(" (%1)").arg(APP_BUILD_DATE)
           + revisionStr
           + "</P>"
           + "<BR>"

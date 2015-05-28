@@ -106,5 +106,12 @@
         <file>images/info.png</file>
         <file>images/error.png</file>
         <file>images/appIcon.ico</file>
+        <file>images/baYsIncome.png</file>
+        <file>images/baYfCost.png</file>
+        <file>images/baBankIncome.png</file>
+        <file>images/baBankCost.png</file>
+        <file>images/baYsGather.png</file>
+        <file>images/baYfGather.png</file>
+        <file>images/invoiceStat.png</file>
     </qresource>
 </RCC>

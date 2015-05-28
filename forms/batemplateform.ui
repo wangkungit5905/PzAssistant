@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>BaTemplateForm</class>
+ <widget class="QWidget" name="BaTemplateForm">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>698</width>
+    <height>414</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>基于模板的分录快捷创建器</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="1,5,0">
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QGroupBox" name="groupBox">
+       <property name="title">
+        <string>类型</string>
+       </property>
+       <property name="flat">
+        <bool>false</bool>
+       </property>
+       <layout class="QGridLayout" name="gridLayout">
+        <property name="topMargin">
+         <number>0</number>
+        </property>
+        <item row="0" column="0">
+         <widget class="QRadioButton" name="rdoBankIncome">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>银收收入</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QRadioButton" name="rdoYfCost">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>应付成本</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="2">
+         <widget class="QRadioButton" name="rdoYsGather">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>应收聚合</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="2">
+         <widget class="QRadioButton" name="rdoYfGather">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>应付聚合</string>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QRadioButton" name="rdoYsIncome">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>应收收入</string>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="QRadioButton" name="rdoBankCost">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>银付成本</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QGroupBox" name="groupBox_2">
+       <property name="title">
+        <string/>
+       </property>
+       <layout class="QGridLayout" name="gridLayout_2" columnstretch="1,0,1,2">
+        <item row="0" column="0">
+         <widget class="QRadioButton" name="rdoSingle">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>单客户</string>
+          </property>
+          <property name="checked">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="3">
+         <widget class="QLineEdit" name="edtBankMoney"/>
+        </item>
+        <item row="2" column="2">
+         <widget class="QLabel" name="label_2">
+          <property name="text">
+           <string>金额</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="cmbBank"/>
+        </item>
+        <item row="2" column="0">
+         <widget class="QLabel" name="label">
+          <property name="text">
+           <string>银行子目</string>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1" colspan="3">
+         <widget class="QLineEdit" name="edtName">
+          <property name="readOnly">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="0">
+         <widget class="SubjectSelectorComboBox" name="cmbCustomer">
+          <property name="maximumSize">
+           <size>
+            <width>150</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="editable">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="1">
+         <widget class="QRadioButton" name="rdoMulti">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
+          <property name="text">
+           <string>多客户</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="tw">
+     <property name="contextMenuPolicy">
+      <enum>Qt::CustomContextMenu</enum>
+     </property>
+     <property name="selectionBehavior">
+      <enum>QAbstractItemView::SelectRows</enum>
+     </property>
+     <attribute name="horizontalHeaderStretchLastSection">
+      <bool>true</bool>
+     </attribute>
+     <column>
+      <property name="text">
+       <string>月份</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>发票号</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>账面金额</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>税额</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>外币金额</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>关联客户</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_2">
+     <item>
+      <widget class="QPushButton" name="btnLoad">
+       <property name="text">
+        <string>从暂存区装载</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnSave">
+       <property name="text">
+        <string>保存到暂存区</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer_2">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnOk">
+       <property name="text">
+        <string>确定</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnCancel">
+       <property name="text">
+        <string>取消</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+  <action name="actRemove">
+   <property name="text">
+    <string>移除</string>
+   </property>
+   <property name="toolTip">
+    <string>移除所选条目</string>
+   </property>
+  </action>
+  <action name="actMergerCustomer">
+   <property name="text">
+    <string>归并同客户</string>
+   </property>
+   <property name="toolTip">
+    <string>将所选条目的客户设置为第一个条目所选择的客户</string>
+   </property>
+  </action>
+  <action name="actCopy">
+   <property name="text">
+    <string>拷贝</string>
+   </property>
+   <property name="toolTip">
+    <string>拷贝当前选择的条目</string>
+   </property>
+  </action>
+  <action name="actCut">
+   <property name="text">
+    <string>剪切</string>
+   </property>
+   <property name="toolTip">
+    <string>剪切当前选择的条目</string>
+   </property>
+  </action>
+  <action name="actPaste">
+   <property name="text">
+    <string>粘贴</string>
+   </property>
+   <property name="toolTip">
+    <string>粘贴到选定行</string>
+   </property>
+  </action>
+  <action name="actInsert">
+   <property name="text">
+    <string>插入</string>
+   </property>
+   <property name="toolTip">
+    <string>在当前位置插入新行</string>
+   </property>
+  </action>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>SubjectSelectorComboBox</class>
+   <extends>QComboBox</extends>
+   <header>widgets/subjectselectorcombobox.h</header>
+  </customwidget>
+ </customwidgets>
+ <tabstops>
+  <tabstop>edtName</tabstop>
+  <tabstop>edtBankMoney</tabstop>
+  <tabstop>cmbBank</tabstop>
+  <tabstop>tw</tabstop>
+  <tabstop>btnOk</tabstop>
+  <tabstop>btnCancel</tabstop>
+  <tabstop>rdoYfGather</tabstop>
+  <tabstop>rdoSingle</tabstop>
+  <tabstop>rdoBankIncome</tabstop>
+  <tabstop>cmbCustomer</tabstop>
+  <tabstop>rdoMulti</tabstop>
+  <tabstop>btnSave</tabstop>
+  <tabstop>rdoYfCost</tabstop>
+  <tabstop>rdoYsGather</tabstop>
+ </tabstops>
+ <resources/>
+ <connections/>
+ <slots>
+  <slot>customerTypeChanged(bool)</slot>
+  <slot>templateTypeChanged(bool)</slot>
+  <slot>proessContextMenu()</slot>
+ </slots>
+</ui>

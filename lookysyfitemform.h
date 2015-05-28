@@ -4,6 +4,7 @@
 #include <QWidget>
 #include <QSqlDatabase>
 #include <QTimer>
+#include <QItemDelegate>
 
 namespace Ui {
 class LookYsYfItemForm;
@@ -15,6 +16,29 @@ class PzDialog;
 class FirstSubject;
 class SecondSubject;
 class Money;
+
+
+class IntItemDelegate : public QItemDelegate
+{
+public:
+    enum ColumnIndex{
+        CI_JOIN =   0,
+        CI_YEAR =   1,
+        CI_SMONTH = 2,
+        CI_EMONTH = 3
+    };
+
+    IntItemDelegate(Account* account, QWidget* parent=0);
+    QWidget *createEditor(QWidget *parent, const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const;
+    void setModelData(QWidget *editor, QAbstractItemModel *model,
+                      const QModelIndex &index) const;
+    void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem &option,
+                              const QModelIndex& index) const;
+private:
+    Account *_account;
+};
 
 class LookYsYfItemForm : public QWidget
 {
@@ -38,7 +62,6 @@ protected:
     void mouseMoveEvent(QMouseEvent *e);
     void mousePressEvent(QMouseEvent *e);
     void mouseReleaseEvent(QMouseEvent *e);
-    //void mouseDoubleClickEvent(QMouseEvent * event);
 
 public slots:
     void show();
@@ -46,9 +69,8 @@ public slots:
 
 private slots:
     void closeWindow();
-    void yearChanged(int index);
-    void monthChanged(int m);
     void flickerIcon();
+    void catchMouse();
 
     void on_btnSearch_clicked();
 
@@ -56,7 +78,6 @@ private slots:
 
 private:
     void _search();
-    void _turnOn(bool on = true);
 
     Ui::LookYsYfItemForm *ui;
     QPoint mousePoint;              //鼠标拖动自定义标题栏时的坐标
@@ -68,10 +89,9 @@ private:
     QSqlDatabase db;
     FirstSubject* _fsub;
     SecondSubject* _ssub;
-    QList<int> _range;   //搜索时间范围（3位一组，依次是年份，开始月份，结束月份）
     QStringList _invoiceNums;
     QHash<int,Money*> mtTypes;
-    QTimer _timer;
+    QTimer _flickeTimer,_catchTimer;
     QPixmap _iconPix;
     QShortcut* sc_look;
 };

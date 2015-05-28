@@ -15,7 +15,7 @@
 #include "commdatastruct.h"
 #include "cal.h"
 
-class PAComboBox;
+//class PAComboBox;
 class FirstSubject;
 class SecondSubject;
 class SubjectManager;

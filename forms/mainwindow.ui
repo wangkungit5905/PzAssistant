@@ -37,7 +37,7 @@
      <x>0</x>
      <y>0</y>
      <width>1052</width>
-     <height>23</height>
+     <height>24</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnufile">
@@ -84,6 +84,7 @@
      <addaction name="actJzbnlr"/>
      <addaction name="actEndAcc"/>
      <addaction name="actCloseSuite"/>
+     <addaction name="actYsYfStat"/>
      <addaction name="separator"/>
      <addaction name="actAntiImp"/>
      <addaction name="actAntiJz"/>
@@ -177,9 +178,14 @@
      <property name="title">
       <string>管理员工具</string>
      </property>
+     <widget class="QMenu" name="menu">
+      <property name="title">
+       <string>管理员临时任务</string>
+      </property>
+      <addaction name="actInitInvoice"/>
+     </widget>
      <addaction name="actNoteMgr"/>
-     <addaction name="actTaxCompare"/>
-     <addaction name="actImpPzSet"/>
+     <addaction name="menu"/>
     </widget>
     <widget class="QMenu" name="mnuExternalTools">
      <property name="title">
@@ -329,6 +335,24 @@
    </attribute>
    <addaction name="actUndo"/>
    <addaction name="actRedo"/>
+  </widget>
+  <widget class="QToolBar" name="tbrBaTemplate">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>true</bool>
+   </attribute>
+   <addaction name="actInvoiceStat"/>
+   <addaction name="actBankIncome"/>
+   <addaction name="actYsIncome"/>
+   <addaction name="actYfCost"/>
+   <addaction name="actBankCost"/>
+   <addaction name="actYsGather"/>
+   <addaction name="actYfGather"/>
   </widget>
   <action name="actCrtAccount">
    <property name="enabled">
@@ -1233,6 +1257,106 @@
    </property>
    <property name="toolTip">
     <string>一次转入多个账户到本站</string>
+   </property>
+  </action>
+  <action name="actBankIncome">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/baBankIncome.png</normaloff>:/images/baBankIncome.png</iconset>
+   </property>
+   <property name="text">
+    <string>银收收入</string>
+   </property>
+   <property name="toolTip">
+    <string>银收收入</string>
+   </property>
+  </action>
+  <action name="actYsIncome">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/baYsIncome.png</normaloff>:/images/baYsIncome.png</iconset>
+   </property>
+   <property name="text">
+    <string>应收收入</string>
+   </property>
+   <property name="toolTip">
+    <string>应收收入</string>
+   </property>
+  </action>
+  <action name="actYfCost">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/baYfCost.png</normaloff>:/images/baYfCost.png</iconset>
+   </property>
+   <property name="text">
+    <string>应付成本</string>
+   </property>
+   <property name="toolTip">
+    <string>应付成本</string>
+   </property>
+  </action>
+  <action name="actBankCost">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/baBankCost.png</normaloff>:/images/baBankCost.png</iconset>
+   </property>
+   <property name="text">
+    <string>银付成本</string>
+   </property>
+   <property name="toolTip">
+    <string>银付成本</string>
+   </property>
+  </action>
+  <action name="actYsGather">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/baYsGather.png</normaloff>:/images/baYsGather.png</iconset>
+   </property>
+   <property name="text">
+    <string>应收聚合</string>
+   </property>
+   <property name="toolTip">
+    <string>创建多张应收发票的收入凭证</string>
+   </property>
+  </action>
+  <action name="actYfGather">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/baYfGather.png</normaloff>:/images/baYfGather.png</iconset>
+   </property>
+   <property name="text">
+    <string>应付聚合</string>
+   </property>
+   <property name="toolTip">
+    <string>创建多张应付发票的成本凭证</string>
+   </property>
+  </action>
+  <action name="actInvoiceStat">
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/invoiceStat.png</normaloff>:/images/invoiceStat.png</iconset>
+   </property>
+   <property name="text">
+    <string>发票统计</string>
+   </property>
+   <property name="toolTip">
+    <string>统计本月涉及到的应收应付发票号</string>
+   </property>
+  </action>
+  <action name="actInitInvoice">
+   <property name="text">
+    <string>初始化发票</string>
+   </property>
+   <property name="toolTip">
+    <string>统计应收应付发票的销账情况</string>
+   </property>
+  </action>
+  <action name="actYsYfStat">
+   <property name="text">
+    <string>应收应付发票统计</string>
+   </property>
+   <property name="toolTip">
+    <string>统计本月应收应付发票的增减情况</string>
    </property>
   </action>
  </widget>

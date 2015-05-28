@@ -508,6 +508,48 @@ const int FI_TEM_APPCFG_MASTER = 3;
 const int FI_TEM_APPCFG_SECOND = 4;
 const int FI_TEM_APPCFG_OBJECT = 5;
 
+//承销企业收入/成本发票使用情况记录表
+const QString tbl_invoiceRecords = "invoiceRecords";
+const QString fld_ir_date = "date";             //日期
+const QString fld_ir_number = "InvoiceNumber";  //发票号
+const QString fld_ir_isCommon = "isCommon";     //是否普票
+const QString fld_ir_isIncome = "isIncome";     //收入/成本i
+const QString fld_ir_customer = "customer";     //关联客户
+const QString fld_ir_pzNumber = "pzNumer";      //凭证号（有效使用该发票的所在凭证）
+const QString fld_ir_baRID = "baRID";           //分录记录的id
+const QString fld_ir_money = "money";           //账面金额（本币金额）
+const QString fld_ir_taxMoney = "taxMoney";      //税金
+const QString fld_ir_wmoney = "wmoney";         //外币金额
+const QString fld_ir_mt = "moneyType";          //外币币种（通常是美金）
+const QString fld_ir_state = "caState";         //发票销账状态
+const int FI_IR_DATE = 1;
+const int FI_IR_NUMBER = 2;
+const int Fi_IR_ISCOMMON = 3;
+const int FI_IR_ISINCOME = 4;
+const int FI_IR_CUSTOMER = 5;
+const int FI_IR_PZNUMBER = 6;
+const int FI_IR_BARID = 7;
+const int FI_IR_MONEY = 8;
+const int FI_IR_TAXMONEY = 9;
+const int FI_IR_WMONEY = 10;
+const int FI_IR_MONTYTYPE = 11;
+const int FI_IR_STATE = 12;
+
+//分录模板暂存表（用于在输入发票聚合类分录时，不能一次完成的情形下提供暂时存储）
+const QString tbl_baTemTable = "BaTemSaveRecords";
+const QString fld_btt_invoice = "invoiceNum";
+const QString fld_btt_money = "money";
+const QString fld_btt_taxMoney = "taxMoney";
+const QString fld_btt_wMoney = "wMoney";
+const QString fld_btt_sname = "sName";
+const QString fld_btt_lname = "lName";
+const QString fld_btt_remCode = "remCode";
+//与上表对应的表示在暂存区中存储的模板类型（应收聚合或应付聚合），只有一个记录
+const QString tbl_baTemType = "BaTemplateType";
+const QString fld_btt_type = "type";
+
+
+
 
 //////////*****************基本库数据表********************************//////////
 //币种类别表

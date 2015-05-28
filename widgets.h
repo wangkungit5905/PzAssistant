@@ -157,18 +157,18 @@ private:
 };
 
 //在QTableWidget中显示业务活动明细科目的表格项
-class BASndSubItem : public QTableWidgetItem
-{
-public:
-    BASndSubItem(int subId, SubjectManager* smg,int type = QTableWidgetItem::UserType + 2);
+//class BASndSubItem : public QTableWidgetItem
+//{
+//public:
+//    BASndSubItem(int subId, SubjectManager* smg,int type = QTableWidgetItem::UserType + 2);
 
-    QVariant data(int role) const;
-    void setData(int role, const QVariant &value);
+//    QVariant data(int role) const;
+//    void setData(int role, const QVariant &value);
 
-private:
-    int subId;
-    SubjectManager* smg;
-};
+//private:
+//    int subId;
+//    SubjectManager* smg;
+//};
 
 //在QTableWidget中显示币种的表格项
 class BAMoneyTypeItem : public QTableWidgetItem

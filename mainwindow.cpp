@@ -51,6 +51,7 @@
 #include "myhelper.h"
 #include "crtaccountfromolddlg.h"
 #include "transfers.h"
+#include "ysyfinvoicestatform.h"
 
 
 
@@ -463,9 +464,13 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     setCentralWidget(ui->mdiArea);
     appCon = AppConfig::getInstance();
+    _catchTimer = 0;
     if(appCon->isAutoHideLeftDock()){
         ui->mdiArea->setMouseTracking(true);
         setMouseTracking(true);
+        _catchTimer = new QTimer(this);
+        _catchTimer->setSingleShot(true);
+        connect(_catchTimer,SIGNAL(timeout()),this,SLOT(catchMouse()));
     }
 
     curSuiteMgr = NULL;
@@ -614,7 +619,16 @@ void MainWindow::initActions()
     connect(ui->mnuWindow, SIGNAL(aboutToShow()), this, SLOT(updateWindowMenu()));
 
     //帮助菜单
-    connect(ui->actAbout, SIGNAL(triggered()), this, SLOT(about()));    
+    connect(ui->actAbout, SIGNAL(triggered()), this, SLOT(about()));
+
+    //分录模板工具条
+    connect(ui->actBankIncome,SIGNAL(triggered()),this,SLOT(openBusiTemplate()));
+    connect(ui->actYsIncome,SIGNAL(triggered()),this,SLOT(openBusiTemplate()));
+    connect(ui->actBankCost,SIGNAL(triggered()),this,SLOT(openBusiTemplate()));
+    connect(ui->actYfCost,SIGNAL(triggered()),this,SLOT(openBusiTemplate()));
+    connect(ui->actYsGather,SIGNAL(triggered()),this,SLOT(openBusiTemplate()));
+    connect(ui->actYfGather,SIGNAL(triggered()),this,SLOT(openBusiTemplate()));
+    connect(ui->actInvoiceStat,SIGNAL(triggered()),this,SLOT(openBusiTemplate()));
 }
 
 //初始化工具条上的某些不能在设计器中直接添加的组件
@@ -1884,12 +1898,29 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
         return;
     int x = event->x();
     QDockWidget* dw = dockWindows.value(TV_SUITESWITCH);
-    if(x < 10 && dw->isHidden())
-        dw->show();
-    else if(x > dw->width() && !dw->isHidden())
-        dw->hide();
-
+    if(dw->isHidden()){
+        if(x > 10 && _catchTimer->isActive())
+            _catchTimer->stop();
+        else if(x < 10 && !_catchTimer->isActive())
+            _catchTimer->start(500);
+    }
+    else{
+        //这个实现在鼠标短期离开面板窗口还是会隐藏，不知何故？
+        if(x < dw->width() && _catchTimer->isActive())
+            _catchTimer->stop();
+        else if(x > dw->width() && !_catchTimer->isActive())
+            _catchTimer->start(500);
+    }
     QMainWindow::mouseMoveEvent(event);
+}
+
+void MainWindow::catchMouse()
+{
+    QDockWidget* dw = dockWindows.value(TV_SUITESWITCH);
+    if(dw->isHidden())
+        dw->show();
+    else
+        dw->hide();
 }
 
 void MainWindow::showMainWindow()
@@ -1936,6 +1967,8 @@ void MainWindow::trayIconActivated(QSystemTrayIcon::ActivationReason reason)
     else if(reason == QSystemTrayIcon::DoubleClick)
         showMaximized();
 }
+
+
 
 ///////////////////////数据菜单处理槽部分/////////////////////////////////////
 /**
@@ -2779,6 +2812,38 @@ void MainWindow::localStationChanged(WorkStation *ws)
 {
     if(ws)
         ui->statusbar->setWorkStation(ws);
+}
+
+/**
+ * @brief 打开分录模板窗口
+ */
+void MainWindow::openBusiTemplate()
+{
+    int key = curSuiteMgr->getSuiteRecord()->id;
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
+    if(!w)
+        return;
+    BATemplateEnum type;
+    QAction* action = qobject_cast<QAction*>(sender());
+    if(!action)
+        return;
+    if(action == ui->actBankIncome)
+        type = BATE_BANK_INCOME;
+    else if(action == ui->actYsIncome)
+        type = BATE_YS_INCOME;
+    else if(action == ui->actBankCost)
+        type = BATE_BANK_COST;
+    else if(action == ui->actYfCost)
+        type = BATE_YF_COST;
+    else if(action == ui->actYsGather)
+        type = BATE_YS_GATHER;
+    else if(action == ui->actYfGather)
+        type = BATE_YF_GATHER;
+    else if(action == ui->actInvoiceStat){
+        w->openInvoiceStatForm();
+        return;
+    }
+    w->openBusiactionTemplate(type);
 }
 
 //处理添加凭证动作事件
@@ -4320,7 +4385,7 @@ void MainWindow::on_actBatchImport_triggered()
     }
 }
 
-#include "lookysyfitemform.h"
+#include "invoicestatform.h"
 bool MainWindow::impTestDatas()
 {
 //    QString summary = tr("收宁波派士运费 00122312");
@@ -4417,7 +4482,108 @@ bool MainWindow::impTestDatas()
     //    form->move(800,100);
     //    //form->resize(36,36);
     //    form->findItem(fsub,ssub,timeRange,invoiceNums);
-    _traySystem->showMessage(tr("凭证助手"),tr("你好，这是消息！"));
+
+//    QString t1 = QObject::tr("收宁波开源运费 001245672");
+//    QString t2 = QObject::tr("付宁波开源运费 00124567-78");
+//    QString invoice;
+//    Double money;
+//    PaUtils::extractOnlyInvoiceNum(t1,invoice,money);
+//    PaUtils::extractOnlyInvoiceNum(t2,invoice,money);
+
+//    QList<InvoiceRecord*> incomes;
+//    int pzNum = QInputDialog::getInt(this,"",tr("输入要扫描的凭证号"));
+//    PingZheng* pz = curSuiteMgr->getPz(pzNum);
+//    if(!pz)
+//        return false;
+//    curSuiteMgr->scanInvoiceGatherCost(pz,incomes);
+
+//    InvoiceStatForm* form = new InvoiceStatForm(curSuiteMgr,this);
+//    QMdiSubWindow* w = ui->mdiArea->addSubWindow(form);
+
+//    w->resize(800,500);
+//    w->show();
+//    QString s = tr("（12#45*）我们");
+//    QRegExp re(tr("^（(\\d+)#{1}(\\d+)\\*{1}）"));
+//    int pos = re.indexIn(s);
+
+//    QString t1 = QObject::tr("01245672");
+//    QString t2 = QObject::tr("01245672/75");
+//    QString t3 = QObject::tr("01245672-75");
+//    QString t4 = QObject::tr("01245672/75/78 00234579-76");
+
+
+
+//    QRegExp re("\\s{0,}(\\d{8})(((/\\d{2,4}){0,})|((-\\d{2,2}){0,}))");
+//    int pos = re.indexIn(t1);
+//    pos = re.indexIn(t2);
+//    pos = re.indexIn(t3);
+//    pos = re.indexIn(t4);
+//    pos += re.matchedLength();
+//    re.indexIn(t4,pos);
+
+//    QStringList nums;
+//    nums<<"02362448"<<"01340582"<<"02362449"<<"02362460"<<"02362456"
+//       <<"01340581";
+//    nums.sort();
+//    int fonded = 0;
+//    //int pos = PaUtils::comparePrefix(nums,6,0,fonded);
+//    QString s = PaUtils::terseInvoiceNums(nums);
+
+//    QRegExp re("^\\d{8}$");
+//    int pos = re.indexIn("02362449");
+//    pos = re.indexIn(" 02362449");
+//    pos = re.indexIn("02362449 ");
     int i = 0;
 }
 
+
+void MainWindow::on_actInitInvoice_triggered()
+{
+    if(!curUser->isAdmin() && !curUser->isSuperUser()){
+        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
+        return;
+    }
+    if(curSuiteMgr){
+        YsYfInvoiceStatForm* form = new YsYfInvoiceStatForm(curSuiteMgr,true,this);
+        //connect(form,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
+        QMdiSubWindow* w = ui->mdiArea->addSubWindow(form);
+        w->resize(800,500);
+        w->show();
+    }
+}
+
+void MainWindow::on_actYsYfStat_triggered()
+{
+    //待功能验证正常后加入权限验证
+    //if(!isContainRight(Right::PzSet_ShowStat_Current))
+    //    return;
+    if(!curUser->isAdmin() && !curUser->isSuperUser()){
+        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
+        return;
+    }
+    if(!curSuiteMgr->isPzSetOpened()){
+        pzsWarning();
+        return;
+    }
+//    if(curSuiteMgr->getState() != Ps_Jzed){
+//        myHelper::ShowMessageBoxWarning(tr("必须结账后才可以执行此功能！"));
+//        return;
+//    }
+
+    YsYfInvoiceStatForm* dlg = NULL;
+    SubWindowDim* winfo = NULL;
+    QByteArray cinfo,pinfo;
+    int suiteId = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_YSYFSTAT)){
+        appCon->getSubWinInfo(SUBWIN_YSYFSTAT,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_YSYFSTAT,&pinfo);
+        dlg = new YsYfInvoiceStatForm(curSuiteMgr, false, this);
+    }
+    else{
+        dlg = static_cast<YsYfInvoiceStatForm*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_YSYFSTAT));
+
+    }
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_YSYFSTAT,dlg,winfo);
+    if(winfo)
+        delete winfo;
+}

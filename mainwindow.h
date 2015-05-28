@@ -142,7 +142,7 @@ public slots:
 
 private slots:
     void trayIconActivated(QSystemTrayIcon::ActivationReason reason);
-
+    void catchMouse();
     //文件菜单
     void newAccount();
     void openAccount();
@@ -204,6 +204,7 @@ private slots:
     void specSubWinClosed(subWindowType winType);
     void printProcess();
     void localStationChanged(WorkStation* ws);
+    void openBusiTemplate();
 
     void on_actAddPz_triggered();
 
@@ -330,6 +331,10 @@ private slots:
 
     void on_actBatchImport_triggered();
 
+    void on_actInitInvoice_triggered();
+
+    void on_actYsYfStat_triggered();
+
 private:
     void _closeAccount();
     bool isExecAccountTransform();
@@ -382,6 +387,7 @@ private:
 
     //ToolBars
     QToolBar *fileToolBar;
+    QTimer *_catchTimer;
 
     QSignalMapper *windowMapper; //用于处理从窗口菜单中选择显示的窗口
     QSignalMapper* tvMapper;     //用于处理从视图菜单中选择显示的工具视图

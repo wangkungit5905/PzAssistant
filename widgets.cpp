@@ -464,66 +464,66 @@ void BAFstSubItem2::setData(int role, const QVariant &value)
 
 
 ///////////////////////////BASndSubItem//////////////////////////////
-BASndSubItem::BASndSubItem(int subId, SubjectManager* smg,int type):
-    subId(subId),smg(smg),QTableWidgetItem(type)
-{
+//BASndSubItem::BASndSubItem(int subId, SubjectManager* smg,int type):
+//    subId(subId),smg(smg),QTableWidgetItem(type)
+//{
 
-}
+//}
 
-QVariant BASndSubItem::data(int role) const
-{
-    if (role == Qt::TextAlignmentRole)
-        return (int)Qt::AlignCenter;
-    if(role == Qt::ToolTipRole){
-        SecondSubject* ssub = smg->getSndSubject(subId);
-        QString tip = ssub->getLName();
-        //如果是银行科目，则显示银行账户信息
-        if(smg->isBankSndSub(ssub)){
-            BankAccount* ba = smg->getBankAccount(ssub);
-            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(ba->accNumber));
-            tip.append(QObject::tr("是否基本户："));
-            if(ba->parent->isMain)
-                tip.append(QObject::tr("是"));
-            else
-                tip.append(QObject::tr("否"));
-        }
-        return tip;
-
-//        BankAccount* ba=0; bool found = false;
-//        foreach(ba,smg->getBankAccounts()){
-//            if(ba->subObj->getId() == subId){
-//                found = true;
-//                break;
-//            }
-//        }
-//        if(found){
+//QVariant BASndSubItem::data(int role) const
+//{
+//    if (role == Qt::TextAlignmentRole)
+//        return (int)Qt::AlignCenter;
+//    if(role == Qt::ToolTipRole){
+//        SecondSubject* ssub = smg->getSndSubject(subId);
+//        QString tip = ssub->getLName();
+//        //如果是银行科目，则显示银行账户信息
+//        if(smg->isBankSndSub(ssub)){
+//            BankAccount* ba = smg->getBankAccount(ssub);
 //            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(ba->accNumber));
 //            tip.append(QObject::tr("是否基本户："));
-//            if(ba->bank->isMain)
+//            if(ba->parent->isMain)
 //                tip.append(QObject::tr("是"));
 //            else
 //                tip.append(QObject::tr("否"));
 //        }
 //        return tip;
-    }
-    if(role == Qt::DisplayRole){
-        SecondSubject* ssub = smg->getSndSubject(subId);
-        if(ssub)
-            return ssub->getName();
-        else
-            return "";
-    }
-    if(role == Qt::EditRole)
-        return subId;
-    return QTableWidgetItem::data(role);
-}
 
-void BASndSubItem::setData(int role, const QVariant &value)
-{
-    if(role == Qt::EditRole)
-        subId = value.toInt();
-    QTableWidgetItem::setData(role, value);
-}
+////        BankAccount* ba=0; bool found = false;
+////        foreach(ba,smg->getBankAccounts()){
+////            if(ba->subObj->getId() == subId){
+////                found = true;
+////                break;
+////            }
+////        }
+////        if(found){
+////            tip.append("\n").append(QObject::tr("帐号：%1\n").arg(ba->accNumber));
+////            tip.append(QObject::tr("是否基本户："));
+////            if(ba->bank->isMain)
+////                tip.append(QObject::tr("是"));
+////            else
+////                tip.append(QObject::tr("否"));
+////        }
+////        return tip;
+//    }
+//    if(role == Qt::DisplayRole){
+//        SecondSubject* ssub = smg->getSndSubject(subId);
+//        if(ssub)
+//            return ssub->getName();
+//        else
+//            return "";
+//    }
+//    if(role == Qt::EditRole)
+//        return subId;
+//    return QTableWidgetItem::data(role);
+//}
+
+//void BASndSubItem::setData(int role, const QVariant &value)
+//{
+//    if(role == Qt::EditRole)
+//        subId = value.toInt();
+//    QTableWidgetItem::setData(role, value);
+//}
 
 
 ///////////////////////////BAMoneyTypeItem/////////////////////////////

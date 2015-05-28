@@ -14,8 +14,6 @@ TestForm::TestForm(QWidget *parent) :
     ui->cmbSnd->setSubjectManager(subMgr);
     ui->cmbSnd->setSubjectClass(SubjectSelectorComboBox::SC_SND);
     connect(ui->cmbFst,SIGNAL(currentIndexChanged(int)),SLOT(fstSubChanged(int)));
-    //    //SubjectSelectorComboBox cmb(subMgr,subMgr->getFstSubject("1131"),
-    //    //                            SubjectSelectorComboBox::SC_SND,&dlg);
 }
 
 TestForm::~TestForm()

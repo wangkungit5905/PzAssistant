@@ -9,19 +9,19 @@
  * @brief The PAComboBox class
  * 此类和伙伴部件一起使用，当伙伴部件显示时，将其接收到的上下箭头键盘事件传递给伙伴
  */
-class PAComboBox : public QComboBox
-{
-    Q_OBJECT
-public:
-    PAComboBox(QWidget* parent = 0):QComboBox(parent),isPartnerView(false),partner(NULL){}
-    void setPartner(QListWidget* pw){partner=pw;}
-    void setPartnerViewState(bool isView){isPartnerView=isView;}
-protected:
-    void keyPressEvent(QKeyEvent* event);
-private:
-    bool isPartnerView;   //伙伴部件是否显示
-    QListWidget* partner; //伙伴部件
-};
+//class PAComboBox : public QComboBox
+//{
+//    Q_OBJECT
+//public:
+//    PAComboBox(QWidget* parent = 0):QComboBox(parent),isPartnerView(false),partner(NULL){}
+//    void setPartner(QListWidget* pw){partner=pw;}
+//    void setPartnerViewState(bool isView){isPartnerView=isView;}
+//protected:
+//    void keyPressEvent(QKeyEvent* event);
+//private:
+//    bool isPartnerView;   //伙伴部件是否显示
+//    QListWidget* partner; //伙伴部件
+//};
 
 /**
  * @brief The ApSpinBox class

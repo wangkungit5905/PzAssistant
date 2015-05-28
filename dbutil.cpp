@@ -12,6 +12,7 @@
 #include "utils.h"
 #include "subject.h"
 #include "accountpropertyconfig.h"
+#include "batemplateform.h"
 //#include "config.h"
 //#include "account.h"
 
@@ -4472,6 +4473,309 @@ bool DbUtil::saveSmartSSubAdapters(QList<SmartSSubAdapteItem *> &items, bool del
 }
 
 /**
+ * @brief 移除数据库中的指定发票记录
+ * @param records
+ * @return
+ */
+bool DbUtil::removeInvoiceRecords(QList<InvoiceRecord *> records)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on start transaction!");
+        return false;
+    }
+    QString s = QString("delete from %1 where id=:id").arg(tbl_invoiceRecords);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach(InvoiceRecord* r, records){
+        if(r->id == 0)
+            continue;
+        q.bindValue(":id",r->id);
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+    }
+
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on start transaction!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 清除指定年月的发票使用记录
+ * @param year
+ * @param month
+ * @return
+ */
+bool DbUtil::clearInvoiceRecords(int year, int month)
+{
+    QSqlQuery q(db);
+    QDate d(year,month,1);
+    qint64 sd = d.toJulianDay();
+    d.setDate(year,month,d.daysInMonth());
+    qint64 ed = d.toJulianDay();
+    QString s = QString("delete from %1 where %2>=%3 and %2<=%4").arg(tbl_invoiceRecords)
+            .arg(fld_ir_date).arg(sd).arg(ed);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveInvoiceRecords
+ * @param records
+ * @return
+ */
+bool DbUtil::saveInvoiceRecords(QList<InvoiceRecord *> records)
+{
+    QSqlQuery q1(db),q2(db);
+    if(!db.transaction()){
+        LOG_ERROR("Start transaction failed on save invoice records");
+        return false;
+    }
+    QString s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13) "
+                        "values(:date,:number,:isCommon,:isIncome,:customer,"
+                        ":pzNum,:bid,:zmMoney,:taxMoney,:wMoney,:mt,:state)")
+            .arg(tbl_invoiceRecords).arg(fld_ir_date).arg(fld_ir_number).arg(fld_ir_isCommon)
+            .arg(fld_ir_isIncome).arg(fld_ir_customer).arg(fld_ir_pzNumber).arg(fld_ir_baRID)
+            .arg(fld_ir_money).arg(fld_ir_taxMoney).arg(fld_ir_wmoney).arg(fld_ir_mt)
+            .arg(fld_ir_state);
+    if(!q1.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=:date,%3=:number,%4=:isCommon,%5=:isIncome,%6=:customer,"
+                "%7=:pzNum,%8=:bid,%9=:money,%10=:taxMoney,%11=:wMoney,%12=:mt,%13=:state where id=:id")
+            .arg(tbl_invoiceRecords).arg(fld_ir_date).arg(fld_ir_number)
+            .arg(fld_ir_isCommon).arg(fld_ir_isIncome).arg(fld_ir_customer)
+            .arg(fld_ir_pzNumber).arg(fld_ir_baRID).arg(fld_ir_money)
+            .arg(fld_ir_taxMoney).arg(fld_ir_wmoney).arg(fld_ir_mt).arg(fld_ir_state);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QList<InvoiceRecord *> dels;
+    foreach (InvoiceRecord* r, records) {
+        if(r->state == CAS_OK){
+            if(r->id == 0)
+                continue;
+            else
+                dels<<r;
+        }
+        qint64 d = QDate(r->year,r->month,1).toJulianDay();
+        if(r->id == 0){
+            q1.bindValue(":date",d);
+            q1.bindValue(":number",r->invoiceNumber);
+            q1.bindValue(":isCommon",r->isCommon?1:0);
+            q1.bindValue(":isIncome",r->isIncome?1:0);
+            q1.bindValue(":customer",r->customer->getId());
+            q1.bindValue(":pzNum",r->pzNumber);
+            q1.bindValue(":bid",r->baRID);
+            q1.bindValue(":zmMoney",r->money.toString2());
+            q1.bindValue(":taxMoney",r->taxMoney.toString2());
+            q1.bindValue(":wMoney",r->wmoney.toString2());
+            q1.bindValue(":mt",r->wmt->code());
+            q1.bindValue(":state",r->state);
+            if(!q1.exec()){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        else{
+            q2.bindValue(":date",d);
+            q2.bindValue(":number",r->invoiceNumber);
+            q2.bindValue(":isCommon",r->isCommon?1:0);
+            q2.bindValue(":isIncome",r->isIncome?1:0);
+            q2.bindValue(":customer",r->customer->getId());
+            q2.bindValue(":pzNum",r->pzNumber);
+            q2.bindValue(":bid",r->baRID);
+            q2.bindValue(":money",r->money.toString2());
+            q2.bindValue(":taxMoney",r->taxMoney.toString2());
+            q2.bindValue(":wMoney",r->wmoney.toString2());
+            q2.bindValue(":mt",r->wmt->code());
+            q2.bindValue(":state",r->state);
+            q2.bindValue(":id",r->id);
+            if(!q2.exec()){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+    }
+    //移除已销账的记录
+    if(!dels.isEmpty()){
+        s = QString("delete from %1 where id=:id").arg(tbl_invoiceRecords);
+        if(!q1.prepare(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        foreach (InvoiceRecord* r, dels) {
+            q1.bindValue(":id",r->id);
+            if(!q1.exec()){
+                LOG_SQLERROR(q1.lastQuery());
+                return false;
+            }
+        }
+    }
+    if(!db.commit()){
+        LOG_ERROR("Commit transaction failed on save invoice records");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 保存指定年月的发票使用记录
+ * @param year
+ * @param month
+ * @param records
+ * @return
+ */
+bool DbUtil::saveInvoiceRecords(int year, int month, QList<InvoiceRecord *> records)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_ERROR("Start transaction failed on save invoice records");
+        return false;
+    }
+    if(!clearInvoiceRecords(year,month))
+        return false;
+    QString s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(%9,%10,:number,:isCommon,:isIncome,:customer,:pzNum,baNum)")
+            .arg(tbl_invoiceRecords).arg(fld_ir_date).arg(fld_ir_number).arg(fld_ir_isCommon)
+            .arg(fld_ir_isIncome).arg(fld_ir_customer).arg(fld_ir_pzNumber).arg(fld_ir_baRID)
+            .arg(year).arg(month);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach (InvoiceRecord* r, records) {
+        q.bindValue(":number",r->invoiceNumber);
+        q.bindValue(":isCommon",r->isCommon?1:0);
+        q.bindValue(":isIncome",r->isIncome?1:0);
+        q.bindValue(":customer",r->customer->getId());
+        q.bindValue(":pzNum",r->pzNumber);
+        q.bindValue(":baNum",r->baRID);
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_ERROR("Commit transaction failed on save invoice records");
+        return false;
+    }
+
+}
+
+/**
+ * @brief 读取指定帐套应收应付记录项，包括前一年份的下半年
+ * @param asMgr
+ * @param incomes
+ * @param costs
+ * @return
+ */
+bool DbUtil::getInvoiceRecordsForYear(AccountSuiteManager* asMgr, QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs)
+{
+    QDate d(asMgr->year()-1,7,1);
+    qint64 sd = d.toJulianDay();
+    d.setDate(asMgr->year(),asMgr->getSuiteRecord()->endMonth,1);
+    d.setDate(asMgr->year(),asMgr->getSuiteRecord()->endMonth,d.daysInMonth());
+    qint64 ed = d.toJulianDay();
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2>=%3 and %2<=%4 order by %5,%6")
+            .arg(tbl_invoiceRecords).arg(fld_ir_date).arg(sd).arg(ed).arg(fld_ir_isIncome)
+            .arg(fld_ir_number);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    QHash<int,Money*> mts;
+    mts = asMgr->getAccount()->getAllMoneys();
+    while(q.next()){
+        int id = q.value(0).toInt();
+        int cid = q.value(FI_IR_CUSTOMER).toInt();
+        SubjectNameItem* ni = SubjectManager::getNameItem(cid);
+        if(!ni){
+            LOG_WARNING(QString("Fonded a invoice record contain a invalid customer id(id=%1,cid=%2)").arg(id).arg(cid));
+            continue;
+        }
+        InvoiceRecord* r = new InvoiceRecord;
+        r->id = q.value(0).toInt();
+        qint64 di = q.value(FI_IR_DATE).toLongLong();
+        QDate d = QDate::fromJulianDay(di);
+        r->year = d.year(); r->month = d.month();
+        r->customer = ni;
+        r->invoiceNumber = q.value(FI_IR_NUMBER).toString();
+        r->isIncome = q.value(FI_IR_ISINCOME).toBool();
+        r->pzNumber = q.value(FI_IR_PZNUMBER).toInt();
+        r->isCommon = q.value(Fi_IR_ISCOMMON).toBool();
+        r->baRID  = q.value(FI_IR_BARID).toInt();
+        r->money = q.value(FI_IR_MONEY).toDouble();
+        r->taxMoney = q.value(FI_IR_TAXMONEY).toDouble();
+        r->wmoney = q.value(FI_IR_WMONEY).toDouble();
+        r->wmt = mts.value(q.value(FI_IR_MONTYTYPE).toInt());
+        r->state = (CancelAccountState)q.value(FI_IR_STATE).toInt();
+        if(r->isIncome)
+            incomes<<r;
+        else
+            costs<<r;
+    }
+    return true;
+}
+
+/**
+ * @brief 读取指定年月的收入/成本发票使用记录
+ * @param year
+ * @param month
+ * @param incomes
+ * @param costs
+ * @return
+ */
+bool DbUtil::getInvoiceRecords(int year, int month, QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs)
+{
+    QSqlQuery q(db);
+    QDate d(year,month,1);
+    qint64 sd = d.toJulianDay();
+    d.setDate(year,month,d.daysInMonth());
+    qint64 ed = d.toJulianDay();
+    QString s = QString("select * from %1 where %2>=%3 and %2<=%4 order by %5,%6,%7")
+            .arg(tbl_invoiceRecords).arg(fld_ir_date).arg(sd)
+            .arg(ed).arg(fld_ir_isIncome).arg(fld_ir_number).arg(fld_ir_customer);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while (q.next()) {
+        int cid = q.value(FI_IR_CUSTOMER).toInt();
+        SubjectNameItem* ni = SubjectManager::getNameItem(cid);
+        if(!ni){
+            LOG_WARNING(QString("Fonded a invoice record contain a invalid customer id"));
+            continue;
+        }
+        InvoiceRecord* r = new InvoiceRecord;
+        r->id = q.value(0).toInt();
+        r->year = year; r->month = month;
+        r->invoiceNumber = q.value(FI_IR_NUMBER).toString();
+        r->isCommon = q.value(Fi_IR_ISCOMMON).toBool();
+        r->isIncome = q.value(FI_IR_ISINCOME).toBool();
+        r->customer = ni;
+        r->pzNumber = q.value(FI_IR_PZNUMBER).toInt();
+        r->baRID = q.value(FI_IR_BARID).toInt();
+        if(r->isIncome)
+            incomes<<r;
+        else
+            costs<<r;
+    }
+    return true;
+}
+
+/**
  * @brief DbUtil::saveAccInfoPiece
  *  保存账户信息片段
  * @param code
@@ -6536,6 +6840,122 @@ bool DbUtil::initNoteTable()
             LOG_SQLERROR(s);
             return false;
         }
+    }
+    return true;
+}
+
+/**
+ * @brief 是否存在分录模板的暂存数据
+ * @return
+ */
+bool DbUtil::existBaTemlateDatas(int type)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_baTemType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())
+        return false;
+    return type == q.value(0).toInt();
+}
+
+/**
+ * @brief 读取分录模板暂存数据
+ * @param type      要读取的模板类型
+ * @param datas
+ * @return
+ */
+bool DbUtil::readBaTemplateDatas(int type,QList<InvoiceRowStruct *> &datas)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tbl_baTemType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!q.first())
+        return false;
+    int t = q.value(0).toInt();
+    if(t != type)
+        return true;
+    QString orderByField;
+    if(type == 1)
+        orderByField = fld_btt_invoice;
+    else
+        orderByField = QString("%1,%2").arg(fld_btt_sname).arg(fld_btt_invoice);
+    s = QString("select * from %1 order by %2").arg(tbl_baTemTable).arg(orderByField);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        InvoiceRowStruct* r = new InvoiceRowStruct;
+        r->ssub = 0;
+        r->inum = q.value(1).toString();
+        r->money = q.value(2).toDouble();
+        r->taxMoney = q.value(3).toDouble();
+        r->wMoney = q.value(4).toDouble();
+        r->sname = q.value(5).toString();
+        r->lname = q.value(6).toString();
+        r->remCode = q.value(7).toString();
+        datas<<r;
+    }
+    return true;
+}
+
+/**
+ * @brief 保存分录模板暂存数据
+ * @param datas
+ * @return
+ */
+bool DbUtil::saveBaTemplateDatas(int type,const QList<InvoiceRowStruct *> &datas)
+{
+    QSqlQuery q(db);
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save bauiaction template data!");
+        return false;
+    }
+    QString s = QString("delete from %1").arg(tbl_baTemType);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("delete from %1").arg(tbl_baTemTable);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2) values(%3)").arg(tbl_baTemType).arg(fld_btt_type).arg(type);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(:inum,:money,:tax,:wm,:sname,:lname,:remcode)")
+            .arg(tbl_baTemTable).arg(fld_btt_invoice).arg(fld_btt_money).arg(fld_btt_taxMoney)
+            .arg(fld_btt_wMoney).arg(fld_btt_sname).arg(fld_btt_lname).arg(fld_btt_remCode);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    for(int i = 0; i < datas.count(); ++i){
+        InvoiceRowStruct* r = datas.at(i);
+        q.bindValue(":inum",r->inum);
+        q.bindValue(":money",r->money.toString2());
+        q.bindValue(":tax",r->taxMoney.toString2());
+        q.bindValue(":wm",r->wMoney.toString2());
+        q.bindValue(":sname",r->sname);
+        q.bindValue(":lname",r->lname);
+        q.bindValue(":remcode",r->remCode);
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save bauiaction template data!");
+        return false;
     }
     return true;
 }

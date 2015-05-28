@@ -122,7 +122,10 @@ SOURCES += main.cpp\
     application/splashscreen.cpp \
     application/paapplock.cpp \
     common/padialog.cpp \
-    aboutdialog.cpp
+    aboutdialog.cpp \
+    invoicestatform.cpp \
+    batemplateform.cpp \
+    ysyfinvoicestatform.cpp
 
 HEADERS  += \
     config.h \
@@ -205,7 +208,10 @@ HEADERS  += \
     application/paapplock.h \
     common/padialog.h \
     aboutdialog.h \
-    VersionRev.h
+    VersionRev.h \
+    invoicestatform.h \
+    batemplateform.h \
+    ysyfinvoicestatform.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -275,7 +281,10 @@ FORMS    += \
     forms/batchoutputdialog.ui \
     forms/batchimportdialog.ui \
     forms/specsubcfgform.ui \
-    forms/lookysyfitemform.ui
+    forms/lookysyfitemform.ui \
+    forms/invoicestatform.ui \
+    forms/batemplateform.ui \
+    forms/ysyfinvoicestatform.ui
 
 INCLUDEPATH +=  $$PWD/application \
                 $$PWD/common

@@ -5497,6 +5497,99 @@ void PaUtils::extractUSD(QString summary, bool &isYs, QString &invoiceNum, Doubl
 }
 
 /**
+ * @brief 如果摘要中仅包含一个发票号，则提取它，如果发票号后跟随了美金，则提取
+ *
+ * @param summary
+ * @param invoiceNumber 提取到的发票号
+ * @param money         提取到的外币金额
+ * @return 如果摘要中仅包含一个有效的发票号，则返回true，如果包含多个或没有发票号则返回false
+ */
+bool PaUtils::extractOnlyInvoiceNum(QString summary, QString &invoiceNumber, Double &money)
+{
+    QRegExp re_m(QObject::tr("(\\d{8})((（|\\()(\\$)([1-9]\\d*(\\.\\d+)?)(）|\\)))?"));
+    int pos = re_m.indexIn(summary);
+    if(pos == -1)
+        return false;
+    QString iNum = re_m.cap(1);
+    if(!re_m.cap(5).isEmpty())
+        money = Double(re_m.cap(5).toDouble());
+    if(summary.count() > pos+8){
+        QChar c = summary[pos+8];
+        if(c == '/' || c == '-' || c.isDigit())
+            return false;
+    }
+    pos = re_m.indexIn(summary,pos+8);
+    if(pos != -1)
+        return false;
+    invoiceNumber = iNum;
+    return true;
+}
+
+bool PaUtils::extractCustomerName(QString summary, QString &name)
+{
+    QString pattern = QObject::tr("(%1|%2)(.{1,})(运费\\s)")
+            .arg(QObject::tr("收")).arg(QObject::tr("付"));
+    QRegExp re_m(pattern);
+    int pos = re_m.indexIn(summary);
+    if(pos == -1)
+        return false;
+    name = re_m.cap(2);
+    return true;
+}
+
+/**
+ * @brief 将发票号转换为紧凑格式
+ * @param inums
+ * @return
+ */
+QString PaUtils::terseInvoiceNums(QStringList inums)
+{
+    QString nums;
+    inums.sort(Qt::CaseInsensitive);
+    //QStringList temList;
+    int fonded = 0;
+    int start = 0;
+    int pos = 0;
+
+    while(pos != -1){
+        pos = comparePrefix(inums,4,start,fonded);
+        if(pos != -1){
+            QString startNum = inums.takeAt(pos);
+            nums.append(" " + startNum);
+            for(int i = 0; i < fonded-1; ++i){
+                QString suffix = inums.takeAt(pos).right(4);
+                nums.append(QString("/%1").arg(suffix));
+            }
+        }
+        start = pos;
+        fonded = 0;
+    }
+    if(!inums.isEmpty()){
+        for(int i = 0; i < inums.count(); ++i){
+            nums.append(" " + inums.at(i));
+        }
+    }
+    return nums.trimmed();
+}
+
+/**
+ * @brief 将各个月份的发票号转换为紧凑格式后合并
+ * @param inums
+ * @return
+ */
+QString PaUtils::terseInvoiceNumsWithMonth(QList<int> months, QList<QStringList> inums)
+{
+    if(months.count() != inums.count())
+        return "";
+    QString mergeNums;
+    for(int i = 0; i < inums.count(); ++i){
+        mergeNums.append(QObject::tr(" %1月%2").arg(months.at(i))
+                         .arg(terseInvoiceNums(inums.at(i))));
+    }
+    return mergeNums.trimmed();
+}
+
+/**
  * @brief 从一个发票号序列中提取发票号，它可以是连续的发票号或断续的发票号
  * @param text          原始文本
  * @param InvoiceNums   提取到的发票号码
@@ -5536,6 +5629,42 @@ void PaUtils::getNumberFromSequence(QString text, QStringList &InvoiceNums)
                 InvoiceNums<<prefix+QString::number(i);
         }
     }
+}
+
+/**
+ * @brief 在给定的发票号列表中，从start指定的位置开始查找长度为plen的前缀相等的发票号
+ * 注意：原始的发票号队列以升序排列
+ * @param pnums     原始发票号列表
+ * @param plen      前缀长度
+ * @param start     开始查找的位置索引
+ * @param fondedNum 找到的个数
+ * @return 开始找到的位置索引或没有发现（-1）
+ */
+int PaUtils::comparePrefix(QStringList pnums, int plen, int start, int &fondedNum)
+{
+    if(plen<4 || plen>6 || pnums.count()<2 || start>pnums.count()-2)
+        return -1;
+    QString prefix = pnums.at(start).left(plen);
+    int i;
+    int pos = -1;
+    for(i = start+1; i < pnums.count(); ++i){
+        QString str = pnums.at(i).left(plen);
+        if(str != prefix){
+            if(pos == -1){
+                prefix = str;
+                continue;
+            }
+            else{
+                fondedNum = i - pos;
+                break;
+            }
+        }
+        else if(pos == -1)
+            pos = i - 1;
+    }
+    if(i == pnums.count())
+        fondedNum = i - pos;
+    return pos;
 }
 
 /**

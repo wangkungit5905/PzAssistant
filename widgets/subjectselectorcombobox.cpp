@@ -75,6 +75,36 @@ void SubjectSelectorComboBox::setParentSubject(FirstSubject *fsub)
     loadSndSubs();
 }
 
+/**
+ * @brief 添加临时二级科目
+ * 这主要应用在分录模板工具中，当创建借银行-贷主营业务收入或借主营业务成本贷银行的分录时
+ * 如果遇到一个只在当前月份临时出现的新客户名，且在当前的应收/应付科目下没有对应的科目，
+ * 如果为这些客户创建对应科目有点浪费资源。
+ * @param ssub
+ */
+void SubjectSelectorComboBox::addTemSndSub(SecondSubject *ssub)
+{
+    if(!ssub)
+        return;
+    if(which != SC_SND)
+        return;
+    for(int i = 0; i < count(); ++i){
+        if(itemText(i) >= ssub->getName()){
+            QVariant v; v.setValue<SecondSubject*>(ssub);
+            insertItem(i,ssub->getName(),v);
+            QList<QStandardItem*> items;
+            QStandardItem* item = new QStandardItem(ssub->getName());
+            item->setData(v,Qt::UserRole);
+            items<<item;
+            item = new QStandardItem(ssub->getCode());
+            items<<item;
+            item = new QStandardItem(ssub->getRemCode());
+            items<<item;
+            sourceModel.insertRow(i,items);
+        }
+    }
+}
+
 void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
 {
     int key = event->key();
@@ -326,6 +356,8 @@ void SubjectSelectorComboBox::showCompleteList()
 
 int SubjectSelectorComboBox::findSubject(SubjectBase *sub)
 {
+    if(!sub)
+        return -1;
     if(which == SC_FST){
         FirstSubject* fsub = static_cast<FirstSubject*>(sub);
         for(int i = 0; i < count(); ++i){

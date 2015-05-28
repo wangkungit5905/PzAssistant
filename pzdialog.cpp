@@ -18,6 +18,8 @@
 #include "myhelper.h"
 #include "utils.h"
 #include "lookysyfitemform.h"
+#include "invoicestatform.h"
+#include "batemplateform.h"
 
 #include "ui_pzdialog.h"
 #include "ui_historypzform.h"
@@ -337,7 +339,8 @@ QString BaTableWidget::getModifyTag(CommonItemEditState state)
 
 /////////////////////////////PzDialog////////////////////////////////
 PzDialog::PzDialog(int month, AccountSuiteManager *psm, QByteArray* sinfo, QWidget *parent)
-    : QDialog(parent),ui(new Ui::pzDialog),curRow(-1),isInteracting(false),pzMgr(psm)
+    : QDialog(parent),ui(new Ui::pzDialog),curRow(-1),isInteracting(false),pzMgr(psm),
+    invoiceStatForm(0),baTemplate(0)
 {
     ui->setupUi(this);
     curPz = NULL;
@@ -428,6 +431,10 @@ PzDialog::~PzDialog()
                    lookAssistant,SLOT(findItem(FirstSubject*,SecondSubject*,QHash<int,QList<int> >,QList<QStringList>)));
         delete lookAssistant;
     }
+    if(invoiceStatForm)
+        delete invoiceStatForm;
+    if(baTemplate)
+        delete baTemplate;
     delete ui;
 }
 
@@ -622,6 +629,27 @@ void PzDialog::seek(PingZheng *pz, BusiAction* ba)
             return;
         }
     }
+}
+
+/**
+ * @brief 选中指定序号的分录（基于1）
+ * @param row
+ */
+void PzDialog::selectBa(int row)
+{
+    if(!curPz || row<1 || row > curPz->baCount())
+        return;
+    ui->tview->selectRow(row-1);
+}
+
+void PzDialog::openBusiactionTemplate(BATemplateEnum type)
+{
+    if(!baTemplate){
+        baTemplate = new BaTemplateForm(pzMgr,this);
+
+    }
+    baTemplate->setTemplateType(type);
+    baTemplate->show();
 }
 
 void PzDialog::addPz()
@@ -951,6 +979,43 @@ void PzDialog::insertBa(BusiAction* ba)
     updateBas(curRow,rows-curRow,updateCols);
     ui->tview->setCurrentCell(curRow,BT_SUMMARY);
     ui->tview->edit(ui->tview->model()->index(curRow,BT_SUMMARY));
+}
+
+/**
+ * @brief 在当前行或行尾（如果没有选择当前分录）插入多条分录
+ * @param bas
+ */
+void PzDialog::insertBas(QList<BusiAction *> bas)
+{
+    if(bas.isEmpty())
+        return;
+    int row;
+    if(curRow == -1)
+        row = curPz->baCount();
+    else
+        row = curRow;
+    QUndoCommand* cmdMain = new QUndoCommand(tr("创建多条分录"));
+    for(int i = 0; i < bas.count(); ++i){
+        BusiAction* ba = bas.at(i);
+        InsertBaCmd* cmd = new InsertBaCmd(pzMgr,curPz,ba,row+i,cmdMain);
+    }
+    pzMgr->getUndoStack()->push(cmdMain);
+    int totalRows = curPz->baCount();
+
+    disconnect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
+    for(int i = 0; i < bas.count(); ++i){
+        ui->tview->insertRow(row+i);
+        initBlankBa(row+i);
+    }
+    ui->tview->setValidRows(totalRows+1);
+    delegate->setVolidRows(totalRows);
+    updateBas(row,bas.count(),BUC_ALL);
+    connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
+    QTableWidgetSelectionRange range(row,0,row+bas.count()-1,BaTableWidget::DVALUE);
+    ui->tview->setRangeSelected(range,true);
+    row += bas.count();
+    range = QTableWidgetSelectionRange(row,0,row,BaTableWidget::DVALUE);
+    ui->tview->setRangeSelected(range,false);
 }
 
 /**
@@ -1426,6 +1491,8 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             return;
         fsub = curBa->getFirstSubject();
         ssub = item->data(Qt::EditRole).value<SecondSubject*>();
+        if(!fsub || !ssub)
+            return;
         bool isEnChanged = false;
         if(!ssub->isEnabled()){
             if(QDialog::Rejected == myHelper::ShowMessageBoxQuesion(tr("二级科目“%1”已被禁用，是否重新启用？").arg(ssub->getName()))){
@@ -2132,6 +2199,18 @@ SecondSubject *PzDialog::getAdapterSSub(FirstSubject *fsub, QString summary, QSt
         return  0;
     QString name = summary.mid(index,si-index);
     return fsub->getChildSub(name);
+}
+
+/**
+ * @brief 打开发票统计窗口
+ */
+void PzDialog::openInvoiceStatForm()
+{
+    if(!invoiceStatForm){
+        invoiceStatForm = new InvoiceStatForm(pzMgr,this);
+        invoiceStatForm->resize(800,500);
+    }
+    invoiceStatForm->show();
 }
 
 /**

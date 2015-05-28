@@ -48,13 +48,12 @@ public:
     void rollback();
     int newPzSet();
     void clearPzSetCaches();
-    //StatUtil &getStatObj();
     StatUtil* getStatUtil(){return statUtil;}
     QUndoStack* getUndoStack(){return undoStack;}
     PingZheng* getCurPz(){return curPz;}
 
     int year(){return suiteRecord->year;}
-    int month(){return curM/*suiteRecord->recentMonth*/;}
+    int month(){return curM;}
     int getMaxZbNum(){return maxZbNum;}
     bool resetPzNum(int by = 1);
     PzsState getState(int curM=0);
@@ -137,6 +136,31 @@ public:
 
     QList<PingZheng *> getHistoryPzSet(int m);
 
+    //应收应付发票有关方法
+    void scanYsYfForMonth(int month,QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors,bool scanXf=false,bool reserved=true);
+    void scanYsYfForMonth2(int month,QList<InvoiceRecord *> &incomeAdds, QList<InvoiceRecord *> &incomeCancels, QList<InvoiceRecord *> &costAdds, QList<InvoiceRecord *> &costCancels, QStringList &errors);
+    void scanYsYf(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors);
+    InvoiceRecord *searchInvoice(bool isYs, QString inum);
+    bool saveYsYf();
+    void loadYsYf();
+    QList<InvoiceRecord *> getYsInvoiceStats();
+    QList<InvoiceRecord *> getYfInvoiceStats();
+    void setYsInvoiceStats(QList<InvoiceRecord *> datas){ysInvoices=datas;}
+    void setYfInvoiceStats(QList<InvoiceRecord *> datas){yfInvoices=datas;}
+
+    //扫描本月发票
+    void scanInvoice(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors);
+    void scanInvoiceGatherIncome(PingZheng* pz, QList<InvoiceRecord *> &incomes, QStringList &errors);
+    void scanInvoiceGatherCost(PingZheng* pz, QList<InvoiceRecord *> &costs, QStringList &errors);
+    bool isGatherIncomePz(PingZheng* pz, bool &ok);
+    bool isGatherCostPz(PingZheng* pz, bool &ok);
+
+
+//    QList<InvoiceRecord*> getYsInvoices();
+//    QList<InvoiceRecord*> getYfInvoices();
+
+
+
 public slots:
     void rateChanged(int month=0);
 private slots:
@@ -178,6 +202,11 @@ private:
     QList<PingZheng*> pz_dels;  //已被删除的凭证对象列表
     QList<PingZheng*> cachedPzs; //保存被删除后执行了保存操作的凭证对象（用以支持恢复任何情况下被删除的凭证对象）
     QList<PingZheng*> historyPzs;//历史凭证
+
+    //应收应付发票缓存，记录本帐套未销账的应收应付发票
+    QList<InvoiceRecord*> ysInvoices,yfInvoices;//应收发票号
+    bool isYsYfLoaded;	//应收发票是否装载完成（从发票表中装载）
+
 
     int curM;                     //当前以编辑方式打开的凭证集所属月份
     PingZheng* curPz;             //当前显示在凭证编辑窗口内的凭证对象

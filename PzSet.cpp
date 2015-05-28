@@ -6,6 +6,7 @@
 #include "statutil.h"
 #include "commands.h"
 #include "myhelper.h"
+#include "utils.h"
 
 
 
@@ -1400,6 +1401,8 @@ void AccountSuiteManager::pzsNotOpenWarning()
     QMessageBox::warning(0,tr("警告信息"),tr("凭证集未打开！"));
 }
 
+
+
 //移除凭证
 bool AccountSuiteManager::remove(PingZheng *pz)
 {
@@ -2129,6 +2132,654 @@ QList<PingZheng *> AccountSuiteManager::getHistoryPzSet(int m)
         }
     }
     return pzSetHash.value(m);
+}
+
+/**
+ * @brief 统计指定月份的应收应付发票增减情况
+ * @param month
+ * @param incomes
+ * @param costs
+ * @param errors
+ * @param scanXf    //是否扫描销方（即应收应付的消减项-贷方的应收、借方的应付）
+ * @param reserved  //是否保留已销账的记录
+ */
+void AccountSuiteManager::scanYsYfForMonth(int month, QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors, bool scanXf, bool reserved)
+{
+    if(!open(month)){
+        errors<<tr("打开%1月凭证集时发生错误！").arg(month);
+        return;
+    }
+    SubjectManager* sm = account->getSubjectManager(suiteRecord->subSys);
+    FirstSubject* ysFSub = sm->getYsSub();
+    FirstSubject* yfFSub = sm->getYfSub();
+    SecondSubject* xxSSub = sm->getXxseSSub();
+    SecondSubject* jxSSub = sm->getJxseSSub();
+    InvoiceRecord* r;
+    QList<InvoiceRecord *> dels;    //不必在保存的记录
+    for(int i = 0; i < pzs->count(); ++i){
+        PingZheng* pz = pzs->at(i);
+        for(int j = 0; j < pz->baCount(); ++j){
+            BusiAction* ba = pz->getBusiAction(j);
+            //如果是应收的借方，则提取客户、发票号和金额
+            QString inum; Double wbMoney; SecondSubject* ssub;
+            if(ba->getFirstSubject() == ysFSub && ba->getDir() == MDIR_J &&
+                    PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney)){
+                r = new InvoiceRecord;
+                r->invoiceNumber = inum;
+                r->customer = ba->getSecondSubject()->getNameItem();
+                r->baRID = ba->getId();
+                r->money = ba->getValue();
+                r->wmoney = wbMoney;
+                r->pzNumber = pz->number();
+                r->wmt = ba->getMt();
+                r->year = year();
+                r->month = month;
+                incomes<<r;
+                //如果下一条分录是该发票对应的销项税，则在已添加的列表中查找对应发票号
+                BusiAction* ba1 = pz->getBusiAction(j+1);
+                if(!ba1)
+                    continue;
+                if(ba1->getSecondSubject() == xxSSub && ba1->getDir() == MDIR_D &&
+                        PaUtils::extractOnlyInvoiceNum(ba1->getSummary(),inum,wbMoney)){
+                    if(r->invoiceNumber == inum){
+                        r->taxMoney = ba1->getValue();
+                        r->isCommon = false;
+                    }
+                    else
+                        errors<<tr("（%1#%2*）遇到一个销项税分录的发票号（%3）无配对应收项")
+                                .arg(pz->number()).arg(j+1).arg(inum);
+                }
+            }
+            //如果是应收的贷方，则根据提取到的客户和发票号，看是否可以在已存列表中销账
+            else if(scanXf && ba->getFirstSubject() == ysFSub && ba->getDir() == MDIR_D){
+                QList<int> months; QList<QStringList> invoiceNums;
+                PaUtils::extractInvoiceNum(ba->getSummary(),months,invoiceNums);
+                if(invoiceNums.isEmpty())
+                    continue;
+                QSet<QString> inums;
+                foreach(QStringList nums, invoiceNums)
+                    inums += nums.toSet();
+                for(int k = 0; k < incomes.count(); ++k){
+                    InvoiceRecord* rd = incomes.at(k);                    
+                    if(inums.contains(rd->invoiceNumber)){
+                        if(rd->customer == ba->getSecondSubject()->getNameItem()){
+                            inums.remove(rd->invoiceNumber);
+                            if(!reserved){
+                                dels<<incomes.takeAt(k);
+                                k--;
+                            }
+                            else{
+                                //大多数情况下，可能一收就销账，但个别情况不是，在程序中很难判断
+                                //比如，一次收多张发票的应收款，而且这些票可能有本币和外币的不同混合情形存在
+                                rd->state = CAS_OK;
+                            }
+                        }
+                        else{
+                            errors<<tr("（%1#%2*）遇到一个应收发票号（%3）有匹配但客户不匹配的分录")
+                                    .arg(pz->number()).arg(j+1).arg(inum);
+                        }
+                    }
+                }
+            }
+            //如果是应付的贷方，则提取客户、发票号和金额
+            else if(ba->getFirstSubject() == yfFSub && ba->getDir() == MDIR_D &&
+                    PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney)){
+                r = new InvoiceRecord;
+                r->invoiceNumber = inum;
+                r->customer = ba->getSecondSubject()->getNameItem();
+                r->baRID = ba->getId();
+                r->money = ba->getValue();
+                r->wmoney = wbMoney;
+                r->pzNumber = pz->number();
+                r->wmt = ba->getMt();
+                r->year = year();
+                r->month = month;
+                r->isIncome = false;
+                costs<<r;
+                //如果上一条分录是该发票对应的进项税，则在提取税金
+                BusiAction* ba1 = pz->getBusiAction(j-1);
+                if(!ba1)
+                    continue;
+                if(ba1->getSecondSubject() == jxSSub && ba1->getDir() == MDIR_J &&
+                        PaUtils::extractOnlyInvoiceNum(ba1->getSummary(),inum,wbMoney)){
+                    if(r->invoiceNumber == inum){
+                        r->taxMoney = ba1->getValue();
+                        r->isCommon = false;
+                    }
+                    else
+                        errors<<tr("（%1#%2*）遇到一个进项税分录的发票号（%3）无配对应付项")
+                                .arg(pz->number()).arg(j+1).arg(inum);
+                }
+            }
+            //如果是应付的借方，则根据提取到的客户和发票号，看是否可以在已存列表中销账
+            else if(scanXf && ba->getFirstSubject() == yfFSub && ba->getDir() == MDIR_J){
+                QList<int> months; QList<QStringList> invoiceNums;
+                PaUtils::extractInvoiceNum(ba->getSummary(),months,invoiceNums);
+                if(invoiceNums.isEmpty())
+                    continue;
+                QSet<QString> inums;
+                foreach(QStringList nums, invoiceNums)
+                    inums += nums.toSet();
+                for(int k = 0; k < costs.count(); ++k){
+                    InvoiceRecord* rd = costs.at(k);
+                    if(inums.contains(rd->invoiceNumber)){
+                        if(rd->customer == ba->getSecondSubject()->getNameItem()){
+                            inums.remove(rd->invoiceNumber);
+                            if(!reserved){
+                                dels<<costs.takeAt(k);
+                                k--;
+                            }
+                            else{
+                                rd->state = CAS_OK;
+                            }
+                        }
+                        else{
+                            errors<<tr("（%1#%2*）遇到一个应付发票号（%3）有匹配但客户不匹配的分录")
+                                    .arg(pz->number()).arg(j+1).arg(inum);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    account->getDbUtil()->removeInvoiceRecords(dels);
+    qDeleteAll(dels);
+    dels.clear();
+    closePzSet();
+}
+
+/**
+ * @brief 扫描指定月份凭证集，分离出应收应付的增加项和销账项
+ * @param month
+ * @param incomeAdds    应收增加项列表
+ * @param incomeCancels 应收销账项列表
+ * @param costAdds      应付增加项列表
+ * @param costCancels   应付销账项列表
+ * @param errors
+ */
+void AccountSuiteManager::scanYsYfForMonth2(int month, QList<InvoiceRecord *> &incomeAdds, QList<InvoiceRecord *> &incomeCancels, QList<InvoiceRecord *> &costAdds, QList<InvoiceRecord *> &costCancels, QStringList &errors)
+{
+    if(!open(month)){
+        errors<<tr("打开%1月凭证集时发生错误！").arg(month);
+        return;
+    }
+    SubjectManager* sm = account->getSubjectManager(suiteRecord->subSys);
+    FirstSubject* ysFSub = sm->getYsSub();
+    FirstSubject* yfFSub = sm->getYfSub();
+    SecondSubject* xxSSub = sm->getXxseSSub();
+    SecondSubject* jxSSub = sm->getJxseSSub();
+    InvoiceRecord* r;
+    for(int i = 0; i < pzs->count(); ++i){
+        PingZheng* pz = pzs->at(i);
+        for(int j = 0; j < pz->baCount(); ++j){
+            BusiAction* ba = pz->getBusiAction(j);
+            //如果是应收的借方，则提取客户、发票号和金额
+            QString inum; Double wbMoney;
+            if(ba->getFirstSubject() == ysFSub && ba->getDir() == MDIR_J &&
+                    PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney)){
+                r = new InvoiceRecord;
+                r->invoiceNumber = inum;
+                r->customer = ba->getSecondSubject()->getNameItem();
+                r->baRID = ba->getId();
+                r->money = ba->getValue();
+                r->wmoney = wbMoney;
+                r->pzNumber = pz->number();
+                r->wmt = ba->getMt();
+                r->year = year();
+                r->month = month;
+                incomeAdds<<r;
+                //如果下一条分录是该发票对应的销项税，则在已添加的列表中查找对应发票号
+                BusiAction* ba1 = pz->getBusiAction(j+1);
+                if(!ba1)
+                    continue;
+                if(ba1->getSecondSubject() == xxSSub && ba1->getDir() == MDIR_D &&
+                        PaUtils::extractOnlyInvoiceNum(ba1->getSummary(),inum,wbMoney)){
+                    if(r->invoiceNumber == inum){
+                        r->taxMoney = ba1->getValue();
+                        r->isCommon = false;
+                    }
+                    else
+                        errors<<tr("（%1#%2*）遇到一个销项税分录的发票号（%3）无配对应收项")
+                                .arg(pz->number()).arg(j+1).arg(inum);
+                }
+            }
+            //如果是应收的贷方，则根据提取到的客户和发票号，看是否可以在已存列表中销账
+            else if(ba->getFirstSubject() == ysFSub && ba->getDir() == MDIR_D){
+                QList<int> months; QList<QStringList> invoiceNums;
+                PaUtils::extractInvoiceNum(ba->getSummary(),months,invoiceNums);
+                if(invoiceNums.isEmpty())
+                    continue;
+                foreach(QStringList nums, invoiceNums){
+                    foreach(QString num, nums){
+                        InvoiceRecord* r = new InvoiceRecord;
+                        r->baRID = ba->getId();
+                        r->pzNumber = pz->number();
+                        r->invoiceNumber = num;
+                        r->customer = ba->getSecondSubject()->getNameItem();
+                        r->year = year();
+                        r->month = month;
+                        incomeCancels<<r;
+                    }
+                }
+            }
+            //如果是应付的贷方，则提取客户、发票号和金额
+            else if(ba->getFirstSubject() == yfFSub && ba->getDir() == MDIR_D &&
+                    PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney)){
+                r = new InvoiceRecord;
+                r->invoiceNumber = inum;
+                r->customer = ba->getSecondSubject()->getNameItem();
+                r->baRID = ba->getId();
+                r->money = ba->getValue();
+                r->wmoney = wbMoney;
+                r->pzNumber = pz->number();
+                r->wmt = ba->getMt();
+                r->year = year();
+                r->month = month;
+                r->isIncome = false;
+                costAdds<<r;
+                //如果上一条分录是该发票对应的进项税，则在提取税金
+                BusiAction* ba1 = pz->getBusiAction(j-1);
+                if(!ba1)
+                    continue;
+                if(ba1->getSecondSubject() == jxSSub && ba1->getDir() == MDIR_J &&
+                        PaUtils::extractOnlyInvoiceNum(ba1->getSummary(),inum,wbMoney)){
+                    if(r->invoiceNumber == inum){
+                        r->taxMoney = ba1->getValue();
+                        r->isCommon = false;
+                    }
+                    else
+                        errors<<tr("（%1#%2*）遇到一个进项税分录的发票号（%3）无配对应付项")
+                                .arg(pz->number()).arg(j+1).arg(inum);
+                }
+            }
+            //如果是应付的借方，则根据提取到的客户和发票号，看是否可以在已存列表中销账
+            else if(ba->getFirstSubject() == yfFSub && ba->getDir() == MDIR_J){
+                QList<int> months; QList<QStringList> invoiceNums;
+                PaUtils::extractInvoiceNum(ba->getSummary(),months,invoiceNums);
+                if(invoiceNums.isEmpty())
+                    continue;
+                foreach(QStringList nums, invoiceNums){
+                    foreach(QString num, nums){
+                        InvoiceRecord* r = new InvoiceRecord;
+                        r->baRID = ba->getId();
+                        r->pzNumber = pz->number();
+                        r->isIncome = false;
+                        r->invoiceNumber = num;
+                        r->customer = ba->getSecondSubject()->getNameItem();
+                        r->year = year();
+                        r->month = month;
+                        costCancels<<r;
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * @brief 统计应收应付发票的增加和销账情况
+ * 用来初始化账户的最后帐套内现存未销账应收应付发票
+ * 以辅助分录模板的正常运作（即在创建应收应付分录时可以自动按发票号填写相关金额）
+ * @param incomes
+ * @param costs
+ * @param errors
+ */
+void AccountSuiteManager::scanYsYf(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors)
+{
+    //前一个月增加应收应付发票，从次月开始同时增加和抵消发票
+    //为简单起见，只在最新帐套的开始月份扫描
+    if(isPzSetOpened())
+        closePzSet();
+    int em = suiteRecord->startMonth;
+    PzsState state = getState(em);
+    while(state == Ps_Jzed){
+        em++;
+        state = getState(em);
+    }
+    for(int m = suiteRecord->startMonth; m < em; ++m)
+        scanYsYfForMonth(m,incomes,costs,errors,m>suiteRecord->startMonth,false);
+}
+
+/**
+ * @brief 扫描当前凭证集的发票使用情况
+ */
+void AccountSuiteManager::scanInvoice(QList<InvoiceRecord*> &incomes, QList<InvoiceRecord*> &costs, QStringList &errors)
+{
+//    （1）主营业务收入在贷方，且摘要中可以提取一个发票号，则认为是一个有效的收入发票
+//    （2）与此相对，主营业务在借方，且摘要中可以提取一个发票号，则认为是一个有效的成本发票
+
+//    （3）如果存在主营业务收入在贷方，但摘要中无法提取发票号，且其他分录仅包含在借方的应收和在贷方的销项税，
+//    则可以认为是应收发票的聚集凭证，则每个应收对应一张发票，如果有销项税，则是专票。
+
+//    (4)与此相反的是成本聚集凭证
+
+//    对于收入成本抵扣型的凭证，只能出现在非聚集凭证中，且有如下特征：
+//    有与发票号相连的收入/成本项，且存在包含银行存款的分录
+
+
+//    扫描算法：
+//    如果遇到一个符合第（1）或（2）的分录，则可以直接提取发票号
+//    如果凭证的第一条分录是包含发票号的应收，且在借方，且最后一条分录是没有发票号的主营业务收入在贷方，则视为收入聚集凭证
+//    如果凭证的第一条分录是没有发票号的成本在借方，则视为成本聚集凭证。
+    if(!isPzSetOpened() || pzs->isEmpty())
+        return;
+    SubjectManager* sm = getSubjectManager();
+    FirstSubject* fs_income = sm->getZysrSub();
+    FirstSubject* fs_cost = sm->getZycbSub();
+    SecondSubject* ss_xx = sm->getXxseSSub();
+    SecondSubject* ss_jx = sm->getJxseSSub();
+    foreach(PingZheng* pz, *pzs){
+        bool ok = false;
+        if(!isGatherIncomePz(pz,ok)){
+            LOG_WARNING(QString("Don't distinguish ping zheng class on scan invoice number(pz number is %1)").arg(pz->number()));
+            continue;
+        }
+        if(ok){
+            scanInvoiceGatherIncome(pz,incomes,errors);
+            continue;
+        }
+        ok = false;
+        if(!isGatherCostPz(pz,ok)){
+            LOG_WARNING(QString("Don't distinguish ping zheng class on scan invoice number(pz number is %1)").arg(pz->number()));
+            continue;
+        }
+        if(ok){
+            scanInvoiceGatherCost(pz,costs,errors);
+            continue;
+        }
+        //为了查找的方便，这里对于分录出现的顺序有个约定：对于同一张发票，收入/成本在前，税金在后
+        for(int i = 0; i < pz->baCount(); ++i){
+            BusiAction* ba = pz->getBusiAction(i);
+            QString invoiceNumber;
+            Double wMoney;
+            //主营业务收入            
+            if(ba->getFirstSubject() == fs_income && ba->getDir() == MDIR_D &&
+                    PaUtils::extractOnlyInvoiceNum(ba->getSummary(),invoiceNumber,wMoney)){
+                InvoiceRecord* r = new InvoiceRecord;
+                r->year = suiteRecord->year;
+                r->month = curM;
+                r->invoiceNumber = invoiceNumber;
+                r->money = ba->getValue();
+                r->pzNumber = pz->number();
+                r->baRID = ba->getId();
+                r->state = CAS_OK;
+                //提取客户名简称
+                QString customerName;
+                if(!PaUtils::extractCustomerName(ba->getSummary(),customerName))
+                    errors<<tr("（%1#%2*）从摘要中提取客户名失败！").arg(pz->number()).arg(i+1);
+                if(customerName.isEmpty() || !(r->customer=sm->getNameItem(customerName)))
+                    errors<<tr("（%1#%2*）从摘要中提取到一个账户中还不存在的客户名“%3”！")
+                            .arg(pz->number()).arg(i+1).arg(customerName);
+                //如果下一条分录是与其对应的税额则合并处理
+                if(i < pz->baCount()-1){
+                    i++;
+                    BusiAction* ba1 = pz->getBusiAction(i);
+                    QString inum; Double v;
+                    if(ba1->getSecondSubject() == ss_xx && ba1->getDir() == MDIR_D &&
+                           PaUtils::extractOnlyInvoiceNum(ba1->getSummary(),inum,v) &&
+                            inum == invoiceNumber){
+                        r->isCommon = false;
+                        r->money += ba1->getValue();
+                        r->taxMoney = ba1->getValue();
+                    }
+                }
+                incomes<<r;
+            }
+            else if(ba->getFirstSubject() == fs_cost && ba->getDir() == MDIR_J &&
+                    PaUtils::extractOnlyInvoiceNum(ba->getSummary(),invoiceNumber,wMoney)){
+                InvoiceRecord* r = new InvoiceRecord;
+                r->year = suiteRecord->year;
+                r->month = curM;
+                r->isIncome = false;
+                r->invoiceNumber = invoiceNumber;
+                r->money = ba->getValue();
+                r->pzNumber = pz->number();
+                r->baRID = ba->getId();
+                r->state = CAS_OK;
+                QString customerName;
+                if(!PaUtils::extractCustomerName(ba->getSummary(),customerName))
+                    errors<<tr("（%1#%2*）从摘要中提取客户名失败！").arg(pz->number()).arg(i+1);
+                if(customerName.isEmpty() || !(r->customer=sm->getNameItem(customerName)))
+                    errors<<tr("（%1#%2*）从摘要中提取到一个账户中还不存在的客户名“%3”！")
+                            .arg(pz->number()).arg(i+1).arg(customerName);
+                if(i < pz->baCount()-1){
+                    i++;
+                    BusiAction* ba1 = pz->getBusiAction(i);
+                    QString inum; Double v;
+                    if(ba1->getSecondSubject() == ss_jx && ba1->getDir() == MDIR_J &&
+                           PaUtils::extractOnlyInvoiceNum(ba1->getSummary(),inum,v) &&
+                            inum == invoiceNumber){
+                        r->isCommon = false;
+                        r->money += ba1->getValue();
+                        r->taxMoney = ba1->getValue();
+                    }
+                }
+                costs<<r;
+            }
+        }
+    }
+}
+
+//扫描聚合收入凭证
+void AccountSuiteManager::scanInvoiceGatherIncome(PingZheng *pz, QList<InvoiceRecord *> &incomes,QStringList &errors)
+{
+    //按约定，最后一条分录是收入的汇总，摘要中一般不出现发票号，
+    //对于每张发票，第一条分录是应收在借方，如果后面跟了相同发票号码的销项税分录，则此发票为专票
+    //否者是普票
+    SubjectManager* sm = getSubjectManager();
+    FirstSubject* fs_ys = sm->getYsSub();
+    SecondSubject* ss_xx = sm->getXxseSSub();
+    Money* usd = account->getAllMoneys().value(USD);
+    for(int i = 0; i < pz->baCount()-1; ++i){
+        BusiAction* ba = pz->getBusiAction(i);
+        QString invoiceNumber;
+        Double wMoney;
+        if(ba->getFirstSubject() == fs_ys && ba->getDir() == MDIR_J &&
+                PaUtils::extractOnlyInvoiceNum(ba->getSummary(),invoiceNumber,wMoney)){
+            InvoiceRecord* r = new InvoiceRecord;
+            r->year = suiteRecord->year;
+            r->month = curM;
+            r->pzNumber = pz->number();
+            r->baRID = ba->getId();
+            r->invoiceNumber = invoiceNumber;
+            r->customer = ba->getSecondSubject()->getNameItem();
+            r->money = ba->getValue();
+            if(wMoney != 0){
+                r->wmt = usd;
+                r->wmoney = wMoney;
+            }
+            incomes<<r;
+        }
+        else if(ba->getSecondSubject() == ss_xx && ba->getDir() == MDIR_D &&
+                PaUtils::extractOnlyInvoiceNum(ba->getSummary(),invoiceNumber,wMoney)){
+            if(!incomes.isEmpty() && incomes.last()->invoiceNumber == invoiceNumber){
+                incomes.last()->isCommon = false;
+                incomes.last()->taxMoney = ba->getValue();
+            }
+            else
+                errors<<tr("（%1#%2*）遇到一个发票号（%3）无配对应收项的销项税分录")
+                        .arg(pz->number()).arg(i+1).arg(invoiceNumber);
+        }
+    }
+}
+
+//扫描聚合成本凭证
+void AccountSuiteManager::scanInvoiceGatherCost(PingZheng *pz, QList<InvoiceRecord *> &costs, QStringList &errors)
+{
+    //按约定，第一条分录是成本的汇总，摘要中一般不出现发票号，
+    //对于每张发票，第一条分录如果是进项税在借方，则是专票，否者是普票
+    //后面跟了相同发票号码的应付在贷方
+
+    SubjectManager* sm = getSubjectManager();
+    FirstSubject* fs_yf = sm->getYfSub();
+    SecondSubject* ss_jx = sm->getJxseSSub();
+    Money* usd = account->getAllMoneys().value(USD);
+    QString preInvoiceNumber;   //记录先前发现的发票号（从进项税额所在分录提取到的）
+    Double preTaxMoney;         //税额
+    for(int i = 1; i < pz->baCount(); ++i){
+        BusiAction* ba = pz->getBusiAction(i);
+        QString invoiceNumber;
+        Double wMoney;
+        if(ba->getSecondSubject() == ss_jx && ba->getDir() == MDIR_J &&
+                PaUtils::extractOnlyInvoiceNum(ba->getSummary(),invoiceNumber,wMoney)){
+            preInvoiceNumber = invoiceNumber;
+            preTaxMoney = ba->getValue();
+        }
+        else if(ba->getFirstSubject() == fs_yf && ba->getDir() == MDIR_D &&
+                PaUtils::extractOnlyInvoiceNum(ba->getSummary(),invoiceNumber,wMoney)){
+            InvoiceRecord* r = new InvoiceRecord;
+            r->year = suiteRecord->year;
+            r->month = curM;
+            r->pzNumber = pz->number();
+            r->baRID = ba->getId();
+            r->isIncome = false;
+            if(!preInvoiceNumber.isEmpty()){
+                if(preInvoiceNumber == invoiceNumber){
+                    r->isIncome = false;
+                    r->taxMoney = preTaxMoney;
+                }
+                else{
+                    errors<<tr("（%1#%2*）遇到一个发票号（%3）无配对应付项的进项税分录")
+                            .arg(pz->number()).arg(i+1).arg(preInvoiceNumber);
+                }
+                preInvoiceNumber.clear();
+                preTaxMoney = 0;
+            }
+            r->invoiceNumber = invoiceNumber;
+            r->customer = ba->getSecondSubject()->getNameItem();
+            r->money = ba->getValue();
+            if(wMoney != 0){
+                r->wmt = usd;
+                r->wmoney = wMoney;
+            }
+            costs<<r;
+        }
+    }
+}
+
+/**
+ * @brief //是否是聚合收入凭证
+ * @param pz
+ * @param ok    true：是，false：不是
+ * @return false：无法识别
+ */
+bool AccountSuiteManager::isGatherIncomePz(PingZheng *pz, bool &ok)
+{
+    int baNums = pz->baCount();
+    if(baNums <= 1)
+        return false;    
+    SubjectManager* sm = getSubjectManager();
+    FirstSubject* fs_ys = sm->getYsSub();
+    FirstSubject* fs_sr = sm->getZysrSub();
+    SecondSubject* ss_xx = sm->getXxseSSub();
+    for(int i = 0; i < pz->baCount(); ++i){
+        BusiAction* ba = pz->getBusiAction(i);
+        if(ba->getFirstSubject() == fs_ys && ba->getDir() == MDIR_J)
+            continue;
+        else if(ba->getFirstSubject() == fs_sr && ba->getDir() == MDIR_D)
+            continue;
+        else if(ba->getSecondSubject() == ss_xx && ba->getDir() == MDIR_D)
+            continue;
+        else{
+            ok = false;
+            return true;
+        }
+    }
+    ok = true;
+    return true;
+}
+
+//是否是聚合成本凭证
+bool AccountSuiteManager::isGatherCostPz(PingZheng *pz, bool &ok)
+{
+    if(pz->baCount() <= 1)
+        return false;
+    SubjectManager* sm = getSubjectManager();
+    FirstSubject* fs_yf = sm->getYfSub();
+    FirstSubject* fs_cb = sm->getZycbSub();
+    SecondSubject* ss_jx = sm->getJxseSSub();
+    for(int i = 0; i < pz->baCount(); ++i){
+        BusiAction* ba = pz->getBusiAction(i);
+        if(ba->getFirstSubject() == fs_yf && ba->getDir() == MDIR_D)
+            continue;
+        else if(ba->getFirstSubject() == fs_cb && ba->getDir() == MDIR_J)
+            continue;
+        else if(ba->getSecondSubject() == ss_jx && ba->getDir() == MDIR_J)
+            continue;
+        else{
+            ok = false;
+            return true;
+        }
+    }
+    ok = true;
+    return true;
+}
+
+/**
+ * @brief 装载本帐套内的应收应付发票缓存
+ */
+void AccountSuiteManager::loadYsYf()
+{
+    account->getDbUtil()->getInvoiceRecordsForYear(this,ysInvoices,yfInvoices);
+    isYsYfLoaded = true;
+}
+
+QList<InvoiceRecord *> AccountSuiteManager::getYsInvoiceStats()
+{
+    if(!isYsYfLoaded)
+        loadYsYf();
+    return ysInvoices;
+}
+
+QList<InvoiceRecord *> AccountSuiteManager::getYfInvoiceStats()
+{
+    if(!isYsYfLoaded)
+        loadYsYf();
+    return yfInvoices;
+}
+
+//QList<InvoiceRecord *> AccountSuiteManager::getYsInvoices()
+//{
+//    if(!isYsYfLoaded)
+//}
+
+//QList<InvoiceRecord *> AccountSuiteManager::getYfInvoices()
+//{
+
+//}
+
+/**
+ * @brief 查找应收应付发票号
+ * @param isYs  true：应收，false：应付
+ * @param inum  发票号
+ * @return 与发票号对应的记录项
+ */
+InvoiceRecord *AccountSuiteManager::searchInvoice(bool isYs, QString inum)
+{
+    if(!isYsYfLoaded)
+        loadYsYf();
+    QList<InvoiceRecord*> *pi;
+    if(isYs)
+        pi = &ysInvoices;
+    else
+        pi = &yfInvoices;
+    for(int i = 0; i < pi->count(); ++i){
+        InvoiceRecord* r = pi->at(i);
+        if(r->invoiceNumber == inum)
+            return r;
+    }
+    return 0;
+}
+
+/**
+ * @brief 将应收应付发票统计缓存中的内容保存到数据库中
+ * @return
+ */
+bool AccountSuiteManager::saveYsYf()
+{
+    if(!account->getDbUtil()->saveInvoiceRecords(ysInvoices))
+        return false;
+    return account->getDbUtil()->saveInvoiceRecords(yfInvoices);
 }
 
 /**

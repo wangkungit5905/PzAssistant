@@ -1,4 +1,5 @@
 #include "cal.h"
+#include "common.h"
 
 Money* MT_NULL;
 Money* MT_ALL;
@@ -408,103 +409,22 @@ Money::Money(const Money &other)
     m_sign = other.m_sign;
 }
 
+//返回一个字符表示的货币符号
+QString Money::simpleSign()
+{
+    if(m_code == RMB)
+        return QObject::tr("￥");
+    else if(m_code == USD)
+        return "$";
+    else
+        return "";
+}
+
 bool byMoneyCodeGreatthan(Money* m1, Money* m2)
 {
     return m1->code() > m2->code();
 }
 
 
-//bool Money::getRate(int y,int m, QHash<int,Double> &rates, QSqlDatabase db)
-//{
-//    QSqlQuery q(db);
-//    QString s;
 
-//    s = QString("select * from %1 where code!=%2")
-//            .arg(tbl_mt).arg(RMB);
-//    if(!q.exec(s))
-//        return false;
-//    QHash<int,QString> msHash; //货币代码到货币符号的映射
-//    while(q.next()){
-//        msHash[q.value(MT_CODE).toInt()] = q.value(MT_SIGN).toString();
-//    }
-
-//    s = QString("select * from %1 where (%2=%3) and (%4=%5)")
-//            .arg(tbl_exchangeRate).arg(fld_exrate_year).arg(y)
-//            .arg(fld_exrate_month).arg(m);
-//    if(!q.exec(s) || !q.first())
-//        return false;
-//    QSqlRecord record = q.record();
-//    QHashIterator<int,QString> it(msHash);
-//    while(it.hasNext()){
-//        it.next();
-//        QString fldName = it.value()+"2rmb";
-//        int idx = record.indexOf(fldName);
-//        Double rate = Double(q.value(idx).toDouble());
-//        rates[it.key()] = rate;
-//    }
-//    return true;
-//}
-
-//bool Money::saveRate(int y, int m, QHash<int, Double> rates, QSqlDatabase db)
-//{
-//    QSqlQuery q(db);
-//    QString s;
-
-//    s = QString("select * from %1 where code!=%2")
-//            .arg(tbl_mt).arg(RMB);
-//    if(!q.exec(s))
-//        return false;
-//    QHash<int,QString> msHash; //货币代码到货币符号的映射
-//    while(q.next())
-//        msHash[q.value(MT_CODE).toInt()] = q.value(MT_SIGN).toString();
-
-//    s = QString("update %1 set ").arg(tbl_exchangeRate);
-//    QHashIterator<int,QString> it(msHash);
-//    while(it.hasNext()){
-//        it.next();
-//        Double rate = rates.value(it.key());
-//        QString fldName = it.value()+"2rmb";
-//        s.append(fldName.append(QString("=%1").arg(rate.getv())));
-//        s.append(QString(" where (%1=%2) and (%3=%4)").arg(fld_exrate_year)
-//                 .arg(y).arg(fld_exrate_month).arg(m));
-//        if(!q.exec(s))
-//            return false;
-//    }
-//    return true;
-//}
-
-//获取所有应用支持的币种（账户数据库表“MoneyTypes”中的每种货币都是使用的）
-//参数db是基本库连接
-//bool Money::getAllMts(QHash<int, Money *> &mts, QSqlDatabase db)
-//{
-//    QSqlQuery q(db);
-//    QString s;
-
-//    s = QString("select * from MoneyTypes");
-//    if(!q.exec(s))
-//        return false;
-//    while(q.next()){
-//        int code = q.value(MT_CODE).toInt();
-//        QString sign = q.value(MT_SIGN).toString();
-//        QString name = q.value(MT_NAME).toString();
-//        mts[code] = new Money(code,name,sign);
-//    }
-//    return true;
-//}
-
-//获取指定币种代码的币种名称
-//bool Money::getMtName(int code, QString &name, QSqlDatabase db)
-//{
-//    QSqlQuery q(db);
-//    QString s;
-
-//    s = QString("select %1 from %2 where %3=%4").arg(fld_mt_name)
-//            .arg(tbl_mt).arg(fld_mt_code).arg(code);
-//    if(!q.exec(s))
-//        return false;
-//    if(!q.first())
-//        return false;
-//    name = q.value(0).toString();
-//    return true;
-//}
 

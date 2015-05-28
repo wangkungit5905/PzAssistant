@@ -21,6 +21,7 @@ class SubjectManager;
 class FirstSubject;
 class PingZheng;
 struct SmartSSubAdapteItem;
+struct InvoiceRowStruct;
 
 class DbUtil
 {
@@ -215,6 +216,19 @@ public:
     //智能子目适配项访问函数
     bool loadSmartSSubAdaptes(SubjectManager* sm, QList<SmartSSubAdapteItem *> &items);
     bool saveSmartSSubAdapters(QList<SmartSSubAdapteItem *> &items,bool del=false);
+
+    //发票使用情况记录访问函数
+    bool removeInvoiceRecords(QList<InvoiceRecord*> records);
+    bool clearInvoiceRecords(int year, int month);
+    bool saveInvoiceRecords(QList<InvoiceRecord*> records);
+    bool saveInvoiceRecords(int year, int month, QList<InvoiceRecord*> records);
+    bool getInvoiceRecordsForYear(AccountSuiteManager *asMgr, QList<InvoiceRecord*> &incomes, QList<InvoiceRecord*> &costs);
+    bool getInvoiceRecords(int year, int month, QList<InvoiceRecord*> &incomes, QList<InvoiceRecord*> &costs);
+
+    //分录模板数据访问函数
+    bool existBaTemlateDatas(int type);
+    bool readBaTemplateDatas(int type, QList<InvoiceRowStruct*> &datas);
+    bool saveBaTemplateDatas(int type,const QList<InvoiceRowStruct*> &datas);
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool _readAccountSuites(QList<AccountSuiteRecord*>& suites);
@@ -273,6 +287,7 @@ private:
 
     //笔记功能函数
     bool initNoteTable();
+
 
 
 private:

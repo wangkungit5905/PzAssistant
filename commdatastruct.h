@@ -572,7 +572,8 @@ enum subWindowType{
     SUBWIN_SECURITY = 21,       //安全模块配置窗口
     SUBWIN_NOTEMGR = 22,        //笔记管理
     SUBWIN_EXTERNALTOOLS = 23,  //外部工具
-    SUBWIN_LOGVIEW = 24         //日志视图
+    SUBWIN_LOGVIEW = 24,        //日志视图
+    SUBWIN_YSYFSTAT = 25        //应收应付发票统计
     //设置期初余额的窗口
     //科目配置窗口
 };
@@ -691,6 +692,54 @@ enum BaseDbVersionEnum{
 enum CommonPromptPhraseClass{
     CPPC_TRAN_IN    = 1,
     CPPC_TRAN_OUT   = 2
+};
+
+/**
+ * @brief 发票的销账状态（即应收是否收入，应付是否付了）
+ */
+enum CancelAccountState {
+    CAS_NONE = 0,   //未销账
+    CAS_PARTLY = 1, //部分销账
+    CAS_OK = 2      //已销账
+};
+
+/**
+ * @brief 发票使用记录
+ */
+struct InvoiceRecord{
+    int id;
+    int year,month;
+    bool isIncome;              //true：收入，false：成本
+    bool isCommon;              //true：普票，false：专票
+    QString invoiceNumber;      //发票号
+    SubjectNameItem* customer;  //关联客户
+    int pzNumber;               //凭证号
+    int baRID;                  //分录记录的id
+    Double money,wmoney;        //账面金额（本币金额），外币金额
+    Money* wmt;                 //外币币种（通常是美金）
+    Double taxMoney;            //税额
+    CancelAccountState state;   //发票销账状态
+
+    InvoiceRecord(){
+        id = 0;
+        year=0; month=0;
+        isIncome=true;isCommon=true;
+        customer=0;pzNumber=0;
+        baRID=0;/*money=0;wmoney=0;*/
+        wmt=0;state=CAS_NONE;
+    }
+};
+
+/**
+ * @brief 分录模板类型枚举
+ */
+enum BATemplateEnum{
+    BATE_BANK_INCOME = 1,
+    BATE_YS_INCOME = 2,
+    BATE_BANK_COST = 3,
+    BATE_YF_COST = 4,
+    BATE_YS_GATHER = 5,
+    BATE_YF_GATHER = 6
 };
 
 #endif // COMMDATASTRUCT_H

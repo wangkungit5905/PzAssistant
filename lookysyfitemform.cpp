@@ -3,11 +3,66 @@
 #include "dbutil.h"
 #include "tables.h"
 #include "utils.h"
+#include "account.h"
 #include "ui_lookysyfitemform.h"
 
 #include <QMouseEvent>
 #include <QMenu>
 
+IntItemDelegate::IntItemDelegate(Account *account, QWidget *parent)
+    :QItemDelegate(parent),_account(account)
+{
+
+}
+
+QWidget *IntItemDelegate::createEditor(QWidget *parent, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    int col = index.column();
+    if(col == CI_JOIN || col == CI_YEAR)
+        return 0;
+    int row = index.row();
+    int year = index.model()->data(index.model()->index(row,CI_YEAR)).toInt();
+    if(year == 0)
+        return 0;
+    AccountSuiteRecord* asr = _account->getSuiteRecord(year);
+    if(!asr)
+        return 0;
+    QSpinBox* editor = new QSpinBox(parent);
+    if(col == CI_SMONTH){
+        editor->setMinimum(asr->startMonth);
+        editor->setMaximum(index.model()->data(index.model()->index(row,CI_EMONTH)).toInt());
+    }
+    else{
+        editor->setMinimum(index.model()->data(index.model()->index(row,CI_SMONTH)).toInt());
+        editor->setMaximum(asr->endMonth);
+    }
+    return editor;
+}
+
+void IntItemDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
+{
+    QSpinBox* edit = qobject_cast<QSpinBox*>(editor);
+    if(edit)
+        edit->setValue(index.model()->data(index, Qt::EditRole).toInt());
+}
+
+void IntItemDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
+{
+    QSpinBox* edit = qobject_cast<QSpinBox*>(editor);
+    if(edit){
+        if(edit->value() != model->data(index,Qt::EditRole).toInt())
+            model->setData(index, edit->value());
+    }
+}
+
+void IntItemDelegate::updateEditorGeometry(QWidget *editor, const QStyleOptionViewItem &option, const QModelIndex &index) const
+{
+    QRect rect = option.rect;
+    editor->setGeometry(rect);
+}
+
+
+////////////////////////////////////////////////////////////////////////
 LookYsYfItemForm::LookYsYfItemForm(Account *account, QWidget *parent) : QWidget(parent),
     ui(new Ui::LookYsYfItemForm),account(account)
 {
@@ -31,11 +86,29 @@ LookYsYfItemForm::LookYsYfItemForm(Account *account, QWidget *parent) : QWidget(
     mtTypes = account->getAllMoneys();
     _fsub = 0; _ssub = 0;
     this->parent = qobject_cast<PzDialog*>(parent);
-    _turnOn();
-    _timer.setSingleShot(false);
-    _timer.setInterval(500);
-    connect(&_timer,SIGNAL(timeout()),this,SLOT(flickerIcon()));
-    connect(ui->cmbYear,SIGNAL(currentIndexChanged(int)),this,SLOT(yearChanged(int)));
+    _flickeTimer.setSingleShot(false);
+    _flickeTimer.setInterval(500);
+    _catchTimer.setSingleShot(true);
+    _catchTimer.setInterval(500);
+    connect(&_flickeTimer,SIGNAL(timeout()),this,SLOT(flickerIcon()));
+    connect(&_catchTimer,SIGNAL(timeout()),this,SLOT(catchMouse()));
+
+    QList<AccountSuiteRecord*> rs = account->getAllSuiteRecords();
+    ui->twRange->setRowCount(rs.count());
+    int row=0;
+    for(int i = rs.count()-1; i >= 0; i--,row++){
+        QCheckBox* chk = new QCheckBox(this);
+        ui->twRange->setCellWidget(row,IntItemDelegate::CI_JOIN,chk);
+        AccountSuiteRecord* asr = rs.at(i);
+        QTableWidgetItem* item = new QTableWidgetItem(QString::number(asr->year));
+        ui->twRange->setItem(row,IntItemDelegate::CI_YEAR,item);
+        item = new QTableWidgetItem(QString::number(asr->startMonth));
+        ui->twRange->setItem(row,IntItemDelegate::CI_SMONTH,item);
+        item = new QTableWidgetItem(QString::number(asr->endMonth));
+        ui->twRange->setItem(row,IntItemDelegate::CI_EMONTH,item);
+    }
+    IntItemDelegate* delegate = new IntItemDelegate(account,this);
+    ui->twRange->setItemDelegate(delegate);
 }
 
 LookYsYfItemForm::~LookYsYfItemForm()
@@ -46,33 +119,33 @@ LookYsYfItemForm::~LookYsYfItemForm()
 void LookYsYfItemForm::leaveEvent(QEvent *event)
 {
     QMouseEvent* e = static_cast<QMouseEvent*>(event);
-    if(e && isNormal){
-        isNormal = false;
-        ui->detailWidget->setHidden(true);
-        ui->icon->setHidden(false);
-        show();
+    if(!e)
+        return;
+    if(!isNormal){
+        _catchTimer.stop();
+        return;
     }
+    _catchTimer.start();
 }
 
 void LookYsYfItemForm::enterEvent(QEvent *event)
 {
     QMouseEvent* e = static_cast<QMouseEvent*>(event);
-    if(e && !isNormal){
-        isNormal = true;
-        ui->icon->setHidden(true);
-        ui->detailWidget->setHidden(false);
-        if(_timer.isActive()){
-            _timer.stop();
-            ui->icon->setPixmap(_iconPix);
-        }
-        show();
+    if(!e)
+        return;
+    if(isNormal){
+        _catchTimer.stop();
+        return;
     }
+    _catchTimer.start();
 }
 
 void LookYsYfItemForm::mouseMoveEvent(QMouseEvent *e)
 {
     if (mousePressed && (e->buttons() && Qt::LeftButton)) {
         this->move(e->globalPos() - mousePoint);
+        if(_catchTimer.isActive())
+            _catchTimer.stop();
         e->accept();
     }
 }
@@ -97,20 +170,6 @@ void LookYsYfItemForm::mouseReleaseEvent(QMouseEvent *e)
         mousePressed = false;
 }
 
-//void LookYsYfItemForm::mouseDoubleClickEvent(QMouseEvent *event)
-//{
-//    if(!isNormal){
-//        isNormal = true;
-//        ui->icon->setHidden(true);
-//        ui->detailWidget->setHidden(false);
-//        if(_timer.isActive()){
-//            _timer.stop();
-//            ui->icon->setPixmap(_iconPix);
-//        }
-//    }
-//    show();
-//}
-
 void LookYsYfItemForm::closeWindow()
 {
     close();
@@ -118,60 +177,11 @@ void LookYsYfItemForm::closeWindow()
         parent->LookYsYfFormTellBye();
 }
 
-void LookYsYfItemForm::yearChanged(int index)
-{
-    if(index == -1)
-        return;
-    int y = ui->cmbYear->itemData(index).toInt();
-    int i = 0;
-    while(i < _range.count()){
-        if(_range.at(i) == y){
-            _turnOn(false);
-            AccountSuiteRecord* asr = account->getSuiteRecord(y);
-            ui->spnUp->setMinimum(asr?asr->startMonth:1);
-            ui->spnUp->setMaximum(_range.at(i+2));
-            ui->spnUp->setValue(_range.at(i+1));
-            ui->spnDown->setMinimum(_range.at(i+1));
-            ui->spnDown->setMaximum(asr?asr->endMonth:12);
-            ui->spnDown->setValue(_range.at(i+2));
-            _turnOn();
-            break;
-        }
-        i += 3;
-    }
-}
-
-/**
- * @brief 记录开始或结束月份的改变
- * @param i
- */
-void LookYsYfItemForm::monthChanged(int m)
-{
-    if(_range.isEmpty())
-        return;
-    int y = ui->cmbYear->currentData(Qt::UserRole).toInt();
-    int i = 0;
-    while(i < _range.count()){
-        if(_range.at(i) == y)
-            break;
-        i+=3;
-    }
-    QSpinBox* spn = qobject_cast<QSpinBox*>(sender());
-    if(spn == ui->spnUp){
-        _range[i+1] = m;
-        ui->spnDown->setMinimum(m);
-    }
-    else if(spn == ui->spnDown){
-        _range[i+2] = m;
-        ui->spnUp->setMaximum(m);
-    }
-}
-
 void LookYsYfItemForm::flickerIcon()
 {
     static int count = 0;
     if(count == 6){
-        _timer.stop();
+        _flickeTimer.stop();
         return;
     }
     if(count%2 == 1)
@@ -179,6 +189,28 @@ void LookYsYfItemForm::flickerIcon()
     else
         ui->icon->setPixmap(QPixmap());
     count++;
+}
+
+/**
+ * @brief 捕获鼠标的进入和退出事件（进入或退出窗口区域达指定的时间间隔）
+ */
+void LookYsYfItemForm::catchMouse()
+{
+    if(!isNormal){
+        isNormal = true;
+        ui->icon->setHidden(true);
+        ui->detailWidget->setHidden(false);
+        if(_flickeTimer.isActive()){
+            _flickeTimer.stop();
+            ui->icon->setPixmap(_iconPix);
+        }
+    }
+    else{
+        isNormal = false;
+        ui->detailWidget->setHidden(true);
+        ui->icon->setHidden(false);
+    }
+    show();
 }
 
 void LookYsYfItemForm::show()
@@ -208,28 +240,22 @@ void LookYsYfItemForm::findItem(FirstSubject* fsub, SecondSubject* ssub, QHash<i
     ui->fsub->setText(fsub->getName());
     _ssub = ssub;
     ui->ssub->setText(ssub->getName());
-    _range.clear();
     _invoiceNums.clear();
     foreach(QStringList nums,invoiceNums)
         _invoiceNums<<nums;
-
-    QList<int> years = timeRange.keys();
-    qSort(years.begin(),years.end());
-    disconnect(ui->cmbYear,SIGNAL(currentIndexChanged(int)),this,SLOT(yearChanged(int)));
-    ui->cmbYear->clear();
-    for(int i = 0; i < years.count(); ++i){
-        int y = years.at(i);
-        _range<<y;
-        ui->cmbYear->addItem(QString::number(y),y);
-        QList<int> ms = timeRange.value(y);
-        qSort(ms.begin(),ms.end());
-        _range<<ms.first(); _range<<ms.last();
+    for(int row=0; row < ui->twRange->rowCount(); ++row){
+        QCheckBox* chk = qobject_cast<QCheckBox*>(ui->twRange->cellWidget(row,IntItemDelegate::CI_JOIN));
+        if(!chk)
+            continue;
+        int year = ui->twRange->item(row,IntItemDelegate::CI_YEAR)->text().toInt();
+        chk->setChecked(timeRange.contains(year));
+        if(chk->isChecked()){
+            QList<int> ms = timeRange.value(year);
+            qSort(ms.begin(),ms.end());
+            ui->twRange->item(row,IntItemDelegate::CI_SMONTH)->setText(QString::number(ms.first()));
+            ui->twRange->item(row,IntItemDelegate::CI_EMONTH)->setText(QString::number(ms.last()));
+        }
     }
-    connect(ui->cmbYear,SIGNAL(currentIndexChanged(int)),this,SLOT(yearChanged(int)));
-    if(ui->cmbYear->count() > 1)
-        ui->cmbYear->setCurrentIndex(ui->cmbYear->count()-1);
-    else
-        yearChanged(0);
     _search();
 }
 
@@ -243,16 +269,21 @@ void LookYsYfItemForm::_search()
     ui->tw->setRowCount(0);
     QSqlQuery q(db);
     QStringList timeFilters;//时间过滤条件
-    for(int i = 0; i < _range.count()/3; i++){
-        int y = _range.at(i*3);
-        int sm = _range.at(i*3+1);
-        int em = _range.at(i*3+2);
+    for(int row = 0; row < ui->twRange->rowCount(); row++){
+        QCheckBox* chk = qobject_cast<QCheckBox*>(ui->twRange->cellWidget(row,IntItemDelegate::CI_JOIN));
+        if(!chk || !chk->isChecked())
+            continue;
+        int y = ui->twRange->item(row,IntItemDelegate::CI_YEAR)->text().toInt();
+        int sm = ui->twRange->item(row,IntItemDelegate::CI_SMONTH)->text().toInt();
+        int em = ui->twRange->item(row,IntItemDelegate::CI_EMONTH)->text().toInt();
         QDate sd(y,sm,1);
         QDate ed(y,em,1);
         ed.setDate(y,em,ed.daysInMonth());
         timeFilters<<QString("(%1.%2 >= '%3' and %1.%2 <= '%4')").arg(tbl_pz).arg(fld_pz_date)
                      .arg(sd.toString(Qt::ISODate)).arg(ed.toString(Qt::ISODate));
     }
+    if(timeFilters.isEmpty())
+        return;
     //科目过滤，指定的一级科目和二级科目，并且金额发生方向是借方（应收）或贷方（应付）
     QString baFilters = QString("%1.%2=%5 and %1.%3=%6 and %1.%4=%7").arg(tbl_ba)
             .arg(fld_ba_fid).arg(fld_ba_sid).arg(fld_ba_dir).arg(_fsub->getId())
@@ -324,23 +355,12 @@ void LookYsYfItemForm::_search()
     }
     //闪烁图标以提醒用户，我已经帮你找到了对应的应收应付项
     if(!isNormal && ui->tw->rowCount() > 0)
-        _timer.start();
+        _flickeTimer.start();
 }
-
-void LookYsYfItemForm::_turnOn(bool on)
-{
-    if(on){
-        connect(ui->spnUp,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
-        connect(ui->spnDown,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
-    }
-    else{
-        disconnect(ui->spnUp,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
-        disconnect(ui->spnDown,SIGNAL(valueChanged(int)),this,SLOT(monthChanged(int)));
-    }
-}
-
 
 void LookYsYfItemForm::on_btnQuit_clicked()
 {
     closeWindow();
 }
+
+

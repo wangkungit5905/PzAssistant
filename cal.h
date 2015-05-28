@@ -80,16 +80,7 @@ public:
     void setName(QString name){m_name=name;}
     QString sign(){return m_sign;}
     void setSign(QString sign){m_sign=sign;}
-
-    //下面这两个获取和保存汇率方法静态方法有多余之嫌，因为Account类已提供了相同的方法
-//    static bool getRate(int y,int m, QHash<int, Double> &rates,
-//                        QSqlDatabase db = QSqlDatabase::database());
-//    static bool saveRate(int y,int m, QHash<int,Double> rates,
-//                        QSqlDatabase db = QSqlDatabase::database());
-//    static bool getAllMts(QHash<int, Money *> &mts,
-//                          QSqlDatabase db = QSqlDatabase::database());
-//    static bool getMtName(int code,QString &name,
-//                             QSqlDatabase db = QSqlDatabase::database());
+    QString simpleSign();
 
 private:
     int  m_code;             //货币代码

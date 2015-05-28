@@ -22,6 +22,8 @@ namespace Ui {
 }
 
 class LookYsYfItemForm;
+class InvoiceStatForm;
+class BaTemplateForm;
 
 //编辑和显示凭证的会计分录的类
 class BaTableWidget : public QTableWidget
@@ -129,6 +131,8 @@ public:
     void moveToLast();
     void seek(int num);
     void seek(PingZheng* pz, BusiAction *ba = NULL);
+    void selectBa(int row);
+    void openBusiactionTemplate(BATemplateEnum type);
 
     //凭证增删方法
     void addPz();
@@ -143,12 +147,15 @@ public:
     void moveDownBa();
     void addBa();
     void insertBa(BusiAction *ba=NULL);
+    void insertBas(QList<BusiAction*> bas);
     void removeBa();
     void getBaSelectedCase(QList<int> rows, bool& conti);
 
     //由ModifySndSubEnableProperty对象回调以记录这些子目被修改了需要保存
     void addChangedSSub(SecondSubject* ssub){needSaveSSubs.insert(ssub);}
     void LookYsYfFormTellBye(){lookAssistant=0;}
+
+    void openInvoiceStatForm();
 public slots:
     void save();
     void setPzState(PzState state);
@@ -253,6 +260,8 @@ private:
     QHash<QString,QString> prefixes,suffixes; //包裹客户名的前缀和后缀，键为科目代码
                             //分录的摘要信息（XX[prefixe][客户名][suffixe]XX）,X代表其他任意字符
     LookYsYfItemForm* lookAssistant; //查找应收应付相关分录助手
+    InvoiceStatForm* invoiceStatForm;   //发票统计窗口    
+    BaTemplateForm* baTemplate;         //分录模板窗口
 };
 
 class HistoryPzForm : public QDialog

@@ -121,6 +121,7 @@ VMAccount::VMAccount(QString filename):fileName(filename)
     appendVersion(1,5,&VMAccount::updateTo1_5);
     appendVersion(1,6,&VMAccount::updateTo1_6);
     appendVersion(1,7,&VMAccount::updateTo1_7);
+    appendVersion(1,8,&VMAccount::updateTo1_8);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1325,6 +1326,43 @@ bool VMAccount::updateTo1_8()
 //        emit upgradeStep(verNum,tr("成功更新到版本%1，但不能正确设置版本号！").arg(verNum),VUR_WARNING);
 //        return false;
 //    }
+    QSqlQuery q(db);
+    QString s;
+    int verNum = 108;
+    s = QString("create table %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 TEXT,%4 INTEGER,%5 INTEGER, "
+                "%6 INTEGER, %7 INTEGER, %8 INTEGER, %9 REAL, %10 REAL, %11 REAL, %12 INTEGER, %13 INTEGER)")
+            .arg(tbl_invoiceRecords).arg(fld_ir_date).arg(fld_ir_number).arg(fld_ir_isCommon)
+            .arg(fld_ir_isIncome).arg(fld_ir_customer).arg(fld_ir_pzNumber).arg(fld_ir_baRID)
+            .arg(fld_ir_money).arg(fld_ir_taxMoney).arg(fld_ir_wmoney).arg(fld_ir_mt)
+            .arg(fld_ir_state);
+
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_invoiceRecords),VUR_ERROR);
+        return false;
+    }
+    s = QString("create table %1(id INTEGER PRIMARY KEY, %2 TEXT,%3 REAL,%4 REAL,%5 REAL, %6 TEXT, %7 TEXT, %8 TEXT)")
+            .arg(tbl_baTemTable).arg(fld_btt_invoice).arg(fld_btt_money).arg(fld_btt_taxMoney).arg(fld_btt_wMoney)
+            .arg(fld_btt_sname).arg(fld_btt_lname).arg(fld_btt_remCode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_baTemTable),VUR_ERROR);
+        return false;
+    }
+    s = QString("create table %1(%2 INTEGER)").arg(tbl_baTemType).arg(fld_btt_type);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_baTemType),VUR_ERROR);
+        return false;
+    }
+    if(setCurVersion(1,8)){
+        emit upgradeStep(verNum,tr("成功更新到版本%1").arg(verNum),VUR_OK);
+        return true;
+    }
+    else{
+        emit upgradeStep(verNum,tr("成功更新到版本%1，但不能正确设置版本号！").arg(verNum),VUR_WARNING);
+        return false;
+    }
 }
 
 /**

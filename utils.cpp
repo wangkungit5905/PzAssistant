@@ -5472,6 +5472,22 @@ void PaUtils::extractInvoiceNum(QString summary, QList<int> &months, QList<QStri
 }
 
 /**
+ * @brief 从summary中提取发票号,可以用断续型或连续型格式
+ * @param summary
+ * @param invoiceNums
+ */
+void PaUtils::extractInvoiceNum2(QString summary, QStringList &invoiceNums)
+{
+    QRegExp re("((\\d{8})(/\\d{2,4}){0,})|((\\d{8})(-\\d{2,2}){0,})");
+    int pos = re.indexIn(summary);
+    while(pos != -1){
+        getNumberFromSequence(re.cap(0),invoiceNums);
+        pos += re.captureCount();
+        pos = re.indexIn(summary,pos);
+    }
+}
+
+/**
  * @brief 从摘要中提取发票号及其相关的美金金额
  * 这个主要使用在提取应收和应付对应发票的美金金额
  * 比如从 "收宁波开源运费 00124567（$123.78）"提取

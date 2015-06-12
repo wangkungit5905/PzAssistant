@@ -4533,6 +4533,10 @@ bool MainWindow::impTestDatas()
 //    int pos = re.indexIn("02362449");
 //    pos = re.indexIn(" 02362449");
 //    pos = re.indexIn("02362449 ");
+
+    QString summary = tr("收宁波开源运费 00124567/68/69 21232244/45/46 30018765/23/24");
+    QStringList inums;
+    PaUtils::extractInvoiceNum2(summary,inums);
     int i = 0;
 }
 

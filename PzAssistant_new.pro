@@ -18,7 +18,7 @@ count(BUILD_NUM, 1) {
 win32 {
     system(echo $${LITERAL_HASH}define VER_MASTE 1 > $$REVFILE)
     system(echo $${LITERAL_HASH}define VER_SECOND 1 >>$$REVFILE)
-    system(echo $${LITERAL_HASH}define VER_REVISION 0 >>$$REVFILE)
+    system(echo $${LITERAL_HASH}define VER_REVISION 2 >>$$REVFILE)
     system(echo $${LITERAL_HASH}define BUILD_STR \"$$BUILD_EXPLAIN\0\">>$$REVFILE)
     system(echo $${LITERAL_HASH}define BUILD_NUMBER $$BUILD_NUM>>$$REVFILE)
     #This don't exec
@@ -29,7 +29,7 @@ win32 {
 else {
     system(echo \\$${LITERAL_HASH}define VER_MASTE 1 > $$REVFILE)
     system(echo \\$${LITERAL_HASH}define VER_SECOND 1 >>$$REVFILE)
-    system(echo \\$${LITERAL_HASH}define VER_REVISION 0 >>$$REVFILE)
+    system(echo \\$${LITERAL_HASH}define VER_REVISION 2 >>$$REVFILE)
     system(echo \\$${LITERAL_HASH}define BUILD_STR \\\"$$BUILD_EXPLAIN\\\" >> $$REVFILE)
     system(echo \\$${LITERAL_HASH}define BUILD_NUMBER \\\"$$BUILD_NUM\\\" >> $$REVFILE)
     BUILD_DATE = $$system(date '+%Y-%m-%d')

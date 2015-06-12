@@ -1258,6 +1258,34 @@ SecondSubject *SubjectManager::getXxseSSub()
     return 0;
 }
 
+/**
+ * @brief 返回财务费用-汇兑损益子目对象
+ * @return
+ */
+SecondSubject *SubjectManager::getHdsySSub()
+{
+    FirstSubject* fsub = getCwfySub();
+    foreach(SecondSubject* ssub, fsub->getChildSubs()){
+        if(ssub->getName() == QObject::tr("汇兑损益"))
+            return ssub;
+    }
+    return 0;
+}
+
+/**
+ * @brief 返回财务费用-手续费子目对象
+ * @return
+ */
+SecondSubject *SubjectManager::getSxfSSub()
+{
+    FirstSubject* fsub = getCwfySub();
+    foreach(SecondSubject* ssub, fsub->getChildSubs()){
+        if(ssub->getName() == QObject::tr("金融机构手续费等"))
+            return ssub;
+    }
+    return 0;
+}
+
 
 
 /**

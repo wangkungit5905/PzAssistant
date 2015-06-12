@@ -11,7 +11,11 @@
 
 class SubjectManager;
 
-class FstSubEditComboBox : public QComboBox
+/**
+ * @brief 用于分录编辑表格的一级科目编辑器类，可以通过科目代码或科目助记符的形式输入，也
+ * 可以直接收入科目名称，在收入期间可以弹出适配的科目列表
+ */
+class FstSubEditComboBox : public QWidget
 {
     Q_OBJECT
 public:
@@ -21,19 +25,20 @@ public:
     void setCurrentIndex(int index);
 
 protected:
-    void keyPressEvent(QKeyEvent* event);
-    void focusOutEvent(QFocusEvent* event);
+    bool eventFilter(QObject *obj, QEvent *ev);
 
 signals:
     void dataEditCompleted(int col, bool isMove);
 private slots:
     void completed(QModelIndex index);
     void nameChanged(QString text);
+    void subjectIndexChanged(int index);
 private:
     void loadSubs();
     void switchModel(bool on=true);
     void refreshModel();
-    void showCompleteList();
+    void hideTView(bool isHide);
+
 
     QString keys;           //
     SortByMode sortBy;      //
@@ -41,7 +46,8 @@ private:
     SubjectManager *subMgr; //
     QStandardItemModel sourceModel;
     QSortFilterProxyModel model;
-    QTreeView tv;
+    QComboBox* com;
+    QTreeView* tv;
 };
 
 #endif // FSTSUBEDITCOMBOBOX_H

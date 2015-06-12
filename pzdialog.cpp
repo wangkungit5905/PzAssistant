@@ -990,7 +990,7 @@ void PzDialog::insertBas(QList<BusiAction *> bas)
     if(bas.isEmpty())
         return;
     int row;
-    if(curRow == -1)
+    if(curRow == -1 || curRow >= curPz->baCount())
         row = curPz->baCount();
     else
         row = curRow;
@@ -1363,7 +1363,6 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
 {
     int row = item->row();
     int col = item->column();
-    //LOG_INFO(QString("cell(%1,%2) data changed !").arg(row).arg(col));
 
     //如果是备用行，则将备用行升级为有效行，再添加新的备用行
     int rows = ui->tview->getValidRows();

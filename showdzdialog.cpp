@@ -7,6 +7,7 @@
 #include "subject.h"
 #include "dbutil.h"
 #include "outputexceldlg.h"
+#include "widgets/subjectselectorcombobox.h"
 
 #include <QBuffer>
 #include <QInputDialog>
@@ -69,8 +70,10 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* cinfo,  QByteArray* pinf
 
     fcom = new SubjectComplete(curSuite->subSys);
     ui->cmbFsub->setCompleter(fcom);
-    scom = new SubjectComplete(curSuite->subSys, SndSubject);
-    ui->cmbSsub->setCompleter(scom);
+    //scom = new SubjectComplete(curSuite->subSys, SndSubject);
+    //ui->cmbSsub->setCompleter(scom);
+    ui->cmbSsub->setSubjectManager(smg);
+    ui->cmbSsub->setSubjectClass(SubjectSelectorComboBox::SC_SND);
 
     QDate sd = QDate(curSuite->year,curSuite->startMonth,1);
     QDate ed = QDate(curSuite->year,curSuite->endMonth,1);
@@ -415,7 +418,6 @@ void ShowDZDialog::onSelFstSub(int index)
     curFSub = ui->cmbFsub->itemData(index).value<FirstSubject*>();
     curFilter->curFSub = curFSub?curFSub->getId():0;
     adjustSaveBtn();
-    scom->setPid(curFilter->curFSub);
     subIds.clear();
     if(!curFSub){
         curSSub = NULL;
@@ -423,41 +425,17 @@ void ShowDZDialog::onSelFstSub(int index)
     }
 
     disconnect(ui->cmbSsub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
-
-
-    //如果是选择所有一级科目，则不装载任何二级科目，否则装载该一级科目下的所有二级科目
-    ui->cmbSsub->clear();
-    QVariant v;
-    if(curFSub){
-        if(curFSub->getChildCount() > 1)
-            ui->cmbSsub->addItem(tr("所有"));
-        foreach(SecondSubject* ssub, curFSub->getChildSubs(SORTMODE_NAME)){
-            v.setValue<SecondSubject*>(ssub);
-            ui->cmbSsub->addItem(ssub->getName(),v);
-        }
-//        SecondSubject* ssub;
-//        for(int i = 0; i < curFSub->getChildCount(); ++i){
-//            ssub = curFSub->getChildSub(i);
-//            v.setValue<SecondSubject*>(ssub);
-//            ui->cmbSsub->addItem(ssub->getName(),v);
-//        }
-    }
-    else
-        ui->cmbSsub->addItem(tr("所有"));
+    ui->cmbSsub->setParentSubject(curFSub);
+    ui->cmbSsub->insertItem(0,tr("所有"));
 
     //定位到选择的一级科目下的所有科目或第一个子目（在只有一个子目的情况下）
     int curIndex;
-    if(ui->cmbSsub->count() < 1)
+    if(ui->cmbSsub->count() < 2)
         curIndex = 0;
-    else{
-        QVariant v;
-        v.setValue<SecondSubject*>(smg->getSndSubject(curFilter->curSSub));
-        int index = ui->cmbSsub->findData(v);
-        if(index == -1)
-            curIndex = 0;
-        else
-            curIndex = index;
-    }
+    else
+        curIndex = ui->cmbSsub->findSubject(smg->getSndSubject(curFilter->curSSub));
+    if(curIndex == -1)
+        curIndex = 0;
     ui->cmbSsub->setCurrentIndex(curIndex);
     onSelSndSub(curIndex);
     connect(ui->cmbSsub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
@@ -596,10 +574,6 @@ void ShowDZDialog::refreshTalbe()
     int sid = curSSub?curSSub->getId():0;
     int mt = curMt?curMt->code():0;
 
-    //当对象处于初始化状态时，不允许调用refreshTable方法
-    //if((tfid == fid) && (tsid == sid) && tmt == mt)
-    //    return;
-
     //刷新视图的表格内容
     otf = tf; //保存原先的表格格式
     //先将原先隐藏的列显示（主要是为了能够正确地绘制表头，否则将会丢失某些列）
@@ -712,8 +686,6 @@ void ShowDZDialog::refreshTalbe()
 
     dataModel->setHorizontalHeaderModel(headerModel);
     ui->tview->setModel(dataModel);
-    //bool isViewColInDailyAcc1 = AppConfig.getInstance()->getCfgVar(AppConfig::CVC_ViewHideColInDailyAcc1);
-    //bool isViewColInDailyAcc2 = AppConfig.getInstance()->getCfgVar(AppConfig::CVC_ViewHideColInDailyAcc1);
     //隐藏列
     switch(tf){
     case CASHDAILY:
@@ -759,13 +731,11 @@ void ShowDZDialog::refreshTalbe()
     }
 
     //设置列宽
-
     for(int i = 0; i < colWidths.value(tf).count(); ++i)
         ui->tview->setColumnWidth(i, colWidths.value(tf)[i]);
     ui->tview->horizontalHeader()->setStretchLastSection(true);
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(colWidthChanged(int,int,int)));
-
     tfid = fid; tsid = sid; tmt = mt;
 }
 
@@ -837,8 +807,6 @@ void ShowDZDialog::initSubjectItems()
 
     disconnect(ui->cmbFsub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelFstSub(int)));
     ui->cmbFsub->clear();
-    //ui->cmbSsub->clear();
-
     //如果是一级科目选择模式，则加载所有在科目范围中指定的一级科目到一级科目选择组合框中
     if(curFilter->isFst){
         index = -1; fonded = false;
@@ -939,28 +907,6 @@ void ShowDZDialog::setTableRowBackground(ShowDZDialog::TableRowType rowType, con
     for(int i = 0; i < cols.count(); ++i)
         cols.at(i)->setBackground(bb);
 }
-
-/**
- * @brief ShowDZDialog2::connectCmbSignal
- *  连接或断开3个组合框的当前索引改变信号（一级科目、二级科目、币种）
- * @param conn
- */
-//void ShowDZDialog2::connectCmbSignal(bool conn)
-//{
-//    if(conn){
-//        connect(ui->cmbFsub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelFstSub(int)));
-//        connect(ui->cmbSsub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
-//        connect(ui->cmbMt,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelMt(int)));
-//    }
-//    else{
-//        disconnect(ui->cmbFsub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelFstSub(int)));
-//        disconnect(ui->cmbSsub,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelSndSub(int)));
-//        disconnect(ui->cmbMt,SIGNAL(currentIndexChanged(int)),this,SLOT(onSelMt(int)));
-//    }
-//}
-
-
-
 
 //生成现金日记账表头
 void ShowDZDialog::genThForCash(QStandardItemModel* model)
@@ -1169,17 +1115,6 @@ void ShowDZDialog::genThForThreeRail(QStandardItemModel* model)
         model->appendRow(l1);
     l1.clear();
 }
-
-//获取前期余额及其指定月份区间的每笔发生项数据
-//void ShowDZDialog2::getDatas(int y, int sm, int em, int fid, int sid, int mt,
-//              QList<DailyAccountData*>& datas,
-//              QHash<int,double> preExtra,
-//              QHash<int,double> preExtraDir,
-//              QHash<int, double> rates)
-//{
-//    if(!BusiUtil::getDailyAccount(y,sm,em,fid,sid,mt,datas,preExtra,preExtraDir,rates))
-//        return;
-//}
 
 //生成现金日记账数据（返回值为总共生成的行数）
 int ShowDZDialog::genDataForCash(QList<DailyAccountData2 *> datas,
@@ -1799,13 +1734,6 @@ int ShowDZDialog::genDataForCommon(QList<DailyAccountData2*> datas,
                                      QHash<int,int> preExtraDir,
                                      QHash<int,Double> rates)
 {
-//    QList<DailyAccountData*> datas;       //数据
-//    QHash<int,double> preExtra;           //期初余额
-//    QHash<int,int> preExtraDir;           //期初余额方向
-//    QHash<int, double> rates; //每月汇率
-
-//    if(!BusiUtil::getDailyAccount(cury,sm,em,fid,sid,mt,datas,preExtra,preExtraDir,rates))
-//        return;
     ApStandardItem* item;
     QList<QStandardItem*> l;
     int rows = 0;
@@ -2061,14 +1989,6 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
         }
 
         //发生行
-
-        //如果当前发生项是外币，但用户只需要显示人民币项目，则忽略此（这主要是在应收/应付的情况下，
-        //因为这两个科目的人民币明细列表格式也采用三栏式）
-        //if((datas[i]->mt != RMB) && isOnlyRmb)
-        //    continue;
-        //if((datas[i]->mt == RMB) && !isOnlyRmb)
-        //    continue;
-
         oy = datas.at(i)->y;
         om = datas.at(i)->m;
         l<<new ApStandardItem(datas.at(i)->y);  //0：年
@@ -2430,20 +2350,6 @@ void ShowDZDialog::renPageData(int pageNum, QList<int>*& colWidths, MyWithHeader
 
 }
 
-//预先分页信号（用以使视图可以设置打印的页面范围
-//参数out：false:表示是由预览框本身负责分页，true：由外部负责视图分页
-//void ShowDZDialog2::priorPaging(bool out, int pages)
-//{
-//    if(out){
-//        int rows = dataModel->rowCount();
-//        this->pages = rows/pages;
-//        if((rows % pages) != 0)
-//            this->pages++;
-//    }
-//    else
-//        this->pages = pages;
-//}
-
 //打印任务公共操作
 void ShowDZDialog::printCommon(QPrinter* printer)
 {
@@ -2606,11 +2512,6 @@ void ShowDZDialog::on_actToExcel_triggered()
     #endif
 }
 
-
-//void ShowDZDialog2::on_btnClose_clicked()
-//{
-//    emit closeWidget();
-//}
 
 /**
  * @brief ShowDZDialog2::on_btnSaveFiler_clicked

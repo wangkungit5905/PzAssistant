@@ -41,6 +41,7 @@ public:
     void addTemSndSub(SecondSubject* ssub);
     //FirstSubject* getFirstSubject(){return fsub;}
     //SecondSubject* getSecondSubject(){return ssub;}
+    int findSubject(SubjectBase* sub);
 
 protected:
     void keyPressEvent(QKeyEvent* event);
@@ -56,7 +57,7 @@ private:
     void loadSndSubs();
     void refreshModel();
     void showCompleteList();
-    int findSubject(SubjectBase* sub);
+
 
     //QCompleter completer;
     SortByMode sortBy;

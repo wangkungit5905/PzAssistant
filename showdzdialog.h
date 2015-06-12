@@ -65,7 +65,6 @@ private slots:
     void colWidthChanged(int logicalIndex, int oldSize, int newSize);
     void paging(int rowsInTable, int& pageNum);
     void renPageData(int pageNum, QList<int>*& colWidths, MyWithHeaderModels* pdModel);
-    //void priorPaging(bool out, int pages);
 
     void on_actPrint_triggered();
 
@@ -74,8 +73,6 @@ private slots:
     void on_actToPdf_triggered();
 
     void on_actToExcel_triggered();
-
-    //void on_btnClose_clicked();
 
     void on_btnSaveFilter_clicked();
 
@@ -91,7 +88,6 @@ private slots:
 
 signals:
     void openSpecPz(int pid, int bid); //打开指定id的凭证
-    //void closeWidget();                //向对话框的父（mdi子窗口）报告，我要关闭了
 
 private:
     void refreshTalbe();
@@ -148,7 +144,7 @@ private:
     Ui::ShowDZDialog2 *ui;
     QList<DVFilterRecord*> filters;  //历史过滤条件项目列表
     DVFilterRecord* curFilter;      //当前选中的过滤条件项
-    SubjectComplete *fcom, *scom;
+    SubjectComplete *fcom;
     int witch;                  //科目选择模式（1：所有科目，2：指定类型科目，3：指定范围科目）
     QList<int> subIds;            //当前要显示明细帐的科目id列表
     QHash<int,QList<QString> > sNames; //二级科目名列表
@@ -160,10 +156,6 @@ private:
     QPrinter::Orientation pageOrientation;  //打印模板的页面方向
     PageMargin margins;  //页面边距
     QList<int> splitterSizes; //分裂器布局内两个视图部件的尺寸（左为表格、右为过滤条件窗口）
-
-    //bool isInit;   //对象是否处于初始化状态的标志（即对象的构造函数阶段，还没有调用setDateRange方法）
-
-
 
     //用户当前选择的科目币种状态
     FirstSubject* curFSub;

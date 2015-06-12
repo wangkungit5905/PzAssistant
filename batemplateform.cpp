@@ -15,6 +15,7 @@
 #include <QKeyEvent>
 #include <QDebug>
 #include <QMenu>
+#include <QSpinBox>
 
 #include "widgets.h"
 
@@ -22,7 +23,7 @@
 InvoiceNumberEdit::InvoiceNumberEdit(QWidget *parent):QLineEdit(parent)
 {
     re.setPattern("\\s{0,}(\\d{8})(((/\\d{2,4}){0,})|((-\\d{2,2}){0,1}))");
-    connect(this,SIGNAL(editingFinished()),this,SLOT(invoiceEditCompleted()));
+    connect(this,SIGNAL(returnPressed()),this,SLOT(invoiceEditCompleted()));
 }
 
 void InvoiceNumberEdit::invoiceEditCompleted()
@@ -56,7 +57,12 @@ void InvoiceNumberEdit::invoiceEditCompleted()
                         end = tem;
                     }
                     for(int i = start+1; i <= end; ++i){
-                        QString ins = preStr+QString::number(i);
+                        QString suffix;
+                        if(i < 10)
+                            suffix = "0" + QString::number(i);
+                        else
+                            suffix = QString::number(i);
+                        QString ins = preStr+suffix;
                         invoices<<ins;
                     }
                 }
@@ -104,7 +110,6 @@ void MoneyEdit::moneyEditCompleated()
 CustomerNameEdit::CustomerNameEdit(SubjectManager *subMgr, QWidget *parent)
     :QWidget(parent),sm(subMgr),fsub(0),ssub(0),isLastRow(false)
 {
-    setObjectName("CustomerNameEdit");
     com = new QComboBox(this);
     com->setEditable(true);       //使其可以输入新的名称条目
     com->installEventFilter(this);
@@ -121,7 +126,6 @@ CustomerNameEdit::CustomerNameEdit(SubjectManager *subMgr, QWidget *parent)
     l->addWidget(lw);
     setMaximumHeight(200);
     setLayout(l);
-
 
     connect(com,SIGNAL(currentIndexChanged(int)),this,SLOT(subSelectChanged(int)));
     connect(com->lineEdit(),SIGNAL(textEdited(QString)),this,SLOT(nameTextChanged(QString)));
@@ -196,7 +200,6 @@ void CustomerNameEdit::hideList(bool isHide)
 {
     lw->setHidden(isHide);
     if(isHide)
-        //resize(width(),height() - expandHeight);
         resize(width(),com->height());
     else
         resize(width(),200);
@@ -265,7 +268,7 @@ void CustomerNameEdit::nameTexteditingFinished()
     emit newSndSubject(fsub,ssub,editText,row,BaTemplateForm::CI_CUSTOMER);
     //由于编辑器已经关闭，后续处理已经没有意义
     if(ssub){
-        LOG_INFO(QString("new second subject has created(name=%1)").arg(ssub->getName()));
+        //LOG_INFO(QString("new second subject has created(name=%1)").arg(ssub->getName()));
         this->ssub = ssub;
         extraSSubs<<ssub;
         QVariant v;
@@ -278,7 +281,6 @@ void CustomerNameEdit::nameTexteditingFinished()
 void CustomerNameEdit::subSelectChanged(int index)
 {
     ssub = com->itemData(index).value<SecondSubject*>();
-    int i = 0;
 }
 
 /**
@@ -419,7 +421,13 @@ QWidget *InvoiceInputDelegate::createEditor(QWidget *parent, const QStyleOptionV
         return 0;
     int col = index.column();
     int row = index.row();
-    if(col == BaTemplateForm::CI_INVOICE){
+    if(col == BaTemplateForm::CI_MONTH){
+        QSpinBox* edt = new QSpinBox(parent);
+        edt->setMaximum(12);
+        edt->setMinimum(1);
+        return edt;
+    }
+    else if(col == BaTemplateForm::CI_INVOICE){
         InvoiceNumberEdit* edt = new InvoiceNumberEdit(parent);
         connect(edt,SIGNAL(dataEditCompleted(int,bool)),this,SLOT(commitAndCloseEditor(int,bool)));
         connect(edt,SIGNAL(inputedMultiInvoices(QStringList)),this,SLOT(multiInvoices(QStringList)));
@@ -453,7 +461,12 @@ QWidget *InvoiceInputDelegate::createEditor(QWidget *parent, const QStyleOptionV
 void InvoiceInputDelegate::setEditorData(QWidget *editor, const QModelIndex &index) const
 {
     int col = index.column();
-    if(col == BaTemplateForm::CI_INVOICE){
+    if(col == BaTemplateForm::CI_MONTH){
+        QSpinBox* edt = qobject_cast<QSpinBox*>(editor);
+        if(edt)
+            edt->setValue(index.model()->data(index).toInt());
+    }
+    else if(col == BaTemplateForm::CI_INVOICE){
         InvoiceNumberEdit* edt = qobject_cast<InvoiceNumberEdit*>(editor);
         if(edt)
             edt->setText(index.model()->data(index).toString());
@@ -477,7 +490,12 @@ void InvoiceInputDelegate::setEditorData(QWidget *editor, const QModelIndex &ind
 void InvoiceInputDelegate::setModelData(QWidget *editor, QAbstractItemModel *model, const QModelIndex &index) const
 {
     int col = index.column();
-    if(col == BaTemplateForm::CI_INVOICE){
+    if(col == BaTemplateForm::CI_MONTH){
+        QSpinBox* edt = qobject_cast<QSpinBox*>(editor);
+        if(edt)
+            model->setData(index,edt->value());
+    }
+    else if(col == BaTemplateForm::CI_INVOICE){
         InvoiceNumberEdit* edt = qobject_cast<InvoiceNumberEdit*>(editor);
         if(edt){
             model->setData(index,edt->text());
@@ -496,8 +514,6 @@ void InvoiceInputDelegate::setModelData(QWidget *editor, QAbstractItemModel *mod
                 SecondSubject* ssub = edt->subject();
                 QVariant v; v.setValue<SecondSubject*>(ssub);
                 model->setData(index,v);
-                //model->setData(index,ssub->getName(),Qt::DisplayRole);
-                //model->setData(index,ssub->getLName(),Qt::ToolTipRole);
             }
         }
     }
@@ -671,7 +687,10 @@ void BaTemplateForm::clear()
     extraSSubs.clear();
     qDeleteAll(buffers);
     buffers.clear();
+    ui->cmbBank->setCurrentIndex(-1);
     ui->edtBankMoney->clear();
+    ui->edtBankAccount->clear();
+    ui->cmbCustomer->setCurrentIndex(-1);
     ok = false;
 }
 
@@ -681,6 +700,7 @@ void BaTemplateForm::moneyTypeChanged(int index)
         return;
     bankSSub = ui->cmbBank->itemData(ui->cmbBank->currentIndex()).value<SecondSubject*>();
     mt = sm->getBankAccount(bankSSub)->mt;
+    ui->edtBankAccount->setText(sm->getBankAccount(bankSSub)->accNumber);
 }
 
 
@@ -782,7 +802,11 @@ void BaTemplateForm::createMultiInvoice(QStringList invoices)
         ui->tw->setItem(row+i,CI_INVOICE,new QTableWidgetItem(invoices.at(i)));
         ui->tw->setItem(row+i,CI_MONEY,new QTableWidgetItem);
         ui->tw->setItem(row+i,CI_TAXMONEY,new QTableWidgetItem);
-        ui->tw->setItem(row+i,CI_WMONEY,new QTableWidgetItem);
+        ui->tw->setItem(row+i,CI_WMONEY,new QTableWidgetItem);        
+    }
+    if(ui->rdoYsGather->isChecked() || ui->rdoYfGather->isChecked()){
+        for(int i = 1; i < invoices.count(); ++i)
+            ui->tw->setItem(row+i,CI_CUSTOMER,new BASndSubItem_new(0,sm));
     }
     //如果是应收应付，则自动搜索发票对应的金额信息
     if(ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked()){
@@ -837,24 +861,55 @@ void BaTemplateForm::doubleClickedCell(const QModelIndex &index)
     if(row != ui->tw->rowCount()-1)
         return;
     int col = index.column();
-    if(col == CI_MONEY){
-        ui->edtBankMoney->setText(ui->tw->item(row,col)->text());
-        for(int i = 0; i < ui->cmbBank->count(); ++i){
-            SecondSubject* ssub = ui->cmbBank->itemData(i).value<SecondSubject*>();
-            if(sm->getSubMatchMt(ssub) == mmt){
-                ui->cmbBank->setCurrentIndex(i);
-                break;
-            }
-        }
+    ui->edtBankMoney->setText(ui->tw->item(row,col)->text());
+    QList<SecondSubject*> bankSubs;
+    Money* mt=0;
+    if(col == CI_MONEY)
+        mt = mmt;
+    else if(col == CI_WMONEY)
+        mt = wmt;
+    for(int i = 0; i < bankFSub->getChildCount(); ++i){
+        SecondSubject* ssub = bankFSub->getChildSub(i);
+        if(ssub->isEnabled() && sm->getSubMatchMt(ssub) == mt)
+            bankSubs<<ssub;
     }
-    else if(col == CI_WMONEY){
-        ui->edtBankMoney->setText(ui->tw->item(row,col)->text());
-        for(int i = 0; i < ui->cmbBank->count(); ++i){
-            SecondSubject* ssub = ui->cmbBank->itemData(i).value<SecondSubject*>();
-            if(sm->getSubMatchMt(ssub) == wmt){
-                ui->cmbBank->setCurrentIndex(i);
-                break;
-            }
+    if(bankSubs.isEmpty())
+        return;
+    SecondSubject* bsub = bankSubs.first();
+    if(bankSubs.count() > 1){
+        QDialog dlg(this);
+        QLabel t(tr("选择银行账户"),this);
+        QTableWidget tw(this);
+        tw.horizontalHeader()->setStretchLastSection(true);
+        tw.setSelectionBehavior(QAbstractItemView::SelectRows);
+        tw.setColumnCount(2);
+        QStringList titles;
+        titles<<tr("名称")<<tr("帐号");
+        tw.setHorizontalHeaderLabels(titles);
+        for(int i = 0; i < bankSubs.count(); ++i){
+            tw.insertRow(i);
+            SecondSubject* ssub = bankSubs.at(i);
+            tw.setItem(i,0,new QTableWidgetItem(ssub->getName()));
+            tw.setItem(i,1,new QTableWidgetItem(sm->getBankAccount(ssub)->accNumber));
+        }
+        tw.setCurrentCell(0,0);
+        QPushButton btnOk(tr("确定"),this);
+        connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+        QVBoxLayout* lo = new QVBoxLayout;
+        lo->addWidget(&t);
+        lo->addWidget(&tw);
+        lo->addWidget(&btnOk);
+        dlg.setLayout(lo);
+        dlg.resize(300,200);
+        dlg.exec();
+        int row = tw.currentRow();
+        bsub = bankSubs.at(row);
+    }
+    for(int i = 0; i < ui->cmbBank->count(); ++i){
+        SecondSubject* ssub = ui->cmbBank->itemData(i).value<SecondSubject*>();
+        if(ssub == bsub){
+            ui->cmbBank->setCurrentIndex(i);
+            return;
         }
     }
 }
@@ -868,11 +923,27 @@ void BaTemplateForm::contextMenuRequested(const QPoint &pos)
     m.addAction(ui->actCopy);
     m.addAction(ui->actCut);
     QList<int> rows = selectedRows();
-    if(rows.count() == 1){
+    if(!buffers.isEmpty()){
         m.addAction(ui->actPaste);
-        ui->actPaste->setEnabled(!buffers.isEmpty());
-        m.addAction(ui->actInsert);
+        if(rows.count() != buffers.count())
+            ui->actPaste->setEnabled(false);
+        else{
+            if(rows.count() == 1)
+                ui->actPaste->setEnabled(true);
+            else{
+                bool rowContinue = true;
+                for(int i = 0; i < rows.count()-1; ++i){
+                    if(rows.at(i)+1 != rows.at(i+1)){
+                        rowContinue = false;
+                        break;
+                    }
+                }
+                ui->actPaste->setEnabled(rowContinue);
+            }
+        }
     }
+    if(rows.count() == 1)
+        m.addAction(ui->actInsert);
     m.addAction(ui->actRemove);
     if(ui->rdoYsGather->isChecked() || ui->rdoYfGather->isChecked()){
         m.addAction(ui->actMergerCustomer);
@@ -908,14 +979,15 @@ void BaTemplateForm::processContextMenu()
         ui->tw->insertRow(row);
         initRow(row);
     }else if(a == ui->actPaste){
-        int row = ui->tw->currentRow();
+        QList<int> rows = selectedRows();
+        int row = rows.first();
         bool isCustomer = false;
         if(ui->rdoYsGather->isChecked() || ui->rdoYfGather->isChecked())
             isCustomer = true;
         turnDataInspect(false);
         for(int i = 0; i < buffers.count(); ++i){
-            ui->tw->insertRow(row+i);
-            initRow(row+i);
+            //ui->tw->insertRow(row+i);
+            //initRow(row+i);
             QString ms;
             if(buffers.at(i)->month != 0)
                 QString::number(buffers.at(i)->month);
@@ -980,6 +1052,8 @@ void BaTemplateForm::processContextMenu()
                 return;
             ssub = lw.currentItem()->data(Qt::UserRole).value<SecondSubject*>();
         }
+        else
+            ssub = ssubs.first();
         for(int i = 0; i < rows.count(); ++i){
             QVariant v;
             v.setValue<SecondSubject*>(ssub);
@@ -996,6 +1070,38 @@ void BaTemplateForm::init()
     wmt = amgr->getAccount()->getAllMoneys().value(USD);
     yfFSub = sm->getYfSub();
     ysFSub = sm->getYsSub();
+    bankFSub = sm->getBankSub();
+    if(!ysFSub || !yfFSub || !bankFSub){
+        myHelper::ShowMessageBoxWarning(tr("应收、应付或银行等特定科目未做配置，无法正常工作！"));
+        return;
+    }
+    srFSub = sm->getZysrSub();
+    cbFSub = sm->getZycbSub();
+    sjFSub = sm->getYjsjSub();
+    cwFSub = sm->getCwfySub();
+    if(!srFSub || !cbFSub || !sjFSub || !cwFSub){
+        myHelper::ShowMessageBoxWarning(tr("主营业务收入、成本、应交税金或财务费用等特定科目未做配置，无法正常工作！"));
+        return;
+    }
+    xxSSub = sm->getXxseSSub();
+    jxSSub = sm->getJxseSSub();
+    if(!xxSSub || !jxSSub){
+        myHelper::ShowMessageBoxWarning(tr("%1下的销项税额或进行税额等特定子目未做配置，无法正常工作！").arg(sjFSub->getName()));
+        return;
+    }
+    hdsySSub = cwFSub->getDefaultSubject();
+    srDefSSub = srFSub->getDefaultSubject();
+    cbDefSSub = cbFSub->getDefaultSubject();
+    if(!hdsySSub || !srDefSSub || !cbDefSSub){
+        myHelper::ShowMessageBoxWarning(tr("%1、%2或%3下未配置默认子目，它们应该分别对应汇兑损益、包干费等或代理运费等！")
+                                        .arg(cwFSub->getName()).arg(srFSub->getName()).arg(cbFSub->getName()));
+        return;
+    }
+    sxfSSub = sm->getSxfSSub();
+    if(!sxfSSub){
+        myHelper::ShowMessageBoxWarning(tr("财务费用科目下不能找到“金融机构手续费等”子目，无法正常工作！"));
+        return;
+    }
     delegate = new InvoiceInputDelegate(sm,this);
     delegate->setTemplateType(BATE_BANK_INCOME);
     connect(delegate,SIGNAL(reqCrtMultiInvoices(QStringList)),SLOT(createMultiInvoice(QStringList)));
@@ -1014,13 +1120,15 @@ void BaTemplateForm::init()
     ui->tw->setItem(0,CI_CUSTOMER,new QTableWidgetItem);
 
     //初始化银行客户下拉列表
-    bankFSub = sm->getBankSub();
     for(int i = 0; i < bankFSub->getChildCount(); ++i){
         SecondSubject* ssub = bankFSub->getChildSub(i);
+        if(!ssub->isEnabled())
+            continue;
         QVariant v; v.setValue<SecondSubject*>(ssub);
         ui->cmbBank->addItem(ssub->getName(),v);
     }
     bankSSub = ui->cmbBank->itemData(ui->cmbBank->currentIndex()).value<SecondSubject*>();
+    ui->edtBankAccount->setText(sm->getBankAccount(bankSSub)->accNumber);
     mt = sm->getBankAccount(bankSSub)->mt;
     connect(ui->cmbBank,SIGNAL(currentIndexChanged(int)),this,SLOT(moneyTypeChanged(int)));
     //初始化客户下拉列表
@@ -1028,7 +1136,7 @@ void BaTemplateForm::init()
     changeCustomerType(CT_SINGLE);
     delegate->setvalidColumns(4);
 
-    ui->tw->setColumnWidth(CI_MONTH,30);
+    ui->tw->setColumnWidth(CI_MONTH,50);
     ui->tw->setColumnWidth(CI_INVOICE,cw_invoice);
     ui->tw->setColumnWidth(CI_MONEY,cw_money);
     ui->tw->setColumnWidth(CI_TAXMONEY,cw_money);
@@ -1086,16 +1194,6 @@ void BaTemplateForm::changeCustomerType(BaTemplateForm::CustomerType type)
 }
 
 /**
- * @brief 查找发票所属月份
- * @param inum  8位发票号
- * @return 返回1-12月份数，如果没有找到则返回0
- */
-int BaTemplateForm::belongMonthForINcoice(QString inum)
-{
-    return 0;
-}
-
-/**
  * @brief 创建当月收入分录
  * @return
  */
@@ -1113,24 +1211,65 @@ void BaTemplateForm::createBankIncomeBas()
         myHelper::ShowMessageBoxWarning(tr("拜托，银行收了多少钱啊？"));
         return;
     }
+    int row = invoiceQualifieds();
+    if(row != -1)
+        return;
     QString dupliNum =  dupliInvoice();
     if(!dupliNum.isEmpty()){
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
         return;
     }
-    Double bv = Double(ui->edtBankMoney->text().toDouble());
-    Double sumMoney;
-    if(mt == mmt)
-        sumMoney = Double(ui->tw->item(ui->tw->rowCount()-1,CI_MONEY)->data(Qt::DisplayRole).toString().toDouble());
-    else
-        sumMoney = Double(ui->tw->item(ui->tw->rowCount()-1,CI_WMONEY)->data(Qt::DisplayRole).toString().toDouble());
-    if(bv != sumMoney)
-        myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所收金额不相等！"));
-    FirstSubject* srFSub = sm->getZysrSub();
-    FirstSubject* sjFSub = sm->getYjsjSub();
-    SecondSubject* xxSSub = sm->getXxseSSub();
-    SecondSubject* bgfSSub = srFSub->getDefaultSubject();
     QList<BusiAction*> bas;
+    Double bv = Double(ui->edtBankMoney->text().toDouble());
+    Double sumZm = ui->tw->item(ui->tw->rowCount()-1,CI_MONEY)->data(Qt::DisplayRole).toString().toDouble();
+    Double sumWm = ui->tw->item(ui->tw->rowCount()-1,CI_WMONEY)->data(Qt::DisplayRole).toString().toDouble();
+    Double diff;
+    if(mt == mmt){
+        diff = sumZm - bv;
+        if(diff != 0 && sumWm == 0){
+            diff = 0.0;
+            myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所收金额不相等！"));
+        }
+    }
+    else{
+        if(sumWm != bv){
+            diff = sumWm - bv;
+            QDialog dlg(this);
+            QLabel l(tr("%1差额：").arg(wmt->name()),this);
+            QDoubleSpinBox vBox(this);
+            vBox.setMinimum(0);
+            vBox.setMaximum(diff.getv());
+            vBox.setValue(diff.getv());
+            QHBoxLayout lh;
+            lh.addWidget(&l);
+            lh.addWidget(&vBox);
+            QPushButton btnOk(tr("确定"),this);
+            QPushButton btnCancel(tr("取消"),this);
+            connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+            connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+            QHBoxLayout lb;
+            lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
+            QLabel t(tr("是否将%1差额作手续费").arg(wmt->name()));
+            QVBoxLayout* lm = new QVBoxLayout;
+            lm->addWidget(&t);
+            lm->addLayout(&lh);lm->addLayout(&lb);
+            dlg.setLayout(lm);
+            dlg.resize(200,100);
+            QHash<int,Double> rates;
+            amgr->getRates(rates);
+            if(dlg.exec() == QDialog::Accepted){
+                diff = vBox.value();
+                QString s = tr("手续费（%1%2）").arg(wmt->simpleSign()).arg(diff.toString());
+                diff = diff * rates.value(wmt->code());
+                bas<<new BusiAction(0,pz,s,cwFSub,sxfSSub,mmt,MDIR_J,diff,0);
+                diff = sumZm - (bv*rates.value(wmt->code()) + diff);
+            }
+            else
+                diff = sumZm - bv*rates.value(wmt->code());
+        }
+    }
+    if(diff != 0)
+        bas<<new BusiAction(0,pz,tr("汇兑损益"),cwFSub,hdsySSub,mmt,MDIR_J,diff,0);
     QString summary = QString("收%1运费").arg(curCusSSub->getName());
     bas<<new BusiAction(0,pz,summary,bankFSub,bankSSub,mt,MDIR_J,bv,0);
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
@@ -1143,7 +1282,7 @@ void BaTemplateForm::createBankIncomeBas()
         else
             srMoney = zmMoney - taxMoney;
         summary = tr("收%1运费 %2").arg(curCusSSub->getName()).arg(invoice);
-        bas<<new BusiAction(0,pz,summary,srFSub,bgfSSub,mmt,MDIR_D,srMoney,0);
+        bas<<new BusiAction(0,pz,summary,srFSub,srDefSSub,mmt,MDIR_D,srMoney,0);
         if(taxMoney != 0)
             bas<<new BusiAction(0,pz,summary,sjFSub,xxSSub,mmt,MDIR_D,taxMoney,0);
     }
@@ -1168,24 +1307,33 @@ void BaTemplateForm::createBankCostBas()
         myHelper::ShowMessageBoxWarning(tr("拜托，银行付了多少钱呀？"));
         return;
     }
+    int row = invoiceQualifieds();
+    if(row != -1)
+        return;
     QString dupliNum =  dupliInvoice();
     if(!dupliNum.isEmpty()){
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
         return;
     }
     Double bv = Double(ui->edtBankMoney->text().toDouble());
-    Double sumMoney;
-    if(mt == mmt)
-        sumMoney = Double(ui->tw->item(ui->tw->rowCount()-1,CI_MONEY)->data(Qt::DisplayRole).toString().toDouble());
-    else
-        sumMoney = Double(ui->tw->item(ui->tw->rowCount()-1,CI_WMONEY)->data(Qt::DisplayRole).toString().toDouble());
-    if(bv != sumMoney)
-        myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所付金额不相等！"));
-    FirstSubject* cbFSub = sm->getZycbSub();
-    FirstSubject* sjFSub = sm->getYjsjSub();
-    SecondSubject *jxSSub = sm->getJxseSSub();
-    SecondSubject* bgfSSub = cbFSub->getDefaultSubject();
+    Double sumZm = ui->tw->item(ui->tw->rowCount()-1,CI_MONEY)->data(Qt::DisplayRole).toString().toDouble();
+    Double sumWm = ui->tw->item(ui->tw->rowCount()-1,CI_WMONEY)->data(Qt::DisplayRole).toString().toDouble();
     QList<BusiAction*> bas;
+    Double diff;
+    if(mt == mmt){
+        diff = bv - sumZm;
+        if(sumWm == 0 && diff != 0){
+            diff = 0;
+            myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所付金额不相等！"));
+        }
+    }
+    else{
+        QHash<int,Double> rates;
+        amgr->getRates(rates);
+        diff = bv * rates.value(wmt->code()) - sumZm;
+    }
+    if(diff != 0)
+        bas<<new BusiAction(0,pz,tr("汇兑损益"),cwFSub,hdsySSub,mmt,MDIR_J,diff,0);
     QString summary;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         QString invoice = ui->tw->item(i,CI_INVOICE)->text();
@@ -1197,7 +1345,7 @@ void BaTemplateForm::createBankCostBas()
         else
             cbMoney = zmMoney - taxMoney;
         summary = tr("付%1运费 %2").arg(curCusSSub->getName()).arg(invoice);
-        bas<<new BusiAction(0,pz,summary,cbFSub,bgfSSub,mmt,MDIR_J,cbMoney,0);
+        bas<<new BusiAction(0,pz,summary,cbFSub,cbDefSSub,mmt,MDIR_J,cbMoney,0);
         if(taxMoney != 0)
             bas<<new BusiAction(0,pz,summary,sjFSub,jxSSub,mmt,MDIR_J,taxMoney,0);
     }
@@ -1224,17 +1372,14 @@ void BaTemplateForm::createYsBas()
         myHelper::ShowMessageBoxWarning(tr("拜托，银行收了多少钱啊？"));
         return;
     }
+    int row = invoiceQualifieds();
+    if(row != -1)
+        return;
     QString dupliNum =  dupliInvoice();
     if(!dupliNum.isEmpty()){
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
         return;
     }
-    Double bv = ui->edtBankMoney->text().toDouble();
-    int rows = ui->tw->rowCount()-1;
-    Double sumZm = ui->tw->item(rows,CI_MONEY)->text().toDouble();//应收合计金额
-    Double sumWb = ui->tw->item(rows,CI_WMONEY)->text().toDouble();//应收美金合计
-    if(mt == mmt && sumZm != bv || mt == wmt && sumWb != bv)
-        myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所收金额不相等！"));
 
     //生成发票号的简写形式
     QHash<int,QStringList> invoices;
@@ -1242,7 +1387,7 @@ void BaTemplateForm::createYsBas()
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         QString inum = ui->tw->item(i,CI_INVOICE)->text();
         if(!invoiceQualified(inum)){
-            myHelper::ShowMessageBoxWarning(tr("存在无效的发票号！"));
+            myHelper::ShowMessageBoxWarning(tr("第%1行发票号无效！").arg(i+1));
             return;
         }
         int month = ui->tw->item(i,CI_MONTH)->text().toInt();
@@ -1265,18 +1410,63 @@ void BaTemplateForm::createYsBas()
         inums<<invoices.value(months.at(i));
     QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
 
+    Double bv = ui->edtBankMoney->text().toDouble();
+    int rows = ui->tw->rowCount()-1;
+    Double sumZm = ui->tw->item(rows,CI_MONEY)->text().toDouble();//应收合计金额
+    Double sumWb = ui->tw->item(rows,CI_WMONEY)->text().toDouble();//应收美金合计
     QList<BusiAction*> bas;
-    //如果收的是美金，则折算成本币后与应收合计金额比较，如果不相等，则创建汇兑损益分录
-    if(mt == wmt){
-        QHash<int,Double> rates;
-        amgr->getRates(rates);
-        Double diff = sumZm - bv * rates.value(wmt->code());
-        if(diff != 0){
-            FirstSubject* cwfyFSub = sm->getCwfySub();
-            SecondSubject* hdsySSub = cwfyFSub->getDefaultSubject();
-            bas<<new BusiAction(0,pz,tr("汇兑损益"),cwfyFSub,hdsySSub,mmt,MDIR_J,diff,0);
+    //如果金额不符，则考虑加入汇兑损益或手续费之类的分录
+    Double diff;
+    if(mt == mmt){
+        diff = sumZm - bv;
+        if(diff != 0 && sumWb == 0){
+            diff = 0;
+            myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所收金额不相等！"));
         }
     }
+    else if(mt == wmt){
+        QHash<int,Double> rates;
+        amgr->getRates(rates);
+        diff = sumWb - bv;
+        if(diff != 0){
+            QDialog dlg(this);
+            QLabel l(tr("%1差额：").arg(wmt->name()),this);
+            QDoubleSpinBox vBox(this);
+            vBox.setMinimum(0);
+            vBox.setMaximum(diff.getv());
+            vBox.setValue(diff.getv());
+            QHBoxLayout lh;
+            lh.addWidget(&l);
+            lh.addWidget(&vBox);
+            QPushButton btnOk(tr("确定"),this);
+            QPushButton btnCancel(tr("取消"),this);
+            connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+            connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+            QHBoxLayout lb;
+            lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
+            QLabel t(tr("是否将%1差额作手续费").arg(wmt->name()));
+            QVBoxLayout* lm = new QVBoxLayout;
+            lm->addWidget(&t);
+            lm->addLayout(&lh);lm->addLayout(&lb);
+            dlg.setLayout(lm);
+            dlg.resize(200,100);
+            if(dlg.exec() == QDialog::Accepted){
+                diff = vBox.value();
+                QString s = tr("手续费（%1%2）").arg(wmt->simpleSign()).arg(diff.toString());
+                diff = diff * rates.value(wmt->code());
+                bas<<new BusiAction(0,pz,s,cwFSub,sxfSSub,mmt,MDIR_J,diff,0);
+                diff = sumZm - (bv*rates.value(wmt->code()) + diff);
+            }
+            else
+                diff = sumZm - bv*rates.value(wmt->code());
+        }
+        else{
+            diff = sumZm - bv*rates.value(wmt->code());
+        }
+    }
+    if(diff != 0)
+        bas<<new BusiAction(0,pz,tr("汇兑损益"),cwFSub,hdsySSub,mmt,MDIR_J,diff,0);
+
     QString summary = tr("收%1运费 %2").arg(curCusSSub->getName()).arg(compactNums);
     bas<<new BusiAction(0,pz,summary,bankFSub,bankSSub,mt,MDIR_J,bv,0);
     bas<<new BusiAction(0,pz,summary,ysFSub,curCusSSub,mmt,MDIR_D,sumZm,0);
@@ -1302,17 +1492,14 @@ void BaTemplateForm::createYfBas()
         myHelper::ShowMessageBoxWarning(tr("拜托，从银行付了多少钱呀？"));
         return;
     }    
+    int row = invoiceQualifieds();
+    if(row != -1)
+        return;
     QString dupliNum =  dupliInvoice();
     if(!dupliNum.isEmpty()){
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
         return;
     }
-    Double bv = ui->edtBankMoney->text().toDouble();
-    int rows = ui->tw->rowCount()-1;
-    Double sumZm = ui->tw->item(rows,CI_MONEY)->text().toDouble();//应付合计金额
-    Double sumWb = ui->tw->item(rows,CI_WMONEY)->text().toDouble();//应付美金合计
-    if(mt == mmt && sumZm != bv || mt == wmt && sumWb != bv)
-        myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所付金额不相等！"));
 
     //生成发票号的简写形式
     QHash<int,QStringList> invoices;
@@ -1320,7 +1507,7 @@ void BaTemplateForm::createYfBas()
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         QString inum = ui->tw->item(i,CI_INVOICE)->text();
         if(!invoiceQualified(inum)){
-            myHelper::ShowMessageBoxWarning(tr("存在无效的发票号！"));
+            myHelper::ShowMessageBoxWarning(tr("第%1行发票号无效！").arg(i+1));
             return;
         }
         int month = ui->tw->item(i,CI_MONTH)->text().toInt();
@@ -1344,17 +1531,25 @@ void BaTemplateForm::createYfBas()
     QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
 
     QList<BusiAction*> bas;
-    //如果付的是美金，则折算成本币后与应付合计金额比较，如果不相等，则创建汇兑损益分录
-    if(mt == wmt){
-        QHash<int,Double> rates;
-        amgr->getRates(rates);
-        Double diff = bv * rates.value(wmt->code()) - sumZm;
-        if(diff != 0){
-            FirstSubject* cwfyFSub = sm->getCwfySub();
-            SecondSubject* hdsySSub = cwfyFSub->getDefaultSubject();
-            bas<<new BusiAction(0,pz,tr("汇兑损益"),cwfyFSub,hdsySSub,mmt,MDIR_J,diff,0);
+    Double bv = ui->edtBankMoney->text().toDouble();
+    int rows = ui->tw->rowCount()-1;
+    Double sumZm = ui->tw->item(rows,CI_MONEY)->text().toDouble();//应付合计金额
+    Double sumWb = ui->tw->item(rows,CI_WMONEY)->text().toDouble();//应付美金合计
+    Double diff;
+    if(mt == mmt){
+        diff = bv - sumZm; //用本币折换外币的差额
+        if(diff != 0 && sumWb == 0){
+            diff = 0;
+            myHelper::ShowMessageBoxWarning(tr("发票合计金额与银行所付金额不相等！"));
         }
     }
+    else{
+        QHash<int,Double> rates;
+        amgr->getRates(rates);
+        diff = bv * rates.value(wmt->code()) - sumZm;
+    }
+    if(diff != 0)
+        bas<<new BusiAction(0,pz,tr("汇兑损益"),cwFSub,hdsySSub,mmt,MDIR_J,diff,0);
     QString summary = tr("付%1运费 %2").arg(curCusSSub->getName()).arg(compactNums);
     bas<<new BusiAction(0,pz,summary,yfFSub,curCusSSub,mmt,MDIR_J,sumZm,0);
     bas<<new BusiAction(0,pz,summary,bankFSub,bankSSub,mt,MDIR_D,bv,0);
@@ -1377,8 +1572,8 @@ void BaTemplateForm::createYsGatherBas()
     QList<SecondSubject*> ssubs;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         QString invoice = ui->tw->item(i,CI_INVOICE)->text();
-        if(invoice.isEmpty()){
-            myHelper::ShowMessageBoxWarning(tr("第%1行没有输入发票号！").arg(i+1));
+        if(invoice.isEmpty() || !invoiceQualified(invoice)){
+            myHelper::ShowMessageBoxWarning(tr("第%1行没有输入发票号或无效！").arg(i+1));
             return;
         }
         invoices<<invoice;
@@ -1401,11 +1596,6 @@ void BaTemplateForm::createYsGatherBas()
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
         return;
     }
-
-    FirstSubject* srFSub = sm->getZysrSub();
-    FirstSubject* sjFSub = sm->getYjsjSub();
-    SecondSubject *xxSSub = sm->getXxseSSub();
-    SecondSubject* bgfSSub = srFSub->getDefaultSubject();
     QList<BusiAction*> bas;
     QString summary;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
@@ -1422,7 +1612,7 @@ void BaTemplateForm::createYsGatherBas()
     int sumRow = ui->tw->rowCount()-1;
     Double sumZm = ui->tw->item(sumRow,CI_MONEY)->text().toDouble();
     Double sumTax = ui->tw->item(sumRow,CI_TAXMONEY)->text().toDouble();
-    bas<<new BusiAction(0,pz,tr("应收运费"),srFSub,bgfSSub,mmt,MDIR_D,sumZm-sumTax,0);
+    bas<<new BusiAction(0,pz,tr("应收运费"),srFSub,srDefSSub,mmt,MDIR_D,sumZm-sumTax,0);
     pzDlg->insertBas(bas);
     //剔除未被最终使用的临时科目（可能由于移除、剪切行等行为引起）
     foreach (SecondSubject* ssub, extraSSubs) {
@@ -1452,8 +1642,8 @@ void BaTemplateForm::createYfGatherBas()
     QList<SecondSubject*> ssubs;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         QString invoice = ui->tw->item(i,CI_INVOICE)->text();
-        if(invoice.isEmpty()){
-            myHelper::ShowMessageBoxWarning(tr("第%1行没有输入发票号！").arg(i+1));
+        if(invoice.isEmpty() || !invoiceQualified(invoice)){
+            myHelper::ShowMessageBoxWarning(tr("第%1行没有输入发票号或无效！").arg(i+1));
             return;
         }
         invoices<<invoice;
@@ -1477,15 +1667,11 @@ void BaTemplateForm::createYfGatherBas()
         return;
     }
 
-    FirstSubject* cbFSub = sm->getZycbSub();
-    FirstSubject* sjFSub = sm->getYjsjSub();
-    SecondSubject *jxSSub = sm->getJxseSSub();
-    SecondSubject* bgfSSub = cbFSub->getDefaultSubject();
     QList<BusiAction*> bas;
     int sumRow = ui->tw->rowCount()-1;
     Double sumZm = ui->tw->item(sumRow,CI_MONEY)->text().toDouble();
     Double sumTax = ui->tw->item(sumRow,CI_TAXMONEY)->text().toDouble();
-    bas<<new BusiAction(0,pz,tr("应付运费"),cbFSub,bgfSSub,mmt,MDIR_J,sumZm-sumTax,0);
+    bas<<new BusiAction(0,pz,tr("应付运费"),cbFSub,cbDefSSub,mmt,MDIR_J,sumZm-sumTax,0);
 
     QString summary;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
@@ -1537,7 +1723,7 @@ void BaTemplateForm::copyRow(int row)
     r->taxMoney = ui->tw->item(row,CI_TAXMONEY)->text().toDouble();
     r->wMoney = ui->tw->item(row,CI_WMONEY)->text().toDouble();
     if(isCustomer)
-        r->ssub = ui->tw->item(row,CI_MONEY)->data(Qt::EditRole).value<SecondSubject*>();
+        r->ssub = ui->tw->item(row,CI_CUSTOMER)->data(Qt::EditRole).value<SecondSubject*>();
     else
         r->ssub = 0;
     buffers<<r;
@@ -1601,6 +1787,21 @@ bool BaTemplateForm::invoiceQualified(QString inum)
 }
 
 /**
+ * @brief 检测所有表格行上的发票号是否有效
+ * @return 如果都有效，则返回-1，否则返回第一个无效的行号
+ */
+int BaTemplateForm::invoiceQualifieds()
+{
+    for(int i = 0; i < ui->tw->rowCount()-1; ++i){
+        if(!invoiceQualified(ui->tw->item(i,CI_INVOICE)->text())){
+            myHelper::ShowMessageBoxWarning(tr("第%1行发票号无效！").arg(i+1));
+            return i+1;
+        }
+    }
+    return -1;
+}
+
+/**
  * @brief 在指定行设置与指定发票号对应的应收/应付发票的金额信息，并比较对应的客户是否一致
  * 调用此函数，前提是在应收应付模式下，且行号是一个发票有效行
  * @param row
@@ -1617,9 +1818,12 @@ void BaTemplateForm::autoSetYsYf(int row, QString inum)
     else
         fsub = yfFSub;
     SecondSubject* ssub = fsub->getChildSub(r->customer);
-    if(curCusSSub != ssub)
-        myHelper::ShowMessageBoxWarning(tr("有点问题哦！该发票（%1）对应客户（%2）与当前客户不一致！")
-                                        .arg(inum).arg(r->customer?r->customer->getLongName():tr("空")));
+    if(curCusSSub != ssub){
+        //myHelper::ShowMessageBoxWarning(tr("有点问题哦！该发票（%1）对应客户（%2）与当前客户不一致！")
+        //                                .arg(inum).arg(r->customer?r->customer->getLongName():tr("空")));
+        QTableWidgetItem* it = ui->tw->item(row,CI_INVOICE);
+        it->setForeground(QBrush(Qt::red));
+    }
     int month = (amgr->year() == r->year)?r->month:-r->month;
     ui->tw->item(row,CI_MONTH)->setText(QString::number(month));
     ui->tw->item(row,CI_MONEY)->setText(r->money.toString());

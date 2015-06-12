@@ -596,6 +596,7 @@ class PaUtils
 {
 public:
     static void extractInvoiceNum(QString summary, QList<int> &months, QList<QStringList> &invoiceNums);
+    static void extractInvoiceNum2(QString summary,QStringList &invoiceNums);
     static void extractUSD(QString summary, bool &isYs, QString &invoiceNum, Double &value);
     static bool extractOnlyInvoiceNum(QString summary, QString &invoiceNumber, Double &money);
     static bool extractCustomerName(QString summary, QString &name);

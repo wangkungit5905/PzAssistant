@@ -12,7 +12,7 @@
 
 /////////////////PzSetMgr///////////////////////////////////////////
 AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *account, /*User *user, */QObject *parent):QObject(parent),
-    suiteRecord(as),account(account),curM(0)
+    suiteRecord(as),account(account),curM(0),isYsYfLoaded(false)
 {
     dbUtil = account->getDbUtil();
     undoStack = new QUndoStack(this);

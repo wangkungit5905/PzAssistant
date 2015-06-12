@@ -420,6 +420,9 @@ public:
     //获取特种子目对象方法
     SecondSubject* getJxseSSub();
     SecondSubject* getXxseSSub();
+    SecondSubject* getHdsySSub();
+    SecondSubject* getSxfSSub();
+
 
     bool isUsedSSub(SecondSubject* ssub);
 

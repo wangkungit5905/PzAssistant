@@ -44,8 +44,6 @@ class SummaryEdit : public QLineEdit
     Q_OBJECT
 public:
     SummaryEdit(int row,int col,QWidget* parent = 0);
-    void setContent(QString content);
-    QString getContent();
 
 signals:
     //当编辑器的数据修改完成后，触发此信号，
@@ -58,18 +56,8 @@ private slots:
     //void shortCutActivated();
 
 protected:
+    //bool eventFilter(QObject *obj, QEvent *event);
     void keyPressEvent(QKeyEvent *event);
-//    void mouseDoubleClickEvent(QMouseEvent *e);
-//    void focusOutEvent(QFocusEvent* e);
-
-private:
-    void parse(QString content);
-    QString assemble();
-
-    QString summary;     //摘要部分
-    QStringList fpNums;  //发票号列表
-    QString bankNums;    //银行票据号
-    int oppoSubject;     //对方科目id
     int row,col;         //编辑器打开时所处的行列位置
 
     //QShortcut* shortCut;
@@ -81,20 +69,10 @@ class SndSubComboBox : public QWidget
     Q_OBJECT
 public:
     SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectManager* subMgr, int row=0, int col=0, QWidget *parent = 0);
-    void hideList(bool isHide);
     void setSndSub(SecondSubject* sub);
-    //void setRowColNum(int row, int col);
-
-    void addItem(const QString& text, const QVariant& userData = QVariant()){com->addItem(text,userData);}
-    int	currentIndex() const{return com->currentIndex();}
-    void setCurrentIndex(int index){com->setCurrentIndex(index);}
-    int	findData(const QVariant& data, int role = Qt::UserRole,
-                 Qt::MatchFlags flags = static_cast<Qt::MatchFlags>
-            ( Qt::MatchExactly | Qt::MatchCaseSensitive ) ) const{return com->findData(data,role,flags);}
-    QVariant itemData (int index, int role = Qt::UserRole) const{return com->itemData(index,role);}
-
+    SecondSubject* subject(){return ssub;}
 protected:
-    void keyPressEvent(QKeyEvent* e );
+    bool eventFilter(QObject *obj, QEvent *event);
 
 private slots:
     void itemSelected(QListWidgetItem* item);
@@ -106,19 +84,17 @@ signals:
     void newSndSubject(FirstSubject* fsub, SecondSubject*& ssub, QString name, int row, int col);
     void dataEditCompleted(int col, bool isMove);
 private:
+    bool processArrowKey(bool up);
+    void hideList(bool isHide);
     void filterListItem();
-    void enterKeyWhenHide();
 
     int row,col;       //编辑器所处的行列位置
     QString* keys;     //接收到的字母或数字键（数字表示科目代码，字母表示科目助记符）
     SortByMode sortBy;
-    int expandHeight;  //当出现智能提示框时要伸展的高度
     FirstSubject* fsub;              //二级科目所属的一级科目
     SecondSubject* ssub;             //当前选定的二级科目对象
     SubjectManager *subMgr;          //
     QList<SubjectNameItem*> allNIs;  //所有名称条目
-
-    bool textChangeReson; //组合框的文本是怎么改变的（true：鼠标选择组合框的下拉列表中的一个项目，false：用户输入到组合框的文本编辑区域）
     QComboBox* com;       //显示当前一级科目下的可选的二级科目的组合框
     QListWidget* lw;      //智能提示列表框（显示所有带有指定前缀的名称条目）
 };
@@ -152,10 +128,7 @@ public:
     Double getValue();
     void setCell(int row, int col){this->row = row;this->col = col;}
 protected:
-    void keyPressEvent(QKeyEvent* e );
-private slots:
-    //void valueChanged(const QString & text);
-    //void valueEdited();
+    bool eventFilter(QObject *obj, QEvent *e);
 signals:
     void dataEditCompleted(int col, bool isMove);
     void nextRow(int row);  //在贷方列按下回车键时触发此信号

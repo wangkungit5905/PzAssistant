@@ -41,7 +41,6 @@ enum BaTemplateType{
     BTT_YF_GATHER = 2
 };
 
-
 /**
  * @brief 用于输入发票号，可以识别断续型或连续型的发票号输入方式或两者的混合
  */
@@ -223,8 +222,6 @@ private slots:
 
     void on_btnOk_clicked();
 
-    //void on_btnTest_clicked();
-
     void on_btnCancel_clicked();
 
     void on_btnSave_clicked();
@@ -235,11 +232,11 @@ private:
     void init();
     void initRow(int row);
     void changeCustomerType(CustomerType type);
-    int belongMonthForINcoice(QString inum);
     void reCalSum(ColumnIndex col);
     void reCalAllSum();
     void turnDataInspect(bool on=true);
     bool invoiceQualified(QString inum);
+    int invoiceQualifieds();
     void autoSetYsYf(int row,QString inum);
     void createBankIncomeBas();
     void createBankCostBas();
@@ -266,7 +263,8 @@ private:
     PingZheng* pz;
     PzDialog* pzDlg;
     InvoiceInputDelegate* delegate;
-    FirstSubject* bankFSub,*ysFSub,*yfFSub/*,*sjFSub,*srFSub,*cbFSub*/;
+    FirstSubject* bankFSub,*ysFSub,*yfFSub,*sjFSub,*srFSub,*cbFSub,*cwFSub;
+    SecondSubject *xxSSub,*jxSSub,*hdsySSub,*srDefSSub,*cbDefSSub,*sxfSSub;
     SecondSubject *bankSSub,*curCusSSub; //当前选择的银行子目，当前选择的客户子目（在单客户类型即银行收入或成本类型模板）
     Money *mmt,*mt,*wmt;     //本币，当前银行科目涉及的币种、外币（美金）
     QPushButton* btnAdd;

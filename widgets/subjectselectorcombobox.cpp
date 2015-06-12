@@ -299,10 +299,10 @@ void SubjectSelectorComboBox::loadFstSubs()
  */
 void SubjectSelectorComboBox::loadSndSubs()
 {
-    if(!fsub)
-        return;
     sourceModel.clear();
     clear();
+    if(!fsub)
+        return;    
     switchModel(false);
     sourceModel.setColumnCount(3);
     QStandardItem* item;

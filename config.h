@@ -116,6 +116,8 @@ public:
     const QString SEGMENT_USER_INTFACE = "UserInterface";
     const QString KEY_INTERFACE_AUTOHIDELEFTPANEL = "isAutoHideLeftPanel";
     const QString KEY_INTERFACE_MIN_TO_TRAY = "minimalToSystemTray";
+    const QString SEGMENT_APP_BEHAVE = "AppBehave";
+    const QString key_ssub_input_firstly = "ssubFirstlyMethod";
 
     ~AppConfig();
 
@@ -257,6 +259,10 @@ public:
     void setAutoHideLeftDock(bool on);
     bool minToTrayClose();
     void setMinToTrayClose(bool on);
+
+    //应用行为特性
+    bool ssubFirstlyInputMothed();
+    void setSSubFirstlyInputMothed(bool isName, bool save);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);
@@ -280,6 +286,7 @@ private:
     QList<AccountCacheItem*> accountCaches;
     QHash<int, QHash<SpecSubCode,QString> > specCodes; //特定科目代码表
     bool init_accCache; //本地账户缓存条目是否已从缓存表中读取的标志
+    bool ssubFirstlyInput;
 
     //特定名称类别的代码
     QHash<SpecNameItemClass,int> specNICs;

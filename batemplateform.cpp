@@ -108,7 +108,7 @@ void MoneyEdit::moneyEditCompleated()
 
 //////////////////////////////CustomerNameEdit/////////////////////////////////
 CustomerNameEdit::CustomerNameEdit(SubjectManager *subMgr, QWidget *parent)
-    :QWidget(parent),sm(subMgr),fsub(0),ssub(0),isLastRow(false)
+    :QWidget(parent),sm(subMgr),fsub(0),ssub(0)/*,isLastRow(false)*/
 {
     com = new QComboBox(this);
     com->setEditable(true);       //使其可以输入新的名称条目
@@ -142,6 +142,7 @@ CustomerNameEdit::CustomerNameEdit(SubjectManager *subMgr, QWidget *parent)
         item->setData(Qt::UserRole, v);
         lw->addItem(item);
     }
+    this->setFocusProxy(com);
 }
 
 void CustomerNameEdit::setCustomerName(QString name)
@@ -248,10 +249,12 @@ void CustomerNameEdit::nameTextChanged(const QString &text)
 }
 
 void CustomerNameEdit::nameTexteditingFinished()
-{
+{    
+    QString editText = com->lineEdit()->text().trimmed();
+    if(editText.isEmpty())
+        return;
     QListWidgetItem* item;
     SubjectNameItem* ni;
-    QString editText = com->lineEdit()->text();
     for(int i = 0; i < lw->count(); ++i){
         item = lw->item(i);
         if(item->isHidden())
@@ -298,7 +301,7 @@ bool CustomerNameEdit::eventFilter(QObject *obj, QEvent *event)
         QKeyEvent* e = static_cast<QKeyEvent*>(event);
         int keyCode = e->key();
         if((keyCode == Qt::Key_Return) || (keyCode == Qt::Key_Enter)){
-            emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,!isLastRow);
+            emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,true/*!isLastRow*/);
             return true;
         }
     }
@@ -310,7 +313,7 @@ bool CustomerNameEdit::eventFilter(QObject *obj, QEvent *event)
         int keyCode = e->key();
         if(lw->isHidden()){
             if((keyCode == Qt::Key_Return) || (keyCode == Qt::Key_Enter)){
-                emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,!isLastRow);
+                emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,true/*!isLastRow*/);
                 return true;
             }
         }
@@ -446,8 +449,8 @@ QWidget *InvoiceInputDelegate::createEditor(QWidget *parent, const QStyleOptionV
         CustomerNameEdit* edt = new CustomerNameEdit(sm,parent);
         edt->setRowNum(row);
         edt->setFSub(fsub,p->getExtraSSubs());
-        if(rows-2 == row)
-            edt->setLastRow(true);
+        //if(rows-2 == row)
+        //    edt->setLastRow(true);
         connect(edt,SIGNAL(dataEditCompleted(int,bool)),this,SLOT(commitAndCloseEditor(int,bool)));
         connect(edt,SIGNAL(newMappingItem(FirstSubject*,SubjectNameItem*,SecondSubject*&,int,int)),
                 this,SLOT(newNameItemMapping(FirstSubject*,SubjectNameItem*,SecondSubject*&,int,int)));

@@ -109,7 +109,7 @@ public:
     void setFSub(FirstSubject* fsub, const QList<SecondSubject *> &extraSubs);
     void setSSub(SecondSubject* ssub);
     void hideList(bool isHide);
-    void setLastRow(bool yes){isLastRow=yes;}
+    //void setLastRow(bool yes){isLastRow=yes;}
 
 private slots:
     void itemSelected(QListWidgetItem* item);
@@ -139,7 +139,7 @@ private:
     QComboBox* com;       //显示当前一级科目下的可选的二级科目的组合框
     QListWidget* lw;      //智能提示列表框（显示所有带有指定前缀的名称条目）
     int row;              //编辑器所在行号（基于0）
-    bool isLastRow;       //编辑器所在行是否是最后行
+    //bool isLastRow;       //编辑器所在行是否是最后行
 };
 
 class InvoiceInputDelegate : public QItemDelegate

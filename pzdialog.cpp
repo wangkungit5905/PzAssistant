@@ -1073,11 +1073,7 @@ void PzDialog::getBaSelectedCase(QList<int> rows, bool& conti)
 }
 
 
-//void PzDialog::setPz(PingZheng *pz)
-//{
-//    curPz = pz;
-//    refreshPzContent();
-//}
+
 
 /**
  * @brief PzDialog::msgTimeout 状态信息显示超时处理
@@ -1094,39 +1090,10 @@ void PzDialog::msgTimeout()
  */
 void PzDialog::moneyTypeChanged(int index)
 {
-    //disconnect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
     ui->edtRate->setText(rates.value(ui->cmbMt->itemData(index).value<Money*>()->code()).toString());
-    //connect(ui->edtRate,SIGNAL(editingFinished()),this,SLOT(rateChanged()));
 }
 
-/**
- * @brief PzDialog::updateSndSubject
- * 更新会计分录的二级科目（因为该二级科目是新建的）
- * @param row
- * @param col
- * @param ssub
- */
-//void PzDialog::updateSndSubject(int row, int col, SecondSubject *ssub)
-//{
-//    //curBa->setSecondSubject(ssub);
-//    BusiAction* ba = curPz->getBusiAction(row);
-//    ba->setSecondSubject(ssub);
 
-    //refreshSingleBa(row,ba);
-    //BASndSubItem* item = qobject_cast<BASndSubItem*>(ui->tview->item(row,col));
-
-//    BASndSubItem* item = new BASndSubItem(ssub,subMgr);
-//    QVariant v;
-//    v.setValue(ssub);
-//    item->setData(Qt::UserRole,v);
-//    ui->tview->setItem(row,col,item);
-
-//    QVariant v;
-//    v.setValue(ssub);
-//    ui->tview->model()->setData(ui->tview->model()->index(row,col),v);
-//    LOG_INFO(QString("enter updateSndSubject(%1,%2,%3)").arg(row).arg(col).arg(ssub->getName()));
-    //    ui->tview->update(ui->tview->model()->index(row,col));
-//}
 
 /**
  * @brief PzDialog::processShortcut
@@ -1213,14 +1180,6 @@ void PzDialog::setPzState(PzState state)
     adjustViewReadonly();
 }
 
-/**
- * @brief PzDialog::rateChanged
- *
- */
-//void PzDialog::rateChanged()
-//{
-
-//}
 
 /**
  * @brief PzDialog::updatePzCount
@@ -1261,7 +1220,6 @@ void PzDialog::curPzChanged(PingZheng *newPz, PingZheng *oldPz)
  */
 void PzDialog::moveToNextBa(int row)
 {
-    LOG_INFO(QString("move to next Bauiaction()%1").arg(row));
     if(row == curPz->baCount()-1){
         delegate->setVolidRows(row+2);
         initBlankBa(row+1);
@@ -1441,9 +1399,9 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             }
         }
         //如果一级科目设置了包含型的子目自动适配关键字，则适配子目
-        else if(fsub->isHaveSmartAdapte())
+        else if(fsub && fsub->isHaveSmartAdapte())
             ssub = fsub->getAdapteSSub(curBa->getSummary());
-        if(!ssub)
+        if(!ssub && fsub)
             ssub = fsub->getDefaultSubject();
         updateCols |= BUC_FSTSUB;
         updateCols |= BUC_SNDSUB;
@@ -1471,7 +1429,7 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             updateCols |= BUC_VALUE;
         }
         //如果新的一级科目使用外币，或者不使用外币且当前货币是本币，则无须调整币种和金额
-        else if(fsub->isUseForeignMoney() || (!fsub->isUseForeignMoney() && curBa->getMt() == account->getMasterMt())){
+        else if(fsub && (fsub->isUseForeignMoney() || (!fsub->isUseForeignMoney() && curBa->getMt() == account->getMasterMt()))){
             mt = curBa->getMt();
             v = curBa->getValue();
         }
@@ -1490,10 +1448,10 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             return;
         fsub = curBa->getFirstSubject();
         ssub = item->data(Qt::EditRole).value<SecondSubject*>();
-        if(!fsub || !ssub)
+        if(!fsub)
             return;
         bool isEnChanged = false;
-        if(!ssub->isEnabled()){
+        if(ssub && !ssub->isEnabled()){
             if(QDialog::Rejected == myHelper::ShowMessageBoxQuesion(tr("二级科目“%1”已被禁用，是否重新启用？").arg(ssub->getName()))){
                QVariant v; v.setValue(curBa->getSecondSubject());
                item->setData(Qt::EditRole,v);
@@ -1502,7 +1460,7 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
             isEnChanged = true;
         }
         //如果是银行科目，则根据银行账户所属的币种设置币种对象
-        if(subMgr->getBankSub() == fsub){
+        if(ssub && subMgr->getBankSub() == fsub){
             mt = subMgr->getSubMatchMt(ssub);
             if(!mt)
                 break;
@@ -1517,7 +1475,7 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                 updateCols |= BUC_MTYPE;
             }
             updateCols |= BUC_VALUE;
-        }        
+        }
         else{//如果是普通科目，且未设币种，则默认将币种设为本币
             if(!curBa->getMt()){
                 mt = account->getMasterMt();
@@ -1609,8 +1567,11 @@ void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, Sub
     }
     if(QMessageBox::information(0,msgTitle_info,tr("确定要使用已有的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
                                 .arg(ni->getShortName()).arg(fsub->getName()),
-                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::No)
+                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::No){
+        BASndSubItem_new* item = static_cast<BASndSubItem_new*>(ui->tview->item(row,col));
+        item->setText(curBa->getSecondSubject()?curBa->getSecondSubject()->getName():"");
         return;
+    }
     isInteracting = false;
     ModifyBaSndSubNMMmd* cmd = new ModifyBaSndSubNMMmd(pzMgr,curPz,curBa,subMgr,fsub,ni,1,QDateTime::currentDateTime(),curUser);
     pzMgr->getUndoStack()->push(cmd);
@@ -1632,30 +1593,37 @@ void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, Sub
  */
 void PzDialog::creatNewSndSubject(int row, int col, FirstSubject* fsub, SecondSubject*& ssub, QString name)
 {
-//    if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
-//        myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
-//        return;
-//    }
-    CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fsub->getId(),subMgr,0);
-    dlg->setName(name);
-
-    if(QDialog::Accepted == dlg->exec()){
-        ModifyBaSndSubNSMmd* cmd =
-            new ModifyBaSndSubNSMmd(pzMgr,curPz,curBa,subMgr,fsub,
-                                    dlg->getSName(),dlg->getLName(),
-                                    dlg->getRemCode(),dlg->getSubCalss(),
-                                    QDateTime::currentDateTime(),curUser);
-        pzMgr->getUndoStack()->push(cmd);
-        ssub = cmd->getSecondSubject();
-        BaUpdateColumns updateCols;
-        updateCols |= BUC_SNDSUB;
-        updateBas(row,1,updateCols);
-        //有由编辑器触发数据编辑完成信号，进而触发转到下一列信号
-        //ui->tview->edit(ui->tview->model()->index(row,col+1));
+    if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
+        myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
+        return;
     }
-    else
-        ssub = curBa->getSecondSubject();
-    //LOG_INFO("exit PzDialog::creatNewSndSubject()");
+    if(QMessageBox::information(0,msgTitle_info,tr("确定要用新的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
+                                .arg(name).arg(fsub->getName()),
+                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes){
+        CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fsub->getId(),subMgr,0);
+        dlg->setName(name);
+        if(QDialog::Accepted == dlg->exec()){
+            ModifyBaSndSubNSMmd* cmd =
+                new ModifyBaSndSubNSMmd(pzMgr,curPz,curBa,subMgr,fsub,
+                                        dlg->getSName(),dlg->getLName(),
+                                        dlg->getRemCode(),dlg->getSubCalss(),
+                                        QDateTime::currentDateTime(),curUser);
+            pzMgr->getUndoStack()->push(cmd);
+            ssub = cmd->getSecondSubject();
+            BaUpdateColumns updateCols;
+            updateCols |= BUC_SNDSUB;
+            updateBas(row,1,updateCols);
+            delegate->userConfirmed();
+            ui->tview->edit(ui->tview->model()->index(row,col));
+            return;
+
+        }
+    }
+    SecondSubject* oldSSub = curBa->getSecondSubject();
+    BASndSubItem_new* item = static_cast<BASndSubItem_new*>(ui->tview->item(row,col));
+    item->setText(oldSSub?oldSSub->getName():"");
+    delegate->userConfirmed();
+    ui->tview->edit(ui->tview->model()->index(row,col));
 }
 
 /**
@@ -2113,39 +2081,6 @@ bool PzDialog::isBlankLastRow()
     else
         return false;
 }
-
-/**
- * @brief PzDialog::copyPreviouBa
- * 复制上一条会计分录并插入到当前行
- */
-//void PzDialog::copyPreviouBa()
-//{
-//    LOG_INFO("shortcut copy previou is actived!");
-//}
-
-/**
- * @brief PzDialog::copyCutPaste
- * 处理拷贝、剪切和粘贴操作
- * @param witch（）
- */
-//void PzDialog::copyCutPaste(ClipboardOperate witch)
-//{
-//    if(witch == CO_COPY){
-//        QList<int> rows; bool isc;
-//        ui->tview->selectedRows(rows,isc);
-//        if(rows.empty())
-//            return;
-//        clb_Bas.clear();
-//        foreach(int i, rows)
-//            clb_Bas<<curPz->getBusiAction(i);
-//    }
-//    else if(witch == CO_CUT){
-
-//    }
-//    else{
-
-//    }
-//}
 
 /**
  * @brief PzDialog::installInfoWatch 连接或断开凭证内容被编辑的信号

@@ -98,6 +98,7 @@ private:
     Ui::AppCommCfgPanel *ui;
     bool _autoHideLeftPanel;
     bool _minToTray;
+    bool _ssubFirstlyName;
     AppConfig* _appCfg;
 
 };

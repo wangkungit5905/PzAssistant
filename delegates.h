@@ -69,7 +69,7 @@ class SndSubComboBox : public QWidget
     Q_OBJECT
 public:
     SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectManager* subMgr, int row=0, int col=0, QWidget *parent = 0);
-    void setSndSub(SecondSubject* sub);
+    void setSndSub(SecondSubject* ssub);
     SecondSubject* subject(){return ssub;}
 protected:
     bool eventFilter(QObject *obj, QEvent *event);
@@ -92,7 +92,7 @@ private:
     QString* keys;     //接收到的字母或数字键（数字表示科目代码，字母表示科目助记符）
     SortByMode sortBy;
     FirstSubject* fsub;              //二级科目所属的一级科目
-    SecondSubject* ssub;             //当前选定的二级科目对象
+    SecondSubject* ssub;             //当前选定的二级科目对象    
     SubjectManager *subMgr;          //
     QList<SubjectNameItem*> allNIs;  //所有名称条目
     QComboBox* com;       //显示当前一级科目下的可选的二级科目的组合框
@@ -155,11 +155,13 @@ public:
                       const QModelIndex &index) const;
     void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem &option,
                               const QModelIndex& index) const;
+    void destroyEditor(QWidget * editor, const QModelIndex & index) const;
 
     void setReadOnly(bool readOnly){isReadOnly=readOnly;}
     void setVolidRows(int rows){validRows=rows;}
     int getVolidRows(){return validRows;}
     //void watchExtraException();
+    void userConfirmed(){canDestroy=true;}
 
 private slots:
     void commitAndCloseEditor(int colIndex, bool isMove);
@@ -185,7 +187,8 @@ private:
     bool isReadOnly; //表格是否只读的
     int validRows;   //表格的有效行数，这个是为了对无效行不创建编辑器（不包含备用行)
     SubjectManager* subMgr;
-    StatUtil* statUtil;
+    StatUtil* statUtil;    
+    bool canDestroy;      //对象是否可以销毁（当创建新科目时，利用此标记延迟对象的销毁）
 };
 
 

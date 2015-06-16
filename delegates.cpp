@@ -135,6 +135,8 @@ SndSubComboBox::SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectM
         item->setData(Qt::UserRole, v);
         lw->addItem(item);
     }
+    if(AppConfig::getInstance()->ssubFirstlyInputMothed())
+        setFocusProxy(com);
 }
 
 /**
@@ -154,7 +156,7 @@ void SndSubComboBox::hideList(bool isHide)
  * @brief SndSubComboBox::setSndSub 设置二级科目对象
  * @param sub
  */
-void SndSubComboBox::setSndSub(SecondSubject *sub)
+void SndSubComboBox::setSndSub(SecondSubject *ssub)
 {
     if(ssub && ssub->getParent() == fsub){
         if(this->ssub != ssub){
@@ -164,10 +166,10 @@ void SndSubComboBox::setSndSub(SecondSubject *sub)
             com->setCurrentIndex(com->findData(v,Qt::UserRole));
         }
     }
-//    else{
-//        ssub = 0;
-//        com->setCurrentIndex(-1);
-//    }
+    else{
+        this->ssub = 0;
+        com->setCurrentIndex(-1);
+    }
 }
 
 
@@ -185,8 +187,9 @@ bool SndSubComboBox::eventFilter(QObject *obj, QEvent *event)
                 if(item){
                     SubjectNameItem* ni = item->data(Qt::UserRole).value<SubjectNameItem*>();
                     ssub = fsub->getChildSub(ni);
-                    if(!ssub)
+                    if(!ssub){
                         emit newMappingItem(fsub,ni,ssub,row,col);
+                    }
                 }
 
             }
@@ -248,22 +251,24 @@ bool SndSubComboBox::eventFilter(QObject *obj, QEvent *event)
         int keyCode = e->key();
         if(lw->isHidden()){
             if((keyCode == Qt::Key_Return) || (keyCode == Qt::Key_Enter)){
-                emit dataEditCompleted(BT_SNDSUB,true);
-                return true;
+                com->lineEdit()->clearFocus();
+                this->setFocus();
+                return false;
             }
         }
         else{
             if(keyCode == Qt::Key_Up){
                 processArrowKey(true);
-                    return true;
+                return true;
             }
             else if(keyCode == Qt::Key_Down){
                 processArrowKey(false);
-                    return true;
+                return true;
             }
             if(keyCode == Qt::Key_Return || keyCode == Qt::Key_Enter){
                 itemSelected(lw->currentItem());
-                com->eventFilter(obj, event);
+                com->lineEdit()->clearFocus();
+                this->setFocus();
             }
         }
     }
@@ -344,7 +349,6 @@ void SndSubComboBox::nameTexteditingFinished()
     //如果没有找到，则触发新名称条目信号
     SecondSubject* ssub = NULL;
     emit newSndSubject(fsub,ssub,editText,row,col);
-    //由于编辑器已经关闭，后续处理已经没有意义
     if(ssub){
         QVariant v;
         v.setValue(ssub);
@@ -560,7 +564,7 @@ bool MoneyValueEdit::eventFilter(QObject *obj, QEvent *e)
 
 ////////////////////////////////ActionEditItemDelegate/////////////////
 ActionEditItemDelegate::ActionEditItemDelegate(SubjectManager *subMgr, QObject *parent):
-    QItemDelegate(parent),subMgr(subMgr)
+    QItemDelegate(parent),subMgr(subMgr),canDestroy(true)
 {
     isReadOnly = false;
     statUtil = NULL;
@@ -656,20 +660,13 @@ void ActionEditItemDelegate::setEditorData(QWidget *editor, const QModelIndex &i
             cmb->setSubject(fsub);
         }
     }
+    //这个好像有点多余，因为在创建编辑器时已经设置好了一二级科目
     else if(col == BT_SNDSUB){
         SndSubComboBox* cmb = qobject_cast<SndSubComboBox*>(editor);
         if(cmb){
             SecondSubject* ssub = index.model()->data(index, Qt::EditRole)
                     .value<SecondSubject*>();
             cmb->setSndSub(ssub);
-            FirstSubject* fsub = NULL;
-            if(!ssub){  //如果未设置二级科目则通过模型获取一级科目
-                fsub = index.model()->data(index.sibling(index.row(),index.column()-1), Qt::EditRole).value<FirstSubject*>();
-            }
-            else
-                fsub = ssub->getParent();
-            if(!fsub)
-                return;
         }
     }
     else if(col == BT_MTYPE){
@@ -782,7 +779,6 @@ void ActionEditItemDelegate::commitAndCloseEditor(int colIndex, bool isMove)
  */
 void ActionEditItemDelegate::newNameItemMapping(FirstSubject *fsub, SubjectNameItem *ni, SecondSubject*& ssub,int row, int col)
 {
-    //LOG_INFO("enter ActionEditItemDelegate::newNameItemMapping()");
     emit crtNewNameItemMapping(row,col,fsub,ni,ssub);
 }
 
@@ -796,15 +792,8 @@ void ActionEditItemDelegate::newNameItemMapping(FirstSubject *fsub, SubjectNameI
  */
 void ActionEditItemDelegate::newSndSubject(FirstSubject *fsub, SecondSubject*& ssub, QString name, int row, int col)
 {
-    if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
-        myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
-        return;
-    }
-    if(QMessageBox::information(0,msgTitle_info,tr("确定要用新的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
-                                .arg(name).arg(fsub->getName()),
-                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes)
-            emit crtNewSndSubject(row,col,fsub,ssub,name);
-
+    canDestroy = false;
+    emit crtNewSndSubject(row,col,fsub,ssub,name);
 }
 
 //信号传播中介，在编辑器打开的情况下，当用户在贷方列按回车键时，会接收到此信号，并将此信号进一步传播给凭证编辑窗口
@@ -826,6 +815,14 @@ void ActionEditItemDelegate::updateEditorGeometry(QWidget* editor,
 {
     QRect rect = option.rect;
     editor->setGeometry(rect);
+}
+
+void ActionEditItemDelegate::destroyEditor(QWidget *editor, const QModelIndex &index) const
+{
+    if(index.column() != BT_SNDSUB)
+        return QItemDelegate::destroyEditor(editor,index);
+    if(canDestroy)
+        editor->deleteLater();
 }
 
 ///////////////////////////////FSubSelectCmb/////////////////////////////////////////////////////////

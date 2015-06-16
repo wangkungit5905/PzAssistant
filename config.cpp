@@ -275,6 +275,9 @@ bool AppConfig::_initCfgVars()
             break;
         }
     }
+    appIni->beginGroup(SEGMENT_APP_BEHAVE);
+    ssubFirstlyInput = appIni->value(key_ssub_input_firstly,true).toBool();
+    appIni->endGroup();
     return true;
 }
 
@@ -2016,6 +2019,25 @@ void AppConfig::setMinToTrayClose(bool on)
     appIni->beginGroup(SEGMENT_USER_INTFACE);
     appIni->setValue(KEY_INTERFACE_MIN_TO_TRAY,on);
     appIni->endGroup();
+}
+
+/**
+ * @brief 二级科目收入首先方法
+ * @return true：名称，false：助记符
+ */
+bool AppConfig::ssubFirstlyInputMothed()
+{
+    return ssubFirstlyInput;
+}
+
+void AppConfig::setSSubFirstlyInputMothed(bool isName,bool save=false)
+{
+    ssubFirstlyInput = isName;
+    if(save){
+        appIni->beginGroup(SEGMENT_APP_BEHAVE);
+        appIni->setValue(key_ssub_input_firstly,isName);
+        appIni->endGroup();
+    }
 }
 
 /**

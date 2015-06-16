@@ -56,7 +56,7 @@ void FstSubEditComboBox::setCurrentIndex(int index)
 
 bool FstSubEditComboBox::eventFilter(QObject *obj, QEvent *ev)
 {
-    if(ev->type() != QEvent::KeyPress && ev->type() != QEvent::MouseButtonPress)
+    if(ev->type() != QEvent::KeyPress)
         return QWidget::eventFilter(obj, ev);
     QKeyEvent* ke = static_cast<QKeyEvent*>(ev);
     FstSubEditComboBox* w = static_cast<FstSubEditComboBox*>(obj);
@@ -102,8 +102,9 @@ bool FstSubEditComboBox::eventFilter(QObject *obj, QEvent *ev)
             }
             else if(key == Qt::Key_Enter || key == Qt::Key_Return){
                 int row = tv->currentIndex().row();
-                if(row >= 0)
+                if(row >= 0){
                     completed(tv->currentIndex());
+                }
             }
             else if(key == Qt::Key_Up){
                 int row = tv->currentIndex().row();
@@ -151,11 +152,34 @@ bool FstSubEditComboBox::eventFilter(QObject *obj, QEvent *ev)
         }
     }
 
+    //在这里触发编辑完成事件会连跳2格到币种列？
     QComboBox* c = static_cast<QComboBox*>(obj);
     if(c && ke && c==com){
         int key = ke->key();
         if(key == Qt::Key_Up || key == Qt::Key_Down)
             return eventFilter(this,ev);
+        if(key == Qt::Key_Enter || key == Qt::Key_Return){
+            if(tv->isVisible()){
+                completed(tv->currentIndex());
+                return true;
+            }
+            else{
+                QString subName = com->currentText();
+                if(!subName.isEmpty()){
+                    for(int i = 0; i < com->count(); ++i){
+                        FirstSubject* sub = com->itemData(i).value<FirstSubject*>();
+                        if(sub->getName() == subName){
+                            //切换输入焦点，通过连续两次按回车键来跳到下一格
+                            com->setCurrentIndex(i);
+                            com->lineEdit()->clearFocus();
+                            this->setFocus();
+                            break;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
     }
     return QWidget::eventFilter(obj, ev);
 }
@@ -163,13 +187,18 @@ bool FstSubEditComboBox::eventFilter(QObject *obj, QEvent *ev)
 
 void FstSubEditComboBox::completed(QModelIndex index)
 {
-    if(tv->isHidden() || !index.isValid())
+    if(tv->isHidden())
         return;
-    fsub = model.data(index,Qt::UserRole).value<FirstSubject*>();
-    QVariant v;
-    v.setValue<FirstSubject*>(fsub);
-    int idx = com->findData(v);
-    setCurrentIndex(idx);
+    int idx = -1;
+    if(!index.isValid())
+        fsub = 0;
+    else{
+        fsub = model.data(index,Qt::UserRole).value<FirstSubject*>();
+        QVariant v;
+        v.setValue<FirstSubject*>(fsub);
+        idx = com->findData(v);
+    }
+    com->setCurrentIndex(idx);
     tv->hide();
     emit dataEditCompleted(1,true);
 }
@@ -182,9 +211,10 @@ void FstSubEditComboBox::nameChanged(QString text)
         sortBy = SORTMODE_NAME;
     }
     keys = text;
-    if(tv->isHidden())
-        hideTView(model.rowCount()==0);
     refreshModel();
+    if(text.isEmpty())
+        tv->setCurrentIndex(QModelIndex());
+    hideTView(model.rowCount()==0);
 }
 
 void FstSubEditComboBox::subjectIndexChanged(int index)
@@ -254,12 +284,8 @@ void FstSubEditComboBox::refreshModel()
     }
     model.setFilterFixedString(keys);
     int count = model.rowCount();
-    if(count == 0){
-        tv->hide();
-    }
-    else {
+    if(count > 0)
         tv->setCurrentIndex(model.index(0,0));
-    }
 }
 
 void FstSubEditComboBox::hideTView(bool isHide)

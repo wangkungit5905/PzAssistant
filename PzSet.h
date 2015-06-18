@@ -7,7 +7,6 @@
 #include "commdatastruct.h"
 
 class DbUtil;
-class CustomRelationTableModel;
 class PingZheng;
 class Account;
 class StatUtil;

@@ -1570,6 +1570,7 @@ void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, Sub
                              QMessageBox::Yes|QMessageBox::No) == QMessageBox::No){
         BASndSubItem_new* item = static_cast<BASndSubItem_new*>(ui->tview->item(row,col));
         item->setText(curBa->getSecondSubject()?curBa->getSecondSubject()->getName():"");
+        delegate->userConfirmed();
         return;
     }
     isInteracting = false;
@@ -1579,6 +1580,7 @@ void PzDialog::creatNewNameItemMapping(int row, int col, FirstSubject *fsub, Sub
     BaUpdateColumns updateCols;
     updateCols |= BUC_SNDSUB;
     updateBas(row,1,updateCols);
+    delegate->userConfirmed();
     ui->tview->edit(ui->tview->model()->index(row,col+1));
 }
 

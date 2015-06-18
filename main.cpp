@@ -26,11 +26,8 @@ int main(int argc, char *argv[])
     FileAppender* logFile = new FileAppender(LOGS_PATH + "app.log");
     Logger::registerAppender(logFile);
 
-    Logger::write(Logger::Must,"",0,"","");
-    Logger::write(Logger::Must,"",0,"",
-                  "************************************************************");
     Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
-                  QObject::tr("PzAssistant is starting......"));
+                  QObject::tr("PzAssistant start runing......"));
     logLevel = cfg->getLogLevel();
     logFile->setDetailsLevel(logLevel);
 

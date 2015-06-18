@@ -14,7 +14,6 @@
 
 
 #include "config.h"
-#include "appmodel.h"
 #include "common.h"
 #include "account.h"
 

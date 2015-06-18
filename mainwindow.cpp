@@ -406,9 +406,6 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
     if(t == SUBWIN_PZEDIT){
         PzDialog* w = static_cast<PzDialog*>(subWin->widget());
         commonState = w->getCommonState();
-        disconnect(w,SIGNAL(showMessage(QString,AppErrorLevel)),this,SLOT(showRuntimeInfo(QString,AppErrorLevel)));
-        disconnect(w,SIGNAL(selectedBaChanged(QList<int>,bool)),this,SLOT(baSelectChanged(QList<int>,bool)));
-        disconnect(w,SIGNAL(rateChanged(int)),this,SLOT(rateChanged(int)));
         delete w;
     }
     else if(t == SUBWIN_HISTORYVIEW){

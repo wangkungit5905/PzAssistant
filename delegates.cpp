@@ -779,6 +779,7 @@ void ActionEditItemDelegate::commitAndCloseEditor(int colIndex, bool isMove)
  */
 void ActionEditItemDelegate::newNameItemMapping(FirstSubject *fsub, SubjectNameItem *ni, SecondSubject*& ssub,int row, int col)
 {
+    canDestroy = false;
     emit crtNewNameItemMapping(row,col,fsub,ni,ssub);
 }
 

@@ -177,10 +177,10 @@ void MainApplication::showErrorInfo(AppErrorCode errCode, QString details)
 
 void MainApplication::quitApplication()
 {
-    qWarning() << "quitApplication 1";
+    //qWarning() << "quitApplication 1";
     if(mainWindow_)
         delete mainWindow_;
-    qWarning() << "quitApplication 2";
+    //qWarning() << "quitApplication 2";
     _appCfg->saveGlobalVar();
     _appCfg->exit();
 }

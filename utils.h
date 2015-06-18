@@ -15,7 +15,6 @@
 #include "common.h"
 #include "commdatastruct.h"
 #include "dialog2.h"
-#include "appmodel.h"
 #include "global.h"
 
 

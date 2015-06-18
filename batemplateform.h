@@ -126,6 +126,7 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event);
 
 private:
+    bool processArrowKey(bool up);
     void filterListItem();
     SecondSubject *getMatchExtraSub(SubjectNameItem* ni);
     int insertExtraNameItem(SubjectNameItem* ni);
@@ -134,12 +135,12 @@ private:
     SecondSubject* ssub;
     SubjectManager* sm;
     SortByMode sortBy;
+    QString keys;
     QList<SubjectNameItem*> allNIs;  //所有名称条目
     QList<SecondSubject*> extraSSubs;//额外的二级科目
     QComboBox* com;       //显示当前一级科目下的可选的二级科目的组合框
     QListWidget* lw;      //智能提示列表框（显示所有带有指定前缀的名称条目）
     int row;              //编辑器所在行号（基于0）
-    //bool isLastRow;       //编辑器所在行是否是最后行
 };
 
 class InvoiceInputDelegate : public QItemDelegate
@@ -157,6 +158,8 @@ public:
                       const QModelIndex &index) const;
     void updateEditorGeometry(QWidget* editor, const QStyleOptionViewItem &option,
                               const QModelIndex& index) const;
+    void destroyEditor(QWidget * editor, const QModelIndex & index) const;
+    void userConfirmed(){canDestroy=true;}
 
 private slots:
     void commitAndCloseEditor(int colIndex, bool isMove);
@@ -176,6 +179,7 @@ private:
     BATemplateEnum templae;   //当前处理的模板类型
     SubjectManager* sm;
     int validColumns;
+    bool canDestroy;      //对象是否可以销毁（当创建新科目时，利用此标记延迟对象的销毁）
 };
 
 /**

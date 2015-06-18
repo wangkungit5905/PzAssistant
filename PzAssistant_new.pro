@@ -7,7 +7,7 @@
 REVFILE = VersionRev.h
 QMAKE_DISTCLEAN += $$REVFILE
 
-REVISONNUM = 3
+REVISONNUM = 4
 BUILD_NUM = $$system(git rev-list --count HEAD)
 count(BUILD_NUM, 1) {
     BUILD_EXPLAIN = git-$$BUILD_NUM-$$system(git rev-parse --short HEAD)
@@ -53,7 +53,6 @@ TEMPLATE = app
 
 SOURCES += main.cpp\
     config.cpp \
-    appmodel.cpp \
     dialogs.cpp \
     utils.cpp \
     widgets.cpp \
@@ -131,7 +130,6 @@ SOURCES += main.cpp\
 HEADERS  += \
     config.h \
     global.h \
-    appmodel.h \
     common.h \
     dialogs.h \
     c.h \

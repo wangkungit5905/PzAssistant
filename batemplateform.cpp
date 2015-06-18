@@ -108,7 +108,7 @@ void MoneyEdit::moneyEditCompleated()
 
 //////////////////////////////CustomerNameEdit/////////////////////////////////
 CustomerNameEdit::CustomerNameEdit(SubjectManager *subMgr, QWidget *parent)
-    :QWidget(parent),sm(subMgr),fsub(0),ssub(0)/*,isLastRow(false)*/
+    :QWidget(parent),sm(subMgr),fsub(0),ssub(0),sortBy(SORTMODE_NAME)
 {
     com = new QComboBox(this);
     com->setEditable(true);       //使其可以输入新的名称条目
@@ -142,7 +142,8 @@ CustomerNameEdit::CustomerNameEdit(SubjectManager *subMgr, QWidget *parent)
         item->setData(Qt::UserRole, v);
         lw->addItem(item);
     }
-    this->setFocusProxy(com);
+    if(AppConfig::getInstance()->ssubFirstlyInputMothed())
+        this->setFocusProxy(com);
 }
 
 void CustomerNameEdit::setCustomerName(QString name)
@@ -237,13 +238,14 @@ void CustomerNameEdit::itemSelected(QListWidgetItem *item)
             com->addItem(ssub->getName(),v);
             com->setCurrentIndex(com->count()-1);
         }
-        //emit dataEditCompleted(BT_SNDSUB,false);
     }
     hideList(true);
 }
 
 void CustomerNameEdit::nameTextChanged(const QString &text)
 {
+    if(sortBy != SORTMODE_NAME)
+        return;
     filterListItem();
     hideList(false);
 }
@@ -269,9 +271,7 @@ void CustomerNameEdit::nameTexteditingFinished()
     //如果没有找到，则触发新名称条目信号
     SecondSubject* ssub = NULL;
     emit newSndSubject(fsub,ssub,editText,row,BaTemplateForm::CI_CUSTOMER);
-    //由于编辑器已经关闭，后续处理已经没有意义
     if(ssub){
-        //LOG_INFO(QString("new second subject has created(name=%1)").arg(ssub->getName()));
         this->ssub = ssub;
         extraSSubs<<ssub;
         QVariant v;
@@ -301,10 +301,52 @@ bool CustomerNameEdit::eventFilter(QObject *obj, QEvent *event)
         QKeyEvent* e = static_cast<QKeyEvent*>(event);
         int keyCode = e->key();
         if((keyCode == Qt::Key_Return) || (keyCode == Qt::Key_Enter)){
-            emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,true/*!isLastRow*/);
-            return true;
+            if(lw->isVisible()){
+                QListWidgetItem* item = lw->currentItem();
+                if(item){
+                    SubjectNameItem* ni = item->data(Qt::UserRole).value<SubjectNameItem*>();
+                    ssub = fsub->getChildSub(ni);
+                    if(!ssub)
+                        emit newMappingItem(fsub,ni,ssub,row,BaTemplateForm::CI_CUSTOMER);
+                }
+            }
+            emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,true);
         }
+        else if(keyCode == Qt::Key_Backspace){
+            keys.chop(1);
+            if(keys.size() == 0)
+                hideList(true);
+            else
+                filterListItem();
+        }
+        else if(keyCode == Qt::Key_Up){
+            if(processArrowKey(true))
+                return true;
+        }
+        else if(keyCode == Qt::Key_Down){
+            if(processArrowKey(false))
+                return true;
+        }
+        else if(keyCode >= Qt::Key_A && keyCode <= Qt::Key_Z){
+            keys.append(keyCode);
+            if(keys.size() == 1){
+                sortBy = SORTMODE_REMCODE;
+                qSort(allNIs.begin(),allNIs.end(),byRemCodeThan_ni);
+                lw->clear();
+                QVariant v;
+                foreach(SubjectNameItem* ni, allNIs){
+                    v.setValue(ni);
+                    QListWidgetItem* item = new QListWidgetItem(ni->getShortName());
+                    item->setData(Qt::UserRole, v);
+                    lw->addItem(item);
+                }
+                hideList(false);
+            }
+            filterListItem();
+        }
+        return true;
     }
+
     QComboBox* cmb = qobject_cast<QComboBox*>(obj);
     if(!cmb || cmb != com)
         return QObject::eventFilter(obj, event);
@@ -319,40 +361,87 @@ bool CustomerNameEdit::eventFilter(QObject *obj, QEvent *event)
         }
         else{
             if(keyCode == Qt::Key_Up){
-                int startRow = lw->currentRow();
-                if(startRow == 0)
-                    return true;
-                startRow--;
-                for(startRow; startRow > -1; startRow--){
-                    if(!lw->item(startRow)->isHidden()){
-                        lw->setCurrentRow(startRow);
-                        lw->scrollToItem(lw->item(startRow),QAbstractItemView::PositionAtCenter);
-                        break;
-                    }
-                }
+                processArrowKey(true);
                 return true;
             }
             if(keyCode == Qt::Key_Down){
-                int startRow = lw->currentRow();
-                if(startRow == lw->count()-1)
-                    return true;
-                startRow++;
-                for(startRow; startRow < lw->count(); ++startRow){
-                    if(!lw->item(startRow)->isHidden()){
-                        lw->setCurrentRow(startRow);
-                        lw->scrollToItem(lw->item(startRow),QAbstractItemView::PositionAtCenter);
-                        break;
-                    }
-                }
+                processArrowKey(false);
                 return true;
             }
             if(keyCode == Qt::Key_Return || keyCode == Qt::Key_Enter){
                 itemSelected(lw->currentItem());
-                com->eventFilter(obj, event);
+                com->lineEdit()->clearFocus();
+                this->setFocus();
             }
         }
     }
     return com->eventFilter(obj, event);
+}
+
+/**
+ * @brief 处理上下箭头键盘事件（以调整智能列表框的当前选择项）
+ * @param up
+ * @return true：列表已经到顶或到底，无法继续移动
+ */
+bool CustomerNameEdit::processArrowKey(bool up)
+{
+    if(lw->isVisible()){
+        int startRow;
+        if(up){
+            startRow = lw->currentRow();
+            if(startRow == 0)
+                return true;
+            startRow--;
+            for(startRow; startRow > -1; startRow--){
+                if(!lw->item(startRow)->isHidden()){
+                    lw->setCurrentRow(startRow);
+                    lw->scrollToItem(lw->item(startRow),QAbstractItemView::PositionAtCenter);
+                    break;
+                }
+            }
+        }
+        else{
+            startRow = lw->currentRow();
+            if(startRow == lw->count()-1)
+                return true;
+            startRow++;
+            for(startRow; startRow < lw->count(); ++startRow){
+                if(!lw->item(startRow)->isHidden()){
+                    lw->setCurrentRow(startRow);
+                    lw->scrollToItem(lw->item(startRow),QAbstractItemView::PositionAtCenter);
+                    break;
+                }
+            }
+        }
+        QListWidgetItem* item = lw->currentItem();
+        if(!item)
+            return true;
+        SubjectNameItem* ni = lw->currentItem()->data(Qt::UserRole).value<SubjectNameItem*>();
+        SecondSubject* sub = fsub->getChildSub(ni);
+        if(!ni)
+            com->setCurrentIndex(-1);
+        else{
+            QVariant v; v.setValue<SecondSubject*>(sub);
+            com->setCurrentIndex(com->findData(v));
+        }
+    }
+    else{
+        if(com->count()==0)
+            return true;
+        if(up){
+            int ci = com->currentIndex();
+            if(ci == 0)
+                return true;
+            com->setCurrentIndex(ci-1);
+        }
+        else{
+            int ci = com->currentIndex();
+            if(ci == com->count()-1)
+                return true;
+            com->setCurrentIndex(ci+1);
+        }
+    }
+    return false;
 }
 
 /**
@@ -361,13 +450,22 @@ bool CustomerNameEdit::eventFilter(QObject *obj, QEvent *event)
 void CustomerNameEdit::filterListItem()
 {
     QString namePre = com->lineEdit()->text().trimmed();
-    for(int i = 0; i < allNIs.count(); ++i){
-        if(allNIs.at(i)->getShortName().startsWith(namePre,Qt::CaseInsensitive))
-            lw->item(i)->setHidden(false);
-        else
-            lw->item(i)->setHidden(true);
+    if(sortBy == SORTMODE_NAME){
+        for(int i = 0; i < allNIs.count(); ++i){
+            if(allNIs.at(i)->getShortName().startsWith(namePre,Qt::CaseInsensitive))
+                lw->item(i)->setHidden(false);
+            else
+                lw->item(i)->setHidden(true);
+        }
     }
-
+    else if(sortBy == SORTMODE_REMCODE){
+        for(int i = 0; i < allNIs.count(); ++i){
+            if(allNIs.at(i)->getRemCode().startsWith(keys,Qt::CaseInsensitive))
+                lw->item(i)->setHidden(false);
+            else
+                lw->item(i)->setHidden(true);
+        }
+    }
 }
 
 /**
@@ -449,8 +547,6 @@ QWidget *InvoiceInputDelegate::createEditor(QWidget *parent, const QStyleOptionV
         CustomerNameEdit* edt = new CustomerNameEdit(sm,parent);
         edt->setRowNum(row);
         edt->setFSub(fsub,p->getExtraSSubs());
-        //if(rows-2 == row)
-        //    edt->setLastRow(true);
         connect(edt,SIGNAL(dataEditCompleted(int,bool)),this,SLOT(commitAndCloseEditor(int,bool)));
         connect(edt,SIGNAL(newMappingItem(FirstSubject*,SubjectNameItem*,SecondSubject*&,int,int)),
                 this,SLOT(newNameItemMapping(FirstSubject*,SubjectNameItem*,SecondSubject*&,int,int)));
@@ -528,6 +624,14 @@ void InvoiceInputDelegate::updateEditorGeometry(QWidget *editor, const QStyleOpt
     editor->setGeometry(rect);
 }
 
+void InvoiceInputDelegate::destroyEditor(QWidget *editor, const QModelIndex &index) const
+{
+    if(index.column() != BaTemplateForm::CI_CUSTOMER)
+        return QItemDelegate::destroyEditor(editor,index);
+    if(canDestroy)
+        editor->deleteLater();
+}
+
 void InvoiceInputDelegate::commitAndCloseEditor(int colIndex, bool isMove)
 {
     QWidget* editor;
@@ -555,12 +659,13 @@ void InvoiceInputDelegate::multiInvoices(QStringList invoices)
 
 void InvoiceInputDelegate::newNameItemMapping(FirstSubject *fsub, SubjectNameItem *ni, SecondSubject *&ssub, int row, int col)
 {
-    LOG_INFO("enter InvoiceInputDelegate::newNameItemMapping()");
+    canDestroy = false;
     emit crtNewNameItemMapping(row,col,fsub,ni,ssub);
 }
 
 void InvoiceInputDelegate::newSndSubject(FirstSubject *fsub, SecondSubject *&ssub, QString name, int row, int col)
 {
+    canDestroy = false;
     if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
         myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
         return;
@@ -824,17 +929,21 @@ void BaTemplateForm::creatNewNameItemMapping(int row, int col, FirstSubject *fsu
 {
     if(!curUser->haveRight(allRights.value(Right::Account_Config_SetSndSubject))){
         myHelper::ShowMessageBoxWarning(tr("您没有创建新二级科目的权限！"));
+        delegate->userConfirmed();
         return;
     }
     if(QMessageBox::information(0,"",tr("确定要使用已有的名称条目“%1”在一级科目“%2”下创建二级科目吗？")
                                 .arg(ni->getShortName()).arg(fsub->getName()),
-                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::No)
+                             QMessageBox::Yes|QMessageBox::No) == QMessageBox::No){
+        delegate->userConfirmed();
         return;
+    }
     ssub = new SecondSubject(fsub,0,ni,"",1,true,QDateTime::currentDateTime(),QDateTime(),curUser);
     extraSSubs<<ssub;
     QVariant v;
     v.setValue<SecondSubject*>(ssub);
     ui->tw->item(row,col)->setData(Qt::EditRole,v);
+    delegate->userConfirmed();
 }
 
 void BaTemplateForm::creatNewSndSubject(int row, int col, FirstSubject *fsub, SecondSubject *&ssub, QString name)
@@ -850,6 +959,7 @@ void BaTemplateForm::creatNewSndSubject(int row, int col, FirstSubject *fsub, Se
         v.setValue<SecondSubject*>(ssub);
         ui->tw->item(row,col)->setData(Qt::EditRole,v);
     }
+    delegate->userConfirmed();
 }
 
 /**

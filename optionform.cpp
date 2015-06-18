@@ -60,7 +60,6 @@ ConfigPanels::ConfigPanels(QByteArray* state, QWidget *parent) : QWidget(parent)
         panels<<new PzTemplateOptionForm;   //凭证模板参数面板
         icons<<QIcon(":/images/Options/pzTemplate.png");
         StationCfgForm* sf = new StationCfgForm; //工作站面板
-        connect(sf,SIGNAL(localStationChanged(WorkStation*)),this,SLOT(localStationChanged(WorkStation*)));
         panels<<sf;
         icons<<QIcon(":/images/Options/test1.png");
         panels<<new SpecSubCfgForm(this);

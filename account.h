@@ -9,7 +9,6 @@
 
 #include "commdatastruct.h"
 #include "securitys.h"
-#include "appmodel.h"
 #include "common.h"
 
 class AccountSuiteManager;
@@ -57,15 +56,6 @@ public:
         RPT_OLD = 1,
         RPT_NEW = 2
     };
-
-	//账户转移状态
-//    enum AccountTransferState{
-//        ATS_TranOuted   = 1,    //已转出
-//        ATS_TranInDes   = 2,    //转入到目的机
-//        ATS_TranInOther = 3     //转入到非目的机
-//    };
-
-
 
 
     /**
@@ -157,7 +147,6 @@ public:
 
     AccountSuiteManager* getSuiteMgr(int suiteId = 0);
     SubjectManager* getSubjectManager(int subSys = 0);
-    //SubjectManager* getSubjectManager();
     QList<SubSysNameItem*> getSupportSubSys();
     bool importNewSubSys(int code);
 

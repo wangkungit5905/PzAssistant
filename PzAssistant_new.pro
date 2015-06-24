@@ -7,7 +7,7 @@
 REVFILE = VersionRev.h
 QMAKE_DISTCLEAN += $$REVFILE
 
-REVISONNUM = 4
+REVISONNUM = 5
 BUILD_NUM = $$system(git rev-list --count HEAD)
 count(BUILD_NUM, 1) {
     BUILD_EXPLAIN = git-$$BUILD_NUM-$$system(git rev-parse --short HEAD)
@@ -50,6 +50,8 @@ else {
 }
 DESTDIR = $${PWD}/../workDir/
 TEMPLATE = app
+
+include(3rdparty/qtxlsx/qtxlsx.pri)
 
 SOURCES += main.cpp\
     config.cpp \
@@ -304,3 +306,6 @@ OTHER_FILES += \
 win32{
     RC_FILE = exeico.rc
 }
+
+DISTFILES += \
+    3rdparty/qtxlsx/qtxlsx.pri

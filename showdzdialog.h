@@ -202,6 +202,8 @@ private:
     QBrush row_bk_data;     //数据行
     QBrush row_bk_month;    //月合计行
     QBrush row_bk_year;     //年合计行
+
+    QString strMonthSum,strYearSum,strSum;
 };
 
 

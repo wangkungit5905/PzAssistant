@@ -1125,20 +1125,20 @@ void CurStatDialog::setTableRowBackground(CurStatDialog::TableRowType rt, const 
 //    for(int i = 0; i < l.count(); ++i){
 //        l.at(i)->setBackground(br);
 //    }
-        QColor bk;
-        switch(rt){
-        case TRT_FSUB:
-            bk = row_bk_fsub;
-            break;
-        case TRT_SSUB:
-            bk = row_bk_ssub;
-            break;
-        case TRT_SUM:
-            bk = row_bk_sum;
-            break;
-        }
-        for(int i = 0; i < l.count(); ++i)
-            l.at(i)->setData(bk,Qt::BackgroundColorRole);
+    QColor bk;
+    switch(rt){
+    case TRT_FSUB:
+        bk = row_bk_fsub;
+        break;
+    case TRT_SSUB:
+        bk = row_bk_ssub;
+        break;
+    case TRT_SUM:
+        bk = row_bk_sum;
+        break;
+    }
+    for(int i = 0; i < l.count(); ++i)
+        l.at(i)->setData(bk,Qt::BackgroundColorRole);
 }
 
 /**
@@ -1190,28 +1190,32 @@ void CurStatDialog::on_actToPDF_triggered()
  */
 void CurStatDialog::on_actToExcel_triggered()
 {
-    //QMessageBox::information(this,tr("提示信息"),tr("本功能未实现！"));
-#ifdef Q_OS_WIN
-    OutpuExcelDlg dlg(tr("本期统计（%1年%2余额）").arg(statUtil->year()).arg(statUtil->month()), headerModel,dataModel,this);
+    OutpuExcelDlg dlg(tr("本期统计（%1年%2月）").arg(statUtil->year()).arg(statUtil->month()), headerModel,dataModel,this);
     QList<int> colWidthes,aligns;
+    int cwSubCode = 10;
+    int cwSubName = 15;
+    int cwDir = 5;
+    int cwMoney = 12;
     if(ui->rdoJe->isChecked()){ //金额式
         //科目编码、科目名称、方向、期初金额、本期借方、本期贷方、方向、期末金额
-        colWidthes<<10<<20<<5<<12<<12<<12<<5<<12;
-        aligns<<1<<1<<1<<0<<0<<0<<1<<0;
+        colWidthes<<cwSubCode<<cwSubName<<cwDir<<cwMoney<<cwMoney<<cwMoney<<cwDir
+                  <<cwMoney;
+        aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
+              <<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignHCenter<<Qt::AlignRight;
     }
     else{ //外币金额式
         //科目编码、科目名称、方向、期初外币、期初金额、本期借方外币、本期借方、本期贷方外币、本期贷方、方向、期末外币、期末金额
-        colWidthes<<10<<20<<5<<12<<12<<12<<12<<12<<12<<5<<12<<12;
-        aligns<<1<<1<<1<<0<<0<<0<<0<<0<<0<<1<<0<<0;
+        colWidthes<<cwSubCode<<cwSubName<<cwDir<<cwMoney<<cwMoney<<cwMoney<<cwMoney
+                  <<cwMoney<<cwMoney<<cwDir<<cwMoney<<cwMoney;
+        aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
+              <<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight
+             <<Qt::AlignHCenter<<Qt::AlignRight<<Qt::AlignRight;
     }
-
     dlg.setColWidthes(colWidthes);
     dlg.setColTextAligns(aligns);
+    dlg.setFooter(account->getLName());
     dlg.setSheetName(tr("统计"));
     dlg.exec();
-#else
-    QMessageBox::warning(this,"",tr("此功能目前仅在Windows平台下可用！"));
-#endif
 }
 
 void CurStatDialog::on_btnSave_clicked()

@@ -48,6 +48,9 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* cinfo,  QByteArray* pinf
         row_bk_year = QBrush(QColor(0xC7C7CD));
     }
 
+    strMonthSum = tr("本月合计");
+    strYearSum = tr("本年累计");
+    strSum = tr("累计");
 
     actMoveTo = new QAction(tr("转到该凭证"), ui->tview);
     ui->tview->addAction(actMoveTo);
@@ -1182,7 +1185,7 @@ int ShowDZDialog::genDataForCash(QList<DailyAccountData2 *> datas,
             l<<item;
             item = new ApStandardItem(QString::number(om)); //1：月
             l<<item<<new ApStandardItem<<new ApStandardItem;
-            item = new ApStandardItem(tr("本年累计"));
+            item = new ApStandardItem(strYearSum);
             l<<item<<new ApStandardItem;
             item = new ApStandardItem(jysums.getv());  //6：借方
             l<<item;
@@ -1252,7 +1255,7 @@ int ShowDZDialog::genDataForCash(QList<DailyAccountData2 *> datas,
     l<<item;
     item = new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<item<<new ApStandardItem<<new ApStandardItem;
-    item = new ApStandardItem(tr("本月合计"));  //4：摘要
+    item = new ApStandardItem(strMonthSum);  //4：摘要
     l<<item<<new ApStandardItem;
     item = new ApStandardItem(jmsums.getv());  //6：借方
     l<<item;
@@ -1280,7 +1283,7 @@ int ShowDZDialog::genDataForCash(QList<DailyAccountData2 *> datas,
     l<<item;
     item = new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<item<<new ApStandardItem<<new ApStandardItem;
-    item = new ApStandardItem(tr("本年累计"));      //4
+    item = new ApStandardItem(strYearSum);      //4
     l<<item<<new ApStandardItem;
     item = new ApStandardItem(jysums);  //6：借方
     l<<item;
@@ -1349,7 +1352,7 @@ int ShowDZDialog::genDataForBankRMB(QList<DailyAccountData2*> datas,
             l<<new ApStandardItem(oy); //0：年
             l<<new ApStandardItem(om);//1：月
             l<<new ApStandardItem<<new ApStandardItem;
-            l<<new ApStandardItem(tr("本月合计"));
+            l<<new ApStandardItem(strMonthSum);
             l<<new ApStandardItem<<new ApStandardItem;
             l<<new ApStandardItem(jmsums);  //6：借方
             l<<new ApStandardItem(dmsums);  //7：贷方
@@ -1365,7 +1368,7 @@ int ShowDZDialog::genDataForBankRMB(QList<DailyAccountData2*> datas,
             l<<new ApStandardItem(oy); //0：年
             l<<new ApStandardItem(om); //1：月
             l<<new ApStandardItem<<new ApStandardItem;
-            l<<new ApStandardItem(tr("本年累计"));
+            l<<new ApStandardItem(strYearSum);
             l<<new ApStandardItem<<new ApStandardItem;
             l<<new ApStandardItem(jysums);  //6：借方
             l<<new ApStandardItem(dysums);  //7：贷方
@@ -1416,7 +1419,7 @@ int ShowDZDialog::genDataForBankRMB(QList<DailyAccountData2*> datas,
     l<<new ApStandardItem(ui->endDate->date().year()); //0：年
     l<<new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本月合计"));
+    l<<new ApStandardItem(strMonthSum);
     l<<new ApStandardItem<<new ApStandardItem;
     l<<new ApStandardItem(jmsums);  //6：借方;
     l<<new ApStandardItem(dmsums);  //7：贷方
@@ -1437,7 +1440,7 @@ int ShowDZDialog::genDataForBankRMB(QList<DailyAccountData2*> datas,
     l<<new ApStandardItem(ui->endDate->date().year()); //0：年
     l<<new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本年累计"));
+    l<<new ApStandardItem(strYearSum);
     l<<new ApStandardItem<<new ApStandardItem;
     l<<new ApStandardItem(jysums);  //6：借方
     l<<new ApStandardItem(dysums);  //7：贷方
@@ -1526,7 +1529,7 @@ int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
             l<<new ApStandardItem(oy); //0：年
             l<<new ApStandardItem(om); //1：月
             l<<new ApStandardItem<<new ApStandardItem;
-            l<<new ApStandardItem(tr("本月合计"));       //3：摘要
+            l<<new ApStandardItem(strMonthSum);       //3：摘要
             l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;
             for(int j = 0; j < mts.count(); ++j){
                 if(curMt && (curMt->code() == mts[j])){
@@ -1568,7 +1571,7 @@ int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
             l<<new ApStandardItem(oy); //0：年
             l<<new ApStandardItem(om); //1：月
             l<<new ApStandardItem<<new ApStandardItem;
-            l<<new ApStandardItem(tr("本年累计"));
+            l<<new ApStandardItem(strYearSum);
             l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;
             for(int j = 0; j < mts.count(); ++j)
                 l<<new ApStandardItem(jwysums.value(mts[j]));  //7：借方（外币）
@@ -1668,7 +1671,7 @@ int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
     l<<new ApStandardItem(ui->endDate->date().year()); //0：年
     l<<new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本月合计"));
+    l<<new ApStandardItem(strMonthSum);
     l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;
     for(int j = 0; j < mts.count(); ++j)
         l<<new ApStandardItem(jwmsums.value(mts[j]));  //8：借方（外币）
@@ -1697,7 +1700,7 @@ int ShowDZDialog::genDataForBankWb(QList<DailyAccountData2 *> datas,
     l<<new ApStandardItem(ui->endDate->date().year()); //0：年
     l<<new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本年累计")); //4：摘要
+    l<<new ApStandardItem(strYearSum); //4：摘要
     l<<new ApStandardItem<<new ApStandardItem<<new ApStandardItem;
     for(int j = 0; j < mts.count(); ++j)
         l<<new ApStandardItem(jwysums.value(mts[j]));  //8：借方（外币）
@@ -1766,7 +1769,7 @@ int ShowDZDialog::genDataForCommon(QList<DailyAccountData2*> datas,
             l<<new ApStandardItem(oy);                      //0：年
             l<<new ApStandardItem(om);                      //1：月
             l<<new ApStandardItem<<new ApStandardItem;
-            l<<new ApStandardItem(tr("本月合计"));           //4
+            l<<new ApStandardItem(strMonthSum);           //4
             l<<new ApStandardItem(jmsums);                  //5：借方
             l<<new ApStandardItem(dmsums);                  //6：贷方
             l<<new ApStandardItem(dirStr(datas[i-1]->dir)); //7：余额方向
@@ -1781,7 +1784,7 @@ int ShowDZDialog::genDataForCommon(QList<DailyAccountData2*> datas,
             l<<new ApStandardItem(QString::number(oy));     //0：月
             l<<new ApStandardItem(QString::number(om)); //0：月
             l<<new ApStandardItem<<new ApStandardItem;
-            l<<new ApStandardItem(tr("累计"));//3;
+            l<<new ApStandardItem(strSum);//3;
             l<<new ApStandardItem(jysums);  //4：借方
             l<<new ApStandardItem(dysums);  //5：贷方
             l<<new ApStandardItem(dirStr(datas[i-1]->dir));        //6：余额方向
@@ -1831,7 +1834,7 @@ int ShowDZDialog::genDataForCommon(QList<DailyAccountData2*> datas,
     l<<new ApStandardItem(QString::number(ui->endDate->date().year()));  //0：年
     l<<new ApStandardItem(QString::number(ui->endDate->date().month())); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本月合计"));//4
+    l<<new ApStandardItem(strMonthSum);//4
     item = new ApStandardItem(jmsums);  //5：借方
     l<<item;
     item = new ApStandardItem(dmsums);  //6：贷方
@@ -1857,7 +1860,7 @@ int ShowDZDialog::genDataForCommon(QList<DailyAccountData2*> datas,
     l<<new ApStandardItem(ui->endDate->date().year());  //0：年
     l<<new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本年累计"));//4
+    l<<new ApStandardItem(strYearSum);//4
     l<<new ApStandardItem(jysums);  //5：借方
     l<<new ApStandardItem(dysums);  //6：贷方
     if(datas.empty()){
@@ -1940,7 +1943,7 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
             l<<new ApStandardItem(oy); //0：月
             l<<new ApStandardItem(om); //1：月
             l<<new ApStandardItem<<new ApStandardItem;           //2、3：日、凭证号
-            l<<new ApStandardItem(tr("本月合计"))<<new ApStandardItem; //4：摘要                                //5：汇率
+            l<<new ApStandardItem(strMonthSum)<<new ApStandardItem; //4：摘要                                //5：汇率
             for(int j = 0; j < mts.count(); ++j){
                 l<<new ApStandardItem(jwmsums.value(mts[j]));  //6：借方（外币）
                 jwmsums[mts[j]] = 0;
@@ -1966,7 +1969,7 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
             l<<new ApStandardItem(om); //0：年
             l<<new ApStandardItem(om); //1：月
             l<<new ApStandardItem<<new ApStandardItem;//2、3：日、凭证号列
-            l<<new ApStandardItem(tr("累计"))<<new ApStandardItem; //3：摘要列、4：汇率列
+            l<<new ApStandardItem(strSum)<<new ApStandardItem; //3：摘要列、4：汇率列
             for(int j = 0; j < mts.count(); ++j)
                 l<<new ApStandardItem(jwysums.value(mts[j]));  //5：借方（外币）
             l<<new ApStandardItem(jysums);  //6：借方（金额）
@@ -2062,7 +2065,7 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
     l<<new ApStandardItem(ui->endDate->date().year());  //0：年
     l<<new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本月合计"))<<new ApStandardItem;
+    l<<new ApStandardItem(strMonthSum)<<new ApStandardItem;
     for(int j = 0; j < mts.count(); ++j)
         l<<new ApStandardItem(jwmsums.value(mts[j]));  //6：借方（外币）
     l<<new ApStandardItem(jmsums);  //7：借方（金额）
@@ -2090,7 +2093,7 @@ int ShowDZDialog::genDataForThreeRail(QList<DailyAccountData2 *> datas,
     l<<new ApStandardItem(ui->endDate->date().year());  //0：年
     l<<new ApStandardItem(ui->endDate->date().month()); //1：月
     l<<new ApStandardItem<<new ApStandardItem;
-    l<<new ApStandardItem(tr("本年累计"))<<new ApStandardItem; //4：摘要
+    l<<new ApStandardItem(strYearSum)<<new ApStandardItem; //4：摘要
     for(int j = 0; j < mts.count(); ++j)
         l<<new ApStandardItem(jwysums.value(mts[j]));  //6：借方（外币）
     l<<new ApStandardItem(jysums);  //7：借方（金额）
@@ -2468,48 +2471,72 @@ void ShowDZDialog::on_actToPdf_triggered()
 
 void ShowDZDialog::on_actToExcel_triggered()
 {
-#ifdef Q_OS_WIN
-    OutpuExcelDlg dlg(tr("明细表"), headerModel,dataModel,this);
+    QString t = tr("明细表");
+    if(curFSub){
+        t.append(tr(":%1").arg(curFSub->getName()));
+        if(curSSub)
+            t.append(tr("-%1").arg(curSSub->getName()));
+    }
+    OutpuExcelDlg dlg(t, headerModel,dataModel,this);
     QList<int> colWidthes,aligns;
     switch(tf){
     //现金格式
     //0年、1月、2日、3凭证号、4摘要、5结算号、6借方、7贷方、8方向、9余额、10PID、11SID
     case CASHDAILY:
-        colWidthes<<5<<5<<5<<5<<7<<40<<0<<15<<15<<5<<15<<0<<0;
-        aligns<<1<<1<<1<<1<<1<<0<<0<<0<<0<<1<<0<<0<<0;
+        colWidthes<<5<<5<<5<<7<<40<<0<<15<<15<<5<<15<<0<<0;
+        aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
+              <<Qt::AlignLeft<<Qt::AlignHCenter<<Qt::AlignRight<<Qt::AlignRight
+             <<Qt::AlignHCenter<<Qt::AlignRight<<Qt::AlignLeft<<Qt::AlignLeft;
         break;
     //银行本币格式
     //0年、1月、2日、3凭证号、4摘要、5结算号、6对方科目、7借方、8贷方、9方向、10余额、11PID、12SID
     case BANKRMB:
         colWidthes<<5<<5<<5<<7<<40<<0<<0<<15<<15<<5<<15<<0<<0;
-        aligns<<1<<1<<1<<1<<0<<0<<0<<0<<0<<1<<0<<0<<0;
+        aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
+              <<Qt::AlignLeft<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
+              <<Qt::AlignRight<<Qt::AlignHCenter<<Qt::AlignRight<<Qt::AlignLeft<<Qt::AlignLeft;
         break;
     //银行外币格式
     //0年、1月、2日、3凭证号、4摘要、5结算号、6对方科目、7汇率、8借方（外币）、9借方金额、10贷方（外币）、11贷方金额、12方向、13余额（外币）、14余额金额、15PID、16SID
     case BANKWB:
         colWidthes<<5<<5<<5<<7<<40<<0<<0<<10<<15<<15<<15<<15<<5<<15<<15<<0<<0;
-        aligns<<1<<1<<1<<1<<1<<0<<0<<0<<0<<0<<0<<0<<1<<0<<0<<0<<0;
+        aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
+              <<Qt::AlignLeft<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
+              <<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight
+              <<Qt::AlignHCenter<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignLeft
+              <<Qt::AlignLeft;
         break;
     //通用金额式
     //0年、1月、2日、3凭证号、4摘要、5借方、6贷方、7方向、8余额、9PID、10SID
     case COMMON:
         colWidthes<<5<<5<<5<<7<<40<<15<<15<<5<<15<<0<<0;
-        aligns<<1<<1<<1<<1<<0<<0<<0<<1<<0<<0<<0;
+        aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
+              <<Qt::AlignLeft<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignHCenter
+             <<Qt::AlignRight<<Qt::AlignLeft<<Qt::AlignLeft;
         break;
     //通用三栏式
     //0年、1月、2日、3凭证号、4摘要、5汇率、6借方（外币）、7借方金额、8贷方（外币）、9贷方金额、10方向、11余额（外币）、12余额金额、13PID、14SID
     case THREERAIL:
         colWidthes<<5<<5<<5<<7<<40<<10<<15<<15<<15<<15<<5<<15<<15<<0<<0;
-        aligns<<1<<1<<1<<1<<0<<0<<0<<0<<0<<0<<1<<0<<0<<0<<0;
+        aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
+              <<Qt::AlignLeft<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight
+              <<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignHCenter<<Qt::AlignRight
+              <<Qt::AlignRight<<0<<0;
         break;
     }
     dlg.setColWidthes(colWidthes);
     dlg.setColTextAligns(aligns);
+    QList<int> rows;
+    for(int i = 0; i < pdatas.count(); ++i){
+        QString ss = pdatas.at(i).at(4)->data(Qt::DisplayRole).toString();
+        if(ss.isEmpty())
+            continue;
+        if(ss == strMonthSum || ss == strYearSum || ss == strSum)
+            rows<<i;
+    }
+    dlg.setBoltRows(rows);
     dlg.setSheetName(tr("明细账"));
     dlg.exec();
-    #else
-    QMessageBox::warning(this,"",tr("此功能目前仅在Windows平台下可用！"));
-    #endif
 }
 
 

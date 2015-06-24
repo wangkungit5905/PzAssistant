@@ -2,15 +2,16 @@
 #define OUTPUEXCELDLG_H
 
 #include <QtGlobal>
-#ifdef Q_OS_WIN
 #include <QDialog>
+
+#include "xlsxdocument.h"
 
 namespace Ui {
 class OutpuExcelDlg;
 }
 
 class QAbstractItemModel;
-class ExcelUtil;
+
 
 class OutpuExcelDlg : public QDialog
 {
@@ -19,11 +20,16 @@ class OutpuExcelDlg : public QDialog
 public:
     explicit OutpuExcelDlg(QString title, QAbstractItemModel* headModel, QAbstractItemModel* dataModel, QWidget *parent = 0);
     ~OutpuExcelDlg();
+    void setBoltRows(QList<int> rows);
     void setColWidthes(QList<int> cols);
     void setColTextAligns(QList<int> aligns);
     void setSheetName(QString sheetName);
+    void setBodyRowHeight(int height){rowHeight_body=height;}
+    void setHeadRowHeight(int height){rowHeight_head=height;}
+    void setFooter(QString text){footer=text;}
 
 private slots:
+    void outputModeChanged(bool checked);
     void on_btnBrowse_clicked();
 
     void on_btnOk_clicked();
@@ -33,17 +39,19 @@ private:
     void genTableBody();
 
     Ui::OutpuExcelDlg *ui;
-    ExcelUtil* excel;
+    QXlsx::Document *excel;
     QString title;
     QAbstractItemModel* headModel;  //表格标题所用模型
     QAbstractItemModel* dataModel;  //表格内容所用模型
 
     int headStartRowIndex;//表格头起始行
     int bodyStartRowIndex;//表格体起始行
+    int rowHeight_body,rowHeight_head; //表体和表头高度
+    QString footer; //表脚注解文本
 
+    QList<int > rowBolts;    //需要突出显示的行
     QList<int> colWidthes;   //列宽
     QList<int> colTextAligns;//列的文本排布方向（Qt::AlignLeft，Qt::AlignRight、Qt::AlignHCenter）
 };
 
-#endif // Q_OS_WIN
 #endif // OUTPUEXCELDLG_H

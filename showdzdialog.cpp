@@ -2479,10 +2479,13 @@ void ShowDZDialog::on_actToExcel_triggered()
     }
     OutpuExcelDlg dlg(t, headerModel,dataModel,this);
     QList<int> colWidthes,aligns;
+    QList<TableColValueType> colTypes;
     switch(tf){
     //现金格式
     //0年、1月、2日、3凭证号、4摘要、5结算号、6借方、7贷方、8方向、9余额、10PID、11SID
     case CASHDAILY:
+        colTypes<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_DOUBLE
+                <<TCVT_DOUBLE<<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_INT<<TCVT_INT;
         colWidthes<<5<<5<<5<<7<<40<<0<<15<<15<<5<<15<<0<<0;
         aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
               <<Qt::AlignLeft<<Qt::AlignHCenter<<Qt::AlignRight<<Qt::AlignRight
@@ -2491,6 +2494,9 @@ void ShowDZDialog::on_actToExcel_triggered()
     //银行本币格式
     //0年、1月、2日、3凭证号、4摘要、5结算号、6对方科目、7借方、8贷方、9方向、10余额、11PID、12SID
     case BANKRMB:
+        colTypes<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT
+                <<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_TEXT<<TCVT_DOUBLE
+                <<TCVT_INT<<TCVT_INT;
         colWidthes<<5<<5<<5<<7<<40<<0<<0<<15<<15<<5<<15<<0<<0;
         aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
               <<Qt::AlignLeft<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
@@ -2499,6 +2505,9 @@ void ShowDZDialog::on_actToExcel_triggered()
     //银行外币格式
     //0年、1月、2日、3凭证号、4摘要、5结算号、6对方科目、7汇率、8借方（外币）、9借方金额、10贷方（外币）、11贷方金额、12方向、13余额（外币）、14余额金额、15PID、16SID
     case BANKWB:
+        colTypes<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT
+                <<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_DOUBLE
+                <<TCVT_DOUBLE<<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_INT<<TCVT_INT;
         colWidthes<<5<<5<<5<<7<<40<<0<<0<<10<<15<<15<<15<<15<<5<<15<<15<<0<<0;
         aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
               <<Qt::AlignLeft<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
@@ -2509,6 +2518,8 @@ void ShowDZDialog::on_actToExcel_triggered()
     //通用金额式
     //0年、1月、2日、3凭证号、4摘要、5借方、6贷方、7方向、8余额、9PID、10SID
     case COMMON:
+        colTypes<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_DOUBLE
+                <<TCVT_DOUBLE<<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_INT<<TCVT_INT;
         colWidthes<<5<<5<<5<<7<<40<<15<<15<<5<<15<<0<<0;
         aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
               <<Qt::AlignLeft<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignHCenter
@@ -2517,6 +2528,9 @@ void ShowDZDialog::on_actToExcel_triggered()
     //通用三栏式
     //0年、1月、2日、3凭证号、4摘要、5汇率、6借方（外币）、7借方金额、8贷方（外币）、9贷方金额、10方向、11余额（外币）、12余额金额、13PID、14SID
     case THREERAIL:
+        colTypes<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_DOUBLE
+                <<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_TEXT
+               <<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_INT<<TCVT_INT;
         colWidthes<<5<<5<<5<<7<<40<<10<<15<<15<<15<<15<<5<<15<<15<<0<<0;
         aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter
               <<Qt::AlignLeft<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight
@@ -2526,6 +2540,7 @@ void ShowDZDialog::on_actToExcel_triggered()
     }
     dlg.setColWidthes(colWidthes);
     dlg.setColTextAligns(aligns);
+    dlg.setColumnTypes(colTypes);
     QList<int> rows;
     for(int i = 0; i < pdatas.count(); ++i){
         QString ss = pdatas.at(i).at(4)->data(Qt::DisplayRole).toString();

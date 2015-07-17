@@ -241,6 +241,10 @@ void OutpuExcelDlg::genTableBody()
             aligns<<fmt;
         }
     }
+    if(colTypes.isEmpty()){
+        for(int i = 0; i < dataModel->columnCount(); ++i)
+            colTypes<<TCVT_TEXT;
+    }
     for(int r = 0; r < dataModel->rowCount(); ++r){
         for(int c = 0; c < dataModel->columnCount(); ++c){
             QModelIndex index = dataModel->index(r,c);
@@ -248,7 +252,21 @@ void OutpuExcelDlg::genTableBody()
                 Format fm = aligns.at(c);
                 if(rowBolts.contains(r))
                     fm.setFontBold(true);
-                excel->write(bodyStartRowIndex+r,c+1,dataModel->data(index),fm);
+                TableColValueType type = colTypes.at(c);
+                switch (type){
+                case TCVT_TEXT:
+                    excel->write(bodyStartRowIndex+r,c+1,dataModel->data(index),fm);
+                    break;
+                case TCVT_DOUBLE:
+                    excel->write(bodyStartRowIndex+r,c+1,dataModel->data(index).toDouble(),fm);
+                    break;
+                case TCVT_INT:
+                    excel->write(bodyStartRowIndex+r,c+1,dataModel->data(index).toInt(),fm);
+                    break;
+                case TCVT_BOOL:
+                    excel->write(bodyStartRowIndex+r,c+1,dataModel->data(index).toBool()?tr("是"):tr("否"),fm);
+                    break;
+                }
             }
         }
     }

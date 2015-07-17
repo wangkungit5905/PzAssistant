@@ -111,7 +111,7 @@ public:
 
     //余额相关
     bool readAllExtraForSSubMMt(int y, int m, int mt, QList<int> sids,QHash<int,Double>& vs, QHash<int,MoneyDirection>& dirs);
-    bool readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts, QHash<int,Double>& vs, QHash<int,MoneyDirection>& dirs);
+    bool readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts, QHash<int,Double>& vs, QHash<int,Double>& wvs,QHash<int,MoneyDirection>& dirs);
     bool readExtraForMF(int y, int m, int mt, int fid, Double &v, Double &wv, MoneyDirection& dir);
     bool readExtraForMS(int y, int m, int mt, int sid, Double &v, Double &wv, MoneyDirection& dir);
     bool readExtraForFSub(int y,int m, int fid, QHash<int,Double>& v, QHash<int,Double>& wv,QHash<int,MoneyDirection>& dir);
@@ -130,6 +130,7 @@ public:
                                       const QHash<int, MoneyDirection>& sdirs);
     bool saveExtraForMm(int y, int m, const QHash<int, Double>& fsums,
                                       const QHash<int, Double>& ssums);
+    //bool verifyPMUnity(int y, int m, Money* mt, FirstSubject* fsub, Double rate);
     bool verifyExtraForFsub(int y, int m, FirstSubject* fsub);
     bool readExtraForAllSSubInFSub(int y, int m, FirstSubject* fsub, QHash<int, Double>& pvs, QHash<int, MoneyDirection> &dirs,
                                    QHash<int, Double>& mvs);

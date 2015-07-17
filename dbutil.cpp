@@ -1818,10 +1818,11 @@ bool DbUtil::readAllExtraForSSubMMt(int y, int m, int mt, QList<int> sids, QHash
  * @param sids  指定一级科目下的所有二级科目的id
  * @param mts   要读取余额的币种代码列表
  * @param vs    余额（原币形式）（键为二级科目id * 10 + 币种代码）
+ * @param wvs   余额（本币形式）
  * @param dirs  余额方向
  * @return
  */
-bool DbUtil::readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts, QHash<int, Double> &vs, QHash<int, MoneyDirection> &dirs)
+bool DbUtil::readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts, QHash<int, Double> &vs, QHash<int, Double> &wvs, QHash<int, MoneyDirection> &dirs)
 {
     QSqlQuery q(db);
     QString s;
@@ -1848,6 +1849,23 @@ bool DbUtil::readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts
             key = sid*10+it.key();
             vs[key] = Double(q.value(0).toDouble());
             dirs[key] = (MoneyDirection)q.value(1).toInt();
+        }
+    }
+    it.toFront();
+    while(it.hasNext()){
+        it.next();
+        s = QString("select %1,%2 from %3 where %4=%5")
+                .arg(fld_nse_value).arg(fld_nse_sid)
+                .arg(tbl_nse_m_s).arg(fld_nse_pid).arg(it.value());
+        if(!q.exec(s))
+            return false;
+        int sid,key;
+        while(q.next()){
+            sid = q.value(1).toInt();
+            if(!sids.contains(sid))
+                continue;
+            key = sid*10+it.key();
+            wvs[key] = Double(q.value(0).toDouble());
         }
     }
     return true;
@@ -1954,14 +1972,7 @@ bool DbUtil::readExtraForPm(int y, int m, QHash<int, Double> &fsums, QHash<int, 
  * @param y     年
  * @param m     月
  * @param fsums 一级科目余额值（注意：hash表的键是 “科目代码 * 10 + 币种代码”）
- * @param fdirs 一级科目余额方向
  * @param ssums 二级科目余额值
- * @param sdirs 二级科目方向
- * @param m
- * @param fsums
- * @param fdirs
- * @param ssums
- * @param sdirs
  * @return
  */
 bool DbUtil::readExtraForMm(int y, int m, QHash<int, Double> &fsums, QHash<int, Double> &ssums)
@@ -2057,6 +2068,62 @@ bool DbUtil::saveExtraForMm(int y, int m, const QHash<int, Double> &fsums, const
     }
     return true;
 }
+
+/**
+ * @brief 验证指定科目下的所有子目的外币余额的原币值转换为本币后是否与本币形式值一致
+ * 指定的科目必须是使用外币的
+ * @param y
+ * @param m
+ * @param mt    外币对象
+ * @param fsub  一级科目
+ * @param rate  汇率
+ * @return  true：一致
+ */
+//bool DbUtil::verifyPMUnity(int y, int m, Money *mt, FirstSubject *fsub,Double rate)
+//{
+//    if(!fsub->isUseForeignMoney())
+//        return true;
+//    QSqlQuery q1(db),q2(db);
+//    int pid;
+//    _readExtraPoint(y,m,mt->code(),pid);
+//    QString s1 = QString("select %1,%2 from %3 where %4=%5")
+//            .arg(fld_nse_sid).arg(fld_nse_value)
+//            .arg(tbl_nse_p_s).arg(fld_nse_pid).arg(pid);
+//    QString s2 = QString("select %1,%2 from %3 where %4=%5")
+//            .arg(fld_nse_sid).arg(fld_nse_value)
+//            .arg(tbl_nse_m_s).arg(fld_nse_pid).arg(pid);
+//    if(!q1.exec(s1)){
+//        LOG_SQLERROR(s1);
+//        return false;
+//    }
+//    if(!q2.exec(s2)){
+//        LOG_SQLERROR(s2);
+//        return false;
+//    }
+//    QHash<int,Double> vs,wvs;
+//    while(q1.next()){
+//        int sid = q1.value(0).toInt();
+//        Double v = q1.value(1).toDouble();
+//        vs[sid] = v;
+//    }
+//    while(q2.next()){
+//        int sid = q2.value(0).toInt();
+//        Double v = q2.value(1).toDouble();
+//        wvs[sid] = v;
+//    }
+//    if(vs.count() != wvs.count()){
+//        LOG_ERROR(QString("foreign currency extry count not unity for subject %1").arg(fsub->getName()));
+//        return true;
+//    }
+//    QHashIterator<int,Double> it(vs);
+//    while(it.hasNext()){
+//        it.next();
+//        Double v1 = it.value()*rate;
+//        if(v1 != wvs.value(it.key()))
+//            return false;
+//    }
+//    return true;
+//}
 
 /**
  * @brief 验证子目的汇总余额是否和主目的余额一致

@@ -202,6 +202,8 @@ bool AppCommCfgPanel::isDirty()
         return true;
     if(ui->rdoSubName->isChecked() ^ _ssubFirstlyName)
         return true;
+    if(ui->chkRemain->isChecked() ^ _remainForeignUnity)
+        return true;
     return false;
 }
 
@@ -220,6 +222,10 @@ bool AppCommCfgPanel::save()
     if(ui->rdoSubName->isChecked() ^ _ssubFirstlyName){
         _ssubFirstlyName = ui->rdoSubName->isChecked();
         _appCfg->setSSubFirstlyInputMothed(_ssubFirstlyName,true);
+    }
+    if(ui->chkRemain->isChecked() ^ _remainForeignUnity){
+        _remainForeignUnity = ui->chkRemain->isChecked();
+        _appCfg->setRemainForeignCurrencyUnity(_remainForeignUnity,true);
     }
     return true;
 }
@@ -260,10 +266,12 @@ void AppCommCfgPanel::init()
     else
         ui->rdoDir->setChecked(true);
     _ssubFirstlyName = _appCfg->ssubFirstlyInputMothed();
+    _remainForeignUnity = _appCfg->remainForeignCurrencyUnity();
     if(_ssubFirstlyName)
         ui->rdoSubName->setChecked(true);
     else
         ui->rdoSubRemCode->setChecked(true);
+    ui->chkRemain->setChecked(_remainForeignUnity);
     _autoHideLeftPanel = _appCfg->isAutoHideLeftDock();
     ui->chkAutoHideLeftPanel->setChecked(_autoHideLeftPanel);
     _minToTray = _appCfg->minToTrayClose();

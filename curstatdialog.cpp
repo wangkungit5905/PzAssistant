@@ -1192,12 +1192,15 @@ void CurStatDialog::on_actToExcel_triggered()
 {
     OutpuExcelDlg dlg(tr("本期统计（%1年%2月）").arg(statUtil->year()).arg(statUtil->month()), headerModel,dataModel,this);
     QList<int> colWidthes,aligns;
+    QList<TableColValueType> colTypes;
     int cwSubCode = 10;
     int cwSubName = 15;
     int cwDir = 5;
     int cwMoney = 12;
     if(ui->rdoJe->isChecked()){ //金额式
         //科目编码、科目名称、方向、期初金额、本期借方、本期贷方、方向、期末金额
+        colTypes<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_DOUBLE
+               <<TCVT_TEXT<<TCVT_DOUBLE;
         colWidthes<<cwSubCode<<cwSubName<<cwDir<<cwMoney<<cwMoney<<cwMoney<<cwDir
                   <<cwMoney;
         aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
@@ -1205,12 +1208,16 @@ void CurStatDialog::on_actToExcel_triggered()
     }
     else{ //外币金额式
         //科目编码、科目名称、方向、期初外币、期初金额、本期借方外币、本期借方、本期贷方外币、本期贷方、方向、期末外币、期末金额
+        colTypes<<TCVT_TEXT<<TCVT_TEXT<<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_DOUBLE
+               <<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_DOUBLE<<TCVT_DOUBLE
+               <<TCVT_TEXT<<TCVT_DOUBLE<<TCVT_DOUBLE;
         colWidthes<<cwSubCode<<cwSubName<<cwDir<<cwMoney<<cwMoney<<cwMoney<<cwMoney
                   <<cwMoney<<cwMoney<<cwDir<<cwMoney<<cwMoney;
         aligns<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignHCenter<<Qt::AlignRight
               <<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight<<Qt::AlignRight
              <<Qt::AlignHCenter<<Qt::AlignRight<<Qt::AlignRight;
     }
+    dlg.setColumnTypes(colTypes);
     dlg.setColWidthes(colWidthes);
     dlg.setColTextAligns(aligns);
     dlg.setFooter(account->getLName());

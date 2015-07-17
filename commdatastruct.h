@@ -742,4 +742,14 @@ enum BATemplateEnum{
     BATE_YF_GATHER = 6
 };
 
+/**
+ * @brief 输出到Excel表格的列的值类型
+ */
+enum TableColValueType{
+    TCVT_TEXT   = 0,
+    TCVT_INT    = 1,
+    TCVT_DOUBLE = 2,
+    TCVT_BOOL   = 3
+};
+
 #endif // COMMDATASTRUCT_H

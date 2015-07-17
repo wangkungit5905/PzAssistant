@@ -785,46 +785,12 @@ bool PzDialog::crtJzsyPz()
     QList<PingZheng*> oldPzs;
     pzMgr->getJzhdsyPz(oldPzs);
     if(oldPzs.count() != pzMgr->getJzhdsyMustPzNums()){
-        QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证数有误！"));
+        QString info = tr("未结转汇兑损益或结转汇兑损益凭证数有误！");
+        if(appCfg->remainForeignCurrencyUnity())
+            info.append(tr("\n或许外币的原币余额与本币形式值不符！"));
+        QMessageBox::warning(0,tr("警告信息"),info);
         return true;
     }
-//    //1、检测本期和下期汇率是否有变动，如果有，则检测是否执行了结转汇兑损益，如果没有，则退出
-//    QHash<int,Double> sRates,eRates;
-//    int y=pzMgr->year();
-//    int m=pzMgr->month();
-//    if(!pzMgr->getRates(sRates,m))
-//        return false;
-//    if(m == 12){
-//        y++;
-//        m = 1;
-//    }
-//    else{
-//        m++;
-//    }
-//    if(!pzMgr->getRates(eRates,m))
-//        return false;
-
-//    if(eRates.empty()){
-//        QString tip = tr("下期汇率未设置，请先设置：%1年%2月美金汇率：").arg(y).arg(m);
-//        bool ok;
-//        double rate = QInputDialog::getDouble(0,tr("信息输入"),tip,0,0,100,2,&ok);
-//        if(!ok)
-//            return true;
-//        eRates[USD] = Double(rate);
-//        if(!pzMgr->setRates(eRates,m))
-//            return false;
-//    }
-//    //汇率不等，则检查是否执行了结转汇兑损益
-
-//    if(sRates.value(USD) != eRates.value(USD)){
-//        pzMgr->getJzhdsyPz(oldPzs);
-//        QList<FirstSubject*> fsubs;
-//        subMgr->getUseWbSubs(fsubs);
-//        if(oldPzs.count() != fsubs.count()){
-//            QMessageBox::warning(0,tr("警告信息"),tr("未结转汇兑损益或结转汇兑损益凭证有误！"));
-//            return true;
-//        }
-//    }
 
     oldPzs.clear();
     pzMgr->getJzsyPz(oldPzs);
@@ -1011,11 +977,10 @@ void PzDialog::insertBas(QList<BusiAction *> bas)
     delegate->setVolidRows(totalRows);
     updateBas(row,bas.count(),BUC_ALL);
     connect(ui->tview,SIGNAL(itemChanged(QTableWidgetItem*)),this,SLOT(BaDataChanged(QTableWidgetItem*)));
+    foreach (QTableWidgetSelectionRange r, ui->tview->selectedRanges())
+        ui->tview->setRangeSelected(r,false);
     QTableWidgetSelectionRange range(row,0,row+bas.count()-1,BaTableWidget::DVALUE);
     ui->tview->setRangeSelected(range,true);
-    row += bas.count();
-    range = QTableWidgetSelectionRange(row,0,row,BaTableWidget::DVALUE);
-    ui->tview->setRangeSelected(range,false);
 }
 
 /**

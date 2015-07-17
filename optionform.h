@@ -99,6 +99,7 @@ private:
     bool _autoHideLeftPanel;
     bool _minToTray;
     bool _ssubFirstlyName;
+    bool _remainForeignUnity;
     AppConfig* _appCfg;
 
 };

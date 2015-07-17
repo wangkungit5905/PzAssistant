@@ -5,6 +5,7 @@
 #include <QDialog>
 
 #include "xlsxdocument.h"
+#include "commdatastruct.h"
 
 namespace Ui {
 class OutpuExcelDlg;
@@ -27,6 +28,7 @@ public:
     void setBodyRowHeight(int height){rowHeight_body=height;}
     void setHeadRowHeight(int height){rowHeight_head=height;}
     void setFooter(QString text){footer=text;}
+    void setColumnTypes(QList<TableColValueType> types){colTypes=types;}
 
 private slots:
     void outputModeChanged(bool checked);
@@ -52,6 +54,7 @@ private:
     QList<int > rowBolts;    //需要突出显示的行
     QList<int> colWidthes;   //列宽
     QList<int> colTextAligns;//列的文本排布方向（Qt::AlignLeft，Qt::AlignRight、Qt::AlignHCenter）
+    QList<TableColValueType> colTypes; //列的值类型
 };
 
 #endif // OUTPUEXCELDLG_H

@@ -276,7 +276,8 @@ bool AppConfig::_initCfgVars()
         }
     }
     appIni->beginGroup(SEGMENT_APP_BEHAVE);
-    ssubFirstlyInput = appIni->value(key_ssub_input_firstly,true).toBool();
+    ssubFirstlyInput = appIni->value(KEY_SSUB_INPUT_FIRSTLY,true).toBool();
+    remainFCUntiy = appIni->value(KEY_FOREIGN_CURRENCY_UNITY,true).toBool();
     appIni->endGroup();
     return true;
 }
@@ -2030,12 +2031,32 @@ bool AppConfig::ssubFirstlyInputMothed()
     return ssubFirstlyInput;
 }
 
-void AppConfig::setSSubFirstlyInputMothed(bool isName,bool save=false)
+void AppConfig::setSSubFirstlyInputMothed(bool isName,bool save)
 {
     ssubFirstlyInput = isName;
     if(save){
         appIni->beginGroup(SEGMENT_APP_BEHAVE);
-        appIni->setValue(key_ssub_input_firstly,isName);
+        appIni->setValue(KEY_SSUB_INPUT_FIRSTLY,isName);
+        appIni->endGroup();
+    }
+}
+
+/**
+ * @brief 是否维护科目的外币余额的原币值与本币值的一致性，
+ * 即将原币值乘以汇率必须是否等于本币形式的值
+ * @return
+ */
+bool AppConfig::remainForeignCurrencyUnity()
+{
+    return remainFCUntiy;
+}
+
+void AppConfig::setRemainForeignCurrencyUnity(bool isUnity,bool save)
+{
+    remainFCUntiy = isUnity;
+    if(save){
+        appIni->beginGroup(SEGMENT_APP_BEHAVE);
+        appIni->setValue(KEY_FOREIGN_CURRENCY_UNITY,isUnity);
         appIni->endGroup();
     }
 }

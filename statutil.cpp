@@ -622,18 +622,23 @@ void StatUtil::_calEndExtra(bool isFst)
         ip->next();
         v = ip->value();
         if(v != 0 && evs->value(ip->key()) == 0){
-            if(v > zv)
-                QMessageBox::warning(0,tr("余额误差"),tr("外币余额的本币值出现大于1分的误差！"));
-            (*evMs)[ip->key()] = 0;
+            //(*evMs)[ip->key()] = 0;  //2015-7-15，以前为何要将其清零？，发现可以保存此值，但期初读取时没有读取到
             QString subName;
             int sid = ip->key()/10;
+
             if(isFst)
                 subName = smg->getFstSubject(sid)->getName();
             else{
                 SecondSubject* ssub = smg->getSndSubject(sid);
                 subName = QString("%1-%2").arg(ssub->getParent()->getName()).arg(ssub->getName());
             }
-            LOG_WARNING(tr("%1(sid=%2) 外币余额本币值误差：%3").arg(subName).arg(sid).arg(v.toString2()));
+            if(!isFst){
+                Money* mt = account->getAllMoneys().value(ip->key()%10);
+                QString info = tr("科目“%1”的%2的原币余额为0，但本币余额是：%3，需要在结转汇兑损益凭证中将其清零！")
+                        .arg(subName).arg(mt->name()).arg(v.toString2());
+                QMessageBox::warning(0,tr("余额误差"),info);
+                LOG_WARNING(tr("%1(sid=%2) 外币余额本币值误差：%3").arg(subName).arg(sid).arg(v.toString2()));
+            }
         }
     }
 }

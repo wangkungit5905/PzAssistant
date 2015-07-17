@@ -1667,13 +1667,9 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
         if(diff != 0)
             diffRates[it.key()] = diff;
     }
-    if(diffRates.count() == 0)   //如果所有的外币汇率都没有变化，则无须进行汇兑损益的结转
-        return true;
-
-    //获取财务费用、及其下的汇兑损益科目id
-    SubjectManager* subMgr = account->getSubjectManager(account->getSuiteRecord(y)->subSys);
-    FirstSubject* cwfySub = subMgr->getCwfySub();
-    SecondSubject* hdsySub = NULL;
+    SubjectManager* subMgr=account->getSubjectManager(account->getSuiteRecord(y)->subSys);
+    FirstSubject* cwfySub=subMgr->getCwfySub();
+    SecondSubject* hdsySub=0;
     foreach(SecondSubject* ssub, cwfySub->getChildSubs()){
         if(ssub->getName() == tr("汇兑损益")){
             hdsySub = ssub;
@@ -1684,70 +1680,110 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
         QMessageBox::critical(0,tr("错误信息"),tr("不能获取到财务费用下的汇兑损益科目！"));
         return false;
     }
-
-    //QList<Money*> mts;              //要结转的外币对象列表
-    //mts = account->getAllMoneys().values();
-   // mts.removeOne(account->getMasterMt());
-    //Double ev,wv,sum;  //原币和本币形式的余额，合计值
-    //MoneyDirection dir;
-
-    QList<int> mtCodes;
-    foreach(Money* mt, account->getAllMoneys()){
-        if(mt != account->getMasterMt())
-            mtCodes<<mt->code();
-    }
-
-    QDate d(year(),month(),1);
-    d.setDate(year(),month(),d.daysInMonth());
-    QString ds = d.toString(Qt::ISODate);
-
-    PingZheng* pz;
-    BusiAction* ba;
-    QHash<int,Double> vs;
+    PingZheng* pz=0;
+    BusiAction* ba=0;
+    QHash<int,Double> vs,wvs;
     QHash<int,MoneyDirection> dirs;
     QList<FirstSubject*> fsubs;
     Double sum,v;
     subMgr->getUseWbSubs(fsubs);
     int num=0;
+    QDate d(year(),month(),1);
+    d.setDate(year(),month(),d.daysInMonth());
+    QString ds = d.toString(Qt::ISODate);
+    QList<int> mtCodes;
+    foreach(Money* mt, account->getAllMoneys()){
+        if(mt != account->getMasterMt())
+            mtCodes<<mt->code();
+    }
+    if(diffRates.count() == 0){   //如果所有的外币汇率都没有变化，则无须进行汇兑损益的结转
+        if(!AppConfig::getInstance()->remainForeignCurrencyUnity())
+            return true;
+        //调整外币余额原币与本币币值的一致性
+        vs = statUtil->getEndValueSPm();
+        wvs = statUtil->getEndValueSMm();
+        dirs = statUtil->getEndDirS();
+        foreach(FirstSubject* fsub, fsubs){
+            foreach(SecondSubject* ssub, fsub->getChildSubs()){
+                foreach(int mt,mtCodes){
+                    int key = ssub->getId() * 10 + mt;
+                    Double pv = vs.value(key);
+                    Double mv = wvs.value(key);
+                    Double dv = mv - pv * eRate.value(mt);
+                    if(dv != 0){
+                        if(!pz){
+                            pz = new PingZheng(this);
+                            pz->setDate(ds);
+                            pz->setEncNumber(0);
+                            pz->setPzClass(Pzc_Jzhd);
+                            pz->setRecordUser(user);
+                            pz->setPzState(Pzs_Recording);
+                        }
+                        if(dirs.value(key) == MDIR_D)
+                            dv.changeSign();
+                        ba = pz->appendBlank();
+                        ba->setSummary(tr("调整外币余额的本币值"));
+                        ba->setFirstSubject(fsub);
+                        ba->setSecondSubject(ssub);
+                        ba->setDir(MDIR_D);
+                        ba->setMt(account->getMasterMt(),dv);
+                        sum += dv;
+                    }
+                }
+            }
+            if(pz){
+                ba = pz->appendBlank();
+                ba->setSummary(tr("调整外币余额的本币值"));
+                ba->setFirstSubject(cwfySub);
+                ba->setSecondSubject(hdsySub);
+                ba->setMt(account->getMasterMt(),sum);
+                ba->setDir(MDIR_J);
+                createdPzs<<pz;
+            }
+            pz=0;
+            sum=0.0;
+        }
+        return true;
+    }
     foreach(FirstSubject* fsub, fsubs){
-        vs.clear();
-        dirs.clear();
-        if(!dbUtil->readAllWbExtraForFSub(y,m,fsub->getAllSSubIds(),mtCodes,vs,dirs))
+        vs.clear();wvs.clear();dirs.clear();
+        if(!dbUtil->readAllWbExtraForFSub(y,m,fsub->getAllSSubIds(),mtCodes,vs,wvs,dirs))
             return false;
-        if(vs.isEmpty())
+        if(vs.isEmpty() && wvs.isEmpty())
             continue;
         num++;
         pz = new PingZheng(this);
-        //pz->setNumber(maxPzNum + num);
-        //pz->setZbNumber(maxZbNum + num);
         pz->setDate(ds);
         pz->setEncNumber(0);
         pz->setPzClass(Pzc_Jzhd);
         pz->setRecordUser(user);
         pz->setPzState(Pzs_Recording);
-        QList<SecondSubject*> ssubObjs; //可以是这个列表代替subIds列表。。。。。
-        //QList<int> subIds;
-        foreach(int key, vs.keys()){
+        QList<SecondSubject*> ssubObjs;
+        foreach(int key, wvs.keys()){
             int sid = key/10;
             SecondSubject* ssubObj = subMgr->getSndSubject(sid);
             if(!ssubObjs.contains(ssubObj))
                 ssubObjs<<ssubObj;
         }
-        //subIds = QList<int>::fromSet(subIds.toSet());//在多外币的情形下，可以去除重复的子目id
-        //qSort(subIds.begin(),subIds.end());
         qSort(ssubObjs.begin(),ssubObjs.end(),bySubNameThan_ss);
         sum = 0.0;
         int key;
         for(int i = 0; i < ssubObjs.count(); ++i){
-            //MoneyDirection dir = fsub->getJdDir()?MDIR_J:MDIR_D;
             for(int j = 0; j < mtCodes.count(); ++j){
                 SecondSubject* ssub = ssubObjs.at(i);
+                int mCode = mtCodes.at(j);
                 ba = pz->appendBlank();
                 ba->setFirstSubject(fsub);
                 ba->setSecondSubject(ssub);
                 ba->setDir(MDIR_D);
-                key = ssub->getId() * 10 + mtCodes.at(j);
-                v = diffRates.value(mtCodes.at(j)) * vs.value(key);
+                key = ssub->getId() * 10 + mCode;
+                v = diffRates.value(mCode) * vs.value(key);
+                //调整本币形式的值与原币的折算值一致
+                if(AppConfig::getInstance()->remainForeignCurrencyUnity()){
+                    Double dv = wvs.value(key) - v - vs.value(key) * eRate.value(mCode);
+                    if(dv != 0)
+                        v += dv;
+                }
                 if(dirs.value(key) == MDIR_D)
                     v.changeSign();
                 ba->setMt(account->getMasterMt(),v);
@@ -1760,47 +1796,9 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
         ba->setSecondSubject(hdsySub);
         ba->setMt(account->getMasterMt(),sum);
         ba->setDir(MDIR_J);
-        //ba->setValue(sum);
         ba->setSummary(tr("结转自%1的汇兑损益").arg(fsub->getName()));
         createdPzs<<pz;
     }
-
-//    //创建结转银行存款汇兑损益的凭证
-//    PingZheng* bankPz = new PingZheng(this);
-//    foreach(SecondSubject* ssub, subMgr->getBankSub()->getChildSubs()){
-//        if(ssub->getName().indexOf(account->getMasterMt()->name()) != -1)
-//            continue;
-//        for(int i = 0; i < mts.count(); ++i){
-//            if(!dbUtil->readExtraForMS(y,m,mts.at(i)->code(),ssub->getId(),ev,wv,dir))
-//                return false;
-//            if(dir == MDIR_P)
-//                continue;
-//            BusiAction* ba = bankPz->appendBlank();
-//            ba->setFirstSubject(subMgr->getBankSub());
-//            ba->setSecondSubject(ssub);
-//            ba->setMt(mts.at(i));
-//            ba->setSummary(tr("结转汇兑损益"));
-//            ba->setDir(MDIR_D);
-//            ba->setValue(diffRates.value(mts.at(i).code) * ev);
-//            sum += ba->getValue();
-//        }
-//    }
-//    if(sum != 0.0){
-//        BusiAction* ba = bankPz->appendBlank();
-//        ba->setFirstSubject(subMgr->getCwfySub());
-//        ba->setSecondSubject(hdsySub);
-//        ba->setMt(account->getMasterMt());
-//        ba->setDir(MDIR_J);
-//        ba->setSummary(tr("结转自银行存款的汇兑损益"));
-//        ba->setValue(sum);
-//        createdPzs<<bankPz;
-//    }
-
-    //创建结转应收账款汇兑损益的凭证
-    //PingZheng* ysPz = new PingZheng(this);
-
-    //创建结转应付账款汇兑损益的凭证
-    //PingZheng* yfPz = new PingZheng(this);
     return true;
 }
 
@@ -1823,7 +1821,9 @@ void AccountSuiteManager::getJzhdsyPz(QList<PingZheng *> &pzLst)
  * @brief 获取当前打开凭证集中，必须进行结转汇兑损益的凭证数
  *  要进行汇兑损益的结转，必须满足2个条件
  *  1、期初汇率和期末汇率不等；
- *  2、使用外币的科目的外币余额不为0；
+ *  2、使用外币的科目的外币原币余额不为0；
+ *  其次，如果汇率未变，且原币余额折算为本币后与本币余额不一致，
+ *  为调整也需要增加一个结转汇兑损益的凭证来存放这些调整分录
  * @return
  */
 int AccountSuiteManager::getJzhdsyMustPzNums()
@@ -1857,11 +1857,32 @@ int AccountSuiteManager::getJzhdsyMustPzNums()
             break;
         }
     }
-    if(!rateChanged)
-        return 0;
+    int pzNums = 0;
+    if(!rateChanged){
+        if(!AppConfig::getInstance()->remainForeignCurrencyUnity())
+            return 0;
+        QHash<int,Double> vs,wvs;
+        vs = statUtil->getEndValueSPm();
+        wvs = statUtil->getEndValueSMm();
+        foreach(Money* mt, wbMts){
+            foreach(FirstSubject* fsub, fsubs){
+                foreach(SecondSubject* ssub, fsub->getChildSubs()){
+                    int key = ssub->getId()*10+mt->code();
+                    Double pv = vs.value(key,0.0);
+                    Double mv = wvs.value(key,0.0);
+                    if(pv == 0 && mv == 0)
+                        continue;
+                    if(pv*eRates.value(mt->code()) != mv){
+                        pzNums++;
+                        break;
+                    }
+                }
+            }
+        }
+        return pzNums;
+    }
 
     Double v,wv; MoneyDirection dir=MDIR_P;
-    int pzNums = 0;
     //只要某个科目的某个外币汇率发生了改变且其余额不为0，则必须进行汇兑损益的结转
     foreach(FirstSubject* fsub, fsubs){
         foreach(Money* mt, wbMts){
@@ -1941,7 +1962,6 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
         //结转收入类到本年利润，一般是损益类科目放在借方，本年利润放在贷方
         //而且，损益类中收入类科目余额约定是贷方，故不做方向检测
         ba->setDir(MDIR_J);
-        //ba->setValue(vs.value(ssub->getId()));
         sum += ba->getValue();
     }
     ba = pz->appendBlank();
@@ -1950,7 +1970,6 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     ba->setSecondSubject(jzSSub);
     ba->setMt(account->getMasterMt(),sum);
     ba->setDir(MDIR_D);
-    //ba->setValue(sum);
     createdPzs<<pz;
 
     //创建结转费用类的结转凭证
@@ -1977,7 +1996,6 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
         //结转费用类到本年利润，一般是损益类科目放在贷方，本年利润方在借方
         //而且，损益类中费用类科目余额是约定在借方，故不做方向检测
         ba->setDir(MDIR_D);
-        //ba->setValue(vs.value(ssub->getId()));
         sum += ba->getValue();
     }
     ba = pz->appendBlank();
@@ -1986,7 +2004,6 @@ bool AccountSuiteManager::crtJzsyPz(int y, int m, QList<PingZheng *> &createdPzs
     ba->setSecondSubject(jzSSub);
     ba->setMt(account->getMasterMt(),sum);
     ba->setDir(MDIR_J);
-    //ba->setValue(sum);
     createdPzs<<pz;
     return true;
 }

@@ -256,25 +256,33 @@ void YsYfInvoiceStatForm::initCurMonth()
     //将新扫描到的记录插入或更新
     for(int i = incomeAdds.count()-1; i >= 0; i--){
         InvoiceRecord* r = incomeAdds.at(i);
-        if(!exist(r,changed)){
+        bool c;
+        if(!exist(r,c)){
             InvoiceRecord* ir = incomeAdds.takeAt(i);
             curIncomes<<ir;
             temrs<<ir;
         }
+        if(!changed && c)
+            changed = true;
     }
     qDeleteAll(incomeAdds); incomeAdds.clear();
     for(int i = 0; i < incomeCancels.count(); ++i){
         InvoiceRecord* r = incomeCancels.at(i);
-        changed = isCancel(r,errors);
+        bool c = isCancel(r,errors);
+        if(!changed && c)
+            changed = true;
     }
     qDeleteAll(incomeCancels); incomeCancels.clear();
     for(int i = costAdds.count()-1; i >= 0; i--){
         InvoiceRecord* r = costAdds.at(i);
-        if(!exist(r,changed,false)){
+        bool c;
+        if(!exist(r,c,false)){
             InvoiceRecord* ir = costAdds.takeAt(i);
             curCosts<<ir;
             temrs<<ir;
         }
+        if(!changed && c)
+            changed = true;
     }
     qDeleteAll(costAdds); costAdds.clear();
     for(int i = 0; i < costCancels.count(); ++i){

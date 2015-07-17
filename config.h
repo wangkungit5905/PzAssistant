@@ -117,7 +117,8 @@ public:
     const QString KEY_INTERFACE_AUTOHIDELEFTPANEL = "isAutoHideLeftPanel";
     const QString KEY_INTERFACE_MIN_TO_TRAY = "minimalToSystemTray";
     const QString SEGMENT_APP_BEHAVE = "AppBehave";
-    const QString key_ssub_input_firstly = "ssubFirstlyMethod";
+    const QString KEY_SSUB_INPUT_FIRSTLY = "ssubFirstlyMethod";
+    const QString KEY_FOREIGN_CURRENCY_UNITY = "remainForeignCurrencyUnity";
 
     ~AppConfig();
 
@@ -262,7 +263,9 @@ public:
 
     //应用行为特性
     bool ssubFirstlyInputMothed();
-    void setSSubFirstlyInputMothed(bool isName, bool save);
+    void setSSubFirstlyInputMothed(bool isName, bool save=false);
+    bool remainForeignCurrencyUnity();
+    void setRemainForeignCurrencyUnity(bool isUnity, bool save=false);
 private:
     bool _isValidAccountCode(QString code);
     bool _saveAccountCacheItem(AccountCacheItem* accInfo);
@@ -287,6 +290,7 @@ private:
     QHash<int, QHash<SpecSubCode,QString> > specCodes; //特定科目代码表
     bool init_accCache; //本地账户缓存条目是否已从缓存表中读取的标志
     bool ssubFirstlyInput;
+    bool remainFCUntiy; //是否维护外币的原币与本币形式值的一致性
 
     //特定名称类别的代码
     QHash<SpecNameItemClass,int> specNICs;

@@ -4531,9 +4531,15 @@ bool MainWindow::impTestDatas()
 //    pos = re.indexIn(" 02362449");
 //    pos = re.indexIn("02362449 ");
 
-    QString summary = tr("收宁波开源运费 00124567/68/69 21232244/45/46 30018765/23/24");
-    QStringList inums;
-    PaUtils::extractInvoiceNum2(summary,inums);
+    QList<int> mtCodes;
+    foreach(Money* mt, curAccount->getAllMoneys()){
+        if(mt != curAccount->getMasterMt())
+            mtCodes<<mt->code();
+    }
+    QHash<int,Double> vs,wvs;
+    QHash<int,MoneyDirection> dirs;
+    FirstSubject* fsub = curSuiteMgr->getSubjectManager()->getBankSub();
+    dbUtil->readAllWbExtraForFSub(2015,5,fsub->getAllSSubIds(),mtCodes,vs,wvs,dirs);
     int i = 0;
 }
 

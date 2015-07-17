@@ -982,6 +982,8 @@ bool PingZheng::moveDown(int row, int nums)
 void PingZheng::setBaList(QList<BusiAction *> lst)
 {
     baLst = lst;
+    foreach (BusiAction* ba, baLst)
+        ba->setParent(this);
     calSum();
     emit updateBalanceState(js==ds);
     emit pzContentChanged(this);

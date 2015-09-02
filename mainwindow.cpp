@@ -1891,7 +1891,7 @@ void MainWindow::mouseMoveEvent(QMouseEvent *event)
 {
     if(event->button() != Qt::NoButton)
         return;
-    if(!curAccount)
+    if(!curAccount || !appCon->isAutoHideLeftDock() || !_catchTimer)
         return;
     int x = event->x();
     QDockWidget* dw = dockWindows.value(TV_SUITESWITCH);
@@ -2360,9 +2360,14 @@ void MainWindow::rateChanged(int month)
 void MainWindow::startExternalTool(int index)
 {
     ExternalToolCfgItem* tool = eTools.at(index);
-    QString commandline = tool->commandLine;
+    QString commandline = tool->commandLine.trimmed();
     if(!tool->parameter.isEmpty())
         commandline.append(" ").append(tool->parameter);
+    commandline = commandline.trimmed();
+    if(commandline.contains(" ")){
+        commandline.insert(0,"\"");
+        commandline.append("\"");
+    }
     QProcess::startDetached(commandline);
 }
 

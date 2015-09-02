@@ -7,7 +7,7 @@
 REVFILE = VersionRev.h
 QMAKE_DISTCLEAN += $$REVFILE
 
-REVISONNUM = 5
+REVISONNUM = 6
 BUILD_NUM = $$system(git rev-list --count HEAD)
 count(BUILD_NUM, 1) {
     BUILD_EXPLAIN = git-$$BUILD_NUM-$$system(git rev-parse --short HEAD)

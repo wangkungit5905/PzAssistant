@@ -113,5 +113,7 @@
         <file>images/baYsGather.png</file>
         <file>images/baYfGather.png</file>
         <file>images/invoiceStat.png</file>
+        <file>images/invoiceType/ysyf.png</file>
+        <file>images/invoiceType/bank.png</file>
     </qresource>
 </RCC>

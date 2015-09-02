@@ -82,28 +82,28 @@ void SubjectSelectorComboBox::setParentSubject(FirstSubject *fsub)
  * 如果为这些客户创建对应科目有点浪费资源。
  * @param ssub
  */
-void SubjectSelectorComboBox::addTemSndSub(SecondSubject *ssub)
-{
-    if(!ssub)
-        return;
-    if(which != SC_SND)
-        return;
-    for(int i = 0; i < count(); ++i){
-        if(itemText(i) >= ssub->getName()){
-            QVariant v; v.setValue<SecondSubject*>(ssub);
-            insertItem(i,ssub->getName(),v);
-            QList<QStandardItem*> items;
-            QStandardItem* item = new QStandardItem(ssub->getName());
-            item->setData(v,Qt::UserRole);
-            items<<item;
-            item = new QStandardItem(ssub->getCode());
-            items<<item;
-            item = new QStandardItem(ssub->getRemCode());
-            items<<item;
-            sourceModel.insertRow(i,items);
-        }
-    }
-}
+//void SubjectSelectorComboBox::addTemSndSub(SecondSubject *ssub)
+//{
+//    if(!ssub)
+//        return;
+//    if(which != SC_SND)
+//        return;
+//    for(int i = 0; i < count(); ++i){
+//        if(itemText(i) >= ssub->getName()){
+//            QVariant v; v.setValue<SecondSubject*>(ssub);
+//            insertItem(i,ssub->getName(),v);
+//            QList<QStandardItem*> items;
+//            QStandardItem* item = new QStandardItem(ssub->getName());
+//            item->setData(v,Qt::UserRole);
+//            items<<item;
+//            item = new QStandardItem(ssub->getCode());
+//            items<<item;
+//            item = new QStandardItem(ssub->getRemCode());
+//            items<<item;
+//            sourceModel.insertRow(i,items);
+//        }
+//    }
+//}
 
 void SubjectSelectorComboBox::keyPressEvent(QKeyEvent *event)
 {

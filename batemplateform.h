@@ -5,6 +5,7 @@
 #include <QItemDelegate>
 #include <QLineEdit>
 #include <QComboBox>
+#include <QTableWidgetItem>
 #include "commdatastruct.h"
 
 namespace Ui {
@@ -16,6 +17,7 @@ class QComboBox;
 class QListWidget;
 class QListWidgetItem;
 class QTableWidgetItem;
+class QActionGroup;
 
 class SubjectManager;
 class AccountSuiteManager;
@@ -30,7 +32,7 @@ struct InvoiceRowStruct{
     Double money,taxMoney,wMoney;
     SecondSubject* ssub;
     QString inum;
-    QString sname,lname,remCode;  //这些尽在临时科目时使用
+    QString sname,lname,remCode;  //这些仅在临时科目时使用
 };
 
 /**
@@ -39,6 +41,25 @@ struct InvoiceRowStruct{
 enum BaTemplateType{
     BTT_YS_GATHER = 1,
     BTT_YF_GATHER = 2
+};
+
+/**
+ * @brief 抵扣发票类型
+ * 收入：应付抵扣收入，成本抵扣收入
+ * 应收：应付抵扣应收，成本抵扣应收
+ * 成本：应收抵扣成本，收入抵扣成本
+ * 应付：应收抵扣应付，收入抵扣应付
+ */
+enum InvoiceItemType{
+    IIT_COMMON,     //不作为抵扣发票
+    IIT_YF2IN,      //应付抵扣收入
+    IIT_COST2IN,    //成本抵扣收入
+    IIT_YF2YS,      //应付抵扣应收
+    IIT_COST2YS,    //成本抵扣应收
+    IIT_YS2COST,    //应收抵扣成本
+    IIT_IN2COST,    //收入抵扣成本
+    IIT_YS2YF,      //应收抵扣应付
+    IIT_IN2YF       //收入抵扣应付
 };
 
 /**
@@ -182,6 +203,23 @@ private:
     bool canDestroy;      //对象是否可以销毁（当创建新科目时，利用此标记延迟对象的销毁）
 };
 
+class InvoiceTableItem : public QTableWidgetItem
+{
+public:
+
+    InvoiceTableItem(QString text="", InvoiceItemType itype=IIT_COMMON, int type=UserType+100);
+    QVariant data(int role) const;
+    void setType(InvoiceItemType type);
+    InvoiceItemType invoiceType(){return _type;}
+    //bool isIncome(){return _income;}
+    //void setIncome(bool in){_income=in;}
+
+private:
+    InvoiceItemType _type;
+    QIcon bankIcon,ysyfIcon;
+    //bool _income;    //true：收，false：支
+};
+
 /**
  * @brief 分录模板类
  */
@@ -223,6 +261,7 @@ private slots:
     void doubleClickedCell(const QModelIndex& index);
     void contextMenuRequested(const QPoint &pos);
     void processContextMenu();
+    void dkProcess();
 
     void on_btnOk_clicked();
 
@@ -231,6 +270,14 @@ private slots:
     void on_btnSave_clicked();
 
     void on_btnLoad_clicked();
+
+//    void on_actDkIncome_triggered();
+
+//    void on_actDkYs_triggered();
+
+//    void on_actDkCost_triggered();
+
+//    void on_actDkYf_triggered();
 
 private:
     void init();
@@ -242,6 +289,7 @@ private:
     bool invoiceQualified(QString inum);
     int invoiceQualifieds();
     void autoSetYsYf(int row,QString inum);
+    void setYsYfMoney(int row, SecondSubject* ssub);
     void createBankIncomeBas();
     void createBankCostBas();
     void createYsBas();
@@ -253,7 +301,7 @@ private:
     QString dupliInvoice();
 
 
-//    void initBankIncomeTestData();
+    void initBankIncomeTestData();
 //    void initBankCostTestData();
 //    void initYsTestData();
 //    void initYfTestData();
@@ -275,9 +323,10 @@ private:
     int cw_invoice,cw_money/*,cw_customer*/; //列宽
     QList<SecondSubject*> extraSSubs;   //额外二级科目（如果模板类型是应收应付型则这些科目
                                         //在创建凭证前需要真正创建，否则只作为临时科目用于
-                                        //后续的选择，不至于多次提示，这些科目没有设置其所属子科目）
+                                        //后续的选择，不至于多次提示，这些科目没有设置其所属主科目）
     bool ok;    //如果创建过程一切OK，则在按确定按钮后关闭窗口，否则不关闭
     QList<InvoiceRowStruct*> buffers; //表格行的拷贝缓冲区
+    QActionGroup *ag_in, *ag_ys, *ag_cost,*ag_yf;
 };
 
 #endif // BATEMPLATEFORM_H

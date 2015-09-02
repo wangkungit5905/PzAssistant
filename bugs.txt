@@ -89,7 +89,9 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     原因是：DbUtil::_saveBusiactionsInPz(PingZheng *pz)方法的最后一段在迭代删除分录队列时，for循环
     内的i的增长与队列长度的减少同步进行，导致当删除多个分录时，处于队列后面的几个分录无法访问到时就退出了循环
 
-
+【3-0010+】
+    先前已经保存了应收应付发票的统计情况，再次增加应付发票后，统计窗口的保存按钮却始终不可用，
+    而按钮的启用情况取决于帐套状态和发票统计情况是否改变。
 1、
 2、
 3、在粘贴两条分录后，列表自动滚动到底部了（即把最后两行滚动到列表的可见范围的底部），这是在已经出现

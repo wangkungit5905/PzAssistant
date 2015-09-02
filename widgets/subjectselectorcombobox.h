@@ -38,7 +38,7 @@ public:
     void setSubjectClass(SUBJECTCATALOG subClass = SC_FST);
     void setSubject(SubjectBase *fsub);
     void setParentSubject(FirstSubject* fsub);
-    void addTemSndSub(SecondSubject* ssub);
+    //void addTemSndSub(SecondSubject* ssub);
     //FirstSubject* getFirstSubject(){return fsub;}
     //SecondSubject* getSecondSubject(){return ssub;}
     int findSubject(SubjectBase* sub);

@@ -227,7 +227,7 @@ void YsYfInvoiceStatForm::initCurMonth()
     tems = curIncomes;
     for(int i = incomeAdds.count()-1; i >= 0; i--){
         InvoiceRecord* r = incomeAdds.at(i);
-        for(int j = 0; tems.count(); ++j){
+        for(int j = 0; j<tems.count(); ++j){
             InvoiceRecord* r1 = tems.at(j);
             if(r->invoiceNumber == r1->invoiceNumber && r->customer == r1->customer){
                 tems.removeAt(j);
@@ -241,7 +241,7 @@ void YsYfInvoiceStatForm::initCurMonth()
     tems = curCosts;
     for(int i = costAdds.count()-1; i >= 0; i--){
         InvoiceRecord* r = costAdds.at(i);
-        for(int j = 0; tems.count(); ++j){
+        for(int j = 0; j<tems.count(); ++j){
             InvoiceRecord* r1 = tems.at(j);
             if(r->invoiceNumber == r1->invoiceNumber && r->customer == r1->customer){
                 tems.removeAt(j);
@@ -293,7 +293,7 @@ void YsYfInvoiceStatForm::initCurMonth()
     //重新归并一处
     incomes<<curIncomes; curIncomes.clear();
     costs<<curCosts;curCosts.clear();
-    ui->btnOk->setEnabled(amgr->getState() == Ps_Jzed && changed);
+    //ui->btnOk->setEnabled(amgr->getState() == Ps_Jzed && changed);
     qSort(incomes.begin(),incomes.end(),invoiceRecordCompareByCustomer);
     qSort(costs.begin(),costs.end(),invoiceRecordCompareByCustomer);
     viewRecords();

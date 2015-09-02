@@ -351,6 +351,99 @@
     <string>在当前位置插入新行</string>
    </property>
   </action>
+  <action name="actDkIn2Cost">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>收入抵扣成本</string>
+   </property>
+   <property name="toolTip">
+    <string>收入抵扣成本</string>
+   </property>
+  </action>
+  <action name="actDkYs2Yf">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>应收抵扣应付</string>
+   </property>
+   <property name="toolTip">
+    <string>应收抵扣应付</string>
+   </property>
+  </action>
+  <action name="actDkCost2In">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>成本抵扣收入</string>
+   </property>
+  </action>
+  <action name="actDkYf2Ys">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>应付抵扣应收</string>
+   </property>
+   <property name="toolTip">
+    <string>应付抵扣应收</string>
+   </property>
+  </action>
+  <action name="actDkNot">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>不作抵扣</string>
+   </property>
+  </action>
+  <action name="actDkIn2Yf">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>收入抵扣应付</string>
+   </property>
+   <property name="toolTip">
+    <string>收入抵扣应付</string>
+   </property>
+  </action>
+  <action name="actDkYs2Cost">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>应收抵扣成本</string>
+   </property>
+   <property name="toolTip">
+    <string>应收抵扣成本</string>
+   </property>
+  </action>
+  <action name="actDkCost2Ys">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>成本抵扣应收</string>
+   </property>
+   <property name="toolTip">
+    <string>成本抵扣应收</string>
+   </property>
+  </action>
+  <action name="actDkYf2In">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>应付抵扣收入</string>
+   </property>
+   <property name="toolTip">
+    <string>应付抵扣收入</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

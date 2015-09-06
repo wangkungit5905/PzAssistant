@@ -29,6 +29,12 @@ InvoiceNumberEdit::InvoiceNumberEdit(QWidget *parent):QLineEdit(parent)
 
 void InvoiceNumberEdit::invoiceEditCompleted()
 {
+    QString t = text().trimmed();
+    if(t.length() > 8 && !t.contains("-") && !t.contains("/")){
+        emit dataEditCompleted(BaTemplateForm::CI_INVOICE,false);
+        QMessageBox::warning(0,"",tr("发票号格式不符合规范！"));
+        return;
+    }
     QStringList invoices;
     int pos = 0;
     while(true){
@@ -1123,9 +1129,11 @@ void BaTemplateForm::contextMenuRequested(const QPoint &pos)
         if(ui->rdoBankIncome->isChecked()){
             ui->actDkCost2In->setChecked(ti->invoiceType() == IIT_COST2IN);
             ui->actDkYf2In->setChecked(ti->invoiceType() == IIT_YF2IN);
+            ui->actRegardYs->setChecked(ti->invoiceType() == IIT_YS);
             m_dk->addAction(ui->actDkNot);
             m_dk->addAction(ui->actDkCost2In);
             m_dk->addAction(ui->actDkYf2In);
+            m_dk->addAction(ui->actRegardYs);
         }
         else if(ui->rdoYsIncome->isChecked()){
             ui->actDkYf2Ys->setChecked(ti->invoiceType() == IIT_YF2YS);
@@ -1137,9 +1145,11 @@ void BaTemplateForm::contextMenuRequested(const QPoint &pos)
         else if(ui->rdoBankCost->isChecked()){
             ui->actDkIn2Cost->setChecked(ti->invoiceType() == IIT_IN2COST);
             ui->actDkYs2Cost->setChecked(ti->invoiceType() == IIT_YS2COST);
+            ui->actRegardYf->setChecked(ti->invoiceType() == IIT_YF);
             m_dk->addAction(ui->actDkNot);
             m_dk->addAction(ui->actDkIn2Cost);
             m_dk->addAction(ui->actDkYs2Cost);
+            m_dk->addAction(ui->actRegardYf);
         }
         else if(ui->rdoYfCost->isChecked()){
             ui->actDkYs2Yf->setChecked(ti->invoiceType() == IIT_YS2YF);
@@ -1287,6 +1297,16 @@ void BaTemplateForm::dkProcess()
         item->setType(IIT_IN2COST);
     else if(act == ui->actDkIn2Yf)
         item->setType(IIT_IN2YF);
+    else if(act == ui->actRegardYs){
+        item->setType(IIT_YS);
+        if(curCusSSub)
+            setYsYfMoney(item->row(),curCusSSub);
+    }
+    else if(act == ui->actRegardYf){
+        item->setType(IIT_YF);
+        if(curCusSSub)
+            setYsYfMoney(item->row(),curCusSSub);
+    }
     else{
         if(act == ui->actDkYf2In){
             item->setType(IIT_YF2IN);
@@ -1438,6 +1458,8 @@ void BaTemplateForm::init()
     connect(ui->actDkYs2Cost,SIGNAL(triggered()),this,SLOT(dkProcess()));
     connect(ui->actDkIn2Yf,SIGNAL(triggered()),this,SLOT(dkProcess()));
     connect(ui->actDkYs2Yf,SIGNAL(triggered()),this,SLOT(dkProcess()));
+    connect(ui->actRegardYs,SIGNAL(triggered()),this,SLOT(dkProcess()));
+    connect(ui->actRegardYf,SIGNAL(triggered()),this,SLOT(dkProcess()));
 }
 
 void BaTemplateForm::initRow(int row)
@@ -1498,15 +1520,17 @@ void BaTemplateForm::createBankIncomeBas()
         return;
     }
     int row = invoiceQualifieds();
-    if(row != -1)
+    if(row != -1){
+        myHelper::ShowMessageBoxWarning(tr("第%1行发票号有错误！").arg(row));
         return;
+    }
     QString dupliNum =  dupliInvoice();
     if(!dupliNum.isEmpty()){
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
         return;
     }
     QList<BusiAction*> bas_j,bas_d;
-    QList<int> rows; //暂存用应付抵扣收入的发票所对应的行号
+    QList<int> yfRows,ysRows; //暂存用应付抵扣收入的发票和被视作应收发票所对应的行号
     Double bv = Double(ui->edtBankMoney->text().toDouble());
     Double sumZm = ui->tw->item(ui->tw->rowCount()-1,CI_MONEY)->data(Qt::DisplayRole).toString().toDouble();
     Double sumWm = ui->tw->item(ui->tw->rowCount()-1,CI_WMONEY)->data(Qt::DisplayRole).toString().toDouble();
@@ -1564,7 +1588,11 @@ void BaTemplateForm::createBankIncomeBas()
         InvoiceItemType type = ti->invoiceType();
         QString invoice = ui->tw->item(i,CI_INVOICE)->text();
         if(type == IIT_YF2IN){
-            rows<<i;
+            yfRows<<i;
+            continue;
+        }
+        if(type == IIT_YS){
+            ysRows<<i;
             continue;
         }
         Double zmMoney = ui->tw->item(i,CI_MONEY)->text().toDouble();
@@ -1592,11 +1620,11 @@ void BaTemplateForm::createBankIncomeBas()
                 bas_j<<new BusiAction(0,pz,summary,sjFSub,jxSSub,mmt,MDIR_J,taxMoney,0);
         }
     }
-    if(!rows.isEmpty()){
+    if(!yfRows.isEmpty()){
         Double yfSums,money;
         QHash<int,QStringList> invoices;
         bool exist = false;
-        foreach (int row, rows) {
+        foreach (int row, yfRows) {
             QString inum = ui->tw->item(row,CI_INVOICE)->text();
             int month = ui->tw->item(row,CI_MONTH)->text().toInt();
             money = ui->tw->item(row,CI_MONEY)->text().toDouble();
@@ -1627,6 +1655,41 @@ void BaTemplateForm::createBankIncomeBas()
         }
         bas_j<<new BusiAction(0,pz,summary,yfFSub,ssub,mmt,MDIR_J,yfSums,0);
     }
+    if(!ysRows.isEmpty()){
+        Double ysSums,money;
+        QHash<int,QStringList> invoices;
+        bool exist = false;
+        foreach (int row, ysRows) {
+            QString inum = ui->tw->item(row,CI_INVOICE)->text();
+            int month = ui->tw->item(row,CI_MONTH)->text().toInt();
+            money = ui->tw->item(row,CI_MONEY)->text().toDouble();
+            if(!invoices.contains(month))
+                invoices[month] = QStringList();
+            if(!exist){
+                if(money == 0){
+                    exist = true;
+                    myHelper::ShowMessageBoxWarning(tr("存在未经确认的应付项！"));
+                }
+            }
+            ysSums += money;
+            invoices[month]<<inum;
+        }
+        QList<int> months;
+        QList<QStringList> inums;
+        months = invoices.keys();
+        qSort(months.begin(),months.end());
+        for(int i = 0; i < months.count(); ++i)
+            inums<<invoices.value(months.at(i));
+        QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
+        QString summary = tr("收%1运费 %2").arg(curCusSSub->getName()).arg(compactNums);
+        SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getNameItem());
+        if(!ssub){
+            myHelper::ShowMessageBoxWarning(tr("在“%1”科目下不存在“%2”子目！")
+                                            .arg(yfFSub->getName()).arg(curCusSSub->getName()));
+            return;
+        }
+        bas_d<<new BusiAction(0,pz,summary,ysFSub,ssub,mmt,MDIR_D,ysSums,0);
+    }
     pzDlg->insertBas(bas_j+bas_d);
     ok = true;
 }
@@ -1649,8 +1712,10 @@ void BaTemplateForm::createBankCostBas()
         return;
     }
     int row = invoiceQualifieds();
-    if(row != -1)
+    if(row != -1){
+        myHelper::ShowMessageBoxWarning(tr("第%1行发票号有错误！").arg(row));
         return;
+    }
     QString dupliNum =  dupliInvoice();
     if(!dupliNum.isEmpty()){
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
@@ -1676,9 +1741,9 @@ void BaTemplateForm::createBankCostBas()
     if(diff != 0)
         bas_j<<new BusiAction(0,pz,tr("汇兑损益"),cwFSub,hdsySSub,mmt,MDIR_J,diff,0);
     QString summary;
-    QHash<int,QStringList> invoices_ys;
-    bool exist = false;
-    Double sum_ys;
+    QHash<int,QStringList> invoices_ys,invoices_yf;
+    bool exist_ys = false,exist_yf = false;
+    Double sum_ys,sum_yf;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         InvoiceTableItem* ti = static_cast<InvoiceTableItem*>(ui->tw->item(i,CI_INVOICE));
         QString invoice = ui->tw->item(i,CI_INVOICE)->text();
@@ -1705,14 +1770,27 @@ void BaTemplateForm::createBankCostBas()
             int month = ui->tw->item(i,CI_MONTH)->text().toInt();
             if(!invoices_ys.contains(month))
                 invoices_ys[month] = QStringList();
-            if(!exist){
+            if(!exist_ys){
                 if(zmMoney == 0){
-                    exist = true;
+                    exist_yf = true;
                     myHelper::ShowMessageBoxWarning(tr("存在未经确认的应收项！"));
                 }
             }
             invoices_ys[month]<<invoice;
             sum_ys += zmMoney;
+        }
+        else if(ti->invoiceType() == IIT_YF){
+            int month = ui->tw->item(i,CI_MONTH)->text().toInt();
+            if(!invoices_yf.contains(month))
+                invoices_yf[month] = QStringList();
+            if(!exist_yf){
+                if(zmMoney == 0){
+                    exist_ys = true;
+                    myHelper::ShowMessageBoxWarning(tr("存在未经确认的应付项！"));
+                }
+            }
+            invoices_yf[month]<<invoice;
+            sum_yf += zmMoney;
         }
     }
     if(!invoices_ys.isEmpty()){
@@ -1726,6 +1804,18 @@ void BaTemplateForm::createBankCostBas()
         summary = tr("%1应收抵扣成本 %2").arg(curCusSSub->getName()).arg(compactNums);
         SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
         bas_d<<new BusiAction(0,pz,summary,ysFSub,ssub,mmt,MDIR_D,sum_ys,0);
+    }
+    if(!invoices_yf.isEmpty()){
+        QList<int> months;
+        QList<QStringList> inums;
+        months = invoices_yf.keys();
+        qSort(months.begin(),months.end());
+        for(int i = 0; i < months.count(); ++i)
+            inums<<invoices_yf.value(months.at(i));
+        QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
+        summary = tr("付%1运费 %2").arg(curCusSSub->getName()).arg(compactNums);
+        SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
+        bas_j<<new BusiAction(0,pz,summary,yfFSub,ssub,mmt,MDIR_J,sum_yf,0);
     }
     summary = QString("付%1运费").arg(curCusSSub->getName());
     bas_d<<new BusiAction(0,pz,summary,bankFSub,bankSSub,mt,MDIR_D,bv,0);
@@ -1751,8 +1841,10 @@ void BaTemplateForm::createYsBas()
         return;
     }
     int row = invoiceQualifieds();
-    if(row != -1)
+    if(row != -1){
+        myHelper::ShowMessageBoxWarning(tr("第%1行发票号有错误！").arg(row));
         return;
+    }
     QString dupliNum =  dupliInvoice();
     if(!dupliNum.isEmpty()){
         myHelper::ShowMessageBoxWarning(tr("发票号“%1”有重复！").arg(dupliNum));
@@ -2215,7 +2307,8 @@ void BaTemplateForm::reCalSum(BaTemplateForm::ColumnIndex col)
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         Double v = ui->tw->item(i,col)->text().toDouble();
         InvoiceTableItem* ti = static_cast<InvoiceTableItem*>(ui->tw->item(i,CI_INVOICE));
-        if(ti->invoiceType() == IIT_COMMON)
+        InvoiceItemType t = ti->invoiceType();
+        if(t == IIT_COMMON || t == IIT_YS || t == IIT_YF)
             sum += v;
         else
             sum -= v;

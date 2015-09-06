@@ -444,6 +444,25 @@
     <string>应付抵扣收入</string>
    </property>
   </action>
+  <action name="actRegardYs">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>作为应收</string>
+   </property>
+   <property name="toolTip">
+    <string>作为应收</string>
+   </property>
+  </action>
+  <action name="actRegardYf">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>作为应付</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>

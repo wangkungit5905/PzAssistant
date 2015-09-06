@@ -59,7 +59,9 @@ enum InvoiceItemType{
     IIT_YS2COST,    //应收抵扣成本
     IIT_IN2COST,    //收入抵扣成本
     IIT_YS2YF,      //应收抵扣应付
-    IIT_IN2YF       //收入抵扣应付
+    IIT_IN2YF,      //收入抵扣应付
+    IIT_YS,         //作为应收
+    IIT_YF          //作为应付
 };
 
 /**

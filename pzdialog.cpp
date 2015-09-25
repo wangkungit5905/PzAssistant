@@ -1569,6 +1569,11 @@ void PzDialog::creatNewSndSubject(int row, int col, FirstSubject* fsub, SecondSu
                              QMessageBox::Yes|QMessageBox::No) == QMessageBox::Yes){
         CompletSubInfoDialog* dlg = new CompletSubInfoDialog(fsub->getId(),subMgr,0);
         dlg->setName(name);
+        NameItemAlias* alias = SubjectManager::getMatchedAlias(name);
+        if(alias){
+            dlg->setLongName(alias->longName());
+            dlg->setRemCode(alias->rememberCode());
+        }
         if(QDialog::Accepted == dlg->exec()){
             ModifyBaSndSubNSMmd* cmd =
                 new ModifyBaSndSubNSMmd(pzMgr,curPz,curBa,subMgr,fsub,
@@ -1582,8 +1587,18 @@ void PzDialog::creatNewSndSubject(int row, int col, FirstSubject* fsub, SecondSu
             updateBas(row,1,updateCols);
             delegate->userConfirmed();
             ui->tview->edit(ui->tview->model()->index(row,col));
+            //如果新建的名称对象和别名对象两者简称相同，则如果全称也相同，则可以移除此别名，
+            //如果全称不同，则将此别名加入到新建名称对象的别名列表
+            if(alias && alias->shortName()==curBa->getSecondSubject()->getName()){
+                if(alias->longName() != curBa->getSecondSubject()->getLName()){
+                    curBa->getSecondSubject()->getNameItem()->addAlias(alias);
+                }
+                else{//这个实现有点过于草算，因为在用户没有确定保存时，它已经实际地删除了别名，而且这个实现也不支持Undo和Redo操作
+                    subMgr->removeNameAlias(alias);
+                    delete alias;
+                }
+            }            
             return;
-
         }
     }
     SecondSubject* oldSSub = curBa->getSecondSubject();

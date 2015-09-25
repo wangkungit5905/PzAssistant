@@ -122,6 +122,7 @@ VMAccount::VMAccount(QString filename):fileName(filename)
     appendVersion(1,6,&VMAccount::updateTo1_6);
     appendVersion(1,7,&VMAccount::updateTo1_7);
     appendVersion(1,8,&VMAccount::updateTo1_8);
+    appendVersion(1,9,&VMAccount::updateTo1_9);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -1356,6 +1357,42 @@ bool VMAccount::updateTo1_8()
         return false;
     }
     if(setCurVersion(1,8)){
+        emit upgradeStep(verNum,tr("成功更新到版本%1").arg(verNum),VUR_OK);
+        return true;
+    }
+    else{
+        emit upgradeStep(verNum,tr("成功更新到版本%1，但不能正确设置版本号！").arg(verNum),VUR_WARNING);
+        return false;
+    }
+}
+
+/**
+ * @brief 添加记录当月收入/成本发票的表，和名称条目别名表
+ * @return
+ */
+bool VMAccount::updateTo1_9()
+{
+    QSqlQuery q(db);
+    int verNum = 109;
+    QString s = QString("create table %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 INTEGER,%4 INTEGER,%5 INTEGER, %6 TEXT,"
+                        "%7 TEXT,%8 TEXT,%9 INTEGER,%10 REAL,%11 REAL,%12 REAL,%13 INTEGER,%14 TEXT,%15 INTEGER)")
+            .arg(tbl_cur_invoices).arg(fld_ci_ym).arg(fld_ci_iClass).arg(fld_ci_number).arg(fld_ci_iType).arg(fld_ci_date)
+            .arg(fld_ci__iNumber).arg(fld_ci_client).arg(fld_ci_match_name).arg(fld_ci_money).arg(fld_ci_wbMoney).arg(fld_ci_taxMoney)
+            .arg(fld_ci_state).arg(fld_ci_skState).arg(fld_ci_isProcess);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_cur_invoices),VUR_ERROR);
+        return false;
+    }
+    s = QString("create table %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 TEXT,%4 TEXT, %5 TEXT,%6 INTEGER, %7 INTEGER)")
+            .arg(tbl_nameAlias).arg(fld_nia_niCode).arg(fld_nia_name).arg(fld_nia_lname).arg(fld_nia_remcode)
+            .arg(fld_nia_crtTime).arg(fld_nia_disTime);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_nameAlias),VUR_ERROR);
+        return false;
+    }
+    if(setCurVersion(1,9)){
         emit upgradeStep(verNum,tr("成功更新到版本%1").arg(verNum),VUR_OK);
         return true;
     }

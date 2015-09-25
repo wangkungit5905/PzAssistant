@@ -3,6 +3,7 @@
 
 #include <QDate>
 #include <QHash>
+#include <QBitArray>
 
 #include "cal.h"
 
@@ -11,6 +12,8 @@ class BusiAction;
 class User;
 class FirstSubject;
 class WorkStation;
+class NameItemAlias;
+
 
 const int UNID      = 0;    //无意义的id值，比如对于新创建但还未保存的二级科目对象的id值
 const int UNCLASS   = 0;    //未知的分类
@@ -65,8 +68,8 @@ enum NameItemEditState{
     ES_NI_CLASS = 0x01,     //名称条目类别改变
     ES_NI_SNAME = 0x02,     //名称条目简称被修改
     ES_NI_LNAME = 0x04,     //名称条目全称被修改
-    ES_NI_SYMBOL = 0x08     //名称条目助记符被修改
-
+    ES_NI_SYMBOL = 0x08,    //名称条目助记符被修改
+    ES_NI_ALIAS = 0x10      //别名改变（仅涉及到别名的增加，不记录对别名本身的改变）
 };
 Q_DECLARE_FLAGS(NameItemEditStates, NameItemEditState)
 Q_DECLARE_OPERATORS_FOR_FLAGS(NameItemEditStates)
@@ -573,7 +576,8 @@ enum subWindowType{
     SUBWIN_NOTEMGR = 22,        //笔记管理
     SUBWIN_EXTERNALTOOLS = 23,  //外部工具
     SUBWIN_LOGVIEW = 24,        //日志视图
-    SUBWIN_YSYFSTAT = 25        //应收应付发票统计
+    SUBWIN_YSYFSTAT = 25,       //应收应付发票统计
+    SUBWIN_INCOST = 26          //收入/成本发票管理
     //设置期初余额的窗口
     //科目配置窗口
 };
@@ -728,6 +732,67 @@ struct InvoiceRecord{
         baRID=0;/*money=0;wmoney=0;*/
         wmt=0;state=CAS_NONE;
     }
+};
+
+/**
+ * @brief 本月收入/成本发票表格预定义列类型枚举
+ */
+enum CurInvoiceColumnType{
+    CT_NONE = 0,        //未指定（不会利用的列）
+    CT_NUMBER   = 1,    //序号
+    CT_DATE     = 2,    //开票日期
+    CT_INVOICE  = 3,    //发票号*
+    CT_CLIENT   = 4,    //客户名*
+    CT_MONEY    = 5,    //发票金额*
+    CT_TAXMONEY = 6,    //税额
+    CT_WBMONEY  = 7,    //外币金额
+    CT_ICLASS   = 8,    //发票类别
+    CT_SFINFO = 9       //收/付款情况
+};
+
+/**
+ * @brief 本月收入/成本发票记录
+ */
+struct CurInvoiceRecord{
+    int id;
+    int y,m;                        //所属年月
+    bool isIncome,type;             //1收入/0成本,1专票/0普票
+    int processState;               //处理状态（0：凭证中未发现对应发票，1：发现且正确，2：发现但有问题）
+    PingZheng* pz;                  //出现此发票对应的凭证
+    BusiAction* ba;                 //出现此发票对应的分录（对应主营收入/成本，或在聚合凭证中是应收/应付）
+    int num;                        //序号
+    QString inum,client,sfInfo,errors;     //发票号,单位名称，收/付情况，错误信息
+    QDate date;                     //开票日期
+    QString dateStr;                //保存表达日期的原始字符串（日期列无法识别时保存原始字符串）
+    SubjectNameItem* ni;            //匹配的名称对象
+    NameItemAlias* alias;           //匹配的别名对象
+    Double money,taxMoney,wbMoney;  //发票金额,税额,外币金额
+    int state;                      //发票性质（1正常、2作废、3冲红）
+    QBitArray* tags;                //修改标记
+    CurInvoiceRecord(){
+        id=0;y=0;m=0;
+        isIncome=true;type=true;
+        processState=0;
+        ni=0;alias=0;state=1;
+        tags = new QBitArray(16);
+        pz=0;ba=0;
+    }
+};
+
+enum CurInvoiceRecordModifyTag{
+    CI_TAG_ISINCOME = 0,
+    CI_TAG_TYPE     = 1,
+    CI_TAG_ISPROCESS= 2,
+    CI_TAG_SFSTATE  = 3,
+    CI_TAG_NUMBER   = 4,
+    CI_TAG_INUMBER  = 5,
+    CI_TAG_CLIENT   = 6,
+    CI_TAG_NAMEITEM = 7,
+    CI_TAG_DATE     = 8,
+    CI_TAG_MONEY    = 9,
+    CI_TAG_TAXMONEY = 10,
+    CI_TAG_WBMONEY  = 11,
+    CI_TAG_STATE    = 12,
 };
 
 /**

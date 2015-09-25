@@ -2023,6 +2023,51 @@ void AppConfig::setMinToTrayClose(bool on)
 }
 
 /**
+ * @brief 返回收入/成本发票列的预定义标题关键字
+ * @param colType
+ * @return
+ */
+QStringList AppConfig::getCurInvoiceColumnTitle(CurInvoiceColumnType colType)
+{
+    QString key = QString::number((int)colType);
+    appIni->beginGroup(SEGMENT_CURINVOICE_COLUMNTITLE);
+    QStringList titles = appIni->value(key).toStringList();
+    if(titles.isEmpty()){
+        switch(colType){
+        case CT_NUMBER:
+            titles<<QObject::tr("序号");
+            break;
+        case CT_DATE:
+            titles<<QObject::tr("开票日期")<<QObject::tr("日期");
+            break;
+        case CT_INVOICE:
+            titles<<QObject::tr("发票号码");
+            break;
+        case CT_CLIENT:
+            titles<<QObject::tr("发票单位")<<QObject::tr("单位名称");
+            break;
+        case CT_MONEY:
+            titles<<QObject::tr("记帐本位币总金额")<<QObject::tr("销售额");
+            break;
+        case CT_TAXMONEY:
+            titles<<QObject::tr("销项税额")<<QObject::tr("进项税额");
+            break;
+        case CT_WBMONEY:
+            titles<<QObject::tr("美金")<<QObject::tr("折美金");
+            break;
+        case CT_SFINFO:
+            titles<<QObject::tr("收款时间")<<QObject::tr("付款时间");
+            break;
+        }
+        //QVariant v; v.setValue(titles);
+        appIni->setValue(QString::number(colType),titles);
+        appIni->sync();
+    }
+    appIni->endGroup();
+    return titles;
+}
+
+/**
  * @brief 二级科目收入首先方法
  * @return true：名称，false：助记符
  */

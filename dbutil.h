@@ -20,6 +20,7 @@ const int nsv = 6;  //此版本号前使用老存储机制，此版本后（包�
 class SubjectManager;
 class FirstSubject;
 class PingZheng;
+class NameItemAlias;
 struct SmartSSubAdapteItem;
 struct InvoiceRowStruct;
 
@@ -97,6 +98,9 @@ public:
     //bool isSubSysJoinConfiged(int source, int destinate);
     bool mergeSecondSubject(int startYear,int startMonth,int endYear, int endMonth, SecondSubject* preSub, QList<SecondSubject*> mergedSubs, bool isInclude);
     bool replaceMapSidWithReserved(SecondSubject *preSub, QList<SecondSubject *> mergedSubs);
+    bool removeNameAlias(NameItemAlias* alias);
+    bool upgradeNameAlias(SubjectNameItem* ni, NameItemAlias* alias);
+
     //货币相关
     bool initMoneys(Account* account);
     bool initBanks(Account* account);
@@ -225,6 +229,13 @@ public:
     bool saveInvoiceRecords(int year, int month, QList<InvoiceRecord*> records);
     bool getInvoiceRecordsForYear(AccountSuiteManager *asMgr, QList<InvoiceRecord*> &incomes, QList<InvoiceRecord*> &costs);
     bool getInvoiceRecords(int year, int month, QList<InvoiceRecord*> &incomes, QList<InvoiceRecord*> &costs);
+
+    //本月收入/成本发票访问函数
+    bool loadCurInvoice(int y, int m, QList<CurInvoiceRecord*> &records, bool isYs=true);
+    bool saveCurInvoice(int y, int m, const QList<CurInvoiceRecord*> &records);
+    bool clearCurInvoice(int y, int m,int scope=0);
+    bool saveNameAlias(NameItemAlias* nameAlias);
+
 
     //分录模板数据访问函数
     bool existBaTemlateDatas(int type);

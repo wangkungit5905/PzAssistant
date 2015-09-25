@@ -193,6 +193,25 @@ private:
     int index;      //当前的迭代器指针索引位置
 };
 
+class NameItemAlias{
+public:
+    NameItemAlias(QString sname,QString lname,QString remCode="",QDateTime crtTime=QDateTime(),QDateTime disTime=QDateTime());
+    int getId(){return id;}
+    void setParent(SubjectNameItem* p){parent=p;}
+    SubjectNameItem* getParent(){return parent;}
+    QString shortName(){return sname;}
+    QString longName(){return lname;}
+    QString rememberCode(){return remCode;}
+    QDateTime createdTime(){return crtTime;}
+private:
+    int id;
+    SubjectNameItem* parent;
+    QString sname,lname;        //简称，全称
+    QString remCode;            //助记符
+    QDateTime crtTime,disTime;  //创建、禁用时间
+    friend class SubjectNameItem;
+    friend class DbUtil;
+};
 
 /**
  * @brief The SubjectNameItem struct
@@ -201,6 +220,7 @@ private:
 class SubjectNameItem{
 public:
     SubjectNameItem(int id,int cls,QString sname,QString lname,QString remCode,QDateTime crtTime,User* user);
+    SubjectNameItem(NameItemAlias* alias,QDateTime crtTime=QDateTime::currentDateTime(),User* user=curUser);
     SubjectNameItem();
 
     SubjectNameItem(const SubjectNameItem& other);
@@ -222,6 +242,11 @@ public:
     inline void resetEditState(){witchEdit = ES_NI_INIT;isDeleted=false;}
     void setDelete(bool state){isDeleted = state;}
     inline bool isDelete(){return isDeleted;}
+    bool addAlias(NameItemAlias* alias);
+    void removeAlias(NameItemAlias* alias);
+    int matchName(QString name);
+    bool haveAlias(){return !aliases.isEmpty();}
+    QList<NameItemAlias*>& getAliases(){return aliases;}
 
     bool operator ==(SubjectNameItem& other){return md == other.md;}
 
@@ -235,11 +260,13 @@ private:
     QDateTime crtTime;      //创建时间
     User* crtUser;          //创建者
     bool isDeleted;         //是否被删除了
+    QList<NameItemAlias*> aliases; //别名列表
 
     friend class SubjectManager;
     friend class DbUtil;
 };
 
+Q_DECLARE_METATYPE(NameItemAlias*)
 Q_DECLARE_METATYPE(SubjectNameItem)
 Q_DECLARE_METATYPE(SubjectNameItem*)
 
@@ -371,6 +398,11 @@ public:
     static bool isUsedNiCls(int code);
     static bool removeNiCls(int code);
     static QList<SubjectNameItem*> getAllNameItems(SortByMode sortBy = SORTMODE_NONE);
+    static QList<NameItemAlias*> getAllIsolatedAlias(){return isolatedNames;}
+    static NameItemAlias* getMatchedAlias(QString shortName);
+    bool removeNameAlias(NameItemAlias* alias);
+    bool upgradeNameAlias(NameItemAlias* alias);
+    static void addIsolatedAlias(NameItemAlias* alias){isolatedNames<<alias;}
     static QString getNIClsName(int clsId){return nameItemCls.value(clsId).first();}
     static QString getNIClsLName(int clsId){return nameItemCls.value(clsId).last();}
     void removeNameItem(SubjectNameItem* nItem, bool delInLib = false);
@@ -467,6 +499,7 @@ private:
 
     static QHash<int,QStringList> nameItemCls;      //名称条目类别表
     static QHash<int,SubjectNameItem*> nameItems;   //所有名称条目（因为多个科目管理器对象要共享名称条目信息）
+    static QList<NameItemAlias *> isolatedNames;    //所有孤立名称别名表（用于新建名称对象时的对象信息的自动填充和收入/成本发票客户的新客户类型的自动匹配）
     static QList<SubjectNameItem*> delNameItems;    //缓存被删除的名称条目
     static FirstSubject* FS_ALL;
     static FirstSubject* FS_NULL;

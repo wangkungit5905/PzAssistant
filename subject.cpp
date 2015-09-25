@@ -7,6 +7,7 @@
 QHash<int,QStringList> SubjectManager::nameItemCls;
 QHash<int,SubjectNameItem*> SubjectManager::nameItems;
 QList<SubjectNameItem*> SubjectManager::delNameItems;
+QList<NameItemAlias *> SubjectManager::isolatedNames;
 
 //虚拟科目对象
 //FirstSubject* SubjectManager::FS_ALL = new FirstSubject(0,);
@@ -611,6 +612,14 @@ void FSubItrator::toFront()
     index = -1;
 }
 
+///////////////////////////NameItemAlias///////////////////////////////////////////
+NameItemAlias::NameItemAlias(QString sname, QString lname, QString remCode, QDateTime crtTime, QDateTime disTime)
+    :id(0),parent(0),sname(sname),lname(lname),remCode(remCode),crtTime(crtTime),disTime(disTime)
+{
+
+}
+
+
 
 //////////////////////////SubjectNameItem//////////////////////////////////////////
 /**
@@ -631,6 +640,15 @@ SubjectNameItem::SubjectNameItem(int id,int cls,QString sname,QString lname,QStr
 {
     md = NAMEITEMMD++;
 
+}
+
+SubjectNameItem::SubjectNameItem(NameItemAlias *alias,QDateTime crtTime,User* user)
+    :crtUser(user),crtTime(crtTime)
+{
+    sname = alias->shortName();
+    lname = alias->longName();
+    remCode = alias->rememberCode();
+    clsId = AppConfig::getInstance()->getSpecNameItemCls(AppConfig::SNIC_COMMON_CLIENT);
 }
 
 /**
@@ -694,6 +712,42 @@ void SubjectNameItem::setRemCode(QString code)
         remCode = c;
         witchEdit |= ES_NI_SYMBOL;
     }
+}
+
+bool SubjectNameItem::addAlias(NameItemAlias *alias)
+{
+    foreach(NameItemAlias* a, aliases){
+        if(alias->lname == a->lname)
+            return false;
+    }
+    aliases<<alias;
+    alias->setParent(this);
+    witchEdit |= ES_NI_ALIAS;
+    return true;
+}
+
+void SubjectNameItem::removeAlias(NameItemAlias *alias)
+{
+    aliases.removeOne(alias);
+     witchEdit |= ES_NI_ALIAS;
+}
+
+/**
+ * @brief 测试名称对象是否与指定名称匹配
+ * @param name
+ * @return 0：不匹配，1：精确匹配，2：别名匹配
+ */
+int SubjectNameItem::matchName(QString name)
+{
+    if(name.isEmpty())
+        return 0;
+    if(name == lname)
+        return 1;
+    foreach (NameItemAlias* alias, aliases) {
+        if(alias->lname == name )
+            return 2;
+    }
+    return 0;
 }
 
 
@@ -1114,6 +1168,47 @@ QList<SubjectNameItem *> SubjectManager::getAllNameItems(SortByMode sortBy)
     return items;
 }
 
+/**
+ * @brief 返回匹配简称的别名对象
+ * @param shortName
+ * @return
+ */
+NameItemAlias *SubjectManager::getMatchedAlias(QString shortName)
+{
+    foreach(NameItemAlias* alias, isolatedNames){
+        if(alias->shortName() == shortName)
+            return alias;
+    }
+    return 0;
+}
+
+/**
+ * @brief 移除别名
+ * @param alias
+ * @return
+ */
+bool SubjectManager::removeNameAlias(NameItemAlias *alias)
+{
+    if(!dbUtil->removeNameAlias(alias))
+        return false;
+    isolatedNames.removeOne(alias);
+    return true;
+}
+
+/**
+ * @brief 别名对象转正（即将别名作为普通名称对象）
+ * @param alias
+ */
+bool SubjectManager::upgradeNameAlias(NameItemAlias *alias)
+{
+    SubjectNameItem* ni = new SubjectNameItem(alias);
+    if(!dbUtil->upgradeNameAlias(ni,alias))
+        return false;
+    nameItems[ni->getId()] = ni;
+    isolatedNames.removeOne(alias);
+    return true;
+}
+
 
 /**
  * @brief SubjectManager::removeNameItem
@@ -1406,6 +1501,8 @@ bool SubjectManager::isBankSndSub(SecondSubject *ssub)
     else
         return true;
 }
+
+
 
 
 

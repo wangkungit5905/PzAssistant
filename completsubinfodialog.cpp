@@ -13,10 +13,6 @@ CompletSubInfoDialog::CompletSubInfoDialog(int fid,SubjectManager* smg,QWidget *
 {
     ui->setupUi(this);
 
-    QSqlQuery q;
-    QString s;
-
-
     //首先获取需要作考虑的一些一级科目的id
     int gid = smg->getGdzcSub()->getId();
 
@@ -35,7 +31,6 @@ CompletSubInfoDialog::CompletSubInfoDialog(int fid,SubjectManager* smg,QWidget *
     for(int i = 0;i < codes.count();++i){
         code = codes.at(i);
         ui->cmbClass->addItem(nameClses.value(code).first(),code);
-
         if(code == nameCls)
             index = i;
     }
@@ -51,6 +46,21 @@ CompletSubInfoDialog::~CompletSubInfoDialog()
 void CompletSubInfoDialog::setName(QString name)
 {
     ui->edtSName->setText(name);
+}
+
+void CompletSubInfoDialog::setLongName(QString name)
+{
+    ui->edtLName->setText(name);
+}
+
+void CompletSubInfoDialog::setRemCode(QString code)
+{
+    ui->edtRemCode->setText(code);
+}
+
+void CompletSubInfoDialog::setNameClass(int clsCode)
+{
+    ui->cmbClass->setCurrentIndex(ui->cmbClass->findData(clsCode));
 }
 
 QString CompletSubInfoDialog::getSName()
@@ -79,7 +89,8 @@ void CompletSubInfoDialog::keyPressEvent(QKeyEvent *event)
     int k = event->key();
     if((k == Qt::Key_Return) || (k == Qt::Key_Enter)){
         if(ui->edtSName->hasFocus() && (ui->edtSName->text() != "")){
-            ui->edtLName->setText(ui->edtSName->text());
+            if(ui->edtLName->text().isEmpty())
+                ui->edtLName->setText(ui->edtSName->text());
             ui->edtLName->selectAll();
             ui->edtLName->setFocus();
         }

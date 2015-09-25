@@ -135,17 +135,26 @@ public:
 
     QList<PingZheng *> getHistoryPzSet(int m);
 
-    //应收应付发票有关方法
+    //发票有关方法
     void scanYsYfForMonth(int month,QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors,bool scanXf=false,bool reserved=true);
     void scanYsYfForMonth2(int month,QList<InvoiceRecord *> &incomeAdds, QList<InvoiceRecord *> &incomeCancels, QList<InvoiceRecord *> &costAdds, QList<InvoiceRecord *> &costCancels, QStringList &errors);
     void scanYsYf(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors);
-    InvoiceRecord *searchInvoice(bool isYs, QString inum);
+    InvoiceRecord *searchYsYfInvoice(bool isYs, QString inum);
+    CurInvoiceRecord *searchICInvoice(bool isIncome, QString inum);
     bool saveYsYf();
     void loadYsYf();
     QList<InvoiceRecord *> getYsInvoiceStats();
     QList<InvoiceRecord *> getYfInvoiceStats();
     void setYsInvoiceStats(QList<InvoiceRecord *> datas){ysInvoices=datas;}
     void setYfInvoiceStats(QList<InvoiceRecord *> datas){yfInvoices=datas;}
+
+    //收入/成本发票管理方法
+    bool saveInCost();
+    void loadInCost();
+    bool clearInCost(int scope);
+    QList<CurInvoiceRecord*> *getCurInvoiceRecords(bool isIncome=true);
+    int verifyCurInvoice(QString invoiceNumber, Double wbMoney, BusiAction* ba,bool isGather,bool isIncome=true);
+    bool verifyCurInvoices(QString &errInfo);
 
     //扫描本月发票
     void scanInvoice(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors);
@@ -205,6 +214,10 @@ private:
     //应收应付发票缓存，记录本帐套未销账的应收应付发票
     QList<InvoiceRecord*> ysInvoices,yfInvoices;//应收发票号
     bool isYsYfLoaded;	//应收发票是否装载完成（从发票表中装载）
+
+    //收入/成本发票缓存，记录当月发生的收入/成本发票
+    QList<CurInvoiceRecord*> incomes,costs;
+    bool isICLoader;    //收入/成本发票是否装载完成
 
 
     int curM;                     //当前以编辑方式打开的凭证集所属月份

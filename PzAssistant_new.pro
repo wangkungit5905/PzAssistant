@@ -7,7 +7,7 @@
 REVFILE = VersionRev.h
 QMAKE_DISTCLEAN += $$REVFILE
 
-REVISONNUM = 6
+REVISONNUM = 7
 BUILD_NUM = $$system(git rev-list --count HEAD)
 count(BUILD_NUM, 1) {
     BUILD_EXPLAIN = git-$$BUILD_NUM-$$system(git rev-parse --short HEAD)
@@ -127,7 +127,8 @@ SOURCES += main.cpp\
     aboutdialog.cpp \
     invoicestatform.cpp \
     batemplateform.cpp \
-    ysyfinvoicestatform.cpp
+    ysyfinvoicestatform.cpp \
+    curinvoicestatform.cpp
 
 HEADERS  += \
     config.h \
@@ -212,7 +213,8 @@ HEADERS  += \
     VersionRev.h \
     invoicestatform.h \
     batemplateform.h \
-    ysyfinvoicestatform.h
+    ysyfinvoicestatform.h \
+    curinvoicestatform.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -285,7 +287,8 @@ FORMS    += \
     forms/lookysyfitemform.ui \
     forms/invoicestatform.ui \
     forms/batemplateform.ui \
-    forms/ysyfinvoicestatform.ui
+    forms/ysyfinvoicestatform.ui \
+    forms/curinvoicestatform.ui
 
 INCLUDEPATH +=  $$PWD/application \
                 $$PWD/common

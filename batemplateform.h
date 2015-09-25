@@ -183,6 +183,7 @@ public:
                               const QModelIndex& index) const;
     void destroyEditor(QWidget * editor, const QModelIndex & index) const;
     void userConfirmed(){canDestroy=true;}
+    void laterDestroyEditor(){canDestroy=false;}
 
 private slots:
     void commitAndCloseEditor(int colIndex, bool isMove);
@@ -213,13 +214,10 @@ public:
     QVariant data(int role) const;
     void setType(InvoiceItemType type);
     InvoiceItemType invoiceType(){return _type;}
-    //bool isIncome(){return _income;}
-    //void setIncome(bool in){_income=in;}
 
 private:
     InvoiceItemType _type;
     QIcon bankIcon,ysyfIcon;
-    //bool _income;    //true：收，false：支
 };
 
 /**
@@ -273,14 +271,6 @@ private slots:
 
     void on_btnLoad_clicked();
 
-//    void on_actDkIncome_triggered();
-
-//    void on_actDkYs_triggered();
-
-//    void on_actDkCost_triggered();
-
-//    void on_actDkYf_triggered();
-
 private:
     void init();
     void initRow(int row);
@@ -290,7 +280,8 @@ private:
     void turnDataInspect(bool on=true);
     bool invoiceQualified(QString inum);
     int invoiceQualifieds();
-    void autoSetYsYf(int row,QString inum);
+    void autoSetYsYf(int row, QString inum, bool isYs=true);
+    void autoSetInCost(int row, QString inum, bool isIncome=true);
     void setYsYfMoney(int row, SecondSubject* ssub);
     void createBankIncomeBas();
     void createBankCostBas();
@@ -329,6 +320,7 @@ private:
     bool ok;    //如果创建过程一切OK，则在按确定按钮后关闭窗口，否则不关闭
     QList<InvoiceRowStruct*> buffers; //表格行的拷贝缓冲区
     QActionGroup *ag_in, *ag_ys, *ag_cost,*ag_yf;
+    QIcon icon_question;
 };
 
 #endif // BATEMPLATEFORM_H

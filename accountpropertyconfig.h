@@ -240,7 +240,8 @@ class ApcSubject : public QWidget
         APCS_SYS = 0,           //科目系统页
         APCS_SUB = 1,           //科目页
         APCS_NAME= 2,           //名称条目页
-        APCS_SMARTADAPTE = 3    //智能适配子目
+        APCS_ALIAS       = 3,   //别名
+        APCS_SMARTADAPTE = 4    //智能适配子目
     };
 
     enum APC_SUB_EDIT_ACTION{
@@ -284,7 +285,11 @@ private slots:
     void loadNameItems();
     //智能适配配置相关
     void subjectSystemChanged(int index);
-    void SmartTableMenuRequested(const QPoint & pos);
+    void SmartTableMenuRequested(const QPoint & pos);    
+    //别名管理
+    void curNameObjChanged(int index);
+    void curAliasChanged(int index);
+    void showIsolatedAlias(bool checked);
 
     void on_btnNiEdit_clicked();
 
@@ -340,6 +345,8 @@ private slots:
 
     void on_edtSSubNameInput_textEdited();
 
+    void on_actDelAlias_triggered();
+
 private:
 
     bool mergeNameItem(SubjectNameItem* preNI, QList<SubjectNameItem*> nameItems);
@@ -348,11 +355,13 @@ private:
     void init_subsys();
     void init_NameItems();
     void init_subs();
+    void init_alias();
     void init_smarts();
     void loadSmartItems(SubjectManager* sm);
 
     void loadFSub(int subSys);
     void loadSSub(SortByMode sortBy = SORTMODE_NAME);
+    void loadIsolatedAlias();
 
     void viewFSub();
     void viewSSub();
@@ -377,6 +386,7 @@ private:
     bool iniTag_subsys;
     bool iniTag_ni;
     bool iniTag_sub;
+    bool iniTag_alias;
     bool iniTag_smart;
 
     Account* account;

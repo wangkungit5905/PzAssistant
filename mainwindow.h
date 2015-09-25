@@ -335,6 +335,8 @@ private slots:
 
     void on_actYsYfStat_triggered();
 
+    void on_actICManage_triggered();
+
 private:
     void _closeAccount();
     bool isExecAccountTransform();

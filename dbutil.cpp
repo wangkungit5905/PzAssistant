@@ -875,6 +875,49 @@ bool DbUtil::initNameItems()
         item = new SubjectNameItem(id,clsId,sname,lname,remCode,crtTime,allUsers.value(uid));
         SubjectManager::nameItems[id]=item;
     }
+    //装载别名
+    s = QString("select %1.id,%2.* from %1 join %2 on %1.id=%2.%3")
+            .arg(tbl_nameItem).arg(tbl_nameAlias).arg(fld_nia_niCode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int nid = q.value(0).toInt();
+        int id = q.value(1).toInt();
+        QString sname = q.value(FI_NIA_NAME+1).toString();
+        QString lname = q.value(FI_NIA_LNAME+1).toString();
+        QString remCode = q.value(FI_NIA_REMCODE+1).toString();
+        qint64 ci = q.value(FI_NIA_CRTTIME+1).toLongLong();
+        qint64 di = q.value(FI_NIA_DISTIME+1).toLongLong();
+        QDateTime ct = QDateTime::fromMSecsSinceEpoch(ci);
+        QDateTime dt = QDateTime::fromMSecsSinceEpoch(di);
+        NameItemAlias* nia = new NameItemAlias(sname,lname,remCode,ct,dt);
+        nia->id = id;
+        SubjectNameItem* ni = SubjectManager::nameItems.value(nid);
+        if(ni){
+            nia->setParent(ni);
+            ni->aliases<<nia;
+        }
+        else
+            LOG_WARNING(QString("Fonded a insolated name item alias(id=%1,name=%2)").arg(id).arg(lname));
+    }
+    //装载孤立别名
+    s = QString("select * from %1 where %2=0").arg(tbl_nameAlias).arg(fld_nia_niCode);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        int id = q.value(0).toInt();
+        QString sname = q.value(FI_NIA_NAME).toString();
+        QString lname = q.value(FI_NIA_LNAME).toString();
+        QString remCode = q.value(FI_NIA_REMCODE).toString();
+        qint64 ci = q.value(FI_NIA_CRTTIME).toLongLong();
+        NameItemAlias* nia = new NameItemAlias(sname,lname,remCode,QDateTime::fromMSecsSinceEpoch(ci),QDateTime());
+        nia->id=id;
+        SubjectManager::addIsolatedAlias(nia);
+    }
     return true;
 }
 
@@ -1476,6 +1519,53 @@ bool DbUtil::replaceMapSidWithReserved(SecondSubject *preSub, QList<SecondSubjec
         return false;
     }
     return true;
+}
+
+/**
+ * @brief 移除别名
+ * @param alias
+ * @return
+ */
+bool DbUtil::removeNameAlias(NameItemAlias *alias)
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where id=%2").arg(tbl_nameAlias).arg(alias->getId());
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 别名转正
+ * @param ni
+ * @param alias
+ * @return
+ */
+bool DbUtil::upgradeNameAlias(SubjectNameItem *ni, NameItemAlias *alias)
+{
+    if(!ni || ni->getId()!=0 || !alias || alias->getParent())
+        return false;
+    if(!db.transaction()){
+        LOG_ERROR("Start transaction on upgrade name alias failed!");
+        return false;
+    }
+    if(!_saveNameItem(ni)){
+        db.rollback();
+        return false;
+    }
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where id=%2")
+            .arg(tbl_nameAlias).arg(alias->getId());
+    if(!q.exec(s))        {
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!db.commit()){
+        LOG_ERROR("Commit transaction on upgrade name alias failed!");
+        return false;
+    }
 }
 
 /**
@@ -4843,6 +4933,197 @@ bool DbUtil::getInvoiceRecords(int year, int month, QList<InvoiceRecord *> &inco
 }
 
 /**
+ * @brief 读取指定年月收入/成本发票信息记录
+ * @param y
+ * @param m
+ * @param records
+ * @param isYs
+ * @return
+ */
+bool DbUtil::loadCurInvoice(int y, int m, QList<CurInvoiceRecord *> &records, bool isYs)
+{
+    QSqlQuery q(db);
+    int ym = y*100+m;
+    QString s = QString("select * from %1 where %2=%3 and %4=%5 order by %6").arg(tbl_cur_invoices)
+            .arg(fld_ci_ym).arg(ym).arg(fld_ci_iClass).arg(isYs?1:0).arg(fld_ci_number);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        CurInvoiceRecord* r = new CurInvoiceRecord;
+        r->id = q.value(0).toInt();
+        r->y = y;
+        r->m = m;
+        r->num = q.value(fld_ci_number).toInt();
+        r->inum = q.value(fld_ci__iNumber).toString();
+        r->date = QDate::fromString(q.value(fld_ci_date).toString(),Qt::ISODate);
+        if(!r->date.isValid())
+            r->dateStr = q.value(fld_ci_date).toString();
+        r->client = q.value(fld_ci_client).toString();
+        r->isIncome=isYs;
+        r->sfInfo = q.value(fld_ci_skState).toString();
+        r->processState = q.value(fld_ci_isProcess).toBool();
+        r->money = q.value(FI_CI_MONEY).toDouble();
+        r->taxMoney = q.value(FI_CI_TAXMONEY).toDouble();
+        r->wbMoney = q.value(FI_CI_WBMONEY).toDouble();
+        r->state = q.value(FI_CI_STATE).toInt();
+        r->type = q.value(FI_CI_TYPE).toBool();
+        r->ni = SubjectManager::nameItems.value(q.value(FI_CI_MATCHEDNAME).toInt());
+        records<<r;
+    }
+    return true;
+}
+
+/**
+ * @brief 保存指定年月收入/成本发票信息记录
+ * @param y
+ * @param m
+ * @param records
+ * @return
+ */
+bool DbUtil::saveCurInvoice(int y, int m, const QList<CurInvoiceRecord *> &records)
+{
+    QSqlQuery q(db);
+    QString s;
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save curent invoice infomation!");
+        return false;
+    }
+    int ym = y*100+m;
+    bool changed = false;
+    foreach(CurInvoiceRecord* r,records){
+        if(r->id == 0)
+            s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13,%14,%15) "
+                        "values(%16,%17,%18,%19,'%20','%21','%22',%23,%24,%25,%26,%27,'%28',%29)")
+                    .arg(tbl_cur_invoices).arg(fld_ci_ym).arg(fld_ci_iClass).arg(fld_ci_number)
+                    .arg(fld_ci_iType).arg(fld_ci_date).arg(fld_ci__iNumber).arg(fld_ci_client)
+                    .arg(fld_ci_match_name).arg(fld_ci_money).arg(fld_ci_taxMoney).arg(fld_ci_wbMoney)
+                    .arg(fld_ci_state).arg(fld_ci_skState).arg(fld_ci_isProcess)
+                    .arg(ym).arg(r->isIncome?1:0).arg(r->num).arg(r->type?1:0)
+                    .arg(r->date.isValid()?r->date.toString(Qt::ISODate):r->dateStr)
+                    .arg(r->inum).arg(r->client).arg(r->ni?r->ni->getId():0).arg(r->money.toString2())
+                    .arg(r->taxMoney.toString2()).arg(r->wbMoney.toString2()).arg(r->state)
+                    .arg(r->sfInfo).arg(r->processState?1:0);
+        else{
+            if(r->tags->count(true) == 0)
+                continue;
+            changed = true;
+            s = QString("update %1 set ").arg(tbl_cur_invoices);
+            if(r->tags->testBit(CI_TAG_ISINCOME))
+                s.append(QString("%1=%2,").arg(fld_ci_iClass).arg(r->isIncome?1:0));
+            if(r->tags->testBit(CI_TAG_TYPE))
+                s.append(QString("%1=%2,").arg(fld_ci_iType).arg(r->type?1:0));
+            if(r->tags->testBit(CI_TAG_ISPROCESS))
+                s.append(QString("%1=%2,").arg(fld_ci_isProcess).arg(r->processState?1:0));
+            if(r->tags->testBit(CI_TAG_SFSTATE))
+                s.append(QString("%1='%2',").arg(fld_ci_skState).arg(r->sfInfo));
+            if(r->tags->testBit(CI_TAG_NUMBER))
+                s.append(QString("%1=%2,").arg(fld_ci_number).arg(r->num));
+            if(r->tags->testBit(CI_TAG_INUMBER))
+                s.append(QString("%1='%2',").arg(fld_ci__iNumber).arg(r->inum));
+            if(r->tags->testBit(CI_TAG_CLIENT))
+                s.append(QString("%1='%2',").arg(fld_ci_client).arg(r->client));
+            if(r->tags->testBit(CI_TAG_NAMEITEM))
+                s.append(QString("%1=%2,").arg(fld_ci_match_name).arg(r->ni?r->ni->getId():0));
+            if(r->tags->testBit(CI_TAG_DATE))
+                s.append(QString("%1='%2',").arg(fld_ci_date)
+                         .arg(r->date.isValid()?r->date.toString(Qt::ISODate):r->dateStr));
+            if(r->tags->testBit(CI_TAG_MONEY))
+                s.append(QString("%1=%2,").arg(fld_ci_money).arg(r->money.toString2()));
+            if(r->tags->testBit(CI_TAG_WBMONEY))
+                s.append(QString("%1=%2,").arg(fld_ci_wbMoney).arg(r->wbMoney.toString2()));
+            if(r->tags->testBit(CI_TAG_TAXMONEY))
+                s.append(QString("%1=%2,").arg(fld_ci_taxMoney).arg(r->taxMoney.toString2()));
+            if(r->tags->testBit(CI_TAG_STATE))
+                s.append(QString("%1=%2,").arg(fld_ci_state).arg(r->state));
+            if(s.endsWith(","))
+                s.chop(1);
+            s.append(QString(" where id=%1").arg(r->id));
+        }
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+        if(r->id == 0){
+            s = "select last_insert_rowid()";
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            q.next();
+            r->id = q.value(0).toInt();
+        }
+        if(r->ni){
+            if(r->ni->getId() == 0 && r->alias && r->alias->getId()==0){    //这里的新客户只作为孤立别名保存，不实际创建新名称对象（减少名称对象的无谓增长）
+                s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(0,'%8','%9','%10',%11,%12)")
+                        .arg(tbl_nameAlias).arg(fld_nia_niCode).arg(fld_nia_name).arg(fld_nia_lname)
+                        .arg(fld_nia_remcode).arg(fld_nia_crtTime).arg(fld_nia_disTime).arg(r->alias->shortName())
+                        .arg(r->alias->longName()).arg(r->alias->rememberCode()).arg(r->alias->createdTime().toMSecsSinceEpoch())
+                        .arg(QDateTime().toMSecsSinceEpoch());
+                if(!q.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+                //读回id
+                s = "select last_insert_rowid()";
+                if(!q.exec(s)){
+                    LOG_SQLERROR(s);
+                    return false;
+                }
+                q.next();
+                r->alias->id = q.value(0).toInt();
+            }
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save curent invoice infomation!");
+        return false;
+    }
+    if(changed){
+        foreach(CurInvoiceRecord* r,records)
+            r->tags->fill(false,0,15);
+    }
+    return true;
+}
+
+/**
+ * @brief 清除指定年月的收入/成本发票信息记录
+ * @param y
+ * @param m
+ * @param scope 0:所有，1:收入，2:成本
+ * @return
+ */
+bool DbUtil::clearCurInvoice(int y, int m, int scope)
+{
+    QSqlQuery q(db);
+
+    int ym = y*100+m;
+    QString s = QString("delete from %1 where %2=%3").arg(tbl_cur_invoices)
+            .arg(fld_ci_ym).arg(ym);
+    if(scope == 1)
+        s.append(QString(" and %1=1").arg(fld_ci_iClass));
+    else if(scope == 2)
+        s.append(QString(" and %1=0").arg(fld_ci_iClass));
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 保存别名
+ * @param nameAlias
+ * @return
+ */
+bool DbUtil::saveNameAlias(NameItemAlias *nameAlias)
+{
+
+}
+
+
+/**
  * @brief DbUtil::saveAccInfoPiece
  *  保存账户信息片段
  * @param code
@@ -5117,39 +5398,96 @@ bool DbUtil::_saveNameItem(SubjectNameItem *ni)
 {
     QSqlQuery q(db);
     QString s;
-    if(ni->getId() == UNID)
+    if(ni->getId() == UNID){
         s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values('%8','%9','%10',%11,'%12',%13)")
                 .arg(tbl_nameItem).arg(fld_ni_name).arg(fld_ni_lname)
                 .arg(fld_ni_remcode).arg(fld_ni_class).arg(fld_ni_crtTime)
                 .arg(fld_ni_creator).arg(ni->getShortName()).arg(ni->getLongName())
                 .arg(ni->getRemCode()).arg(ni->getClassId()).arg(ni->getCreateTime().toString(Qt::ISODate))
                 .arg(ni->getCreator()?ni->getCreator()->getUserId():1);
-    else{
-        NameItemEditStates state = ni->getEditState();
-        if(state == ES_NI_INIT)
-            return true;
-        s = QString("update %1 set ").arg(tbl_nameItem);
-        if(state.testFlag(ES_NI_CLASS))
-            s.append(QString("%1=%2,").arg(fld_ni_class).arg(ni->getClassId()));
-        if(state.testFlag(ES_NI_SNAME))
-            s.append(QString("%1='%2',").arg(fld_ni_name).arg(ni->getShortName()));
-        if(state.testFlag(ES_NI_LNAME))
-            s.append(QString("%1='%2',").arg(fld_ni_lname).arg(ni->getLongName()));
-        if(state.testFlag(ES_NI_SYMBOL))
-            s.append(QString("%1='%2',").arg(fld_ni_remcode).arg(ni->getRemCode()));
-        if(s.endsWith(","))
-            s.chop(1);
-        s.append(QString(" where id=%1").arg(ni->getId()));
-    }
-    if(!q.exec(s)){
-        LOG_SQLERROR(s);
-        return false;
-    }
-    if(ni->getId() == UNID){
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
         if(!q.exec("select last_insert_rowid()") || !q.first())
             return false;
         ni->id = q.value(0).toInt();
         SubjectManager::nameItems[ni->id] = ni;
+        if(!ni->aliases.isEmpty()){
+            s = QString("update %1 set %2=%3 where id=:aid").arg(tbl_nameAlias)
+                    .arg(fld_nia_niCode).arg(ni->getId());
+            if(!q.prepare(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            foreach(NameItemAlias* alias, ni->aliases){
+                q.bindValue(":aid",alias->id);
+                if(!q.exec()){
+                    LOG_SQLERROR(q.lastQuery());
+                    return false;
+                }
+            }
+        }
+    }
+    else{
+        NameItemEditStates state = ni->getEditState();
+        if(state == ES_NI_INIT)
+            return true;
+        NameItemEditStates ss = state & !ES_NI_ALIAS;
+        if(ss){
+            s = QString("update %1 set ").arg(tbl_nameItem);
+            if(state.testFlag(ES_NI_CLASS))
+                s.append(QString("%1=%2,").arg(fld_ni_class).arg(ni->getClassId()));
+            if(state.testFlag(ES_NI_SNAME))
+                s.append(QString("%1='%2',").arg(fld_ni_name).arg(ni->getShortName()));
+            if(state.testFlag(ES_NI_LNAME))
+                s.append(QString("%1='%2',").arg(fld_ni_lname).arg(ni->getLongName()));
+            if(state.testFlag(ES_NI_SYMBOL))
+                s.append(QString("%1='%2',").arg(fld_ni_remcode).arg(ni->getRemCode()));
+            if(s.endsWith(","))
+                s.chop(1);
+            s.append(QString(" where id=%1").arg(ni->getId()));
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+        }
+        if(state.testFlag(ES_NI_ALIAS)){
+            //先读取数据库中该名称对象名下的别名，与当前名称对象具有的别名比较
+            s = QString("select id from %1 where %2=%3").arg(tbl_nameAlias)
+                    .arg(fld_nia_niCode).arg(ni->getId());
+            if(!q.exec(s)){
+                LOG_SQLERROR(s);
+                return false;
+            }
+            QList<int> oldAlias,curAlias;
+            while(q.next())
+                oldAlias<<q.value(0).toInt();
+            foreach(NameItemAlias* alias, ni->aliases)
+                curAlias<<alias->getId();
+            foreach(int id, oldAlias){
+                if(!curAlias.contains(id)){ //脱离别名的从属关系，变为孤立别名
+                    s = QString("update %1 set %2=0 where id=%3").arg(tbl_nameAlias)
+                            .arg(fld_nia_niCode).arg(id);
+                    if(!q.exec(s)){
+                        LOG_SQLERROR(s);
+                        return false;
+                    }
+                }
+                else
+                    curAlias.removeOne(id);
+            }
+            if(!curAlias.isEmpty()){ //剩下的就是新加入的别名
+                foreach(int id, curAlias){
+                    s = QString("update %1 set %2=%3 where id=%4").arg(tbl_nameAlias)
+                            .arg(fld_nia_niCode).arg(ni->getId()).arg(id);
+                    if(!q.exec(s)){
+                        LOG_SQLERROR(s);
+                        return false;
+                    }
+                }
+            }
+        }
     }
     ni->resetEditState();
     return true;

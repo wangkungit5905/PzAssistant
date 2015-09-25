@@ -633,7 +633,7 @@ void InvoiceInputDelegate::updateEditorGeometry(QWidget *editor, const QStyleOpt
 
 void InvoiceInputDelegate::destroyEditor(QWidget *editor, const QModelIndex &index) const
 {
-    if(index.column() != BaTemplateForm::CI_CUSTOMER)
+    if(index.column() != BaTemplateForm::CI_CUSTOMER && index.column() != BaTemplateForm::CI_INVOICE)
         return QItemDelegate::destroyEditor(editor,index);
     if(canDestroy)
         editor->deleteLater();
@@ -648,7 +648,8 @@ void InvoiceInputDelegate::commitAndCloseEditor(int colIndex, bool isMove)
         editor = qobject_cast<MoneyEdit*>(sender());
     else if(colIndex == BaTemplateForm::CI_CUSTOMER)
         editor = qobject_cast<CustomerNameEdit*>(sender());
-
+    if(!editor)
+        return;
     if(isMove){
         emit commitData(editor);
         emit closeEditor(editor, QAbstractItemDelegate::EditNextItem);
@@ -939,10 +940,35 @@ void BaTemplateForm::DataChanged(QTableWidgetItem *item)
     int col = item->column();
     if(col >= CI_MONEY && col <= CI_WMONEY)
         reCalSum((ColumnIndex)col);
-    else if(col == CI_INVOICE && (ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked())){
-        if(!invoiceQualified(item->text()))
+    else if(col == CI_INVOICE && invoiceQualified(item->text())){
+        InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
+        if(!item)
             return;
-        autoSetYsYf(row,item->text());
+        InvoiceItemType type = item->invoiceType();
+        if(type == IIT_COMMON && (ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked())){
+            autoSetYsYf(row,item->text(),ui->rdoYsIncome->isChecked());
+        }
+        else if(ui->rdoBankIncome->isChecked()){
+            if(type == IIT_COMMON)
+                autoSetInCost(row,item->text());
+            else if(type == IIT_COST2IN)
+                autoSetInCost(row,item->text(),false);
+            else if(type == IIT_YF2IN)
+                autoSetYsYf(row,item->text(),false);
+        }
+        else if(ui->rdoBankCost->isChecked()){
+            if(type == IIT_COMMON)
+                autoSetInCost(row,item->text(),false);
+            else if(type == IIT_IN2COST)
+                autoSetInCost(row,item->text());
+            else if(type == IIT_YS2COST)
+                autoSetYsYf(row,item->text());
+        }
+        else if(ui->rdoYsGather->isChecked()){
+            autoSetInCost(row,item->text());
+        }
+        else if(ui->rdoYfGather->isChecked())
+            autoSetInCost(row,item->text(),false);
     }
 }
 
@@ -983,7 +1009,7 @@ void BaTemplateForm::createMultiInvoice(QStringList invoices)
     //如果是应收应付，则自动搜索发票对应的金额信息
     if(ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked()){
         for(int i = row; i < row+invoices.count(); ++i)
-            autoSetYsYf(i,ui->tw->item(i,CI_INVOICE)->text());
+            autoSetYsYf(i,ui->tw->item(i,CI_INVOICE)->text(),ui->rdoYsIncome->isChecked());
     }
     reCalAllSum();
     turnDataInspect();
@@ -1284,42 +1310,51 @@ void BaTemplateForm::dkProcess()
     InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
     if(!item)
         return;
+    int row = item->row();
     QAction* act = static_cast<QAction*>(sender());
     if(!act)
         return;
     if(act == ui->actDkNot)
         item->setType(IIT_COMMON);
-    else if(act == ui->actDkCost2In)
+    else if(act == ui->actDkCost2In){
         item->setType(IIT_COST2IN);
-    else if(act == ui->actDkCost2Ys)
+        autoSetInCost(row,item->text(),false);
+    }
+    else if(act == ui->actDkCost2Ys){
         item->setType(IIT_COST2YS);
-    else if(act == ui->actDkIn2Cost)
+        autoSetInCost(row,item->text(),false);
+    }
+    else if(act == ui->actDkIn2Cost){
         item->setType(IIT_IN2COST);
-    else if(act == ui->actDkIn2Yf)
+        autoSetInCost(row,item->text());
+    }
+    else if(act == ui->actDkIn2Yf){
         item->setType(IIT_IN2YF);
-    else if(act == ui->actRegardYs){
+        autoSetInCost(row,item->text());
+    }
+    else if(act == ui->actRegardYs){//作为应收
         item->setType(IIT_YS);
         if(curCusSSub)
-            setYsYfMoney(item->row(),curCusSSub);
+            setYsYfMoney(row,curCusSSub);
     }
-    else if(act == ui->actRegardYf){
+    else if(act == ui->actRegardYf){ //作为应付
         item->setType(IIT_YF);
         if(curCusSSub)
-            setYsYfMoney(item->row(),curCusSSub);
+            setYsYfMoney(row,curCusSSub);
     }
     else{
         if(act == ui->actDkYf2In){
             item->setType(IIT_YF2IN);
             if(curCusSSub){
                 SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(item->row(),ssub);
+                setYsYfMoney(row,ssub);
             }
         }
         else if(act == ui->actDkYf2Ys){
             item->setType(IIT_YF2YS);
             if(curCusSSub){
                 SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(item->row(),ssub);
+                setYsYfMoney(row,ssub);
             }
 
         }
@@ -1327,14 +1362,14 @@ void BaTemplateForm::dkProcess()
             item->setType(IIT_YS2COST);
             if(curCusSSub){
                 SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(item->row(),ssub);
+                setYsYfMoney(row,ssub);
             }
         }
         else if(act == ui->actDkYs2Yf){
             item->setType(IIT_YS2YF);
             if(curCusSSub){
                 SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(item->row(),ssub);
+                setYsYfMoney(row,ssub);
             }
         }
     }
@@ -1345,6 +1380,7 @@ void BaTemplateForm::dkProcess()
 
 void BaTemplateForm::init()
 {
+    icon_question = QIcon(":/images/question.png");
     mmt = amgr->getAccount()->getMasterMt();
     wmt = amgr->getAccount()->getAllMoneys().value(USD);
     yfFSub = sm->getYfSub();
@@ -2362,22 +2398,21 @@ int BaTemplateForm::invoiceQualifieds()
  * @param row
  * @param inum
  */
-void BaTemplateForm::autoSetYsYf(int row, QString inum)
+void BaTemplateForm::autoSetYsYf(int row, QString inum, bool isYs)
 {
-    InvoiceRecord* r = amgr->searchInvoice(ui->rdoYsIncome->isChecked(),inum);
+    InvoiceRecord* r = amgr->searchYsYfInvoice(isYs,inum);
     if(!r)
         return;
     FirstSubject* fsub;
-    if(ui->rdoYsIncome->isChecked())
+    if(isYs)
         fsub = ysFSub;
     else
         fsub = yfFSub;
     SecondSubject* ssub = fsub->getChildSub(r->customer);
-    if(curCusSSub != ssub){
-        //myHelper::ShowMessageBoxWarning(tr("有点问题哦！该发票（%1）对应客户（%2）与当前客户不一致！")
-        //                                .arg(inum).arg(r->customer?r->customer->getLongName():tr("空")));
-        QTableWidgetItem* it = ui->tw->item(row,CI_INVOICE);
-        it->setForeground(QBrush(Qt::red));
+    if(curCusSSub != ssub && (ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked())){
+        QTableWidgetItem *ti = ui->tw->item(row,CI_INVOICE);
+        ti->setForeground(QBrush(Qt::red));
+        ti->setData(Qt::DecorationRole,icon_question);
     }
     int month = (amgr->year() == r->year)?r->month:-r->month;
     ui->tw->item(row,CI_MONTH)->setText(QString::number(month));
@@ -2386,6 +2421,46 @@ void BaTemplateForm::autoSetYsYf(int row, QString inum)
         ui->tw->item(row,CI_TAXMONEY)->setText(r->taxMoney.toString());
     if(r->wmoney != 0)
         ui->tw->item(row,CI_WMONEY)->setText(r->wmoney.toString());
+}
+
+/**
+ * @brief 在指定行设置与指定发票号对应的收入/成本发票的金额信息，并比较对应的客户是否一致
+ * @param row
+ * @param inum
+ * @param isIncome
+ */
+void BaTemplateForm::autoSetInCost(int row, QString inum, bool isIncome)
+{
+    CurInvoiceRecord* r = amgr->searchICInvoice(isIncome,inum);
+    if(!r)
+        return;
+    FirstSubject* fsub = isIncome?ysFSub:yfFSub;
+    //如果模板还未设置客户，则根据发票所属客户自动设置
+    if(!curCusSSub && r->ni){
+        curCusSSub = fsub->getChildSub(r->ni);
+        if(!curCusSSub){
+            curCusSSub = new SecondSubject(0,0,r->ni,"",0,true,QDateTime(),QDateTime(),curUser);
+            extraSSubs<<curCusSSub;
+            QVariant v; v.setValue<SecondSubject*>(curCusSSub);
+            ui->cmbCustomer->addItem(r->ni->getShortName(),v);
+        }
+        else{
+            int idx = ui->cmbCustomer->findSubject(curCusSSub);
+            ui->cmbCustomer->setCurrentIndex(idx);
+        }
+        ui->edtName->setText(r->ni->getLongName());
+    }
+    else if(curCusSSub && r->ni && curCusSSub->getNameItem()->matchName(r->ni->getLongName()) == 0){
+        delegate->laterDestroyEditor();
+        myHelper::ShowMessageBoxWarning(tr("发票客户名不符：\n你指定的客户名：%1\n发票上的客户名%2").arg(curCusSSub->getLName()).arg(r->ni->getLongName()));
+        delegate->userConfirmed();
+    }
+
+    ui->tw->item(row,CI_MONEY)->setText(r->money.toString());
+    if(r->type || r->taxMoney != 0)
+        ui->tw->item(row,CI_TAXMONEY)->setText(r->taxMoney.toString());
+    if(r->wbMoney != 0)
+        ui->tw->item(row,CI_WMONEY)->setText(r->wbMoney.toString());
 }
 
 /**
@@ -2404,7 +2479,7 @@ void BaTemplateForm::setYsYfMoney(int row, SecondSubject *ssub)
         return;
     FirstSubject* fsub = ssub->getParent();
     bool isYs = (fsub == ysFSub);
-    InvoiceRecord* r = amgr->searchInvoice(isYs,inum);
+    InvoiceRecord* r = amgr->searchYsYfInvoice(isYs,inum);
     if(!r)
         return;
     Double zmMoney = ui->tw->item(row,CI_MONEY)->text().toDouble();
@@ -2667,23 +2742,6 @@ void BaTemplateForm::on_btnOk_clicked()
     }
 }
 
-//void BaTemplateForm::on_btnTest_clicked()
-//{
-//    if(ui->rdoBankIncome->isChecked())
-//        initBankIncomeTestData();
-//    else if(ui->rdoBankCost->isChecked())
-//        initBankCostTestData();
-//    else if(ui->rdoYsIncome->isChecked())
-//        initYsTestData();
-//    else if(ui->rdoYfCost->isChecked())
-//        initYfTestData();
-//    else if(ui->rdoYsGather->isChecked())
-//        initYsGatherTestData();
-//    else
-//        initYfGatherTextData();
-
-//}
-
 void BaTemplateForm::on_btnCancel_clicked()
 {
     clear();
@@ -2790,50 +2848,4 @@ void BaTemplateForm::on_btnLoad_clicked()
     datas.clear();
 }
 
-////当月收入抵扣成本/应付
-//void BaTemplateForm::on_actDkIncome_triggered()
-//{
-//    if(ui->rdoBankCost->isChecked() || ui->rdoYfCost->isChecked()){
-//        InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
-//        if(item)
-//            return;
-//        item->setType(InvoiceTableItem::IIT_BANK);
-//        //item->setIncome(false);
-//    }
-//}
 
-////应收抵扣成本/应付
-//void BaTemplateForm::on_actDkYs_triggered()
-//{
-//    if(ui->rdoBankCost->isChecked() || ui->rdoYfCost->isChecked()){
-//        InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
-//        if(item)
-//            return;
-//        item->setType(InvoiceTableItem::IIT_YSYF);
-//        //item->setIncome(false);
-//    }
-//}
-
-////当月成本抵扣收入/应收
-//void BaTemplateForm::on_actDkCost_triggered()
-//{
-//    if(ui->rdoBankIncome->isChecked() || ui->rdoYsIncome->isChecked()){
-//        InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
-//        if(item)
-//            return;
-//        item->setType(InvoiceTableItem::IIT_BANK);
-//        //item->setIncome(false);
-//    }
-//}
-
-////应付抵扣收入/应收
-//void BaTemplateForm::on_actDkYf_triggered()
-//{
-//    if(ui->rdoBankIncome->isChecked() || ui->rdoYsIncome->isChecked()){
-//        InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
-//        if(item)
-//            return;
-//        item->setType(InvoiceTableItem::IIT_BANK);
-//        //item->setIncome(false);
-//    }
-//}

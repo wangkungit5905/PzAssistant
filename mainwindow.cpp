@@ -52,6 +52,7 @@
 #include "crtaccountfromolddlg.h"
 #include "transfers.h"
 #include "ysyfinvoicestatform.h"
+#include "curinvoicestatform.h"
 
 
 
@@ -436,6 +437,11 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         if(w){
             properState = w->getProperState();
         }
+    }
+    else if(t == SUBWIN_INCOST){
+        CurInvoiceStatForm* w = static_cast<CurInvoiceStatForm*>(subWin->widget());
+        if(w)
+            disconnect(w,SIGNAL(openRelatedPz(int,int)),this,SLOT(openSpecPz(int,int)));
     }
     AppConfig::getInstance()->saveSubWinInfo(t,dim,commonState);
     if(curAccount)
@@ -4387,165 +4393,80 @@ void MainWindow::on_actBatchImport_triggered()
     }
 }
 
-#include "invoicestatform.h"
 bool MainWindow::impTestDatas()
 {
-//    QString summary = tr("收宁波派士运费 00122312");
-//    QString prefixe = tr("收");
-//    QString suffixe = tr("运费");
-//    int pi = summary.indexOf(prefixe);
-//    if(pi==-1)
-//        return 0;
-//    int si = summary.indexOf(suffixe);
-//    if(si==-1)
-//        return 0;
-//    int index = pi+prefixe.count();
-//    if((si - index) <= 1)
-//        return  0;
-//    QString name = summary.mid(index,si-index);
-
-//    QRegExp re(tr("(\\d{1,2})(月)(\\d{8})((/\\d{2,4}){0,})"));
-//    QString t1 = tr("收宁波开源运费 12月00124567");
-//    QString t2 = tr("收宁波开源运费 12月00124567/68/69 11月30018765/23/24");
-//    int pos = re.indexIn(t2);
-//    QStringList capTexts;
-//    int len = 0;
-//    while(pos != -1){
-//        capTexts = re.capturedTexts();
-//        len = re.matchedLength();
-//        pos = re.indexIn(t2,pos+len);
-//    }
-
-
-    //int count = re.captureCount();
-
-//    QRegExp re("(\\d{8})(-\\d{2,2}){0,}");
-//    QString text = "02207918-21";
-//    int count = re.captureCount();
-//    int pos = re.indexIn(text);
-//    QStringList ts = re.capturedTexts();
-//    int len = re.matchedLength();
-//    pos = re.indexIn(text,pos+len);
-//    ts = re.capturedTexts();
-
-//    QString t = tr("收宁波开源运费 12月00124567/68/69 21232244/45/46 11月30018765-69");
-//    QString t1 = tr("收宁波开源运费 12月00124567/68/69 21232244/45/46");
-//    QString t2 = tr("收宁波开源运费 12月00124567/68/69 11月30018765/23/24");
-//    QString t3 = tr("收三友控股运费 8月00608186 02325680 12月00360372 1月01382176-77");
-//    QList<int> ms;
-//    QList<QStringList> iNums;
-//    PaUtils::extractInvoiceNum(t3,ms,iNums);
-
-//    QString t1 = QObject::tr("收宁波开源运费 00124567（$123.78）");
-//    QString t2 = QObject::tr("付宁波开源运费 00124567($123.56)");
-//    QString p1 = QObject::tr("(%1|%2)(.{1,}运费\\s)(\\d{8})(（|\\()(\\$)(\\d{1,})(）|\\))").arg(QObject::tr("收")).arg(QObject::tr("付"));
-//    QString p2 = QObject::tr("(%1.{1,}运费\\s\\d{8}\\(\\$)(\\d{1,})\\)").arg(QObject::tr("付"));
-//    QRegExp re1(p1);
-//    int pos = re1.indexIn(t1);
-//    QRegExp re2(p2);
-//    pos = re1.indexIn(t2);
-//    QString ivoiceNum;
-//    bool isys;
-//    Double value;
-//    PaUtils::extractUSD(t1,isys,ivoiceNum,value);
-//    PaUtils::extractUSD(t2,isys,ivoiceNum,value);
-
-    /////////////////////////////////////////////////////////////
-    //三友控股（2014-8）
-//    00592188			100
-//    00592189（$84.4）	520.54
-//    00592190			2745
-//    00608186($390)		2405.33
-//    02325680($3578.81)  22072.31
-//    三友控股（2014-12）
-//    00360370			500
-//    00360372($35.2)		216.02
-//    三友控股（2015-1)
-//    03182176($117.6)	719.59
-//    03182177($300)		1835.7
-//    03111743			2110
-//    03111745			2715
-
-    //    SubjectManager* sm = curAccount->getSubjectManager(2);
-    //    FirstSubject* fsub = sm->getYsSub();
-    //    SecondSubject* ssub = fsub->getChildSub(tr("三友控股"));
-    //    QHash<int,QList<int> >timeRange;
-    //    timeRange[2014] = QList<int>();
-    //    timeRange[2014]<<8<<12;
-    //    timeRange[2015] = QList<int>();
-    //    timeRange[2015]<<1;
-    //    QList<QStringList> invoiceNums;
-    //    invoiceNums<<QStringList()<<QStringList()<<QStringList();
-    //    invoiceNums.first()<<"00592188"<<"00592189"<<"00592190"<<"00608186"<<"02325680";
-    //    invoiceNums[1]<<"00360370"<<"00360372"<<"11112222";
-    //    invoiceNums[2]<<"01382176"<<"01382177"<<"03111743"<<"03111745";
-    //    LookYsYfItemForm* form = new LookYsYfItemForm(curAccount,this);
-    //    form->show();
-    //    form->move(800,100);
-    //    //form->resize(36,36);
-    //    form->findItem(fsub,ssub,timeRange,invoiceNums);
-
-//    QString t1 = QObject::tr("收宁波开源运费 001245672");
-//    QString t2 = QObject::tr("付宁波开源运费 00124567-78");
-//    QString invoice;
-//    Double money;
-//    PaUtils::extractOnlyInvoiceNum(t1,invoice,money);
-//    PaUtils::extractOnlyInvoiceNum(t2,invoice,money);
-
-//    QList<InvoiceRecord*> incomes;
-//    int pzNum = QInputDialog::getInt(this,"",tr("输入要扫描的凭证号"));
-//    PingZheng* pz = curSuiteMgr->getPz(pzNum);
-//    if(!pz)
-//        return false;
-//    curSuiteMgr->scanInvoiceGatherCost(pz,incomes);
-
-//    InvoiceStatForm* form = new InvoiceStatForm(curSuiteMgr,this);
+//    CurInvoiceStatForm* form = new CurInvoiceStatForm(curAccount);
+//    connect(form,SIGNAL(openRelatedPz(int,int)),this,SLOT(openSpecPz(int,int)));
 //    QMdiSubWindow* w = ui->mdiArea->addSubWindow(form);
-
-//    w->resize(800,500);
+//    w->resize(1000,600);
 //    w->show();
-//    QString s = tr("（12#45*）我们");
-//    QRegExp re(tr("^（(\\d+)#{1}(\\d+)\\*{1}）"));
-//    int pos = re.indexIn(s);
 
-//    QString t1 = QObject::tr("01245672");
-//    QString t2 = QObject::tr("01245672/75");
-//    QString t3 = QObject::tr("01245672-75");
-//    QString t4 = QObject::tr("01245672/75/78 00234579-76");
+//    int r = 10;
+//    int a = r & 8;
+//    a = r & 4;
+//    a = r & 2;
+//    r &= 0;
+//    r |= 2;
+//    r |= 4;
+//    r |= 8;
+//    r &= 11;
 
+//    QDate d(2015,7,2);
+//    qint64 ii = d.toJulianDay();
+//    qint64 ii = 4218700;
+//    QDate d = QDate::fromJulianDay(ii);
 
+//    QDate d1(1900,1,1);
+//    qint64 dt1 = d1.toJulianDay();
+//    QDate d2(1970,1,1);
+//    qint64 dt2 = d2.toJulianDay();
+//    qint64 diff = dt2-dt1;
+//    QDate d3(2015,7,2);
+//    qint64 dt3 = d3.toJulianDay();
+//    QDate d = QDate::fromJulianDay((42187-diff)*100);
+//    int days1 = d2.daysTo(d3);
+//    int days2 = d1.daysTo(d3);
 
-//    QRegExp re("\\s{0,}(\\d{8})(((/\\d{2,4}){0,})|((-\\d{2,2}){0,}))");
+//    QDate dd = QDate::fromJulianDay(dt1+42187-2);
+
+//    QDateTime local(QDateTime::currentDateTime());
+//    QDateTime UTC(local.toUTC());
+//    qDebug() << "Local time is:" << local;
+//    qDebug() << "UTC time is:" << UTC;
+//    qDebug() << "No difference between times:" << local.secsTo(UTC);
+    int i = 0;
+    //
+    //
+//    QString t1 = "=SUM(E3:F3)";
+//    QString t2 = "=E5+F5";
+//    QRegExp re("=([A-Z])(\\d{1,3})\\+([A-Z])(\\d{1,3})");
+//    int pos = re.indexIn(t2);
+//    pos = re.indexIn(t1);
+//    pos++;
+//    QRegExp re("=SUM\\(([A-Z])(\\d{1,3}):([A-Z])(\\d{1,3})\\)");
+//    QString t1 = "=SUM(E3:F3)";
+//    QString t2 = "=SUM(E55:F55)";
 //    int pos = re.indexIn(t1);
 //    pos = re.indexIn(t2);
-//    pos = re.indexIn(t3);
-//    pos = re.indexIn(t4);
-//    pos += re.matchedLength();
-//    re.indexIn(t4,pos);
+//    QString cap0 = re.cap();
+//    int count = re.captureCount();
+//    int i = 0;
 
-//    QStringList nums;
-//    nums<<"02362448"<<"01340582"<<"02362449"<<"02362460"<<"02362456"
-//       <<"01340581";
-//    nums.sort();
-//    int fonded = 0;
-//    //int pos = PaUtils::comparePrefix(nums,6,0,fonded);
-//    QString s = PaUtils::terseInvoiceNums(nums);
-
-//    QRegExp re("^\\d{8}$");
-//    int pos = re.indexIn("02362449");
-//    pos = re.indexIn(" 02362449");
-//    pos = re.indexIn("02362449 ");
-
-    QList<int> mtCodes;
-    foreach(Money* mt, curAccount->getAllMoneys()){
-        if(mt != curAccount->getMasterMt())
-            mtCodes<<mt->code();
-    }
-    QHash<int,Double> vs,wvs;
-    QHash<int,MoneyDirection> dirs;
-    FirstSubject* fsub = curSuiteMgr->getSubjectManager()->getBankSub();
-    dbUtil->readAllWbExtraForFSub(2015,5,fsub->getAllSSubIds(),mtCodes,vs,wvs,dirs);
-    int i = 0;
+//    QString formula = "=SUM(E3:F3)";
+//    QRegExp re("=(SUM)\\(([A-Z])(\\d{1,3}):([A-Z])(\\d{1,3})\\)");
+//    int pos = re.indexIn(formula);
+//    if(pos != 0)
+//        return false;
+//    if(re.captureCount() != 5)
+//        return false;
+//    if(re.cap(1) != "SUM")
+//        return false;
+//    int lc = re.cap(2).at(0).toLatin1() - 'A';
+//    int lr = re.cap(3).toInt();
+//    int rc = re.cap(4).at(0).toLatin1() - 'A';
+//    int rr = re.cap(5).toInt();
+//    if(lr != rr)
+//        return false;
 }
 
 
@@ -4596,6 +4517,32 @@ void MainWindow::on_actYsYfStat_triggered()
 
     }
     subWinGroups.value(suiteId)->showSubWindow(SUBWIN_YSYFSTAT,dlg,winfo);
+    if(winfo)
+        delete winfo;
+}
+
+void MainWindow::on_actICManage_triggered()
+{
+    if(!curSuiteMgr->isPzSetOpened()){
+        pzsWarning();
+        return;
+    }
+
+    CurInvoiceStatForm* dlg = new CurInvoiceStatForm(curAccount);
+    SubWindowDim* winfo = NULL;
+    QByteArray cinfo,pinfo;
+    int suiteId = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_INCOST)){
+        appCon->getSubWinInfo(SUBWIN_INCOST,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_INCOST,&pinfo);
+        dlg = new CurInvoiceStatForm(curAccount);
+        connect(dlg,SIGNAL(openRelatedPz(int,int)),this,SLOT(openSpecPz(int,int)));
+    }
+    else{
+        dlg = static_cast<CurInvoiceStatForm*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_INCOST));
+
+    }
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_INCOST,dlg,winfo);
     if(winfo)
         delete winfo;
 }

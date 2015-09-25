@@ -19,6 +19,9 @@ public:
     explicit CompletSubInfoDialog(int fid, SubjectManager* smg, QWidget *parent = 0);
     ~CompletSubInfoDialog();
     void setName(QString name);
+    void setLongName(QString name);
+    void setRemCode(QString code);
+    void setNameClass(int clsCode);
     QString getSName();
     QString getLName();
     QString getRemCode();

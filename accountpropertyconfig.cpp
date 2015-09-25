@@ -1198,6 +1198,7 @@ ApcSubject::ApcSubject(Account *account, QWidget *parent) :
     iniTag_subsys = false;
     iniTag_sub = false;
     iniTag_ni = false;
+    iniTag_alias = false;
     iniTag_smart = false;
     editAction = APCEA_NONE;
     curFSub = NULL;
@@ -1458,6 +1459,9 @@ void ApcSubject::on_tw_currentChanged(int index)
     case APCS_SUB:
         init_subs();
         break;
+    case APCS_ALIAS:
+        init_alias();
+        break;
     case APCS_SMARTADAPTE:
         init_smarts();
     }
@@ -1659,6 +1663,25 @@ void ApcSubject::init_subs()
     }
 }
 
+void ApcSubject::init_alias()
+{
+    if(iniTag_alias)
+        return;
+    ui->tabAlias->setLayout(ui->layAlias);
+    foreach(SubjectNameItem* ni, SubjectManager::getAllNI().values()){
+        if(ni->haveAlias()){
+            QVariant v;v.setValue<SubjectNameItem*>(ni);
+            QListWidgetItem* item = new QListWidgetItem(ni->getShortName(),ui->lwAliasNames);
+            item->setData(Qt::UserRole,v);
+        }
+    }
+    connect(ui->lwAliasNames,SIGNAL(currentRowChanged(int)),this,SLOT(curNameObjChanged(int)));
+    connect(ui->lwAlias,SIGNAL(currentRowChanged(int)),this,SLOT(curAliasChanged(int)));
+    connect(ui->chkIsoAlias,SIGNAL(toggled(bool)),this,SLOT(showIsolatedAlias(bool)));
+    ui->lwAlias->addAction(ui->actDelAlias);
+    iniTag_alias = true;
+}
+
 void ApcSubject::init_smarts()
 {
     if(iniTag_smart)
@@ -1783,6 +1806,16 @@ void ApcSubject::loadSSub(SortByMode sortBy)
 //            ui->btnSSubMerge->setEnabled(true);
 //    }
 
+}
+
+void ApcSubject::loadIsolatedAlias()
+{
+    ui->lwAlias->clear();
+    foreach(NameItemAlias* alias, SubjectManager::getAllIsolatedAlias()){
+        QListWidgetItem* item = new QListWidgetItem(alias->longName(),ui->lwAlias);
+        QVariant v; v.setValue<NameItemAlias*>(alias);
+        item->setData(Qt::UserRole,v);
+    }
 }
 
 /**
@@ -2019,6 +2052,52 @@ void ApcSubject::SmartTableMenuRequested(const QPoint &pos)
         m.addAction(ui->actRemoveSmartItem);
     }
     m.exec(ui->twSmarts->mapToGlobal(pos));
+}
+
+void ApcSubject::curNameObjChanged(int index)
+{
+    if(ui->chkIsoAlias->isChecked())
+        return;
+    if(index <0 || index >= ui->lwAliasNames->count())
+        return;
+    ui->lwAlias->clear();
+    SubjectNameItem* ni = ui->lwAliasNames->currentItem()->data(Qt::UserRole).value<SubjectNameItem*>();
+    foreach (NameItemAlias* alias, ni->getAliases()) {
+        QListWidgetItem* item = new QListWidgetItem(alias->longName(),ui->lwAlias);
+        QVariant v; v.setValue<NameItemAlias*>(alias);
+        item->setData(Qt::UserRole,v);
+    }
+}
+
+void ApcSubject::curAliasChanged(int index)
+{
+    if(index < 0 || index >= ui->lwAlias->count())
+        return;
+    NameItemAlias* alias = ui->lwAlias->currentItem()->data(Qt::UserRole).value<NameItemAlias*>();
+    ui->edtAliasSName->setText(alias->shortName());
+    ui->edtAliasRemCode->setText(alias->rememberCode());
+    if(alias->createdTime().isValid())
+        ui->edtAliasCrtTime->setText(alias->createdTime().toString(Qt::ISODate));
+    else
+        ui->edtAliasCrtTime->clear();
+}
+
+void ApcSubject::showIsolatedAlias(bool checked)
+{
+    ui->lwAliasNames->setEnabled(!checked);
+    if(checked)
+        loadIsolatedAlias();
+    else{
+        ui->lwAlias->clear();
+        if(ui->lwAliasNames->currentItem()){
+            SubjectNameItem* ni = ui->lwAliasNames->currentItem()->data(Qt::UserRole).value<SubjectNameItem*>();
+            foreach (NameItemAlias* alias, ni->getAliases()) {
+                QListWidgetItem* item = new QListWidgetItem(alias->longName(),ui->lwAlias);
+                QVariant v; v.setValue<NameItemAlias*>(alias);
+                item->setData(Qt::UserRole,v);
+            }
+        }
+    }
 }
 
 /**
@@ -2821,7 +2900,8 @@ void ApcSubject::on_edtNI_NampInput_textEdited(const QString &arg1)
     if(!ni_fuzzyNameIndexes.isEmpty()){
         foreach(int row, ni_fuzzyNameIndexes){
             QListWidgetItem* item = ui->lwNI->item(row);
-            item->setBackground(QBrush());
+            if(item)
+                item->setBackground(QBrush());
         }
     }
     ni_fuzzyNameIndexes.clear();
@@ -2862,6 +2942,46 @@ void ApcSubject::on_edtSSubNameInput_textEdited()
     if(!ssub_fuzzyNameIndexes.isEmpty())
         ui->lwSSub->scrollToItem(ui->lwSSub->item(ssub_fuzzyNameIndexes.first()),QAbstractItemView::PositionAtTop);
 }
+
+/**
+ * @brief 移除选中的别名
+ */
+void ApcSubject::on_actDelAlias_triggered()
+{
+    if(subSysNames.isEmpty())
+        return;
+    NameItemAlias* alias = ui->lwAlias->currentItem()->data(Qt::UserRole).value<NameItemAlias*>();
+    SubjectManager* sm = account->getSubjectManager(subSysNames.last()->code);
+    if(alias->getParent()){
+        QDialog dlg(this);
+        QRadioButton rdoIso(tr("作为孤立别名"),&dlg);
+        rdoIso.setChecked(true);
+        QRadioButton rdoDel(tr("永久删除"),&dlg);
+        QVBoxLayout lb;
+        lb.addWidget(&rdoIso);
+        lb.addWidget(&rdoDel);
+        QPushButton btnOk(tr("确定"),&dlg);
+        QPushButton btnCancel(tr("取消"),&dlg);
+        connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+        connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+        QHBoxLayout lh;lh.addWidget(&btnOk);lh.addWidget(&btnCancel);
+        QVBoxLayout* lm = new QVBoxLayout;
+        lm->addLayout(&lb);lm->addLayout(&lh);
+        dlg.setLayout(lm);
+        dlg.resize(300,200);
+        if(dlg.exec() == QDialog::Rejected)
+            return;
+        SubjectNameItem* ni = ui->lwAliasNames->currentItem()->data(Qt::UserRole).value<SubjectNameItem*>();
+        ni->removeAlias(alias);
+        sm->saveNI(ni);
+        if(rdoDel.isChecked())
+            sm->removeNameAlias(alias);
+    }
+    else
+        sm->removeNameAlias(alias);
+    ui->lwAlias->takeItem(ui->lwAlias->currentRow());
+}
+
 
 
 /**
@@ -4119,7 +4239,7 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QByteArray* cinfo
     QVBoxLayout *mainLayout = new QVBoxLayout;
     mainLayout->addLayout(horizontalLayout,1);
     //mainLayout->addStretch(1);
-    mainLayout->addSpacing(12);
+    //mainLayout->addSpacing(12);
     mainLayout->addLayout(buttonsLayout);
     setLayout(mainLayout);
 
@@ -4255,6 +4375,7 @@ void AccountPropertyConfig::createIcons()
     connect(contentsWidget,SIGNAL(currentRowChanged(int)),
          this, SLOT(pageChanged(int)));
 }
+
 
 
 

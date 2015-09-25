@@ -175,6 +175,22 @@ const int NI_CALSS       = 4;
 const int NI_CREATERTIME = 5;
 const int NI_CREATOR     = 6;
 
+//名称条目别名表（别名：即名称条目曾经使用过、或其他等同的名称）
+//该表中有一类无主别名（即不始于任何名称对象），主要用于在导入当月收入/成本发票时作为新客户匹配用
+const QString tbl_nameAlias = "nameAlias";
+const QString fld_nia_niCode = "niCode";        //连接到名称条目表的id
+const QString fld_nia_name = "sName";           //简称
+const QString fld_nia_lname = "lName";          //全称
+const QString fld_nia_remcode = "remCode";      //助记符
+const QString fld_nia_crtTime = "createdTime";  //创建日期(INTEGER)
+const QString fld_nia_disTime = "disabledTime"; //禁用日期(INTEGER)
+const int FI_NIA_NICODE = 1;
+const int FI_NIA_NAME = 2;
+const int FI_NIA_LNAME = 3;
+const int FI_NIA_REMCODE = 4;
+const int FI_NIA_CRTTIME = 5;
+const int FI_NIA_DISTIME = 6;
+
 //*************************二级科目表*************************//
 //字段名
 const QString tbl_ssub        = "SndSubject";
@@ -548,7 +564,36 @@ const QString fld_btt_remCode = "remCode";
 const QString tbl_baTemType = "BaTemplateType";
 const QString fld_btt_type = "type";
 
-
+//当月应收发票开具、成本发票使用记录表
+const QString tbl_cur_invoices = "curInvoices";
+const QString fld_ci_ym = "belongDate";         //1、所属年月（高四位年份，低两位月份）
+const QString fld_ci_iClass = "iCalss";         //2、收入/成本
+const QString fld_ci_number = "number";         //3、序号
+const QString fld_ci_iType = "iType";           //4、1专票/0普票
+const QString fld_ci_date = "date";             //5、发票开具日期
+const QString fld_ci__iNumber = "iNumber";      //6、发票号
+const QString fld_ci_client = "client";         //7、单位名称
+const QString fld_ci_match_name = "matchedName";//8、匹配的名称对象id
+const QString fld_ci_money = "money";           //9、发票金额
+const QString fld_ci_wbMoney = "wbMoney";       //10、外币金额
+const QString fld_ci_taxMoney = "taxMoney";     //11、税额
+const QString fld_ci_state = "state";           //12、发票性质（1正常、2作废、3冲红）
+const QString fld_ci_skState = "skState";       //13、收款情况（这个只作为原始记录）
+const QString fld_ci_isProcess = "isProcess";   //14、是否已在本期处理（比如作为收入/应收处理，或作为成本/应付处理）
+const int FI_CI_YM = 1;
+const int FI_CI_CLASS = 2;
+const int FI_CI_NUM = 3;
+const int FI_CI_TYPE = 4;
+const int FI_CI_DATE = 5;
+const int FI_CI_INUMBER = 6;
+const int FI_CI_CLIENT = 7;
+const int FI_CI_MATCHEDNAME = 8;
+const int FI_CI_MONEY = 9;
+const int FI_CI_WBMONEY = 10;
+const int FI_CI_TAXMONEY = 11;
+const int FI_CI_STATE = 12;
+const int FI_CI_SKSTATE = 13;
+const int FI_CI_ISPROCESS = 14;
 
 
 //////////*****************基本库数据表********************************//////////

@@ -106,6 +106,7 @@
      <addaction name="actAllVerify"/>
      <addaction name="actAllInstat"/>
      <addaction name="actPzErrorInspect"/>
+     <addaction name="actICManage"/>
     </widget>
     <addaction name="separator"/>
     <addaction name="mnuEndProcess"/>
@@ -1357,6 +1358,14 @@
    </property>
    <property name="toolTip">
     <string>统计本月应收应付发票的增减情况</string>
+   </property>
+  </action>
+  <action name="actICManage">
+   <property name="text">
+    <string>收入/成本发票管理</string>
+   </property>
+   <property name="toolTip">
+    <string>对当月收入/成本发票进行验证和统计</string>
    </property>
   </action>
  </widget>

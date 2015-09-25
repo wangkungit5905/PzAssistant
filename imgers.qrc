@@ -115,5 +115,9 @@
         <file>images/invoiceStat.png</file>
         <file>images/invoiceType/ysyf.png</file>
         <file>images/invoiceType/bank.png</file>
+        <file>images/arrow-up.png</file>
+        <file>images/arrow-down.png</file>
+        <file>images/invoiceType/i_income.png</file>
+        <file>images/invoiceType/i_cost.png</file>
     </qresource>
 </RCC>

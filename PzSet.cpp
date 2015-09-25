@@ -12,7 +12,7 @@
 
 /////////////////PzSetMgr///////////////////////////////////////////
 AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *account, /*User *user, */QObject *parent):QObject(parent),
-    suiteRecord(as),account(account),curM(0),isYsYfLoaded(false)
+    suiteRecord(as),account(account),curM(0),isYsYfLoaded(false),isICLoader(false)
 {
     dbUtil = account->getDbUtil();
     undoStack = new QUndoStack(this);
@@ -2741,6 +2741,238 @@ void AccountSuiteManager::loadYsYf()
     isYsYfLoaded = true;
 }
 
+/**
+ * @brief 保存本月收入/成本发票
+ * @return
+ */
+bool AccountSuiteManager::saveInCost()
+{
+    if(!account->getDbUtil()->saveCurInvoice(year(),curM,incomes) ||
+            !account->getDbUtil()->saveCurInvoice(year(),curM,costs)){
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 装载本月收入/成本发票
+ */
+void AccountSuiteManager::loadInCost()
+{
+    if(!isPzSetOpened())
+        return;
+    if(!account->getDbUtil()->loadCurInvoice(year(),curM,incomes) ||
+       !account->getDbUtil()->loadCurInvoice(year(),curM,costs,false)){
+        myHelper::ShowMessageBoxError(tr("读取本地发票记录时出错！"));
+        return;
+    }
+    isICLoader = true;
+}
+
+/**
+ * @brief 清空本地已导入的发票
+ * @param scope
+ * @return
+ */
+bool AccountSuiteManager::clearInCost(int scope)
+{
+    if(!isPzSetOpened())
+        return false;
+    if(!account->getDbUtil()->clearCurInvoice(year(),curM,scope))
+        return false;
+    if(scope == 1 || scope == 0){
+        qDeleteAll(incomes);
+        incomes.clear();
+    }
+    else if(scope == 2 || scope == 0){
+        qDeleteAll(costs);
+        costs.clear();
+    }
+    return true;
+}
+
+/**
+ * @brief 返回当前月份收入/成本发票记录列表
+ * @param isIncome
+ * @return
+ */
+QList<CurInvoiceRecord *> *AccountSuiteManager::getCurInvoiceRecords(bool isIncome)
+{
+    if(!isICLoader)
+        loadInCost();
+    if(isIncome)
+        return &incomes;
+    else
+        return &costs;
+}
+
+/**
+ * @brief 验证指定发票在凭证分录中的处理是否正确
+ * @param invoiceNumber 发票号码
+ * @param wbMoney       外币金额
+ * @param ba            分录对象
+ * @param isGather      是否聚合凭证
+ * @param isIncome      收入/成本
+ * @return 错误类型：二进制4位到0位如果置位，则依次表示：外币错误、方向错误、科目设置错误、数据错误、不存在
+ */
+int AccountSuiteManager::verifyCurInvoice(QString invoiceNumber, Double wbMoney, BusiAction *ba, bool isGather, bool isIncome)
+{
+    SubjectManager* sm = getSubjectManager();
+    QList<CurInvoiceRecord *> *rs;
+    int EC_NOT = 1,EC_DATA = 2,EC_SUB = 4,EC_DIR = 8,EC_WBDATA=16;
+    if(isIncome)
+        rs = &incomes;
+    else
+        rs = &costs;
+    if(!ba->getFirstSubject() || !ba->getSecondSubject())
+        return EC_SUB;
+    int result = EC_NOT;
+    foreach(CurInvoiceRecord* r, *rs){
+        if(r->inum != invoiceNumber)
+            continue;
+        r->ba = ba; r->pz = ba->getParent();
+        result &= 0;
+        if(isIncome){   //收入发票
+            if(isGather){ //收入聚合凭证，应收在借方，数据是发票金额
+                if(ba->getFirstSubject() == sm->getYsSub()){
+                    if(ba->getDir() != MDIR_J)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->money)
+                        result |= EC_DATA;
+                    if(wbMoney != r->wbMoney)
+                        result |= EC_WBDATA;
+                }
+                else if(ba->getFirstSubject() == sm->getYjsjSub()){
+                    if(ba->getDir() != MDIR_D)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->taxMoney)
+                        result |= EC_DATA;
+                    if(ba->getSecondSubject() != sm->getXxseSSub())
+                        result |= EC_SUB;
+                }
+                else if(ba->getFirstSubject() == sm->getZysrSub())
+                    continue;
+                else
+                    result |= EC_SUB;
+            }
+            else{
+                if(ba->getFirstSubject() == sm->getYjsjSub()){ //应交税金-销项在贷方，金额等于税额
+                    if(ba->getSecondSubject() != sm->getXxseSSub())
+                        result |= EC_SUB;
+                    if(ba->getDir() != MDIR_D)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->taxMoney)
+                        result |= EC_DATA;
+                }
+                else if(ba->getFirstSubject() == sm->getZysrSub()){ //主营收入在贷方，金额等于发票金额- 发票税额
+                    if(ba->getDir() != MDIR_D)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->money - r->taxMoney)
+                        result |= EC_DATA;
+                }
+                else
+                    result |= EC_SUB;
+            }
+        }
+        else{   //成本发票
+            if(isGather){ //成本聚合凭证，应付在贷方，数据是发票金额
+                if(ba->getFirstSubject() == sm->getYfSub()){
+                    if(ba->getDir() != MDIR_D)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->money)
+                        result |= EC_DATA;
+                    if(wbMoney != r->wbMoney)
+                        result |= EC_WBDATA;
+                }
+                else if(ba->getFirstSubject() == sm->getYjsjSub()){
+                    if(ba->getSecondSubject() != sm->getJxseSSub())
+                        result |= EC_SUB;
+                    if(ba->getDir() != MDIR_J)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->taxMoney)
+                        result |= EC_DATA;
+                }
+                else if(ba->getFirstSubject() == sm->getZycbSub())
+                    continue;
+                else
+                    result |= EC_SUB;
+            }
+            else{
+                if(ba->getFirstSubject() == sm->getYjsjSub()){ //应交税金-进项在借方，金额等于税额
+                    if(ba->getSecondSubject() != sm->getJxseSSub())
+                        result |= EC_SUB;
+                    if(ba->getDir() != MDIR_J)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->taxMoney)
+                        result |= EC_DATA;
+                }
+                else if(ba->getFirstSubject() == sm->getZycbSub()){ //主营成本在借方，金额等于发票金额- 发票税额
+                    if(ba->getDir() != MDIR_J)
+                        result |= EC_DIR;
+                    if(ba->getValue() != r->money - r->taxMoney)
+                        result |= EC_DATA;
+                }
+                else
+                    result |= EC_SUB;
+            }
+        }
+        if(result == 0){
+            r->errors.clear();
+            r->processState = 1;
+        }
+        else{
+            if((result & 2) != 0)
+                r->errors.append(tr("发票金额错误\n"));
+            if((result & 4) != 0)
+                r->errors.append(tr("科目设置错误\n"));
+            if((result & 8) != 0)
+                r->errors.append(tr("方向错误\n"));
+            if((result & 16) != 0)
+                r->errors.append(tr("外币金额错误\n"));
+            if((result & 30) != 0)
+                r->processState = 2;
+            else if((result & 1) != 0)
+                r->processState = 0;
+        }
+        break;
+    }
+    return result;
+}
+
+/**
+ * @brief 验证本期所有收入/成本发票的
+ * @param   errInfo
+ * @return
+ */
+bool AccountSuiteManager::verifyCurInvoices(QString &errInfo)
+{
+    bool ok = true;
+    SubjectManager* sm = getSubjectManager();
+    foreach(PingZheng* pz, *pzs){
+        bool isGather = false;
+        if(!isGatherIncomePz(pz,isGather) && !isGatherCostPz(pz,isGather)){
+            errInfo.append(tr("无法识别是否是聚合凭证（凭证号：“%1”）！\n").arg(pz->number()));
+            continue;
+        }
+        foreach(BusiAction* ba, pz->baList()){
+            QString inum; Double wbMoney;
+            if(!PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney))
+                continue;
+            FirstSubject* fsub = ba->getFirstSubject();
+            if(fsub == sm->getYjsjSub() && ba->getSecondSubject() != sm->getJxseSSub() &&
+                ba->getSecondSubject() != sm->getXxseSSub()){
+                errInfo.append(tr("凭证（%1#）第%2条分录无法判定是收入或成本相关！").arg(pz->number()).arg(ba->getNumber()));
+                continue;
+            }
+            bool isIncome = fsub == sm->getYsSub() || fsub == sm->getZysrSub() ||
+                    fsub == sm->getYjsjSub() && ba->getSecondSubject() == sm->getXxseSSub();
+            if(verifyCurInvoice(inum,wbMoney,ba,isGather,isIncome) != 0)
+                ok = false;
+        }
+    }
+    return ok;
+}
+
 QList<InvoiceRecord *> AccountSuiteManager::getYsInvoiceStats()
 {
     if(!isYsYfLoaded)
@@ -2771,7 +3003,7 @@ QList<InvoiceRecord *> AccountSuiteManager::getYfInvoiceStats()
  * @param inum  发票号
  * @return 与发票号对应的记录项
  */
-InvoiceRecord *AccountSuiteManager::searchInvoice(bool isYs, QString inum)
+InvoiceRecord *AccountSuiteManager::searchYsYfInvoice(bool isYs, QString inum)
 {
     if(!isYsYfLoaded)
         loadYsYf();
@@ -2783,6 +3015,29 @@ InvoiceRecord *AccountSuiteManager::searchInvoice(bool isYs, QString inum)
     for(int i = 0; i < pi->count(); ++i){
         InvoiceRecord* r = pi->at(i);
         if(r->invoiceNumber == inum)
+            return r;
+    }
+    return 0;
+}
+
+/**
+ * @brief 查找收入/成本发票记录
+ * @param isIncome
+ * @param inum
+ * @return
+ */
+CurInvoiceRecord *AccountSuiteManager::searchICInvoice(bool isIncome, QString inum)
+{
+    if(!isICLoader)
+        loadInCost();
+    QList<CurInvoiceRecord*> *rs;
+    if(isIncome)
+        rs = &incomes;
+    else
+        rs = &costs;
+    for(int i = 0; i < rs->count(); ++i){
+        CurInvoiceRecord* r = rs->at(i);
+        if(r->inum == inum)
             return r;
     }
     return 0;

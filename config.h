@@ -120,6 +120,9 @@ public:
     const QString KEY_SSUB_INPUT_FIRSTLY = "ssubFirstlyMethod";
     const QString KEY_FOREIGN_CURRENCY_UNITY = "remainForeignCurrencyUnity";
 
+    //记录发票预定义列的表头
+    const QString SEGMENT_CURINVOICE_COLUMNTITLE = "CurInvoiceColumnTitles";
+
     ~AppConfig();
 
     static AppConfig* getInstance();
@@ -260,6 +263,9 @@ public:
     void setAutoHideLeftDock(bool on);
     bool minToTrayClose();
     void setMinToTrayClose(bool on);
+
+    //其他配置项
+    QStringList getCurInvoiceColumnTitle(CurInvoiceColumnType colType);
 
     //应用行为特性
     bool ssubFirstlyInputMothed();

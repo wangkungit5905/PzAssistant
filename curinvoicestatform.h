@@ -99,14 +99,18 @@ class HandMatchClientDialog : public QDialog
 public:
     HandMatchClientDialog(SubjectNameItem* nameItem, SubjectManager* subMgr, QString name, QWidget* parent=0);
     void setClientName(SubjectNameItem* ni, QString name="");
-
+    QString clientName();
+protected:
+    bool eventFilter(QObject *obj, QEvent *event);
 private slots:
+    void nameEditFinished();
     void btnOkClicked();
     void keysChanged();
     void confirmNewClient();
 signals:
-    void clientMatchChanged(QString clientName, SubjectNameItem* ni);
-    void createNewClientAlias(NameItemAlias* alias);
+    void clinetNameChanged(QString oldName,QString newName);   //用户改变了客户的名称，但没有改变匹配状态
+    void clientMatchChanged(QString clientName, SubjectNameItem* ni); //客户名匹配到现存的一个名称对象
+    void createNewClientAlias(NameItemAlias* alias); //为客户名创建一个新的孤立别名来匹配
 private:
     void refreshList(QString keys="");
 
@@ -153,19 +157,6 @@ public:
         IT_COST   = 2     //成本
     };
 
-//    enum ColumnType{
-//        CT_NONE = 0,        //未指定（不会利用的列）
-//        CT_NUMBER   = 1,    //序号
-//        CT_DATE     = 2,    //开票日期
-//        CT_INVOICE  = 3,    //发票号*
-//        CT_CLIENT   = 4,    //客户名*
-//        CT_MONEY    = 5,    //发票金额*
-//        CT_TAXMONEY = 6,    //税额
-//        CT_WBMONEY  = 7,    //外币金额
-//        CT_ICLASS   = 8,    //发票属性
-//        CT_SFINFO = 9       //收/付款情况
-//    };
-
     enum RowType{
         RT_NONE     = 0,    //普通行
         RT_START    = 1,    //数据开始行
@@ -202,6 +193,7 @@ private slots:
     QString getRowTypeText(RowType rowType);
     void invoiceInfoChanged(QTableWidgetItem * item);
     void itemDoubleClicked(QTableWidgetItem * item);
+    void clientNameChanged(QString oldName,QString newName);
     void clientMatchChanged(QString clientName,SubjectNameItem* ni);
     void createNewClientAlias(NameItemAlias* alias);
     void on_btnExpand_toggled(bool checked);

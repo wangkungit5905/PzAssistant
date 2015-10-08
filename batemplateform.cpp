@@ -756,7 +756,7 @@ void InvoiceTableItem::setType(InvoiceItemType type)
 //////////////////////////////////////////////////////////////////
 BaTemplateForm::BaTemplateForm(AccountSuiteManager *suiterMgr, QWidget *parent) :
     QWidget(parent),ui(new Ui::BaTemplateForm),amgr(suiterMgr),bankFSub(0),
-    ysFSub(0),yfFSub(0),bankSSub(0),curCusSSub(0),ok(false)
+    ysFSub(0),yfFSub(0),bankSSub(0),curCusSSub(0),ok(false),delegate(0)
 {
     ui->setupUi(this);
     setWindowFlags(windowFlags() | Qt::Dialog);
@@ -805,7 +805,8 @@ void BaTemplateForm::setTemplateType(BATemplateEnum type)
     default:
         break;
     }
-    delegate->setTemplateType(type);
+    if(delegate)
+        delegate->setTemplateType(type);
     if(type == BATE_YS_INCOME || type ==  BATE_YF_COST){
             ui->rdoSingle->setChecked(true);
             changeCustomerType(CT_SINGLE);
@@ -1096,7 +1097,7 @@ void BaTemplateForm::doubleClickedCell(const QModelIndex &index)
             tw.setItem(i,1,new QTableWidgetItem(sm->getBankAccount(ssub)->accNumber));
         }
         tw.setCurrentCell(0,0);
-        QPushButton btnOk(tr("确定"),this);
+        QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),this);
         connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
         QVBoxLayout* lo = new QVBoxLayout;
         lo->addWidget(&t);
@@ -1278,8 +1279,8 @@ void BaTemplateForm::processContextMenu()
                 item->setData(Qt::UserRole,v);
             }
             lw.setCurrentRow(0);
-            QPushButton btnOk(tr("确定"),&d);
-            QPushButton btnCancel(tr("取消"),&d);
+            QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),&d);
+            QPushButton btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),&d);
             connect(&btnOk,SIGNAL(clicked()),&d,SLOT(accept()));
             connect(&btnCancel,SIGNAL(clicked()),&d,SLOT(reject()));
             QHBoxLayout lb;
@@ -1590,8 +1591,8 @@ void BaTemplateForm::createBankIncomeBas()
             QHBoxLayout lh;
             lh.addWidget(&l);
             lh.addWidget(&vBox);
-            QPushButton btnOk(tr("确定"),this);
-            QPushButton btnCancel(tr("取消"),this);
+            QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),this);
+            QPushButton btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),this);
             connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
             connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
             QHBoxLayout lb;
@@ -1970,8 +1971,8 @@ void BaTemplateForm::createYsBas()
             QHBoxLayout lh;
             lh.addWidget(&l);
             lh.addWidget(&vBox);
-            QPushButton btnOk(tr("确定"),this);
-            QPushButton btnCancel(tr("取消"),this);
+            QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),this);
+            QPushButton btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),this);
             connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
             connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
             QHBoxLayout lb;

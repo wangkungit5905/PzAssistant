@@ -153,13 +153,11 @@ void InvoiceProcessItem::setProcessState(int state)
 HandMatchClientDialog::HandMatchClientDialog(SubjectNameItem *nameItem, SubjectManager *subMgr, QString name, QWidget *parent)
     :QDialog(parent),ni(nameItem),sm(subMgr),name(name)
 {
-//    if(!ni)
-//        this->name = name;
-//    else
-//        this->name = ni->getLongName();
     nameEdit = new QLineEdit(this);
     nameEdit->setText(name);
     nameEdit->setReadOnly(true);
+    nameEdit->installEventFilter(this);
+    connect(nameEdit,SIGNAL(editingFinished()),this,SLOT(nameEditFinished()));
     lwNames = new QListWidget(this);
     QList<SubjectNameItem*> nis = sm->getAllNameItems(SORTMODE_NAME);
     for(int i = 0; i < nis.count(); ++i){
@@ -169,8 +167,8 @@ HandMatchClientDialog::HandMatchClientDialog(SubjectNameItem *nameItem, SubjectM
         li->setData(Qt::UserRole,v);
     }
     refreshList();
-    btnOk = new QPushButton(tr("确定"));
-    btnCancel = new QPushButton(tr("取消"));
+    btnOk = new QPushButton(QIcon(":/images/btn_ok.png"),tr("确定"));
+    btnCancel = new QPushButton(QIcon(":/images/btn_close.png"),tr("取消"));
     btnNewClient = new QPushButton(tr("作为新客户"));
     QSpacerItem* horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
     QHBoxLayout* btnLayout = new QHBoxLayout;
@@ -197,22 +195,45 @@ void HandMatchClientDialog::setClientName(SubjectNameItem *ni, QString name)
     this->ni = ni;
     this->name = name;
     nameEdit->setText(name);
-//    if(!ni)
-//        this->name = name;
-//    else
-//        this->name = ni->getLongName();
     refreshList();
+}
+
+QString HandMatchClientDialog::clientName()
+{
+    return nameEdit->text();
+}
+
+/**
+ * @brief 双击开启名称的编辑功能
+ * @param obj
+ * @param event
+ * @return
+ */
+bool HandMatchClientDialog::eventFilter(QObject *obj, QEvent *event)
+{
+    if(event->type() != QEvent::MouseButtonDblClick)
+        return nameEdit->eventFilter(obj,event);
+    QLineEdit* w = qobject_cast<QLineEdit*>(obj);
+    w->setReadOnly(false);
+    return w->eventFilter(obj,event);
+}
+
+void HandMatchClientDialog::nameEditFinished()
+{
+    nameEdit->setReadOnly(true);
 }
 
 void HandMatchClientDialog::btnOkClicked()
 {
+    if(name != nameEdit->text())
+        emit clinetNameChanged(name,nameEdit->text());
     if(lwNames->currentRow() == -1){
         close();
         return;
     }
     SubjectNameItem* nameObj = lwNames->currentItem()->data(Qt::UserRole).value<SubjectNameItem*>();
     if(nameObj != ni)
-        emit clientMatchChanged(name,nameObj);
+        emit clientMatchChanged(nameEdit->text(),nameObj);
     close();
 }
 
@@ -244,8 +265,8 @@ void HandMatchClientDialog::confirmNewClient()
     gl.addWidget(&edtLongeName,1,1);
     gl.addWidget(&lblRemCode,2,0);
     gl.addWidget(&edtRemCode,2,1);
-    QPushButton bo(tr("确定"),&dlg);
-    QPushButton bc(tr("取消"),&dlg);
+    QPushButton bo(QIcon(":/images/btn_ok.png"),tr("确定"),&dlg);
+    QPushButton bc(QIcon(":/images/btn_close.png"),tr("取消"),&dlg);
     QSpacerItem* horizontalSpacer = new QSpacerItem(40, 20, QSizePolicy::Expanding, QSizePolicy::Minimum);
     connect(&bo,SIGNAL(clicked()),&dlg,SLOT(accept()));
     connect(&bc,SIGNAL(clicked()),&dlg,SLOT(reject()));
@@ -890,6 +911,7 @@ void CurInvoiceStatForm::itemDoubleClicked(QTableWidgetItem *item)
         SubjectNameItem* ni = ti->nameObject();
         if(!handMatchDlg){
             handMatchDlg = new HandMatchClientDialog(ni,sm,ti->text(),this);
+            connect(handMatchDlg,SIGNAL(clinetNameChanged(QString,QString)),this,SLOT(clientNameChanged(QString,QString)));
             connect(handMatchDlg,SIGNAL(clientMatchChanged(QString,SubjectNameItem*)),this,SLOT(clientMatchChanged(QString,SubjectNameItem*)));
             connect(handMatchDlg,SIGNAL(createNewClientAlias(NameItemAlias*)),this,SLOT(createNewClientAlias(NameItemAlias*)));
             handMatchDlg->resize(600,400);
@@ -912,7 +934,7 @@ void CurInvoiceStatForm::itemDoubleClicked(QTableWidgetItem *item)
     }
 }
 
-void CurInvoiceStatForm::clientMatchChanged(QString clientName, SubjectNameItem *ni)
+void CurInvoiceStatForm::clientNameChanged(QString oldName, QString newName)
 {
     QList<CurInvoiceRecord *> *rs;
     QTableWidget* tw;
@@ -926,8 +948,34 @@ void CurInvoiceStatForm::clientMatchChanged(QString clientName, SubjectNameItem 
     }
     for(int i = 0; i < rs->count(); ++i){
         CurInvoiceRecord *r = rs->at(i);
+        if(r->client == oldName){
+            r->client = newName;
+            r->tags->setBit(CI_TAG_CLIENT,true);
+            InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
+            ti->setText(newName);
+        }
+    }
+}
+
+void CurInvoiceStatForm::clientMatchChanged(QString clientName, SubjectNameItem *ni)
+{
+    QList<CurInvoiceRecord *> *rs;
+    QTableWidget* tw;
+    if(ui->tabWidget->currentIndex() == 0){
+        rs = incomes;
+        tw = ui->twIncome;
+    }
+    else{
+        rs = costs;
+        tw = ui->twCost;
+    }
+    if(ni->getLongName() != clientName)
+        ni->addAlias(new NameItemAlias(ni->getShortName(),clientName,ni->getRemCode(),QDateTime::currentDateTime()));
+    for(int i = 0; i < rs->count(); ++i){
+        CurInvoiceRecord *r = rs->at(i);
         if(r->client == clientName){
             r->ni = ni;
+            r->tags->setBit(CI_TAG_NAMEITEM,true);
             InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
             ti->setNameItem(ni);
         }
@@ -1599,17 +1647,17 @@ void CurInvoiceStatForm::on_btnImport_clicked()
     QString errors;
     QListWidgetItem* li = ui->lwSheets->currentItem();
     if(!li){
-        myHelper::ShowMessageBoxWarning(tr("还未读入任何表格！"));
+        myHelper::ShowMessageBoxWarning(tr("还未指定要导入哪个表格！"));
         return;
     }
     int sr = li->data(DR_STARTROW).toInt();
     int er = li->data(DR_ENDROW).toInt();
-    InvoiceType ysyf = (InvoiceType)li->data(DR_ITYPE).toInt();
+    InvoiceType icType = (InvoiceType)li->data(DR_ITYPE).toInt();
     if(sr == -1)
         errors = tr("未设置表格数据开始行；");
     if(er == -1)
         errors.append(tr("\n未设置表格数据结束行；"));
-    if(ysyf == IT_NONE)
+    if(icType == IT_NONE)
         errors.append(tr("\n未指定是收入/成本发票！"));
     if(!errors.isEmpty()){
         myHelper::ShowMessageBoxWarning(errors);
@@ -1624,7 +1672,12 @@ void CurInvoiceStatForm::on_btnImport_clicked()
             colTypes<<CT_NONE;
             continue;
         }
-        colTypes<<(CurInvoiceColumnType)hi->data(Qt::UserRole).toInt();
+        CurInvoiceColumnType colType = (CurInvoiceColumnType)hi->data(Qt::UserRole).toInt();
+        if(colTypes.contains(colType)){
+            myHelper::ShowMessageBoxWarning(tr("关键列类型有重复，请再次确认！"));
+            return;
+        }
+        colTypes<<colType;
     }
     errors.clear();
     if(!inspectColTypeSet(colTypes,errors)){
@@ -1633,7 +1686,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
     }
     QTableWidget* t = 0;
     QList<CurInvoiceRecord *> *rs;
-    if(ysyf == IT_INCOME){
+    if(icType == IT_INCOME){
         t = ui->twIncome;
         rs = incomes;
     }
@@ -1642,17 +1695,36 @@ void CurInvoiceStatForm::on_btnImport_clicked()
         rs = costs;
     }
     if(!rs->isEmpty()){
-        myHelper::ShowMessageBoxWarning(tr("导入前必须先清空本地已有信息"));
-        return;
+        QDialog dlg(this);
+        QLabel title(tr("表格内已存在数据行，您可选择如下导入方式："),&dlg);
+        QRadioButton rdoAppend(tr("追加导入"),&dlg);
+        rdoAppend.setChecked(true);
+        QRadioButton rdoClear(tr("清空后导入"),&dlg);
+        QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),&dlg);
+        QPushButton btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),&dlg);
+        connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
+        connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
+        QHBoxLayout lb; lb.addStretch();lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
+        QVBoxLayout* lm = new QVBoxLayout;
+        lm->addWidget(&title);
+        lm->addWidget(&rdoAppend);
+        lm->addWidget(&rdoClear);
+        lm->addLayout(&lb);
+        dlg.setLayout(lm);
+        dlg.resize(300,200);
+        if(dlg.exec() == QDialog::Rejected)
+            return;
+        if(rdoClear.isChecked())
+            on_actClearInvoice_triggered();
     }
 
     int y = suiteMgr->year();
     int m = suiteMgr->month();
-    int num = 1;
+    int num = rs->count() + 1;
     for(int r = sr; r <= er; ++r,num++){
         CurInvoiceRecord* rc = new CurInvoiceRecord;
         rc->y=y;rc->m=m;
-        rc->isIncome = (ysyf == IT_INCOME);
+        rc->isIncome = (icType == IT_INCOME);
         rc->num = num;
         bool isCommon = false;
         for(int c = 0; c < tw->columnCount(); ++c){
@@ -1718,10 +1790,7 @@ void CurInvoiceStatForm::on_btnBrowser_clicked()
         delete excel;
         excel = 0;
     }
-//    if(!QFile::exists(fileName)){
-//        myHelper::ShowMessageBoxWarning(tr("文件不存在！"));
-//        return;
-//    }
+    qApp->setOverrideCursor(QCursor(Qt::WaitCursor));
     excel = new QXlsx::Document(fileName,this);
     ui->lwSheets->clear();
     for(int i = ui->stackedWidget->count()-1; i >= 0; i--){
@@ -1750,9 +1819,8 @@ void CurInvoiceStatForm::on_btnBrowser_clicked()
         connect(tw->verticalHeader(),SIGNAL(customContextMenuRequested(QPoint)),
                 this,SLOT(tableVHeaderContextMenu(QPoint)));
         ui->stackedWidget->addWidget(tw);
-
-        //columnTypes<<QHash<ColumnType,int>();
     }
+    qApp->restoreOverrideCursor();
 }
 
 void CurInvoiceStatForm::on_actReadSheet_triggered()
@@ -1850,6 +1918,8 @@ void CurInvoiceStatForm::on_btnVerify_clicked()
         QString info = tr("验证发票时发现错误！");
         if(!errors.isEmpty())
             info.append("\n"+errors);
+        else
+            info.append(tr("\n发现有未在凭证集中出现的发票！"));
         myHelper::ShowMessageBoxWarning(info);
     }
     for(int i = 0; i < incomes->count(); ++i){

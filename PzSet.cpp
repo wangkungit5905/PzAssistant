@@ -2940,7 +2940,7 @@ int AccountSuiteManager::verifyCurInvoice(QString invoiceNumber, Double wbMoney,
 }
 
 /**
- * @brief 验证本期所有收入/成本发票的
+ * @brief 验证本期所有收入/成本发票的账务处理是否有效（金额、适用科目和方向）
  * @param   errInfo
  * @return
  */
@@ -2948,6 +2948,12 @@ bool AccountSuiteManager::verifyCurInvoices(QString &errInfo)
 {
     bool ok = true;
     SubjectManager* sm = getSubjectManager();
+    QSet<FirstSubject*> fsubs;
+    fsubs.insert(sm->getYsSub());
+    fsubs.insert(sm->getYfSub());
+    fsubs.insert(sm->getYjsjSub());
+    fsubs.insert(sm->getZysrSub());
+    fsubs.insert(sm->getZycbSub());
     foreach(PingZheng* pz, *pzs){
         bool isGather = false;
         if(!isGatherIncomePz(pz,isGather) && !isGatherCostPz(pz,isGather)){
@@ -2955,10 +2961,12 @@ bool AccountSuiteManager::verifyCurInvoices(QString &errInfo)
             continue;
         }
         foreach(BusiAction* ba, pz->baList()){
+            FirstSubject* fsub = ba->getFirstSubject();
+            if(!fsubs.contains(fsub))
+                continue;
             QString inum; Double wbMoney;
             if(!PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney))
-                continue;
-            FirstSubject* fsub = ba->getFirstSubject();
+                continue;            
             if(fsub == sm->getYjsjSub() && ba->getSecondSubject() != sm->getJxseSSub() &&
                 ba->getSecondSubject() != sm->getXxseSSub()){
                 errInfo.append(tr("凭证（%1#）第%2条分录无法判定是收入或成本相关！").arg(pz->number()).arg(ba->getNumber()));

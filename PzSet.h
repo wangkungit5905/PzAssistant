@@ -30,6 +30,8 @@ public:
         SW_STATE = 3    //凭证集状态和余额状态
     };
 
+
+
     AccountSuiteManager(AccountSuiteRecord* as, Account* account,QObject* parent = 0);
     ~AccountSuiteManager();
     Account* getAccount(){return account;}

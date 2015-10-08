@@ -176,7 +176,7 @@ void ApcBase::on_addWb_clicked()
     }
     QVBoxLayout lm;
     lm.addWidget(&lstMt);
-    QPushButton btnOk(tr("确定")),btnCancel(tr("取消"));
+    QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定")),btnCancel(QIcon(":/images/btn_close.png"),tr("取消"));
     connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
     connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
     QHBoxLayout lb;
@@ -240,7 +240,7 @@ void ApcBase::on_addUser_clicked()
         lw.addItem(item);
     }
     lw.setCurrentRow(0);
-    QPushButton btnOk(tr("确定"),&dlg),btnCancel(tr("取消"),&dlg);
+    QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),&dlg),btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),&dlg);
     connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
     connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
     QHBoxLayout lb;
@@ -1677,6 +1677,7 @@ void ApcSubject::init_alias()
     }
     connect(ui->lwAliasNames,SIGNAL(currentRowChanged(int)),this,SLOT(curNameObjChanged(int)));
     connect(ui->lwAlias,SIGNAL(currentRowChanged(int)),this,SLOT(curAliasChanged(int)));
+    connect(ui->lwAlias,SIGNAL(customContextMenuRequested(QPoint)),this,SLOT(aliasListContextMenuRequest(QPoint)));
     connect(ui->chkIsoAlias,SIGNAL(toggled(bool)),this,SLOT(showIsolatedAlias(bool)));
     ui->lwAlias->addAction(ui->actDelAlias);
     iniTag_alias = true;
@@ -2567,8 +2568,8 @@ void ApcSubject::on_btnNIMerge_clicked()
         item->setData(0,Qt::UserRole,v);
         tv.addTopLevelItem(item);
     }
-    QPushButton btnOk(tr("确定"), &dlg);
-    QPushButton btnCancel(tr("取消"), &dlg);
+    QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"), &dlg);
+    QPushButton btnCancel(QIcon(":/images/btn_close.png"),tr("取消"), &dlg);
     connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
     connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
     QHBoxLayout lb;
@@ -2944,6 +2945,20 @@ void ApcSubject::on_edtSSubNameInput_textEdited()
 }
 
 /**
+ * @brief 孤立别名列表上下文菜单请求
+ * @param pos
+ */
+void ApcSubject::aliasListContextMenuRequest(const QPoint &pos)
+{
+    QListWidgetItem* item = ui->lwAlias->itemAt(pos);
+    if(item){
+        QMenu* m = new QMenu(this);
+        m->addAction(ui->actDelAlias);
+        m->popup(ui->lwAlias->mapToGlobal(pos));
+    }
+}
+
+/**
  * @brief 移除选中的别名
  */
 void ApcSubject::on_actDelAlias_triggered()
@@ -2960,8 +2975,8 @@ void ApcSubject::on_actDelAlias_triggered()
         QVBoxLayout lb;
         lb.addWidget(&rdoIso);
         lb.addWidget(&rdoDel);
-        QPushButton btnOk(tr("确定"),&dlg);
-        QPushButton btnCancel(tr("取消"),&dlg);
+        QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),&dlg);
+        QPushButton btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),&dlg);
         connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
         connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
         QHBoxLayout lh;lh.addWidget(&btnOk);lh.addWidget(&btnCancel);
@@ -3045,8 +3060,8 @@ bool ApcSubject::mergeSndSubject(QList<SecondSubject *> subjects, int& preSubInd
     }
     lw.setCurrentRow(0);
     QLabel title(tr("请选择保留的二级科目："),&dlg);
-    QPushButton btnOk(tr("确定"),&dlg);
-    QPushButton btnCancel(tr("取消"),&dlg);
+    QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),&dlg);
+    QPushButton btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),&dlg);
     connect(&btnOk,SIGNAL(clicked()),&dlg,SLOT(accept()));
     connect(&btnCancel,SIGNAL(clicked()),&dlg,SLOT(reject()));
     QHBoxLayout lh;
@@ -3831,7 +3846,7 @@ void ApcData::on_actSetRate_triggered()
         tw.setItem(i,1,item);
         i++;
     }
-    QPushButton btnOk(tr("确定"),&dlg),btnCancel(tr("取消"),&dlg);
+    QPushButton btnOk(QIcon(":/images/btn_ok.png"),tr("确定"),&dlg),btnCancel(QIcon(":/images/btn_close.png"),tr("取消"),&dlg);
     QHBoxLayout lb;
     lb.addWidget(&btnOk);
     lb.addWidget(&btnCancel);
@@ -4220,7 +4235,7 @@ AccountPropertyConfig::AccountPropertyConfig(Account* account, QByteArray* cinfo
     pagesWidget->addWidget(new ApcReport(this));
     pagesWidget->addWidget(new ApcLog(this));
 
-    QPushButton *closeButton = new QPushButton(tr("关闭"));
+    QPushButton *closeButton = new QPushButton(QIcon(":/images/btn_close.png"),tr("关闭"));
 
     createIcons();
     contentsWidget->setCurrentRow(0);

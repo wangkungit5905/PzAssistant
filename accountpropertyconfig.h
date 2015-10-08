@@ -345,6 +345,8 @@ private slots:
 
     void on_edtSSubNameInput_textEdited();
 
+    void aliasListContextMenuRequest(const QPoint &pos);
+
     void on_actDelAlias_triggered();
 
 private:

@@ -119,5 +119,7 @@
         <file>images/arrow-down.png</file>
         <file>images/invoiceType/i_income.png</file>
         <file>images/invoiceType/i_cost.png</file>
+        <file>images/btn_ok.png</file>
+        <file>images/btn_close.png</file>
     </qresource>
 </RCC>

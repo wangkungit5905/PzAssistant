@@ -4944,8 +4944,8 @@ bool DbUtil::loadCurInvoice(int y, int m, QList<CurInvoiceRecord *> &records, bo
 {
     QSqlQuery q(db);
     int ym = y*100+m;
-    QString s = QString("select * from %1 where %2=%3 and %4=%5 order by %6").arg(tbl_cur_invoices)
-            .arg(fld_ci_ym).arg(ym).arg(fld_ci_iClass).arg(isYs?1:0).arg(fld_ci_number);
+    QString s = QString("select * from %1 where %2=%3 and %4=%5 order by %6,%7").arg(tbl_cur_invoices)
+            .arg(fld_ci_ym).arg(ym).arg(fld_ci_iClass).arg(isYs?1:0).arg(fld_ci_iType).arg(fld_ci_number);
     if(!q.exec(s)){
         LOG_SQLERROR(s);
         return false;
@@ -5073,6 +5073,10 @@ bool DbUtil::saveCurInvoice(int y, int m, const QList<CurInvoiceRecord *> &recor
                 }
                 q.next();
                 r->alias->id = q.value(0).toInt();
+            }
+            else{
+                if(!_saveNameItem(r->ni))
+                    return false;
             }
         }
     }
@@ -5463,8 +5467,24 @@ bool DbUtil::_saveNameItem(SubjectNameItem *ni)
             QList<int> oldAlias,curAlias;
             while(q.next())
                 oldAlias<<q.value(0).toInt();
-            foreach(NameItemAlias* alias, ni->aliases)
-                curAlias<<alias->getId();
+            foreach(NameItemAlias* alias, ni->aliases){
+                if(alias->id == 0){ //新加入到名称对象的别名
+                    s = QString("insert into %1(%2,%3,%4,%5,%6) values(%7,'%8','%9','%10','%11')")
+                            .arg(tbl_nameAlias).arg(fld_nia_niCode).arg(fld_nia_name)
+                            .arg(fld_nia_lname).arg(fld_nia_remcode).arg(fld_nia_crtTime)
+                            .arg(ni->getId()).arg(alias->shortName()).arg(alias->longName())
+                            .arg(alias->rememberCode()).arg(alias->createdTime().toString(Qt::ISODate));
+                    if(!q.exec(s)){
+                        LOG_SQLERROR(s);
+                        return false;
+                    }
+                    s = "select last_insert_rowid()";
+                    q.exec(s); q.first();
+                    alias->id = q.value(0).toInt();
+                }
+                else
+                    curAlias<<alias->getId();
+            }
             foreach(int id, oldAlias){
                 if(!curAlias.contains(id)){ //脱离别名的从属关系，变为孤立别名
                     s = QString("update %1 set %2=0 where id=%3").arg(tbl_nameAlias)
@@ -5477,7 +5497,7 @@ bool DbUtil::_saveNameItem(SubjectNameItem *ni)
                 else
                     curAlias.removeOne(id);
             }
-            if(!curAlias.isEmpty()){ //剩下的就是新加入的别名
+            if(!curAlias.isEmpty()){ //剩下的就是新加入名称对象的孤立别名
                 foreach(int id, curAlias){
                     s = QString("update %1 set %2=%3 where id=%4").arg(tbl_nameAlias)
                             .arg(fld_nia_niCode).arg(ni->getId()).arg(id);
@@ -5485,6 +5505,7 @@ bool DbUtil::_saveNameItem(SubjectNameItem *ni)
                         LOG_SQLERROR(s);
                         return false;
                     }
+
                 }
             }
         }

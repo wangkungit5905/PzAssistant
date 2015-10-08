@@ -28,6 +28,10 @@
    <property name="text">
     <string>确定</string>
    </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/btn_ok.png</normaloff>:/images/btn_ok.png</iconset>
+   </property>
   </widget>
   <widget class="QPushButton" name="btnCancel">
    <property name="geometry">
@@ -40,6 +44,10 @@
    </property>
    <property name="text">
     <string>取消</string>
+   </property>
+   <property name="icon">
+    <iconset resource="../imgers.qrc">
+     <normaloff>:/images/btn_close.png</normaloff>:/images/btn_close.png</iconset>
    </property>
   </widget>
   <widget class="QWidget" name="layoutWidget">
@@ -206,7 +214,9 @@
    </layout>
   </widget>
  </widget>
- <resources/>
+ <resources>
+  <include location="../imgers.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>btnOk</sender>

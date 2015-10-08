@@ -1075,7 +1075,7 @@
     <attribute name="title">
      <string>别名</string>
     </attribute>
-    <widget class="QWidget" name="">
+    <widget class="QWidget" name="layoutWidget">
      <property name="geometry">
       <rect>
        <x>9</x>
@@ -1123,7 +1123,7 @@
         <item>
          <widget class="QListWidget" name="lwAlias">
           <property name="contextMenuPolicy">
-           <enum>Qt::ActionsContextMenu</enum>
+           <enum>Qt::CustomContextMenu</enum>
           </property>
          </widget>
         </item>

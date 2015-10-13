@@ -234,7 +234,7 @@ public:
     bool loadCurInvoice(int y, int m, QList<CurInvoiceRecord*> &records, bool isYs=true);
     bool saveCurInvoice(int y, int m, const QList<CurInvoiceRecord*> &records);
     bool clearCurInvoice(int y, int m,int scope=0);
-    bool saveNameAlias(NameItemAlias* nameAlias);
+    bool saveIsolatedNameAlias(NameItemAlias* nameAlias);
 
 
     //分录模板数据访问函数

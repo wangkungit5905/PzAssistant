@@ -643,7 +643,7 @@ SubjectNameItem::SubjectNameItem(int id,int cls,QString sname,QString lname,QStr
 }
 
 SubjectNameItem::SubjectNameItem(NameItemAlias *alias,QDateTime crtTime,User* user)
-    :crtUser(user),crtTime(crtTime)
+    :id(0),crtUser(user),crtTime(crtTime)
 {
     sname = alias->shortName();
     lname = alias->longName();

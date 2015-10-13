@@ -1884,6 +1884,7 @@ void CurInvoiceStatForm::on_actAutoMatch_triggered()
         SubjectNameItem* ni = matchedHashs.value(r->client);
         if(ni){
             r->ni = ni;
+            r->tags->setBit(CI_TAG_NAMEITEM,true);
             ti->setNameItem(ni);
             continue;
         }
@@ -1891,6 +1892,7 @@ void CurInvoiceStatForm::on_actAutoMatch_triggered()
             if(n->matchName(r->client) == 0)
                 continue;
             r->ni = n;
+            r->tags->setBit(CI_TAG_NAMEITEM,true);
             ti->setNameItem(n);
             matchedHashs[r->client] = n;
             break;
@@ -1900,8 +1902,10 @@ void CurInvoiceStatForm::on_actAutoMatch_triggered()
                 if(alias->longName() == r->client){
                     r->alias = alias;
                     r->ni = new SubjectNameItem(0,clientClsId,alias->shortName(),alias->longName(),alias->rememberCode(),alias->createdTime(),curUser);
+                    r->tags->setBit(CI_TAG_NAMEITEM,true);
                     matchedHashs[r->client] = r->ni;
                     ti->setNameItem(r->ni);
+                    break;
                 }
             }
         }

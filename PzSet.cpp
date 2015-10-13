@@ -586,6 +586,15 @@ bool AccountSuiteManager::inspectPzError(QList<PingZhengError*>& errors)
     QString errStr;
     for(int i = 0; i < pzs->count(); ++i){
         pz = pzs->at(i);
+        if(pz->baCount() == 0){
+            e = new PingZhengError;
+            e->errorLevel = PZE_WARNING;
+            e->errorType = 0;
+            e->pz = pz;
+            e->ba = NULL;
+            errors<<e;
+            continue;
+        }
         //（1）凭证号连续性
         if((pz->number() - pzNum) != 1){
             e = new PingZhengError;
@@ -2765,6 +2774,45 @@ void AccountSuiteManager::loadInCost()
        !account->getDbUtil()->loadCurInvoice(year(),curM,costs,false)){
         myHelper::ShowMessageBoxError(tr("读取本地发票记录时出错！"));
         return;
+    }
+    //开始一次孤立别名的匹配（有些发票可能前次已经通过创建孤立别名-即创建新名称对象，来匹配客户，但由于表格内没有与孤立别名连接的字段，所以在这里进行处理）
+    QList<NameItemAlias*> isolatedAlias;
+    isolatedAlias = getSubjectManager()->getAllIsolatedAlias();
+    QHash<QString,NameItemAlias*> matched;
+    CurInvoiceRecord* r;
+    for(int i = 0; i < incomes.count(); ++i){
+        r = incomes.at(i);
+        if(r->ni)
+            continue;
+        r->alias = matched.value(r->client);
+        if(!r->alias){
+            foreach(NameItemAlias* nia, isolatedAlias){
+                if(nia->longName() == r->client){
+                    r->alias = nia;
+                    break;
+                }
+            }
+        }
+        if(!r->alias)
+            continue;
+        r->ni = new SubjectNameItem(r->alias);
+    }
+    for(int i = 0; i < costs.count(); ++i){
+        r = costs.at(i);
+        if(r->ni)
+            continue;
+        r->alias = matched.value(r->client);
+        if(!r->alias){
+            foreach(NameItemAlias* nia, isolatedAlias){
+                if(nia->longName() == r->client){
+                    r->alias = nia;
+                    break;
+                }
+            }
+        }
+        if(!r->alias)
+            continue;
+        r->ni = new SubjectNameItem(r->alias);
     }
     isICLoader = true;
 }

@@ -4993,6 +4993,11 @@ bool DbUtil::saveCurInvoice(int y, int m, const QList<CurInvoiceRecord *> &recor
     int ym = y*100+m;
     bool changed = false;
     foreach(CurInvoiceRecord* r,records){
+        //先期处理孤立别名的特殊情况
+        if(r->ni && r->ni->getId()==0 && r->alias && r->alias->getId()==0){
+            if(!saveIsolatedNameAlias(r->alias))
+                return false;
+        }
         if(r->id == 0)
             s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11,%12,%13,%14,%15) "
                         "values(%16,%17,%18,%19,'%20','%21','%22',%23,%24,%25,%26,%27,'%28',%29)")
@@ -5054,31 +5059,31 @@ bool DbUtil::saveCurInvoice(int y, int m, const QList<CurInvoiceRecord *> &recor
             q.next();
             r->id = q.value(0).toInt();
         }
-        if(r->ni){
-            if(r->ni->getId() == 0 && r->alias && r->alias->getId()==0){    //这里的新客户只作为孤立别名保存，不实际创建新名称对象（减少名称对象的无谓增长）
-                s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(0,'%8','%9','%10',%11,%12)")
-                        .arg(tbl_nameAlias).arg(fld_nia_niCode).arg(fld_nia_name).arg(fld_nia_lname)
-                        .arg(fld_nia_remcode).arg(fld_nia_crtTime).arg(fld_nia_disTime).arg(r->alias->shortName())
-                        .arg(r->alias->longName()).arg(r->alias->rememberCode()).arg(r->alias->createdTime().toMSecsSinceEpoch())
-                        .arg(QDateTime().toMSecsSinceEpoch());
-                if(!q.exec(s)){
-                    LOG_SQLERROR(s);
-                    return false;
-                }
-                //读回id
-                s = "select last_insert_rowid()";
-                if(!q.exec(s)){
-                    LOG_SQLERROR(s);
-                    return false;
-                }
-                q.next();
-                r->alias->id = q.value(0).toInt();
-            }
-            else{
-                if(!_saveNameItem(r->ni))
-                    return false;
-            }
-        }
+//        if(r->ni){
+//            if(r->ni->getId() == 0 && r->alias && r->alias->getId()==0){    //这里的新客户只作为孤立别名保存，不实际创建新名称对象（减少名称对象的无谓增长）
+//                s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(0,'%8','%9','%10',%11,%12)")
+//                        .arg(tbl_nameAlias).arg(fld_nia_niCode).arg(fld_nia_name).arg(fld_nia_lname)
+//                        .arg(fld_nia_remcode).arg(fld_nia_crtTime).arg(fld_nia_disTime).arg(r->alias->shortName())
+//                        .arg(r->alias->longName()).arg(r->alias->rememberCode()).arg(r->alias->createdTime().toMSecsSinceEpoch())
+//                        .arg(QDateTime().toMSecsSinceEpoch());
+//                if(!q.exec(s)){
+//                    LOG_SQLERROR(s);
+//                    return false;
+//                }
+//                //读回id
+//                s = "select last_insert_rowid()";
+//                if(!q.exec(s)){
+//                    LOG_SQLERROR(s);
+//                    return false;
+//                }
+//                q.next();
+//                r->alias->id = q.value(0).toInt();
+//            }
+//            else{
+//                if(!_saveNameItem(r->ni))
+//                    return false;
+//            }
+//        }
     }
     if(!db.commit()){
         LOG_SQLERROR("Commit transaction failed on save curent invoice infomation!");
@@ -5117,13 +5122,36 @@ bool DbUtil::clearCurInvoice(int y, int m, int scope)
 }
 
 /**
- * @brief 保存别名
+ * @brief 保存孤立别名
  * @param nameAlias
  * @return
  */
-bool DbUtil::saveNameAlias(NameItemAlias *nameAlias)
+bool DbUtil::saveIsolatedNameAlias(NameItemAlias *nameAlias)
 {
+    //这里仅考虑作为新增保存
+    if(nameAlias->id != 0 || nameAlias->getParent())
+        return true;
+    QSqlQuery q(db);
+    QString  s = QString("insert into %1(%2,%3,%4,%5,%6,%7) values(%8,'%9','%10','%11',%12,%13)")
+            .arg(tbl_nameAlias).arg(fld_nia_niCode).arg(fld_nia_name).arg(fld_nia_lname)
+            .arg(fld_nia_remcode).arg(fld_nia_crtTime).arg(fld_nia_disTime)
+            .arg(nameAlias->getParent()?nameAlias->getParent()->getId():0)
+            .arg(nameAlias->shortName()).arg(nameAlias->longName()).arg(nameAlias->rememberCode())
+            .arg(nameAlias->createdTime().toMSecsSinceEpoch()).arg(QDateTime().toMSecsSinceEpoch());
 
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    //读回id
+    s = "select last_insert_rowid()";
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    q.next();
+    nameAlias->id = q.value(0).toInt();
+    return true;
 }
 
 
@@ -5437,7 +5465,7 @@ bool DbUtil::_saveNameItem(SubjectNameItem *ni)
         NameItemEditStates state = ni->getEditState();
         if(state == ES_NI_INIT)
             return true;
-        NameItemEditStates ss = state & !ES_NI_ALIAS;
+        NameItemEditStates ss = state & ~ES_NI_ALIAS;
         if(ss){
             s = QString("update %1 set ").arg(tbl_nameItem);
             if(state.testFlag(ES_NI_CLASS))

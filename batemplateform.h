@@ -51,17 +51,17 @@ enum BaTemplateType{
  * 应付：应收抵扣应付，收入抵扣应付
  */
 enum InvoiceItemType{
-    IIT_COMMON,     //不作为抵扣发票
-    IIT_YF2IN,      //应付抵扣收入
-    IIT_COST2IN,    //成本抵扣收入
-    IIT_YF2YS,      //应付抵扣应收
-    IIT_COST2YS,    //成本抵扣应收
-    IIT_YS2COST,    //应收抵扣成本
-    IIT_IN2COST,    //收入抵扣成本
-    IIT_YS2YF,      //应收抵扣应付
-    IIT_IN2YF,      //收入抵扣应付
-    IIT_YS,         //作为应收
-    IIT_YF          //作为应付
+    IIT_COMMON  = 0,    //不作为抵扣发票
+    IIT_YF2IN   = 1,    //应付抵扣收入
+    IIT_COST2IN = 2,    //成本抵扣收入
+    IIT_YF2YS   = 3,    //应付抵扣应收
+    IIT_COST2YS = 4,    //成本抵扣应收
+    IIT_YS2COST = 5,    //应收抵扣成本
+    IIT_IN2COST = 6,    //收入抵扣成本
+    IIT_YS2YF   = 7,    //应收抵扣应付
+    IIT_IN2YF   = 8,    //收入抵扣应付
+    IIT_YS      = 9,    //作为应收
+    IIT_YF      = 10    //作为应付
 };
 
 /**

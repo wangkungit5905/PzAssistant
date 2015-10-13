@@ -942,34 +942,34 @@ void BaTemplateForm::DataChanged(QTableWidgetItem *item)
     if(col >= CI_MONEY && col <= CI_WMONEY)
         reCalSum((ColumnIndex)col);
     else if(col == CI_INVOICE && invoiceQualified(item->text())){
-        InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
-        if(!item)
+        InvoiceTableItem* ti = static_cast<InvoiceTableItem*>(item);
+        if(!ti)
             return;
-        InvoiceItemType type = item->invoiceType();
+        InvoiceItemType type = ti->invoiceType();
         if(type == IIT_COMMON && (ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked())){
-            autoSetYsYf(row,item->text(),ui->rdoYsIncome->isChecked());
+            autoSetYsYf(row,ti->text(),ui->rdoYsIncome->isChecked());
         }
         else if(ui->rdoBankIncome->isChecked()){
             if(type == IIT_COMMON)
-                autoSetInCost(row,item->text());
+                autoSetInCost(row,ti->text());
             else if(type == IIT_COST2IN)
-                autoSetInCost(row,item->text(),false);
+                autoSetInCost(row,ti->text(),false);
             else if(type == IIT_YF2IN)
-                autoSetYsYf(row,item->text(),false);
+                autoSetYsYf(row,ti->text(),false);
         }
         else if(ui->rdoBankCost->isChecked()){
             if(type == IIT_COMMON)
-                autoSetInCost(row,item->text(),false);
+                autoSetInCost(row,ti->text(),false);
             else if(type == IIT_IN2COST)
-                autoSetInCost(row,item->text());
+                autoSetInCost(row,ti->text());
             else if(type == IIT_YS2COST)
-                autoSetYsYf(row,item->text());
+                autoSetYsYf(row,ti->text());
         }
         else if(ui->rdoYsGather->isChecked()){
-            autoSetInCost(row,item->text());
+            autoSetInCost(row,ti->text());
         }
         else if(ui->rdoYfGather->isChecked())
-            autoSetInCost(row,item->text(),false);
+            autoSetInCost(row,ti->text(),false);
     }
 }
 
@@ -1012,6 +1012,11 @@ void BaTemplateForm::createMultiInvoice(QStringList invoices)
         for(int i = row; i < row+invoices.count(); ++i)
             autoSetYsYf(i,ui->tw->item(i,CI_INVOICE)->text(),ui->rdoYsIncome->isChecked());
     }
+    else{
+        bool isIncome = ui->rdoBankIncome->isChecked() || ui->rdoYsGather->isChecked();
+        for(int i = row; i < row + invoices.count(); ++i)
+            autoSetInCost(i,ui->tw->item(i,CI_INVOICE)->text(),isIncome);
+    }
     reCalAllSum();
     turnDataInspect();
 }
@@ -1039,8 +1044,13 @@ void BaTemplateForm::creatNewNameItemMapping(int row, int col, FirstSubject *fsu
 
 void BaTemplateForm::creatNewSndSubject(int row, int col, FirstSubject *fsub, SecondSubject *&ssub, QString name)
 {    
-    CompletSubInfoDialog dlg(0,sm,0);
+    CompletSubInfoDialog dlg(fsub->getId(),sm,0);
     dlg.setName(name);
+    NameItemAlias* alias = SubjectManager::getMatchedAlias(name);
+    if(alias){
+        dlg.setLongName(alias->longName());
+        dlg.setRemCode(alias->rememberCode());
+    }
     if(QDialog::Accepted == dlg.exec()){
         SubjectNameItem* ni = new SubjectNameItem(0,dlg.getSubCalss(),dlg.getSName(),
                                                   dlg.getLName(),dlg.getRemCode(),QDateTime::currentDateTime(),curUser);
@@ -1049,6 +1059,17 @@ void BaTemplateForm::creatNewSndSubject(int row, int col, FirstSubject *fsub, Se
         QVariant v;
         v.setValue<SecondSubject*>(ssub);
         ui->tw->item(row,col)->setData(Qt::EditRole,v);
+        //如果新建的名称对象和别名对象两者简称相同，则如果全称也相同，则可以移除此别名，
+        //如果全称不同，则将此别名加入到新建名称对象的别名列表
+        if(alias && alias->shortName()==ssub->getName()){
+            if(alias->longName() != ssub->getLName()){
+                ssub->getNameItem()->addAlias(alias);
+            }
+            else{//这个实现有点过于草算，因为在用户没有确定保存时，它已经实际地删除了别名，而且这个实现也不支持Undo和Redo操作
+                fsub->parent()->removeNameAlias(alias);
+                delete alias;
+            }
+        }
     }
     delegate->userConfirmed();
 }
@@ -2409,8 +2430,21 @@ void BaTemplateForm::autoSetYsYf(int row, QString inum, bool isYs)
         fsub = ysFSub;
     else
         fsub = yfFSub;
+    if(!curCusSSub && (ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked())){
+        InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+        InvoiceItemType type = item->invoiceType();
+        if(type == IIT_COMMON){
+            curCusSSub = fsub->getChildSub(r->customer);
+            if(curCusSSub){
+                QVariant v; v.setValue<SecondSubject*>(curCusSSub);
+                int index = ui->cmbCustomer->findData(v);
+                ui->cmbCustomer->setCurrentIndex(index);
+                ui->edtName->setText(curCusSSub->getLName());
+            }
+        }
+    }
     SecondSubject* ssub = fsub->getChildSub(r->customer);
-    if(curCusSSub != ssub && (ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked())){
+    if(curCusSSub && curCusSSub != ssub && (ui->rdoYsIncome->isChecked() || ui->rdoYfCost->isChecked())){
         QTableWidgetItem *ti = ui->tw->item(row,CI_INVOICE);
         ti->setForeground(QBrush(Qt::red));
         ti->setData(Qt::DecorationRole,icon_question);
@@ -2422,6 +2456,7 @@ void BaTemplateForm::autoSetYsYf(int row, QString inum, bool isYs)
         ui->tw->item(row,CI_TAXMONEY)->setText(r->taxMoney.toString());
     if(r->wmoney != 0)
         ui->tw->item(row,CI_WMONEY)->setText(r->wmoney.toString());
+
 }
 
 /**
@@ -2436,27 +2471,41 @@ void BaTemplateForm::autoSetInCost(int row, QString inum, bool isIncome)
     if(!r)
         return;
     FirstSubject* fsub = isIncome?ysFSub:yfFSub;
-    //如果模板还未设置客户，则根据发票所属客户自动设置
-    if(!curCusSSub && r->ni){
-        curCusSSub = fsub->getChildSub(r->ni);
-        if(!curCusSSub){
-            curCusSSub = new SecondSubject(0,0,r->ni,"",0,true,QDateTime(),QDateTime(),curUser);
-            extraSSubs<<curCusSSub;
-            QVariant v; v.setValue<SecondSubject*>(curCusSSub);
-            ui->cmbCustomer->addItem(r->ni->getShortName(),v);
+    if(ui->rdoYsGather->isChecked() || ui->rdoYfGather->isChecked()){
+        SecondSubject * ssub=0;
+        if(r->ni)
+            ssub = fsub->getChildSub(r->ni);
+        if(ssub){
+            QTableWidgetItem* ti = ui->tw->item(row,CI_CUSTOMER);
+            if(ti){
+                QVariant v; v.setValue<SecondSubject*>(ssub);
+                ti->setData(Qt::EditRole,v);
+            }
         }
-        else{
-            int idx = ui->cmbCustomer->findSubject(curCusSSub);
-            ui->cmbCustomer->setCurrentIndex(idx);
+    }
+    else{
+        //如果模板还未设置客户，则根据发票所属客户自动设置
+        if(!curCusSSub && r->ni){
+            curCusSSub = fsub->getChildSub(r->ni);
+            if(!curCusSSub){
+                curCusSSub = new SecondSubject(0,0,r->ni,"",0,true,QDateTime(),QDateTime(),curUser);
+                extraSSubs<<curCusSSub;
+                QVariant v; v.setValue<SecondSubject*>(curCusSSub);
+                ui->cmbCustomer->addItem(r->ni->getShortName(),v);
+                ui->cmbCustomer->setCurrentIndex(ui->cmbCustomer->count()-1);
+            }
+            else{
+                int idx = ui->cmbCustomer->findSubject(curCusSSub);
+                ui->cmbCustomer->setCurrentIndex(idx);
+            }
+            ui->edtName->setText(r->ni->getLongName());
         }
-        ui->edtName->setText(r->ni->getLongName());
+        else if(curCusSSub && r->ni && curCusSSub->getNameItem()->matchName(r->ni->getLongName()) == 0){
+            delegate->laterDestroyEditor();
+            myHelper::ShowMessageBoxWarning(tr("发票客户名不符：\n你指定的客户名：%1\n发票上的客户名%2").arg(curCusSSub->getLName()).arg(r->ni->getLongName()));
+            delegate->userConfirmed();
+        }
     }
-    else if(curCusSSub && r->ni && curCusSSub->getNameItem()->matchName(r->ni->getLongName()) == 0){
-        delegate->laterDestroyEditor();
-        myHelper::ShowMessageBoxWarning(tr("发票客户名不符：\n你指定的客户名：%1\n发票上的客户名%2").arg(curCusSSub->getLName()).arg(r->ni->getLongName()));
-        delegate->userConfirmed();
-    }
-
     ui->tw->item(row,CI_MONEY)->setText(r->money.toString());
     if(r->type || r->taxMoney != 0)
         ui->tw->item(row,CI_TAXMONEY)->setText(r->taxMoney.toString());

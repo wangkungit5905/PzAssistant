@@ -2338,10 +2338,10 @@ void HistoryPzForm::refreshSingleBa(int row, BusiAction *ba)
     item = new QTableWidgetItem(ba->getSummary());
     item->setTextAlignment(Qt::AlignCenter);
     ui->tview->setItem(row,BaTableWidget::SUMMARY,item);
-    item = new QTableWidgetItem(ba->getFirstSubject()->getName());
+    item = new QTableWidgetItem(ba->getFirstSubject()?ba->getFirstSubject()->getName():"");
     item->setTextAlignment(Qt::AlignCenter);
     ui->tview->setItem(row,BaTableWidget::FSTSUB,item);
-    item = new QTableWidgetItem(ba->getSecondSubject()->getName());
+    item = new QTableWidgetItem(ba->getSecondSubject()?ba->getSecondSubject()->getName():"");
     item->setTextAlignment(Qt::AlignCenter);
     ui->tview->setItem(row,BaTableWidget::SNDSUB,item);
     item = new QTableWidgetItem(ba->getMt()->name());

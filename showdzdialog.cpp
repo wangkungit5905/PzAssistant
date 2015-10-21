@@ -94,7 +94,6 @@ ShowDZDialog::ShowDZDialog(Account* account,QByteArray* cinfo,  QByteArray* pinf
 
     setCommonState(cinfo);
     readFilters();
-    setProperState(pinfo);
 
     connect(ui->tview->horizontalHeader(),SIGNAL(sectionResized(int,int,int)),
             this,SLOT(colWidthChanged(int,int,int)));
@@ -211,24 +210,6 @@ void ShowDZDialog::setCommonState(QByteArray* info)
         bf.close();
     }
     ui->splitter->setSizes(sizes);
-}
-
-void ShowDZDialog::setProperState(QByteArray *info)
-{
-    if(!info || info->isEmpty())
-        return;
-//    QBuffer bf(info);
-//    QDataStream in(&bf);
-//    qint8 i8;
-//    bf.open(QIODevice::ReadOnly);
-//    in>>i8;
-//    foreach(DVFilterRecord* fr, filters){
-//        if(fr->id == i8){
-//            curFilter = fr;
-//            return;
-//        }
-//    }
-//    bf.close();
 }
 
 //获取视图的内部状态

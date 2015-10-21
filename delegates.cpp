@@ -19,7 +19,8 @@
 #include "PzSet.h"
 #include "statutil.h"
 #include "myhelper.h"
-#include "batemplateform.h"
+//#include "batemplateform.h"
+#include "validator.h"
 
 
 ////////////////////////////SummaryEdit/////////////////////////

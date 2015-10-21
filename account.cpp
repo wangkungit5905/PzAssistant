@@ -1352,6 +1352,9 @@ bool Account::init()
         LOG_ERROR("Initial account suite happen error!");
         ok = false;
     }
+    //清理科目管理器类的静态数据成员，避免切换账户时多次创建重合的静态数据成员，
+    //因为这些成员对于不同的账户有不同的成员集合
+    dbUtil->clearStaticDataMember();
     if(ok && !dbUtil->initNameItems()){
         Logger::write(QDateTime::currentDateTime(), Logger::Must,"",0,"",
                       QObject::tr("Name items init happen error!"));

@@ -7,7 +7,7 @@
 REVFILE = VersionRev.h
 QMAKE_DISTCLEAN += $$REVFILE
 
-REVISONNUM = 7
+REVISONNUM = 8
 BUILD_NUM = $$system(git rev-list --count HEAD)
 count(BUILD_NUM, 1) {
     BUILD_EXPLAIN = git-$$BUILD_NUM-$$system(git rev-parse --short HEAD)
@@ -128,7 +128,8 @@ SOURCES += main.cpp\
     invoicestatform.cpp \
     batemplateform.cpp \
     ysyfinvoicestatform.cpp \
-    curinvoicestatform.cpp
+    curinvoicestatform.cpp \
+    searchdialog.cpp
 
 HEADERS  += \
     config.h \
@@ -214,7 +215,9 @@ HEADERS  += \
     invoicestatform.h \
     batemplateform.h \
     ysyfinvoicestatform.h \
-    curinvoicestatform.h
+    curinvoicestatform.h \
+    common/validator.h \
+    searchdialog.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -230,7 +233,6 @@ FORMS    += \
     forms/printselectdialog.ui \
     forms/logindialog.ui \
     forms/seccondialog.ui \
-    forms/searchdialog.ui \
     forms/impothmoddialog.ui \
     forms/antijzdialog.ui \
     forms/gdzcadmindialog.ui \
@@ -288,7 +290,8 @@ FORMS    += \
     forms/invoicestatform.ui \
     forms/batemplateform.ui \
     forms/ysyfinvoicestatform.ui \
-    forms/curinvoicestatform.ui
+    forms/curinvoicestatform.ui \
+    forms/pzsearchdialog.ui
 
 INCLUDEPATH +=  $$PWD/application \
                 $$PWD/common

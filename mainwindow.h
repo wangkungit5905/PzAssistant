@@ -22,6 +22,7 @@ class QUndoView;
 class QProgressBar;
 
 class WorkStation;
+class PzSearchDialog;
 
 namespace Ui {
     class MainWindow;

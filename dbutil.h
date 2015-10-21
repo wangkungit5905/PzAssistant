@@ -23,6 +23,8 @@ class PingZheng;
 class NameItemAlias;
 struct SmartSSubAdapteItem;
 struct InvoiceRowStruct;
+struct PzFindFilteCondition;
+struct PzFindBaContent;
 
 class DbUtil
 {
@@ -80,6 +82,7 @@ public:
     bool saveSuite(AccountSuiteRecord* suite);
 
     //科目相关
+    void clearStaticDataMember();
     bool initNameItems();
     bool initSubjects(SubjectManager* smg, int subSys);
     bool saveNameItemClass(int code, QString name, QString explain);
@@ -241,6 +244,9 @@ public:
     bool existBaTemlateDatas(int type);
     bool readBaTemplateDatas(int type, QList<InvoiceRowStruct*> &datas);
     bool saveBaTemplateDatas(int type,const QList<InvoiceRowStruct*> &datas);
+
+    bool findPz(const PzFindFilteCondition &filter, QList<PzFindBaContent*> &bas, bool &hasnMore, int count=100,bool nextPage=false);
+
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool _readAccountSuites(QList<AccountSuiteRecord*>& suites);

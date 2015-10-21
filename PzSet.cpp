@@ -31,6 +31,24 @@ AccountSuiteManager::AccountSuiteManager(AccountSuiteRecord* as, Account *accoun
 AccountSuiteManager::~AccountSuiteManager()
 {
     delete undoStack;
+    if(statUtil)
+        delete statUtil;
+    qDeleteAll(incomes);
+    qDeleteAll(costs);
+    incomes.clear();costs.clear();
+    qDeleteAll(ysInvoices);
+    qDeleteAll(yfInvoices);
+    ysInvoices.clear();yfInvoices.clear();
+    foreach(QList<PingZheng*> pzs, pzSetHash){
+        qDeleteAll(pzs);
+        pzs.clear();
+    }
+    pzSetHash.clear();
+    if(pzs)
+        pzs=NULL;
+    extraStates.clear();
+    states.clear();
+    qDeleteAll(historyPzs);historyPzs.clear();
 }
 
 /**
@@ -2443,14 +2461,14 @@ void AccountSuiteManager::scanYsYfForMonth2(int month, QList<InvoiceRecord *> &i
 }
 
 /**
- * @brief 统计应收应付发票的增加和销账情况
- * 用来初始化账户的最后帐套内现存未销账应收应付发票
+ * @brief 统计未销账的历史应收应付发票情况
+ * 每个账户只需执行一次，用来初始化账户的最后帐套内现存未销账应收应付发票
  * 以辅助分录模板的正常运作（即在创建应收应付分录时可以自动按发票号填写相关金额）
  * @param incomes
  * @param costs
  * @param errors
  */
-void AccountSuiteManager::scanYsYf(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors)
+void AccountSuiteManager::scanYsYfForInit(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors)
 {
     //前一个月增加应收应付发票，从次月开始同时增加和抵消发票
     //为简单起见，只在最新帐套的开始月份扫描

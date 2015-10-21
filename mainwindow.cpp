@@ -53,7 +53,7 @@
 #include "transfers.h"
 #include "ysyfinvoicestatform.h"
 #include "curinvoicestatform.h"
-
+#include "searchdialog.h"
 
 
 
@@ -420,6 +420,12 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         disconnect(w,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
         delete w;
     }
+    else if(t == SUBWIN_PZSEARCH){
+        PzSearchDialog* w = static_cast<PzSearchDialog*>(subWin->widget());
+        commonState = w->getCommonState();
+        disconnect(w,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
+        delete w;
+    }
     else if(t == SUBWIN_PZSTAT){
         CurStatDialog* w = static_cast<CurStatDialog*>(subWin->widget());
         commonState = w->getCommonState();
@@ -460,8 +466,7 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
 int mdiAreaWidth;
 int mdiAreaHeight;
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),ui(new Ui::MainWindow),
+MainWindow::MainWindow(QWidget *parent) :QMainWindow(parent),ui(new Ui::MainWindow),
     isMinimizeToTray_(false)
 {
     ui->setupUi(this);
@@ -1820,7 +1825,7 @@ void MainWindow::_closeAccount()
         QHashIterator<int,QList<PingZheng*> > it(historyPzSet);
         while(it.hasNext()){
             it.next();
-            qDeleteAll(it.value());
+            historyPzSet[it.key()].clear();
         }
         historyPzSet.clear();
     }
@@ -3341,8 +3346,19 @@ void MainWindow::on_actMvDownAction_triggered()
 //搜索凭证
 void MainWindow::on_actSearch_triggered()
 {
-    SearchDialog* dlg = new SearchDialog;
-    dlg->exec();
+    QByteArray cinfo,pinfo;
+    SubWindowDim* winfo = NULL;
+    PzSearchDialog* dlg = NULL;
+    int suiteId = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZSEARCH)){
+        appCon->getSubWinInfo(SUBWIN_PZSEARCH,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_PZSEARCH,&pinfo);
+        dlg = new PzSearchDialog(curAccount,&cinfo,&pinfo);
+        connect(dlg,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
+    }
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZSEARCH,dlg,winfo);
+    if(winfo)
+        delete winfo;
 }
 
 //转到指定号码的凭证
@@ -4471,7 +4487,9 @@ bool MainWindow::impTestDatas()
 //        return false;
 }
 
-
+/**
+ * @brief 初始化应收/应付发票统计记录（尽在第一次使用应收/应付发票信息前执行一次）
+ */
 void MainWindow::on_actInitInvoice_triggered()
 {
     if(!curUser->isAdmin() && !curUser->isSuperUser()){
@@ -4489,9 +4507,6 @@ void MainWindow::on_actInitInvoice_triggered()
 
 void MainWindow::on_actYsYfStat_triggered()
 {
-    //待功能验证正常后加入权限验证
-    //if(!isContainRight(Right::PzSet_ShowStat_Current))
-    //    return;
     if(!curUser->isAdmin() && !curUser->isSuperUser()){
         myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
         return;

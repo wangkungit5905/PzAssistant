@@ -4,7 +4,6 @@
 #include <QtGlobal>
 
 #include "ui_printselectdialog.h"
-#include "ui_searchdialog.h"
 
 class PingZheng;
 class User;
@@ -34,18 +33,7 @@ private:
     QList<PingZheng*> pzSets; //可选的凭证集合
 };
 
-//凭证搜索对话框类
-class SearchDialog : public QDialog
-{
-    Q_OBJECT
 
-public:
-    explicit SearchDialog(QWidget *parent = 0);
-    ~SearchDialog();
-
-private:
-    Ui::SearchDialog *ui;
-};
 
 
 

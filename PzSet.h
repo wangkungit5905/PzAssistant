@@ -140,7 +140,7 @@ public:
     //发票有关方法
     void scanYsYfForMonth(int month,QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors,bool scanXf=false,bool reserved=true);
     void scanYsYfForMonth2(int month,QList<InvoiceRecord *> &incomeAdds, QList<InvoiceRecord *> &incomeCancels, QList<InvoiceRecord *> &costAdds, QList<InvoiceRecord *> &costCancels, QStringList &errors);
-    void scanYsYf(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors);
+    void scanYsYfForInit(QList<InvoiceRecord *> &incomes, QList<InvoiceRecord *> &costs, QStringList &errors);
     InvoiceRecord *searchYsYfInvoice(bool isYs, QString inum);
     CurInvoiceRecord *searchICInvoice(bool isIncome, QString inum);
     bool saveYsYf();

@@ -375,6 +375,7 @@ public:
 
 
     SubjectManager(Account* account, int subSys = DEFAULT_SUBSYS_CODE);
+    ~SubjectManager();
     Account* getAccount(){return account;}
     bool loadAfterImport();
     int getSubSysCode(){return subSys;}

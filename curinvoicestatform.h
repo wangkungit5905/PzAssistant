@@ -174,7 +174,16 @@ public:
         TI_STATE    = 7,    //发票属性（正常、冲红、作废）
         TI_SFINFO   = 8,    //收款情况
         TI_ISPROCESS= 9,    //本期是否已处理
-        TI_CLIENT   = 10     //客户名
+        TI_CLIENT   = 10,   //客户名
+        TI_SORT_NUM = 11,   //仅用于按序号排序的隐藏列
+        TI_SORT_PRIMARY = 12 //原始导入顺序隐藏列
+    };
+
+    enum TableSortColumn{
+        TSC_PRIMARY = 1,    //原始导入顺序
+        TSC_NUMBER  = 2,    //按序号
+        TSC_INUMBER = 3,    //按发票号
+        TSC_NAME    = 4     //按客户名
     };
 
     explicit CurInvoiceStatForm(Account* account,QWidget *parent = 0);
@@ -196,6 +205,10 @@ private slots:
     void clientNameChanged(QString oldName,QString newName);
     void clientMatchChanged(QString clientName,SubjectNameItem* ni);
     void createNewClientAlias(NameItemAlias* alias);
+    void curTableChanged(int index);
+    void sortColumnChanged(bool on);
+    void enanbleFilter(bool on);
+    void filteTextChanged(QString text);
     void on_btnExpand_toggled(bool checked);
 
     void on_btnImport_clicked();
@@ -224,16 +237,17 @@ private:
     void initTable();
     void switchHActions(bool on=true);
     void switchVActions(bool on=true);
+    void switchSortChanged(bool on=true);
     void switchInvoiceInfo(bool on=true);
     void resetTableHeadItem(CurInvoiceColumnType colType, QTableWidget* tw);
     void expandPreview(bool on = true);
     bool readSheet(int index, QTableWidget* tw);
     CurInvoiceColumnType columnTypeForText(QString text);
     bool calFormula(QString formula, Double &v, QTableWidget *tw);
-    bool isLeftTopCorner(int row, int column, CellRange &range);
     bool inspectColTypeSet(QList<CurInvoiceColumnType> colTypes,QString &info);
     bool inspectTableData(bool isYs);
     void showInvoiceInfo(int row,CurInvoiceRecord* r);
+    QString padZero(int num);
 
     Ui::CurInvoiceStatForm *ui;
     QXlsx::Document *excel;
@@ -241,13 +255,14 @@ private:
     QActionGroup *ag1,*ag2,*ag3; //组合管理列类型设置
     QMenu *mnuRowTypes, *mnuColTypes; //设置行、列类型的上下文菜单
     QHash<CurInvoiceColumnType,QStringList> colTitleKeys;     //特定列所对应的敏感名称
-    QHash<CurInvoiceColumnType,TableIndex> colMaps;  //特定列类型列索引映射表
+    //QHash<CurInvoiceColumnType,TableIndex> colMaps;  //特定列类型列索引映射表
     QList<QHash<QString, SubjectNameItem*> > clientMatches;
     Account* account;
     SubjectManager* sm;
     AccountSuiteManager* suiteMgr;
     InvoiceInfoDelegate* delegate;
     QList<CurInvoiceRecord *> *incomes,*costs;  //本地保存的发票记录
+    TableSortColumn sort_in,sort_cost;          //收入/成本表格当前的排序列
     HandMatchClientDialog* handMatchDlg;
     int clientClsId;      //业务客户类别id
 
@@ -256,5 +271,9 @@ private:
     QHash<int,QColor> invoiceStateColors;
     QHash<int,QColor> invoiceClassColors;  //表达普票/专票的颜色
 };
+
+//bool byNumberForInvoice(CurInvoiceRecord* r1,CurInvoiceRecord* r2);
+//bool byINumberForInvoice(CurInvoiceRecord* r1,CurInvoiceRecord* r2);
+//bool byNameForInvoice(CurInvoiceRecord* r1,CurInvoiceRecord* r2);
 
 #endif // CURINVOICESTATFORM_H

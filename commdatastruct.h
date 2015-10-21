@@ -577,7 +577,8 @@ enum subWindowType{
     SUBWIN_EXTERNALTOOLS = 23,  //外部工具
     SUBWIN_LOGVIEW = 24,        //日志视图
     SUBWIN_YSYFSTAT = 25,       //应收应付发票统计
-    SUBWIN_INCOST = 26          //收入/成本发票管理
+    SUBWIN_INCOST = 26,         //收入/成本发票管理
+    SUBWIN_PZSEARCH = 27        //凭证搜索对话框
     //设置期初余额的窗口
     //科目配置窗口
 };
@@ -778,6 +779,7 @@ struct CurInvoiceRecord{
         pz=0;ba=0;
     }
 };
+Q_DECLARE_METATYPE(CurInvoiceRecord*)
 
 enum CurInvoiceRecordModifyTag{
     CI_TAG_ISINCOME = 0,

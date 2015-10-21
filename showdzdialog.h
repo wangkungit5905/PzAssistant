@@ -49,7 +49,6 @@ public:
     explicit ShowDZDialog(Account* account, QByteArray* cinfo, QByteArray* pinfo, QWidget *parent = 0);
     ~ShowDZDialog();
     void setCommonState(QByteArray* info);
-    void setProperState(QByteArray* info);
     QByteArray* getCommonState();
     QByteArray* getProperState();
     void print(PrintActionClass pac = PAC_TOPRINTER);

@@ -24,13 +24,6 @@ public:
         SC_SND = 2
     };
 
-    //科目排序列
-//    enum SUBJECTSORTBY{
-//        FS_NAME = 0,
-//        FS_CODE = 1,
-//        FS_REMCODE = 2
-//    };
-
     explicit SubjectSelectorComboBox(QWidget *parent = 0);
     explicit SubjectSelectorComboBox(SubjectManager* subMgr, FirstSubject* fsub, SUBJECTCATALOG which = SC_FST, QWidget *parent = 0);
 

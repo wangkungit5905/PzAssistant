@@ -6,6 +6,7 @@
 #include "PzSet.h"
 #include "pz.h"
 #include "dbutil.h"
+#include "validator.h"
 
 #include <QFileDialog>
 #include <QActionGroup>
@@ -351,7 +352,7 @@ QWidget *InvoiceInfoDelegate::createEditor(QWidget *parent, const QStyleOptionVi
     case CurInvoiceStatForm::TI_TAXMONEY:
     case CurInvoiceStatForm::TI_WBMONEY:{
         QLineEdit* editor = new QLineEdit(parent);
-        editor->setValidator(new QDoubleValidator(editor));
+        editor->setValidator(new MyDoubleValidator(editor));
         return editor;}
     case CurInvoiceStatForm::TI_ITYPE:{
         QComboBox* editor = new QComboBox(parent);
@@ -522,7 +523,8 @@ void InvoiceInfoDelegate::updateEditorGeometry(QWidget *editor, const QStyleOpti
 
 /////////////////////////////CurInvoiceStatForm/////////////////////////////////
 CurInvoiceStatForm::CurInvoiceStatForm(Account *account, QWidget *parent) :
-    QWidget(parent),ui(new Ui::CurInvoiceStatForm),excel(0),handMatchDlg(0),account(account)
+    QWidget(parent),ui(new Ui::CurInvoiceStatForm),excel(0),handMatchDlg(0),
+    account(account),sort_in(TSC_PRIMARY),sort_cost(TSC_PRIMARY)
 {
     ui->setupUi(this);
     suiteMgr = account->getSuiteMgr();
@@ -824,8 +826,7 @@ void CurInvoiceStatForm::invoiceInfoChanged(QTableWidgetItem *item)
 {
     int col = item->column();
     int row = item->row();
-    QList<CurInvoiceRecord*> *rs = (ui->tabWidget->currentIndex()==0)?incomes:costs;
-    CurInvoiceRecord* r = rs->at(row);
+    CurInvoiceRecord* r = item->tableWidget()->item(row,TI_INUMBER)->data(Qt::UserRole).value<CurInvoiceRecord*>();
     switch (col){
     case TI_NUMBER:{
         int num = item->text().toInt();
@@ -925,7 +926,8 @@ void CurInvoiceStatForm::itemDoubleClicked(QTableWidgetItem *item)
         int row = item->row();
         bool isIncome = ui->tabWidget->currentIndex() == 0;
         QList<CurInvoiceRecord*> *rs = isIncome?incomes:costs;
-        BusiAction* ba = rs->at(row)->ba;
+        CurInvoiceRecord* r = item->tableWidget()->item(row,TI_INUMBER)->data(Qt::UserRole).value<CurInvoiceRecord*>();
+        BusiAction* ba = r->ba;
         PingZheng* pz=0;
         if(ba)
             pz = ba->getParent();
@@ -951,9 +953,12 @@ void CurInvoiceStatForm::clientNameChanged(QString oldName, QString newName)
         if(r->client == oldName){
             r->client = newName;
             r->tags->setBit(CI_TAG_CLIENT,true);
-            InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
-            ti->setText(newName);
         }
+    }
+    for(int i = 0; i < tw->rowCount(); ++i){
+        InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
+        if(ti->text() == oldName)
+            ti->setText(newName);
     }
 }
 
@@ -976,9 +981,12 @@ void CurInvoiceStatForm::clientMatchChanged(QString clientName, SubjectNameItem 
         if(r->client == clientName){
             r->ni = ni;
             r->tags->setBit(CI_TAG_NAMEITEM,true);
-            InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
-            ti->setNameItem(ni);
         }
+    }
+    for(int i = 0; i < tw->rowCount(); ++i){
+        InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
+        if(ti->text() == clientName)
+            ti->setNameItem(ni);
     }
 }
 
@@ -1003,17 +1011,132 @@ void CurInvoiceStatForm::createNewClientAlias(NameItemAlias *alias)
             r->alias = alias;
             r->ni = temNi;
             r->tags->setBit(CI_TAG_NAMEITEM,true);
-            InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
-            ti->setNameItem(temNi);
         }
     }
+    for(int i = 0; i < tw->rowCount(); ++i){
+        InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(tw->item(i,TI_CLIENT));
+        if(ti->text() == alias->longName())
+            ti->setNameItem(temNi);
+    }
     SubjectManager::addIsolatedAlias(alias);
+}
+
+/**
+ * @brief 当前选择显示收入或成本表格
+ * @param index
+ */
+void CurInvoiceStatForm::curTableChanged(int index)
+{
+    TableSortColumn col;
+    if(index == 0)
+        col = sort_in;
+    else
+        col = sort_cost;
+    if(col == TSC_PRIMARY && ui->rdoPrimary->isChecked() ||
+       col == TSC_NUMBER && ui->rdoNumber->isChecked() ||
+       col == TSC_INUMBER && ui->rdoINum->isChecked() ||
+       col == TSC_NAME && ui->rdoName->isChecked())
+        return;
+    switchSortChanged(false);
+    switch(col){
+    case TSC_PRIMARY:
+        ui->rdoPrimary->setChecked(true);
+        break;
+    case TSC_NUMBER:
+        ui->rdoNumber->setChecked(true);
+        break;
+    case TSC_INUMBER:
+        ui->rdoINum->setChecked(true);
+        break;
+    case TSC_NAME:
+        ui->rdoName->setChecked(true);
+        break;
+    }
+    switchSortChanged();
+}
+
+/**
+ * @brief 排序列的选择改变，重新排序后显示表格
+ * @param on
+ */
+void CurInvoiceStatForm::sortColumnChanged(bool on)
+{
+    if(!on)
+        return;
+    QRadioButton* rb = qobject_cast<QRadioButton*>(sender());
+    if(!rb)
+        return;
+    QTableWidget* tw = ui->tabWidget->currentIndex()==0?ui->twIncome:ui->twCost;
+    TableSortColumn* col;
+    if(ui->tabWidget->currentIndex() == 0)
+        col = &sort_in;
+    else
+        col = &sort_cost;
+    if(rb == ui->rdoPrimary && *col != TSC_PRIMARY){
+        *col = TSC_PRIMARY;
+        tw->sortByColumn(TI_SORT_PRIMARY,Qt::AscendingOrder);
+    }
+    else if(rb == ui->rdoNumber && *col != TSC_NUMBER){
+        *col = TSC_NUMBER;
+        tw->sortByColumn(TI_SORT_NUM,Qt::AscendingOrder);
+    }
+    else if(rb == ui->rdoINum && *col != TSC_INUMBER){
+        *col = TSC_INUMBER;
+        tw->sortByColumn(TI_INUMBER,Qt::AscendingOrder);
+    }
+    else if(rb == ui->rdoName && *col != TSC_NAME){
+        *col = TSC_NAME;
+        tw->sortByColumn(TI_CLIENT,Qt::AscendingOrder);
+    }
+}
+
+/**
+ * @brief 启用或禁用过滤器
+ * @param on
+ */
+void CurInvoiceStatForm::enanbleFilter(bool on)
+{
+    if(on){
+        connect(ui->edtFltText,SIGNAL(textChanged(QString)),this,SLOT(filteTextChanged(QString)));
+        filteTextChanged(ui->edtFltText->text());
+    }
+    else{
+        disconnect(ui->edtFltText,SIGNAL(textChanged(QString)),this,SLOT(filteTextChanged(QString)));
+        for(int i = 0; i<ui->twIncome->rowCount(); ++i){
+            if(ui->twIncome->isRowHidden(i))
+                ui->twIncome->setRowHidden(i,false);
+        }
+        for(int i = 0; i<ui->twCost->rowCount(); ++i){
+            if(ui->twCost->isRowHidden(i))
+                ui->twCost->setRowHidden(i,false);
+        }
+    }
+}
+
+void CurInvoiceStatForm::filteTextChanged(QString text)
+{
+    QTableWidget* tw = ui->tabWidget->currentIndex()==0?ui->twIncome:ui->twCost;
+    if(text.isEmpty()){
+        for(int i = 0; i<tw->rowCount(); ++i){
+            if(tw->isRowHidden(i))
+                tw->setRowHidden(i,false);
+        }
+        return;
+    }
+    if(ui->rdoFltINum->isChecked()){
+        for(int i = 0;i<tw->rowCount();++i)
+            tw->setRowHidden(i,!tw->item(i,TI_INUMBER)->text().startsWith(text));
+    }
+    else{
+        for(int i = 0;i<tw->rowCount();++i)
+            tw->setRowHidden(i,!tw->item(i,TI_CLIENT)->text().contains(text));
+    }
 }
 
 void CurInvoiceStatForm::init()
 {    
     initKeys();
-    initColMaps();
+    //initColMaps();
     icon_income = QIcon(":/images/invoiceType/i_income.png");
     icon_cost = QIcon(":/images/invoiceType/i_cost.png");
     invoiceStates[1] = QObject::tr("正常");
@@ -1062,8 +1185,10 @@ void CurInvoiceStatForm::init()
     connect(ui->actYS,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
     connect(ui->actYF,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
     initTable();
-
+    connect(ui->tabWidget,SIGNAL(currentChanged(int)),this,SLOT(curTableChanged(int)));
+    connect(ui->gbxFilter,SIGNAL(toggled(bool)),this,SLOT(enanbleFilter(bool)));
     //读取本地记录
+    switchSortChanged();
     incomes = suiteMgr->getCurInvoiceRecords();
     costs = suiteMgr->getCurInvoiceRecords(false);
     if(!incomes->isEmpty()){
@@ -1090,15 +1215,7 @@ void CurInvoiceStatForm::init()
             this,SLOT(InvoiceTableHeaderContextMenu(QPoint)));
     connect(ui->twIncome,SIGNAL(itemDoubleClicked(QTableWidgetItem*)),this,SLOT(itemDoubleClicked(QTableWidgetItem*)));
     connect(ui->twCost,SIGNAL(itemDoubleClicked(QTableWidgetItem*)),this,SLOT(itemDoubleClicked(QTableWidgetItem*)));
-
-    QHashIterator<int,QStringList> it(sm->getAllNICls());
-    while (it.hasNext()) {
-        it.next();
-        if(it.value().first() == tr("业务客户")){
-            clientClsId = it.key();
-            break;
-        }
-    }
+    clientClsId = AppConfig::getInstance()->getSpecNameItemCls(AppConfig::SNIC_COMMON_CLIENT);
 }
 
 /**
@@ -1117,25 +1234,25 @@ void CurInvoiceStatForm::initKeys()
     colTitleKeys[CT_SFINFO] = cfg->getCurInvoiceColumnTitle(CT_SFINFO);
 }
 
-void CurInvoiceStatForm::initColMaps()
-{
-    colMaps[CT_NUMBER] = TI_NUMBER;
-    colMaps[CT_DATE] = TI_DATE;
-    colMaps[CT_INVOICE] = TI_INUMBER;
-    colMaps[CT_CLIENT] = TI_CLIENT;
-    colMaps[CT_MONEY] = TI_MONEY;
-    colMaps[CT_WBMONEY] = TI_WBMONEY;
-    colMaps[CT_TAXMONEY] = TI_TAXMONEY;
-    colMaps[CT_SFINFO] = TI_SFINFO;
-}
+//void CurInvoiceStatForm::initColMaps()
+//{
+//    colMaps[CT_NUMBER] = TI_NUMBER;
+//    colMaps[CT_DATE] = TI_DATE;
+//    colMaps[CT_INVOICE] = TI_INUMBER;
+//    colMaps[CT_CLIENT] = TI_CLIENT;
+//    colMaps[CT_MONEY] = TI_MONEY;
+//    colMaps[CT_WBMONEY] = TI_WBMONEY;
+//    colMaps[CT_TAXMONEY] = TI_TAXMONEY;
+//    colMaps[CT_SFINFO] = TI_SFINFO;
+//}
 
 void CurInvoiceStatForm::initTable()
 {
     QStringList titles;
     titles<<tr("序号")<<tr("开票日期")<<tr("发票号码")<<tr("发票金额")<<tr("税额")
           <<tr("外币金额")<<tr("发票类型")<<tr("发票属性")<<tr("收款情况")<<tr("处理情况")<<tr("客户名");
-    ui->twIncome->setColumnCount(titles.count());
-    ui->twCost->setColumnCount(titles.count());
+    ui->twIncome->setColumnCount(titles.count()+2);
+    ui->twCost->setColumnCount(titles.count()+2);
     ui->twIncome->setHorizontalHeaderLabels(titles);
     ui->twCost->setHorizontalHeaderLabels(titles);
     ui->twIncome->setColumnWidth(TI_NUMBER,40);
@@ -1158,6 +1275,10 @@ void CurInvoiceStatForm::initTable()
     ui->twCost->setColumnWidth(TI_STATE,60);
     ui->twIncome->setColumnWidth(TI_ISPROCESS,80);
     ui->twCost->setColumnWidth(TI_ISPROCESS,80);
+    ui->twIncome->setColumnHidden(TI_SORT_NUM,true);
+    ui->twCost->setColumnHidden(TI_SORT_NUM,true);
+    ui->twIncome->setColumnHidden(TI_SORT_PRIMARY,true);
+    ui->twCost->setColumnHidden(TI_SORT_PRIMARY,true);
 }
 
 void CurInvoiceStatForm::switchHActions(bool on)
@@ -1199,6 +1320,22 @@ void CurInvoiceStatForm::switchVActions(bool on)
         disconnect(ui->actCommRow,SIGNAL(toggled(bool)),this,SLOT(processRowTypeSelected(bool)));
         disconnect(ui->actStartRow,SIGNAL(toggled(bool)),this,SLOT(processRowTypeSelected(bool)));
         disconnect(ui->actEndRow,SIGNAL(toggled(bool)),this,SLOT(processRowTypeSelected(bool)));
+    }
+}
+
+void CurInvoiceStatForm::switchSortChanged(bool on)
+{
+    if(on){
+        connect(ui->rdoPrimary,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
+        connect(ui->rdoNumber,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
+        connect(ui->rdoINum,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
+        connect(ui->rdoName,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
+    }
+    else{
+        disconnect(ui->rdoPrimary,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
+        disconnect(ui->rdoNumber,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
+        disconnect(ui->rdoINum,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
+        disconnect(ui->rdoName,SIGNAL(toggled(bool)),this,SLOT(sortColumnChanged(bool)));
     }
 }
 
@@ -1508,12 +1645,6 @@ bool CurInvoiceStatForm::calFormula(QString formula, Double &v, QTableWidget* tw
     return true;
 }
 
-//指定单元格是否处于范围内的左上角
-bool CurInvoiceStatForm::isLeftTopCorner(int row, int column, CellRange &range)
-{
-    //if(row)
-}
-
 /**
 * @brief 检查表格是否设置了必要的列类型
 * @param colTypes
@@ -1555,7 +1686,6 @@ bool CurInvoiceStatForm::inspectTableData(bool isYs)
         rs = costs;
         t = ui->twCost;
     }
-    QTableWidgetItem* ti;
     QStringList invoices;
     CurInvoiceRecord* r;
     //校验序号的连续性
@@ -1594,8 +1724,6 @@ bool CurInvoiceStatForm::inspectTableData(bool isYs)
         myHelper::ShowMessageBoxError(tr("存在重复发票号码！%1").arg(inums));
         return false;
     }
-
-
     return true;
 }
 
@@ -1608,7 +1736,10 @@ void CurInvoiceStatForm::showInvoiceInfo(int row, CurInvoiceRecord *r)
 {
     QTableWidget* tw = r->isIncome?ui->twIncome:ui->twCost;
     tw->setItem(row,TI_NUMBER,new QTableWidgetItem(QString::number(r->num)));
-    tw->setItem(row,TI_INUMBER,new QTableWidgetItem(r->inum));
+    QTableWidgetItem* ti = new QTableWidgetItem(r->inum);
+    QVariant v; v.setValue<CurInvoiceRecord*>(r);
+    ti->setData(Qt::UserRole,v);
+    tw->setItem(row,TI_INUMBER,ti);
     QString ds;
     if(r->date.isValid())
         ds =r->date.toString(Qt::ISODate);
@@ -1633,6 +1764,25 @@ void CurInvoiceStatForm::showInvoiceInfo(int row, CurInvoiceRecord *r)
     InvoiceProcessItem* pi = new InvoiceProcessItem(r->processState);
     pi->setErrorInfos(r->errors);
     tw->setItem(row,TI_ISPROCESS, pi);
+    tw->setItem(row,TI_SORT_NUM,new QTableWidgetItem(padZero(r->num)));
+    tw->setItem(row,TI_SORT_PRIMARY,new QTableWidgetItem(padZero(row)));
+}
+
+/**
+ * @brief 系统默认表格列的排序是按文本顺序，因此对整数必须填充前导0
+ * @param num
+ * @return
+ */
+QString CurInvoiceStatForm::padZero(int num)
+{
+    if(num < 10)
+        return "000" + QString::number(num);
+    else if(num >= 10 && num < 100)
+        return "00" + QString::number(num);
+    else if(num >= 100 && num < 1000)
+        return "0" + QString::number(num);
+    else
+        return QString::number(num);
 }
 
 void CurInvoiceStatForm::on_btnExpand_toggled(bool checked)
@@ -1750,6 +1900,8 @@ void CurInvoiceStatForm::on_btnImport_clicked()
                 break;
             case CT_MONEY:
                 rc->money = tw->item(r,c)->text().toDouble();
+                if(rc->money == 0)
+                    myHelper::ShowMessageBoxWarning(tr("发票号“%1”未设置金额！").arg(rc->inum));
                 break;
             case CT_TAXMONEY:
                 rc->taxMoney = tw->item(r,c)->text().toDouble();
@@ -1772,7 +1924,15 @@ void CurInvoiceStatForm::on_btnImport_clicked()
         else
             rc->type = (rc->taxMoney != 0);
         rs->append(rc);
+    }    
+    //因为导入后是以原始顺序显示的，因此必须将排序方式复位，且禁用过滤
+    if(!ui->rdoPrimary->isChecked()){
+        switchSortChanged(false);
+        ui->rdoPrimary->setChecked(true);
+        switchSortChanged();
     }
+    if(ui->gbxFilter->isChecked())
+        ui->gbxFilter->setChecked(false);
     t->setRowCount(rs->count());
     switchInvoiceInfo(false);
     for(int i = 0; i < rs->count(); ++i)
@@ -1876,8 +2036,10 @@ void CurInvoiceStatForm::on_actAutoMatch_triggered()
     QList<NameItemAlias *> isolatedAlias;           //系统所有的孤立别名（由前几次匹配的新客户产生）
     isolatedAlias = sm->getAllIsolatedAlias();
 
-    for(int i = 0; i < rs->count(); ++i){
-        CurInvoiceRecord* r = rs->at(i);
+    for(int i = 0; i < t->rowCount(); ++i){
+        if(t->isRowHidden(i))
+            continue;
+        CurInvoiceRecord* r = t->item(i,TI_INUMBER)->data(Qt::UserRole).value<CurInvoiceRecord*>();
         if(r->ni)
             continue;
         InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(t->item(i,TI_CLIENT)) ;
@@ -1926,15 +2088,15 @@ void CurInvoiceStatForm::on_btnVerify_clicked()
             info.append(tr("\n发现有未在凭证集中出现的发票！"));
         myHelper::ShowMessageBoxWarning(info);
     }
-    for(int i = 0; i < incomes->count(); ++i){
+    for(int i = 0; i < ui->twIncome->rowCount(); ++i){
         InvoiceProcessItem* ti = static_cast<InvoiceProcessItem*>(ui->twIncome->item(i,TI_ISPROCESS));
-        CurInvoiceRecord* r = incomes->at(i);
+        CurInvoiceRecord* r = ui->twIncome->item(i,TI_INUMBER)->data(Qt::UserRole).value<CurInvoiceRecord*>();
         ti->setProcessState(r->processState);
         ti->setErrorInfos(r->errors);
     }
-    for(int i = 0; i < costs->count(); ++i){
+    for(int i = 0; i < ui->twCost->rowCount(); ++i){
         InvoiceProcessItem* ti = static_cast<InvoiceProcessItem*>(ui->twCost->item(i,TI_ISPROCESS));
-        CurInvoiceRecord* r = costs->at(i);
+        CurInvoiceRecord* r = ui->twCost->item(i,TI_INUMBER)->data(Qt::UserRole).value<CurInvoiceRecord*>();
         ti->setProcessState(r->processState);
         ti->setErrorInfos(r->errors);
     }
@@ -1987,3 +2149,21 @@ void CurInvoiceStatForm::on_actResolveCol_triggered()
         }
     }
 }
+
+
+//bool byNumberForInvoice(CurInvoiceRecord *r1, CurInvoiceRecord *r2)
+//{
+//    return r1->num < r2->num;
+//}
+
+
+//bool byINumberForInvoice(CurInvoiceRecord *r1, CurInvoiceRecord *r2)
+//{
+//    return r1->inum < r2->inum;
+//}
+
+
+//bool byNameForInvoice(CurInvoiceRecord *r1, CurInvoiceRecord *r2)
+//{
+//    return r1->client < r2->client;
+//}

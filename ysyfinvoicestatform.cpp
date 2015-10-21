@@ -134,6 +134,7 @@ YsYfInvoiceStatForm::YsYfInvoiceStatForm(AccountSuiteManager *amgr, bool init, Q
     else{
         ui->lblTitle->setText(tr("%1月应收应付发票增减情况统计").arg(amgr->month()));
         initCurMonth();
+        ui->btnOk->setEnabled(amgr->getState() == Ps_Jzed);
     }
 }
 
@@ -192,12 +193,12 @@ void YsYfInvoiceStatForm::dataChanged(QTableWidgetItem *item)
 void YsYfInvoiceStatForm::init()
 {
     ui->lblTitle->setText(tr("%1年度应收应付发票增减情况统计").arg(amgr->year()));
-    amgr->scanYsYf(incomes,costs,errors);
+    amgr->scanYsYfForInit(incomes,costs,errors);
     viewRecords();
     viewErrors();
 }
 
-//扫描本月应收应付发票增减情况并综合先前记录的，判定哪些发票增加了、销账了或部分销账
+//扫描本月应收应付发票增减情况并综合先前历史记录，判定哪些发票增加了、销账了或部分销账
 void YsYfInvoiceStatForm::initCurMonth()
 {
     //首先读取保存在表中的记录，然后扫描当前月份并比较判定增加项、不存在项（可以删除）、销账项

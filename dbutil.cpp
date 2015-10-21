@@ -13,8 +13,7 @@
 #include "subject.h"
 #include "accountpropertyconfig.h"
 #include "batemplateform.h"
-//#include "config.h"
-//#include "account.h"
+#include "searchdialog.h"
 
 DbUtil::DbUtil()
 {
@@ -834,6 +833,22 @@ bool DbUtil::saveSuites(QList<AccountSuiteRecord *> &suites)
 bool DbUtil::saveSuite(AccountSuiteRecord *suite)
 {
     return _saveAccountSuite(suite);
+}
+
+/**
+ * @brief 清理科目管理器类的静态数据成员
+ * 这些静态数据成员只在同一个账户内的不同科目管理器对象之间共享，不可跨越账户对象
+ * 因此，在打开另一个账户前必须清理
+ */
+void DbUtil::clearStaticDataMember()
+{
+    SubjectManager::nameItemCls.clear();
+    qDeleteAll(SubjectManager::nameItems);
+    SubjectManager::nameItems.clear();
+    qDeleteAll(SubjectManager::isolatedNames);
+    SubjectManager::isolatedNames.clear();
+    qDeleteAll(SubjectManager::delNameItems);
+    SubjectManager::delNameItems.clear();
 }
 
 /**
@@ -4831,7 +4846,7 @@ bool DbUtil::saveInvoiceRecords(int year, int month, QList<InvoiceRecord *> reco
 }
 
 /**
- * @brief 读取指定帐套应收应付记录项，包括前一年份的下半年
+ * @brief 从应收/应付历史缓存表中读取指定帐套内所有应收应付记录项，包括该帐套前一年份的下半年
  * @param asMgr
  * @param incomes
  * @param costs
@@ -7411,6 +7426,81 @@ bool DbUtil::saveBaTemplateDatas(int type,const QList<InvoiceRowStruct *> &datas
         LOG_SQLERROR("Commit transaction failed on save bauiaction template data!");
         return false;
     }
+    return true;
+}
+
+/**
+ * @brief DbUtil::findPz
+ * @param filter
+ * @param bas
+ * @param count
+ * @param hasnMore
+ * @param nextPage
+ * @return
+ */
+bool DbUtil::findPz(const PzFindFilteCondition &filter, QList<PzFindBaContent *> &bas, bool &hasnMore, int count, bool nextPage)
+{
+    static QSqlQuery q(db);
+    static QString invoice;
+    if(!nextPage){
+        QString ds = QString("%1.%2>='%3' and %1.%2<='%4'").arg(tbl_pz).arg(fld_pz_date)
+                .arg(filter.startDate.toString(Qt::ISODate)).arg(filter.endDate.toString(Qt::ISODate));
+        QString s = QString("select %1.%3,%1.%4,%2.* from %1 join %2 on %1.id==%2.%5 where %6")
+                .arg(tbl_pz).arg(tbl_ba).arg(fld_pz_date).arg(fld_pz_number).arg(fld_ba_pid).arg(ds);
+        if(filter.isInvoiceNumInSummary)
+            invoice = filter.summary;
+        else{
+            invoice.clear();
+            if(!filter.summary.isEmpty())
+                s.append(QString(" and %1.%2 like '%%3%'").arg(tbl_ba).arg(fld_ba_summary).arg(filter.summary));
+        }
+        if(filter.fsub){
+            QString subStr = QString(" and %1.%2=%3").arg(tbl_ba).arg(fld_ba_fid).arg(filter.fsub->getId());
+            if(filter.ssub)
+                subStr.append(QString(" and %1.%2=%3").arg(tbl_ba).arg(fld_ba_sid).arg(filter.ssub->getId()));
+            s.append(subStr);
+        }
+        if(!filter.isPreciseMatch && (filter.vMax != 0 ) || (filter.vMin != 0)){
+            s.append(QString(" and %1.%2>=%3 and %1.%2<=%4").arg(tbl_ba).arg(fld_ba_value)
+                     .arg(filter.vMin.toString2()).arg(filter.vMax.toString2()));
+        }
+        else if(filter.isPreciseMatch){
+            s.append(QString(" and %1.%2==%3").arg(tbl_ba).arg(fld_ba_value).arg(filter.vMax.toString2()));
+        }
+        if(filter.dir != MDIR_P){
+            s.append(QString(" and %1.%2==%3").arg(tbl_ba).arg(fld_ba_dir).arg(filter.dir));
+        }
+        if(!q.exec(s))
+            return false;
+    }
+    int c = 0;
+    while(q.next()){
+        if(!invoice.isEmpty()){
+            QString summary = q.value(BACTION_SUMMARY+2).toString();
+            QStringList inums;
+            PaUtils::extractInvoiceNum2(summary,inums);
+            if(!inums.contains(invoice))
+                continue;
+        }
+        c++;
+        if(c>count)
+            break;
+        PzFindBaContent* c = new PzFindBaContent;
+        c->date = q.value(0).toString();
+        c->pzNum = q.value(1).toInt();
+        c->bid = q.value(2).toInt();
+        c->pid = q.value(BACTION_PID+2).toInt();
+        c->summary = q.value(BACTION_SUMMARY+2).toString();
+        c->fid = q.value(BACTION_FID+2).toInt();
+        c->sid = q.value(BACTION_SID+2).toInt();
+        c->value = q.value(BACTION_VALUE+2).toDouble();
+        c->dir = (MoneyDirection)q.value(BACTION_DIR+2).toInt();
+        c->mt = q.value(BACTION_MTYPE+2).toInt();
+        bas<<c;
+    }
+    hasnMore = q.next();
+    if(hasnMore)
+        q.previous();
     return true;
 }
 

@@ -168,38 +168,3 @@ bool PrintSelectDialog::strToIntSet(QString s, QSet<int> &set)
     }
     return true;
 }
-
-
-//////////////////////////LoginDialog///////////////////////////
-
-
-
-/////////////////////SearchDialog///////////////////////////////////////
-SearchDialog::SearchDialog(QWidget *parent) :
-    QDialog(parent),
-    ui(new Ui::SearchDialog)
-{
-    ui->setupUi(this);
-}
-
-SearchDialog::~SearchDialog()
-{
-    delete ui;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

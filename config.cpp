@@ -2664,16 +2664,6 @@ bool AppConfig::readAllGdzcClasses(QHash<int, GdzcClass *> gcs)
 int AppConfig::getSpecNameItemCls(AppConfig::SpecNameItemClass witch)
 {
     return specNICs.value(witch);
-//    switch(witch){
-//    case SNIC_COMMON_CLIENT:
-//        return 2;
-//    case SNIC_WL_CLIENT:
-//        return 29;
-//    case SNIC_GDZC:
-//        return 6;
-//    case SNIC_BANK:
-//        return 3;
-//    }
 }
 
 /**

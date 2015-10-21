@@ -51,6 +51,7 @@ FirstSubject::FirstSubject(SubjectManager* parent, int id, SubjectClass subcls, 
 FirstSubject::~FirstSubject()
 {
     qDeleteAll(childSubs);
+    childSubs.clear();
 }
 
 void FirstSubject::setCode(QString subCode)
@@ -1001,6 +1002,13 @@ SubjectManager::SubjectManager(Account *account, int subSys):
 {
     dbUtil = account->getDbUtil();
     init();
+}
+
+SubjectManager::~SubjectManager()
+{
+    qDeleteAll(fstSubHash);
+    fstSubHash.clear();
+    sndSubs.clear();
 }
 
 /**

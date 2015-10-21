@@ -101,7 +101,7 @@ void SuiteSwitchPanel::viewBtnClicked()
     QToolButton* curBtn = qobject_cast<QToolButton*>(tw->cellWidget(curRow,COL_OPEN));
     QToolButton* btn;
 
-    if(!curSuite->isSuiteClosed() && curSuite->getState(month) != Ps_Jzed){
+    if(!account->isReadOnly() && !curSuite->isSuiteClosed() && curSuite->getState(month) != Ps_Jzed){
         //在同一帐套内，同时只能打开一个凭证集进行编辑操作，因此打开另一个月份的凭证集前要关闭先前打开的凭证集
         if(curSuite->isPzSetOpened() && curSuite->month() != month){
             if(curSuite->isDirty())

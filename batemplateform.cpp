@@ -9,6 +9,8 @@
 #include "utils.h"
 #include "widgets/bawidgets.h"
 #include "dbutil.h"
+#include "validator.h"
+#include "widgets.h"
 
 #include <QInputDialog>
 #include <QListWidget>
@@ -17,9 +19,6 @@
 #include <QMenu>
 #include <QSpinBox>
 #include <QActionGroup>
-
-#include "widgets.h"
-
 
 InvoiceNumberEdit::InvoiceNumberEdit(QWidget *parent):QLineEdit(parent)
 {
@@ -90,16 +89,6 @@ void InvoiceNumberEdit::invoiceEditCompleted()
 }
 
 ////////////////////////MoneyEdit///////////////////////////////////
-QValidator::State MyDoubleValidator::validate(QString &input, int &pos) const
-{
-    if(input.isEmpty())
-        return QValidator::Acceptable;
-    else
-        return QDoubleValidator::validate(input,pos);
-}
-
-
-
 MoneyEdit::MoneyEdit(QWidget *parent):QLineEdit(parent),isRightBottomCell(false)
 {
     MyDoubleValidator* validator = new MyDoubleValidator(this);

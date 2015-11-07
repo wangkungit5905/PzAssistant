@@ -196,7 +196,8 @@ void PzSearchDialog::on_btnFind_clicked()
     }
     filter.isPreciseMatch = ui->chkPreciseMatch->isChecked();
     filter.dir = MDIR_P;
-    if(ui->gbMoney->isChecked()){
+    filter.isCheckValue = ui->gbMoney->isChecked();
+    if(filter.isCheckValue){
         filter.vMax = ui->spnMaxValue->value();
         if(!filter.isPreciseMatch)
             filter.vMin = ui->spnMinValue->value();
@@ -207,6 +208,7 @@ void PzSearchDialog::on_btnFind_clicked()
                 filter.dir = MDIR_D;
         }
     }
+
     bool hasMore = false;
     if(!account->getDbUtil()->findPz(filter,temRs,hasMore,pageRowCount)){
         myHelper::ShowMessageBoxError(tr("查询出错！"));

@@ -37,9 +37,11 @@
 // We mean it.
 //
 
+
 #include "xlsxglobal.h"
 #include <QVariant>
 #include <QColor>
+#include <QDataStream>
 
 class QXmlStreamWriter;
 class QXmlStreamReader;

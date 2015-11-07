@@ -327,7 +327,11 @@ ViewPzSetErrorForm::ViewPzSetErrorForm(AccountSuiteManager *pzMgr, QByteArray* s
     ui->setupUi(this);
     account = pzMgr->getAccount();
     QSettings setting("./config/infos/errors.ini", QSettings::IniFormat);
-    //setting.setIniCodec(QTextCodec::codecForTr());
+    #ifdef Q_OS_WIN32
+        setting.setIniCodec(QTextCodec::codecForName("UTF-8"));
+    #else
+        setting.setIniCodec(QTextCodec::codecForLocale());
+    #endif
     setting.setIniCodec(QTextCodec::codecForLocale());
 
     QString key = "levels";

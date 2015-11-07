@@ -611,6 +611,7 @@ bool AccountSuiteManager::inspectPzError(QList<PingZhengError*>& errors)
             e->pz = pz;
             e->ba = NULL;
             errors<<e;
+            pzNum = pz->number();
             continue;
         }
         //（1）凭证号连续性
@@ -1696,13 +1697,7 @@ bool AccountSuiteManager::crtJzhdsyPz(int y, int m, QList<PingZheng *> &createdP
     }
     SubjectManager* subMgr=account->getSubjectManager(account->getSuiteRecord(y)->subSys);
     FirstSubject* cwfySub=subMgr->getCwfySub();
-    SecondSubject* hdsySub=0;
-    foreach(SecondSubject* ssub, cwfySub->getChildSubs()){
-        if(ssub->getName() == tr("汇兑损益")){
-            hdsySub = ssub;
-            break;
-        }
-    }
+    SecondSubject* hdsySub=subMgr->getHdsySSub();
     if(!hdsySub){
         QMessageBox::critical(0,tr("错误信息"),tr("不能获取到财务费用下的汇兑损益科目！"));
         return false;

@@ -7460,15 +7460,17 @@ bool DbUtil::findPz(const PzFindFilteCondition &filter, QList<PzFindBaContent *>
                 subStr.append(QString(" and %1.%2=%3").arg(tbl_ba).arg(fld_ba_sid).arg(filter.ssub->getId()));
             s.append(subStr);
         }
-        if(!filter.isPreciseMatch && (filter.vMax != 0 ) || (filter.vMin != 0)){
-            s.append(QString(" and %1.%2>=%3 and %1.%2<=%4").arg(tbl_ba).arg(fld_ba_value)
-                     .arg(filter.vMin.toString2()).arg(filter.vMax.toString2()));
-        }
-        else if(filter.isPreciseMatch){
-            s.append(QString(" and %1.%2==%3").arg(tbl_ba).arg(fld_ba_value).arg(filter.vMax.toString2()));
-        }
-        if(filter.dir != MDIR_P){
-            s.append(QString(" and %1.%2==%3").arg(tbl_ba).arg(fld_ba_dir).arg(filter.dir));
+        if(filter.isCheckValue){
+            if(!filter.isPreciseMatch && (filter.vMax != 0 ) || (filter.vMin != 0)){
+                s.append(QString(" and %1.%2>=%3 and %1.%2<=%4").arg(tbl_ba).arg(fld_ba_value)
+                         .arg(filter.vMin.toString2()).arg(filter.vMax.toString2()));
+            }
+            else if(filter.isPreciseMatch){
+                s.append(QString(" and %1.%2==%3").arg(tbl_ba).arg(fld_ba_value).arg(filter.vMax.toString2()));
+            }
+            if(filter.dir != MDIR_P){
+                s.append(QString(" and %1.%2==%3").arg(tbl_ba).arg(fld_ba_dir).arg(filter.dir));
+            }
         }
         if(!q.exec(s))
             return false;

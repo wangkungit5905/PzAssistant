@@ -10,7 +10,6 @@
 #include "widgets/bawidgets.h"
 #include "dbutil.h"
 #include "validator.h"
-#include "widgets.h"
 
 #include <QInputDialog>
 #include <QListWidget>
@@ -201,6 +200,14 @@ void CustomerNameEdit::hideList(bool isHide)
         resize(width(),com->height());
     else
         resize(width(),200);
+}
+
+/**
+ * @brief 设置编辑框的文本
+ */
+void CustomerNameEdit::setEditText(QString t)
+{
+    com->setEditText(t);
 }
 
 void CustomerNameEdit::itemSelected(QListWidgetItem *item)
@@ -578,6 +585,11 @@ void InvoiceInputDelegate::setEditorData(QWidget *editor, const QModelIndex &ind
             SecondSubject* ssub = index.model()->data(index,Qt::EditRole).value<SecondSubject*>();
             if(ssub)
                 edt->setSSub(ssub);
+            else{
+                SubjectNameItem* ni = index.model()->data(index,Qt::UserRole).value<SubjectNameItem*>();
+                if(ni)
+                    edt->setEditText(ni->getShortName());
+            }
         }
     }
 }
@@ -1028,6 +1040,8 @@ void BaTemplateForm::creatNewNameItemMapping(int row, int col, FirstSubject *fsu
     QVariant v;
     v.setValue<SecondSubject*>(ssub);
     ui->tw->item(row,col)->setData(Qt::EditRole,v);
+    QBrush bk = ui->tw->item(row,CI_MONEY)->background();
+    ui->tw->item(row,CI_CUSTOMER)->setBackground(bk);
     delegate->userConfirmed();
 }
 
@@ -1048,6 +1062,8 @@ void BaTemplateForm::creatNewSndSubject(int row, int col, FirstSubject *fsub, Se
         QVariant v;
         v.setValue<SecondSubject*>(ssub);
         ui->tw->item(row,col)->setData(Qt::EditRole,v);
+        QBrush bk = ui->tw->item(row,CI_MONEY)->background();
+        ui->tw->item(row,CI_CUSTOMER)->setBackground(bk);
         //如果新建的名称对象和别名对象两者简称相同，则如果全称也相同，则可以移除此别名，
         //如果全称不同，则将此别名加入到新建名称对象的别名列表
         if(alias && alias->shortName()==ssub->getName()){
@@ -1261,6 +1277,7 @@ void BaTemplateForm::processContextMenu()
         turnDataInspect(false);
         for(int i = rows.count()-1; i >= 0; i--)
             ui->tw->removeRow(rows.at(i));
+        reCalAllSum();
         turnDataInspect();
     }
     else if(a == ui->actMergerCustomer){
@@ -2464,12 +2481,27 @@ void BaTemplateForm::autoSetInCost(int row, QString inum, bool isIncome)
         SecondSubject * ssub=0;
         if(r->ni)
             ssub = fsub->getChildSub(r->ni);
+        if(!ssub && r->ni){ //在临时科目中查找是否有匹配的科目
+            foreach(SecondSubject* sub,extraSSubs){
+                if(sub->getName() == r->ni->getShortName()){
+                    ssub = sub;
+                    break;
+                }
+            }
+        }
         if(ssub){
             QTableWidgetItem* ti = ui->tw->item(row,CI_CUSTOMER);
             if(ti){
                 QVariant v; v.setValue<SecondSubject*>(ssub);
                 ti->setData(Qt::EditRole,v);
             }
+        }
+        else if(r->ni){
+            QVariant v; v.setValue<SubjectNameItem*>(r->ni);
+            QTableWidgetItem* item = ui->tw->item(row,CI_CUSTOMER);
+            item->setData(Qt::UserRole,v);
+            item->setData(Qt::BackgroundColorRole,QBrush(Qt::lightGray));
+            //item->setData(Qt::ToolTipRole,tip);
         }
     }
     else{

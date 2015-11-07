@@ -122,6 +122,7 @@ public:
     void setSSub(SecondSubject* ssub);
     void hideList(bool isHide);
     //void setLastRow(bool yes){isLastRow=yes;}
+    void setEditText(QString t);
 
 private slots:
     void itemSelected(QListWidgetItem* item);

@@ -958,8 +958,15 @@ void PzDialog::insertBas(QList<BusiAction *> bas)
     int row;
     if(curRow == -1 || curRow >= curPz->baCount())
         row = curPz->baCount();
-    else
-        row = curRow;
+    else{
+        //按当前选择行的位置作为插入位，在选择多行的情况下，如果选择的行连续，则插入到首行，如果不连续，则插入的表尾
+        QList<int> rows;bool isCon = true;
+        ui->tview->selectedRows(rows,isCon);
+        if(rows.isEmpty() || !isCon)
+            row = curPz->baCount();
+        else
+            row = rows.first();
+    }
     QUndoCommand* cmdMain = new QUndoCommand(tr("创建多条分录"));
     for(int i = 0; i < bas.count(); ++i){
         BusiAction* ba = bas.at(i);
@@ -1438,8 +1445,10 @@ void PzDialog::BaDataChanged(QTableWidgetItem *item)
                 else
                     v = curBa->getValue();
                 updateCols |= BUC_MTYPE;
+                updateCols |= BUC_VALUE;
             }
-            updateCols |= BUC_VALUE;
+            else
+                v = curBa->getValue();
         }
         else{//如果是普通科目，且未设币种，则默认将币种设为本币
             if(!curBa->getMt()){

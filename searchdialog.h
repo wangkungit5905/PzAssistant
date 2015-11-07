@@ -17,6 +17,7 @@ struct PzFindFilteCondition{
     QString summary;            //摘要包含的内容
     FirstSubject* fsub;         //一级科目
     SecondSubject* ssub;        //二级科目
+    bool isCheckValue;          //是否检测金额
     bool isPreciseMatch;        //金额是否精确匹配
     Double vMax,vMin;           //金额区间（当精确匹配时，使用vMax表示匹配的金额）
     MoneyDirection dir;         //金额的借贷方向（平表示不考虑方向，或两个方向都考虑）

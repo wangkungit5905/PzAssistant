@@ -266,6 +266,7 @@ private:
     HandMatchClientDialog* handMatchDlg;
     int clientClsId;      //业务客户类别id
 
+    int contextMenuSelectedCol;     //记录表格的水平表头最近一次上下文菜单所选择的列
     QIcon icon_income,icon_cost;
     QHash<int,QString> invoiceStates,invoicesClasses; //发票状态和类别名表
     QHash<int,QColor> invoiceStateColors;

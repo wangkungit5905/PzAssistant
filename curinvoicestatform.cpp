@@ -524,7 +524,7 @@ void InvoiceInfoDelegate::updateEditorGeometry(QWidget *editor, const QStyleOpti
 /////////////////////////////CurInvoiceStatForm/////////////////////////////////
 CurInvoiceStatForm::CurInvoiceStatForm(Account *account, QWidget *parent) :
     QWidget(parent),ui(new Ui::CurInvoiceStatForm),excel(0),handMatchDlg(0),
-    account(account),sort_in(TSC_PRIMARY),sort_cost(TSC_PRIMARY)
+    account(account),sort_in(TSC_PRIMARY),sort_cost(TSC_PRIMARY),contextMenuSelectedCol(-1)
 {
     ui->setupUi(this);
     suiteMgr = account->getSuiteMgr();
@@ -572,8 +572,8 @@ void CurInvoiceStatForm::sheetListContextMeny(const QPoint &pos)
 void CurInvoiceStatForm::tableHHeaderContextMenu(const QPoint &pos)
 {
     QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->currentWidget());
-    int col = tw->horizontalHeader()->logicalIndexAt(pos);
-    QTableWidgetItem* hi = tw->horizontalHeaderItem(col);
+    contextMenuSelectedCol = tw->horizontalHeader()->logicalIndexAt(pos);
+    QTableWidgetItem* hi = tw->horizontalHeaderItem(contextMenuSelectedCol);
     CurInvoiceColumnType colType = CT_NONE;
     if(hi)
         colType = (CurInvoiceColumnType)hi->data(Qt::UserRole).toInt();
@@ -698,19 +698,19 @@ void CurInvoiceStatForm::processColTypeSelected(bool checked)
     QTableWidgetItem* hi = 0;
     if(colType != CT_NONE)
         resetTableHeadItem(colType,tw);
-    QPoint pos = tw->horizontalHeader()->mapFromGlobal(mapToGlobal(mnuColTypes->pos()));
-    int col = tw->horizontalHeader()->logicalIndexAt(pos);
-    hi = tw->horizontalHeaderItem(col);
+    //QPoint pos = tw->horizontalHeader()->mapFromGlobal(mapToGlobal(mnuColTypes->pos()));
+    //contextMenuSelectedCol = tw->horizontalHeader()->logicalIndexAt(pos);
+    hi = tw->horizontalHeaderItem(contextMenuSelectedCol);
     if(!hi)
         hi = new QTableWidgetItem;
     QString colTitle;
     if(colType == CT_NONE)
-        colTitle = QString::number(col+1);
+        colTitle = QString::number(contextMenuSelectedCol+1);
     else
         colTitle = getColTypeText(colType);
     hi->setData(Qt::UserRole,colType);
     hi->setText(colTitle);
-    tw->setHorizontalHeaderItem(col,hi);
+    tw->setHorizontalHeaderItem(contextMenuSelectedCol,hi);
 }
 
 void CurInvoiceStatForm::processRowTypeSelected(bool checked)

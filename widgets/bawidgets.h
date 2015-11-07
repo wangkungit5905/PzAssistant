@@ -47,7 +47,6 @@ class BASndSubItem_new : public QTableWidgetItem
 {
 public:
     BASndSubItem_new(SecondSubject* ssub, SubjectManager* subMgr, int type = QTableWidgetItem::UserType + 2);
-
     QVariant data(int role) const;
     void setData(int role, const QVariant &value);
 

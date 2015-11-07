@@ -183,26 +183,23 @@ QVariant BASndSubItem_new::data(int role) const
 {
     if (role == Qt::TextAlignmentRole)
         return (int)Qt::AlignCenter;
-    if(ssub && role == Qt::ToolTipRole){
-        QString tip = ssub->getLName();
-        if(subMgr->isBankSndSub(ssub)){
-            BankAccount* ba = subMgr->getBankAccount(ssub);
-            tip.append(QObject::tr("\n账户：%1\n是否基本户：%2").arg(ba->accNumber).
-                       arg(ba->parent->isMain?yesStr:noStr));
-//            tip.append("\n").append(QObject::tr("账号：%1\n").arg(ba->accNumber));
-//            tip.append(QObject::tr("是否基本户："));
-//            if(ba->bank->isMain)
-//                tip.append(yesStr);
-//            else
-//                tip.append(noStr);
+    if(role == Qt::ToolTipRole){
+        QString tip;
+        if(ssub){
+            tip = ssub->getLName();
+            if(subMgr->isBankSndSub(ssub)){
+                BankAccount* ba = subMgr->getBankAccount(ssub);
+                tip.append(QObject::tr("\n账户：%1\n是否基本户：%2").arg(ba->accNumber).
+                           arg(ba->parent->isMain?yesStr:noStr));
+                return tip;
+            }
         }
-        return tip;
     }
     if(role == Qt::DisplayRole){
-        if(!ssub)
-            return "";
-        else
+        if(ssub)
             return ssub->getName();
+        else
+            return "";
     }
 
     if(role == Qt::EditRole){
@@ -215,8 +212,9 @@ QVariant BASndSubItem_new::data(int role) const
 
 void BASndSubItem_new::setData(int role, const QVariant &value)
 {
-    if(role == Qt::EditRole)
+    if(role == Qt::EditRole){
         ssub = value.value<SecondSubject*>();
+    }
     QTableWidgetItem::setData(role, value);
 }
 

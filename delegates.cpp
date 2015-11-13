@@ -136,6 +136,13 @@ SndSubComboBox::SndSubComboBox(SecondSubject* ssub, FirstSubject* fsub, SubjectM
         item->setData(Qt::UserRole, v);
         lw->addItem(item);
     }
+    if(fsub){
+        for(int i = 0; i < lw->count(); ++i){
+            SecondSubject* ssub = fsub->getChildSub(lw->item(i)->text());
+            if(!ssub)
+                lw->item(i)->setData(Qt::ForegroundRole,QBrush(Qt::darkGray));
+        }
+    }
     if(AppConfig::getInstance()->ssubFirstlyInputMothed())
         setFocusProxy(com);
 }

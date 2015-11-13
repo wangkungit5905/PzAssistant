@@ -537,6 +537,24 @@ CurInvoiceStatForm::~CurInvoiceStatForm()
     delete ui;
 }
 
+/**
+ * @brief 双击列表项读取表格
+ * @param item
+ */
+void CurInvoiceStatForm::doubleItemReadSheet(QListWidgetItem *item)
+{
+    if(item->data(DR_READED).toBool())
+        return;
+    int index = ui->lwSheets->row(item);
+    ui->stackedWidget->setCurrentIndex(index);
+    QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(index));
+    if(!readSheet(index,tw))
+       myHelper::ShowMessageBoxError(tr("读取表单“%1”时出错！").arg(ui->lwSheets->item(index)->text()));
+    else
+       item->setData(DR_READED,true);
+    ui->stackedWidget->setCurrentWidget(tw);
+}
+
 void CurInvoiceStatForm::curSheetChanged(int index)
 {
     if(index<0 || index >= ui->lwSheets->count())
@@ -559,9 +577,9 @@ void CurInvoiceStatForm::sheetListContextMeny(const QPoint &pos)
     //注意：只有在读取后未导入时，才提供菜单
     QListWidgetItem* li = ui->lwSheets->itemAt(pos);
     QMenu *m = new QMenu(this);
-    bool readTag = li->data(DR_READED).toBool();
-    if(!readTag)
-        m->addAction(ui->actReadSheet);
+    //bool readTag = li->data(DR_READED).toBool();
+    //if(!readTag)
+    //    m->addAction(ui->actReadSheet);
     InvoiceType type = (InvoiceType)li->data(DR_ITYPE).toInt();
     ui->actYS->setChecked(type == IT_INCOME);
     ui->actYF->setChecked(type == IT_COST);
@@ -698,8 +716,6 @@ void CurInvoiceStatForm::processColTypeSelected(bool checked)
     QTableWidgetItem* hi = 0;
     if(colType != CT_NONE)
         resetTableHeadItem(colType,tw);
-    //QPoint pos = tw->horizontalHeader()->mapFromGlobal(mapToGlobal(mnuColTypes->pos()));
-    //contextMenuSelectedCol = tw->horizontalHeader()->logicalIndexAt(pos);
     hi = tw->horizontalHeaderItem(contextMenuSelectedCol);
     if(!hi)
         hi = new QTableWidgetItem;
@@ -1136,7 +1152,6 @@ void CurInvoiceStatForm::filteTextChanged(QString text)
 void CurInvoiceStatForm::init()
 {    
     initKeys();
-    //initColMaps();
     icon_income = QIcon(":/images/invoiceType/i_income.png");
     icon_cost = QIcon(":/images/invoiceType/i_cost.png");
     invoiceStates[1] = QObject::tr("正常");
@@ -1182,6 +1197,7 @@ void CurInvoiceStatForm::init()
     expandPreview(false);
     connect(ui->lwSheets,SIGNAL(customContextMenuRequested(QPoint)),this,SLOT(sheetListContextMeny(QPoint)));
     connect(ui->lwSheets,SIGNAL(currentRowChanged(int)),this,SLOT(curSheetChanged(int)));
+    connect(ui->lwSheets,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(doubleItemReadSheet(QListWidgetItem*)));
     connect(ui->actYS,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
     connect(ui->actYF,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
     initTable();
@@ -1233,18 +1249,6 @@ void CurInvoiceStatForm::initKeys()
     colTitleKeys[CT_WBMONEY] = cfg->getCurInvoiceColumnTitle(CT_WBMONEY);
     colTitleKeys[CT_SFINFO] = cfg->getCurInvoiceColumnTitle(CT_SFINFO);
 }
-
-//void CurInvoiceStatForm::initColMaps()
-//{
-//    colMaps[CT_NUMBER] = TI_NUMBER;
-//    colMaps[CT_DATE] = TI_DATE;
-//    colMaps[CT_INVOICE] = TI_INUMBER;
-//    colMaps[CT_CLIENT] = TI_CLIENT;
-//    colMaps[CT_MONEY] = TI_MONEY;
-//    colMaps[CT_WBMONEY] = TI_WBMONEY;
-//    colMaps[CT_TAXMONEY] = TI_TAXMONEY;
-//    colMaps[CT_SFINFO] = TI_SFINFO;
-//}
 
 void CurInvoiceStatForm::initTable()
 {
@@ -1942,7 +1946,11 @@ void CurInvoiceStatForm::on_btnImport_clicked()
 
 void CurInvoiceStatForm::on_btnBrowser_clicked()
 {
-    QString fileName = QFileDialog::getOpenFileName(this,tr("请选择作为应收应付发票数据源的Excel文件！"),".","*.xlsx");
+    QString dirName = QApplication::applicationDirPath()+"/files/"+account->getSName()+"/";
+    QDir d(dirName);
+    if(!d.exists())
+        d.mkpath(dirName);
+    QString fileName = QFileDialog::getOpenFileName(this,tr("请选择作为应收应付发票数据源的Excel文件！"),dirName,"*.xlsx");
     if(fileName.isEmpty())
         return;
     ui->edtFilename->setText(fileName);
@@ -1957,21 +1965,17 @@ void CurInvoiceStatForm::on_btnBrowser_clicked()
         QWidget* w = ui->stackedWidget->widget(i);
         ui->stackedWidget->removeWidget(w);
     }
-    qDeleteAll(tws);
-    tws.clear();
     QStringList sheets = excel->sheetNames();
     if(sheets.isEmpty())
         return;
     for(int i = 0; i < sheets.count(); ++i){
-        QTableWidget* tw = new QTableWidget(this);
-        tw->setSelectionBehavior(QAbstractItemView::SelectRows);
         QListWidgetItem* li = new QListWidgetItem(sheets.at(i),ui->lwSheets);
         li->setData(DR_STARTROW,-1);
         li->setData(DR_ENDROW,-1);
         li->setData(DR_ITYPE,IT_NONE);
         li->setData(DR_READED,false);  //表单未装载标记
-        clientMatches<<QHash<QString, SubjectNameItem*>();
-
+        QTableWidget* tw = new QTableWidget(this);
+        tw->setSelectionBehavior(QAbstractItemView::SelectRows);
         tw->horizontalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
         tw->verticalHeader()->setContextMenuPolicy(Qt::CustomContextMenu);
         connect(tw->horizontalHeader(),SIGNAL(customContextMenuRequested(QPoint)),
@@ -1981,16 +1985,6 @@ void CurInvoiceStatForm::on_btnBrowser_clicked()
         ui->stackedWidget->addWidget(tw);
     }
     qApp->restoreOverrideCursor();
-}
-
-void CurInvoiceStatForm::on_actReadSheet_triggered()
-{
-    int index = ui->lwSheets->currentRow();
-    QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(index));
-    if(!readSheet(index,tw))
-       myHelper::ShowMessageBoxError(tr("读取表单“%1”时出错！").arg(ui->lwSheets->item(index)->text()));
-    else
-       ui->lwSheets->currentItem()->setData(DR_READED,true);
 }
 
 void CurInvoiceStatForm::on_btnSave_clicked()
@@ -2149,21 +2143,3 @@ void CurInvoiceStatForm::on_actResolveCol_triggered()
         }
     }
 }
-
-
-//bool byNumberForInvoice(CurInvoiceRecord *r1, CurInvoiceRecord *r2)
-//{
-//    return r1->num < r2->num;
-//}
-
-
-//bool byINumberForInvoice(CurInvoiceRecord *r1, CurInvoiceRecord *r2)
-//{
-//    return r1->inum < r2->inum;
-//}
-
-
-//bool byNameForInvoice(CurInvoiceRecord *r1, CurInvoiceRecord *r2)
-//{
-//    return r1->client < r2->client;
-//}

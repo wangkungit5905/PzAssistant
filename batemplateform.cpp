@@ -154,10 +154,20 @@ QString CustomerNameEdit::customerName()
         return "";
 }
 
+/**
+ * @brief CustomerNameEdit::setFSub
+ * @param fsub
+ * @param extraSubs 临时建立的属于该一级科目的额外二级科目
+ */
 void CustomerNameEdit::setFSub(FirstSubject *fsub, const QList<SecondSubject*> &extraSubs)
 {
     if(this->fsub != fsub){
         this->fsub = fsub;
+        for(int i = 0; i < lw->count(); ++i){
+            SecondSubject* ssub = fsub->getChildSub(lw->item(i)->text());
+            if(!ssub)
+                lw->item(i)->setData(Qt::ForegroundRole,QBrush(Qt::darkGray));
+        }
         QList<SecondSubject *> subs = fsub->getChildSubs();
         QVariant v;
         if(!extraSubs.isEmpty()){
@@ -169,6 +179,7 @@ void CustomerNameEdit::setFSub(FirstSubject *fsub, const QList<SecondSubject*> &
                     v.setValue(sub->getNameItem());
                     QListWidgetItem *item = new QListWidgetItem(sub->getNameItem()->getShortName());
                     item->setData(Qt::UserRole, v);
+                    item->setForeground(QBrush(Qt::darkGray));
                     lw->insertItem(row,item);
                 }
             }
@@ -176,6 +187,11 @@ void CustomerNameEdit::setFSub(FirstSubject *fsub, const QList<SecondSubject*> &
         foreach(SecondSubject* sub, subs){
             v.setValue(sub);
             com->addItem(sub->getName(),v);
+        }
+        if(!extraSubs.isEmpty()){
+            int index = fsub->getChildCount();
+            for(int i = index; i < com->count(); ++i)
+                com->setItemData(i,QColor(Qt::darkGray),Qt::ForegroundRole);
         }
         com->setCurrentIndex(-1);
     }
@@ -358,7 +374,8 @@ bool CustomerNameEdit::eventFilter(QObject *obj, QEvent *event)
         int keyCode = e->key();
         if(lw->isHidden()){
             if((keyCode == Qt::Key_Return) || (keyCode == Qt::Key_Enter)){
-                emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,true/*!isLastRow*/);
+                nameTexteditingFinished();
+                emit dataEditCompleted(BaTemplateForm::CI_CUSTOMER,true);
                 return true;
             }
         }
@@ -1042,6 +1059,16 @@ void BaTemplateForm::creatNewNameItemMapping(int row, int col, FirstSubject *fsu
     ui->tw->item(row,col)->setData(Qt::EditRole,v);
     QBrush bk = ui->tw->item(row,CI_MONEY)->background();
     ui->tw->item(row,CI_CUSTOMER)->setBackground(bk);
+    //遍历表格，将其他匹配到新名称对象的行也设置为新建的科目
+    for(int i = 0; i < ui->tw->rowCount()-1; ++i){
+        if(i == row)
+            continue;
+        SubjectNameItem* no = ui->tw->item(i,CI_CUSTOMER)->data(Qt::UserRole).value<SubjectNameItem*>();
+        if(!no || no->getShortName() != ni->getShortName())
+            continue;
+        ui->tw->item(i,CI_CUSTOMER)->setData(Qt::EditRole,v);
+        ui->tw->item(i,CI_CUSTOMER)->setBackground(bk);
+    }
     delegate->userConfirmed();
 }
 
@@ -1064,6 +1091,16 @@ void BaTemplateForm::creatNewSndSubject(int row, int col, FirstSubject *fsub, Se
         ui->tw->item(row,col)->setData(Qt::EditRole,v);
         QBrush bk = ui->tw->item(row,CI_MONEY)->background();
         ui->tw->item(row,CI_CUSTOMER)->setBackground(bk);
+        //遍历表格，将其他匹配到新名称对象的行也设置为新建的科目
+        for(int i = 0; i < ui->tw->rowCount()-1; ++i){
+            if(i == row)
+                continue;
+            SubjectNameItem* no = ui->tw->item(i,CI_CUSTOMER)->data(Qt::UserRole).value<SubjectNameItem*>();
+            if(!no || no->getShortName() != ni->getShortName())
+                continue;
+            ui->tw->item(i,CI_CUSTOMER)->setData(Qt::EditRole,v);
+            ui->tw->item(i,CI_CUSTOMER)->setBackground(bk);
+        }
         //如果新建的名称对象和别名对象两者简称相同，则如果全称也相同，则可以移除此别名，
         //如果全称不同，则将此别名加入到新建名称对象的别名列表
         if(alias && alias->shortName()==ssub->getName()){
@@ -1150,8 +1187,8 @@ void BaTemplateForm::contextMenuRequested(const QPoint &pos)
     if(!item || item->row() == ui->tw->rowCount()-1)
         return;
     QMenu m;
-    m.addAction(ui->actCopy);
     m.addAction(ui->actCut);
+    m.addAction(ui->actCopy);
     QList<int> rows = selectedRows();
     if(!buffers.isEmpty()){
         m.addAction(ui->actPaste);
@@ -1607,6 +1644,8 @@ void BaTemplateForm::createBankIncomeBas()
         }
     }
     else{
+        QHash<int,Double> rates;
+        amgr->getRates(rates);
         if(sumWm != bv){
             diff = sumWm - bv;
             QDialog dlg(this);
@@ -1630,8 +1669,6 @@ void BaTemplateForm::createBankIncomeBas()
             lm->addLayout(&lh);lm->addLayout(&lb);
             dlg.setLayout(lm);
             dlg.resize(200,100);
-            QHash<int,Double> rates;
-            amgr->getRates(rates);
             if(dlg.exec() == QDialog::Accepted){
                 diff = vBox.value();
                 QString s = tr("手续费（%1%2）").arg(wmt->simpleSign()).arg(diff.toString());
@@ -1641,6 +1678,9 @@ void BaTemplateForm::createBankIncomeBas()
             }
             else
                 diff = sumZm - bv*rates.value(wmt->code());
+        }
+        else{
+            diff = sumZm - bv*rates.value(wmt->code());
         }
     }
     if(diff != 0)

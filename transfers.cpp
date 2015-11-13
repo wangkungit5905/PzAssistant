@@ -968,10 +968,19 @@ void TransferOutDialog::on_btnOk_clicked()
     DontTranReason reason;
     if(!canTransferOut(reason))
         return;
+    QString desDir = ui->edtDir->text();
+    if(desDir.isEmpty()){
+        myHelper::ShowMessageBoxWarning("请指定账户文件保存路径！");
+        return;
+    }
+    QDir d(desDir);
+    if(!d.exists()){
+        myHelper::ShowMessageBoxWarning(tr("指定的账户文件保存路径不存在！"));
+        return;
+    }
     AccountTransferUtil trUtil;
     AccountCacheItem* aci = accCacheItems.at(ui->cmbAccount->currentIndex());
     QString infos;
-    QString desDir = ui->edtDir->text();
     WorkStation* desWs = localMacs.at(ui->cmbMachines->currentIndex());
     bool isTake = isTakeAppConInfo();
     TakeAppCfgInfos cfgs;
@@ -1242,6 +1251,12 @@ BatchOutputDialog::BatchOutputDialog(QWidget *parent) :
     }
     ui->cmbMacs->setCurrentIndex(-1);
     connect(ui->cmbMacs,SIGNAL(currentIndexChanged(int)),this,SLOT(selectMacChanged(int)));
+    QString desDir = appCfg->getDirName(AppConfig::DIR_TRANSOUT);
+    if(desDir.isEmpty())
+        return;
+    QDir d(desDir);
+    if(d.exists())
+        ui->edtDir->setText(desDir);
 }
 
 BatchOutputDialog::~BatchOutputDialog()
@@ -1300,8 +1315,13 @@ void BatchOutputDialog::on_btnOk_clicked()
     }
     QString desDir = ui->edtDir->text();
     if(desDir.isEmpty()){
-        desDir = appCfg->getDirName(AppConfig::DIR_TRANSOUT);
-        ui->edtDir->setText(desDir);
+        myHelper::ShowMessageBoxWarning(tr("请指定账户文件保存路径！"));
+        return;
+    }
+    QDir d(desDir);
+    if(!d.exists()){
+        myHelper::ShowMessageBoxWarning(tr("指定的账户文件保存路径不存在！"));
+        return;
     }
     ui->stateTxt->appendPlainText(tr("您选择了 %1 个账户，批量转出至文件夹“%2”\n")
                                   .arg(sels.count()).arg(desDir));

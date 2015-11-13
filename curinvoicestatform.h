@@ -18,6 +18,7 @@ class CurInvoiceStatForm;
 using namespace QXlsx;
 
 class QTableWidget;
+class QListWidgetItem;
 class QActionGroup;
 class QMenu;
 class QPushButton;
@@ -190,6 +191,7 @@ public:
     ~CurInvoiceStatForm();
 
 private slots:
+    void doubleItemReadSheet(QListWidgetItem *item);
     void curSheetChanged(int index);
     void sheetListContextMeny(const QPoint &pos);
     void tableHHeaderContextMenu(const QPoint &pos);
@@ -214,8 +216,6 @@ private slots:
     void on_btnImport_clicked();
 
     void on_btnBrowser_clicked();
-
-    void on_actReadSheet_triggered();
 
     void on_btnSave_clicked();
 
@@ -251,12 +251,9 @@ private:
 
     Ui::CurInvoiceStatForm *ui;
     QXlsx::Document *excel;
-    QList<QTableWidget*> tws;
     QActionGroup *ag1,*ag2,*ag3; //组合管理列类型设置
     QMenu *mnuRowTypes, *mnuColTypes; //设置行、列类型的上下文菜单
     QHash<CurInvoiceColumnType,QStringList> colTitleKeys;     //特定列所对应的敏感名称
-    //QHash<CurInvoiceColumnType,TableIndex> colMaps;  //特定列类型列索引映射表
-    QList<QHash<QString, SubjectNameItem*> > clientMatches;
     Account* account;
     SubjectManager* sm;
     AccountSuiteManager* suiteMgr;
@@ -272,9 +269,5 @@ private:
     QHash<int,QColor> invoiceStateColors;
     QHash<int,QColor> invoiceClassColors;  //表达普票/专票的颜色
 };
-
-//bool byNumberForInvoice(CurInvoiceRecord* r1,CurInvoiceRecord* r2);
-//bool byINumberForInvoice(CurInvoiceRecord* r1,CurInvoiceRecord* r2);
-//bool byNameForInvoice(CurInvoiceRecord* r1,CurInvoiceRecord* r2);
 
 #endif // CURINVOICESTATFORM_H

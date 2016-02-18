@@ -1,6 +1,6 @@
 #define VER_MASTE 1
 #define VER_SECOND 1
-#define VER_REVISION 8
-#define BUILD_STR "git-101-b815106"
-#define BUILD_NUMBER "101"
-#define APP_BUILD_DATE "2015-11-04"
+#define VER_REVISION 10
+#define BUILD_STR "git-103-50b0782"
+#define BUILD_NUMBER "103"
+#define APP_BUILD_DATE "2016-02-18"

@@ -20,9 +20,11 @@
 class QUndoStack;
 class QUndoView;
 class QProgressBar;
+class QShortcut;
 
 class WorkStation;
 class PzSearchDialog;
+class LockApp;
 
 namespace Ui {
     class MainWindow;
@@ -206,6 +208,8 @@ private slots:
     void printProcess();
     void localStationChanged(WorkStation* ws);
     void openBusiTemplate();
+    void lockWindow();
+    void unlockWindow();
 
     void on_actAddPz_triggered();
 
@@ -385,6 +389,8 @@ private:
 
     void loadSettings();
     void createTray();
+    void adjustInterfaceForLock();
+    void setAppTitle();
 
     Ui::MainWindow *ui;
 
@@ -426,6 +432,8 @@ private:
     QHash<int,int> historyPzMonth;                 //每个账套视图当前装载的历史凭证的月份数
     QList<ExternalToolCfgItem*> eTools;            //外部工具配置项列表
     AppConfig* appCon;
+    LockApp* lockObj;
+    bool tagLock;
 
 public:
     bool showSplashScreen_;
@@ -437,5 +445,23 @@ public:
     QMenu *trayMenu_;
     QAction *_actShowMainWindow;
     QSystemTrayIcon *_traySystem;
+    QShortcut* sc_lock;
  };
+
+/*!
+ * \brief The LockApp class
+ */
+class LockApp : public QObject{
+    Q_OBJECT
+public:
+    LockApp(MainWindow* parent);
+
+protected:
+    bool	eventFilter(QObject * obj, QEvent * event);
+signals:
+    void unlock();
+private:
+    MainWindow* mainWin;
+};
+
 #endif // MAINWINDOW_H

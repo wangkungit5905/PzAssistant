@@ -332,7 +332,7 @@ ViewPzSetErrorForm::ViewPzSetErrorForm(AccountSuiteManager *pzMgr, QByteArray* s
     #else
         setting.setIniCodec(QTextCodec::codecForLocale());
     #endif
-    setting.setIniCodec(QTextCodec::codecForLocale());
+    //setting.setIniCodec(QTextCodec::codecForLocale());
 
     QString key = "levels";
     setting.beginGroup(key);

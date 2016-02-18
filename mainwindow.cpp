@@ -13,6 +13,7 @@
 #include <QUndoView>
 #include <QProgressBar>
 #include <QBuffer>
+#include <QShortcut>
 
 #include "ui_mainwindow.h"
 #include "mainapplication.h"
@@ -467,7 +468,7 @@ int mdiAreaWidth;
 int mdiAreaHeight;
 
 MainWindow::MainWindow(QWidget *parent) :QMainWindow(parent),ui(new Ui::MainWindow),
-    isMinimizeToTray_(false)
+    isMinimizeToTray_(false),lockObj(0),tagLock(false)
 {
     ui->setupUi(this);
     setCentralWidget(ui->mdiArea);
@@ -505,6 +506,8 @@ MainWindow::MainWindow(QWidget *parent) :QMainWindow(parent),ui(new Ui::MainWind
     connect(ui->mdiArea,SIGNAL(subWindowActivated(QMdiSubWindow*)),this,SLOT(subWindowActivated(QMdiSubWindow*)));
 
     loadSettings();
+    sc_lock = new QShortcut(QKeySequence(tr("Ctrl+L")),this);
+    connect(sc_lock,SIGNAL(activated()),this,SLOT(lockWindow()));
     rfLogin();
     ui->statusbar->setUser(curUser);
     if(!curUser)
@@ -515,8 +518,7 @@ MainWindow::MainWindow(QWidget *parent) :QMainWindow(parent),ui(new Ui::MainWind
     AccountCacheItem* ci = appCon->getRecendOpenAccount();
     if(ci){
         if(!AccountVersionMaintain(ci->fileName)){
-            setWindowTitle(QString("%1---%2").arg(appTitle)
-                           .arg(tr("无账户被打开")));
+            setAppTitle();
             return;
         }        
         curAccount = new Account(ci->fileName);
@@ -535,12 +537,11 @@ MainWindow::MainWindow(QWidget *parent) :QMainWindow(parent),ui(new Ui::MainWind
         if(curAccount)
             delete curAccount;
         curAccount = NULL;
-        setWindowTitle(QString("%1---%2").arg(appTitle)
-                       .arg(tr("无账户被打开")));
+        setAppTitle();
         return;
     }
     accountInit(ci);
-    setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
+    setAppTitle();
     rfMainAct(curUser);
     refreshShowPzsState();
 }
@@ -1162,8 +1163,7 @@ void MainWindow::openAccount()
 
     AccountCacheItem* ci =dlg->getAccountCacheItem();
     if(!ci || !AccountVersionMaintain(ci->fileName)){
-        setWindowTitle(QString("%1---%2").arg(appTitle)
-                       .arg(tr("无账户被打开")));
+        setAppTitle();
         rfMainAct(curUser);
         return;
     }
@@ -1185,11 +1185,11 @@ void MainWindow::openAccount()
         if(curAccount)
             delete curAccount;
         curAccount = NULL;
-        setWindowTitle(QString("%1---%2").arg(appTitle).arg(tr("无账户被打开")));
+        setAppTitle();
         rfMainAct(curUser);
         return;
     }
-    setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
+    setAppTitle();
     appCon->setRecentOpenAccount(ci->code);
     accountInit(ci);
     rfMainAct(curUser);
@@ -1861,7 +1861,7 @@ void MainWindow::_closeAccount()
         AppConfig::getInstance()->clearRecentOpenAccount();
     delete curAccount;
     curAccount = NULL;
-    setWindowTitle(tr("会计凭证处理系统---无账户被打开"));
+    setAppTitle();
     rfMainAct(curUser);
 }
 
@@ -1890,7 +1890,12 @@ bool MainWindow::isExecAccountTransform()
 //退出应用
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if(appCon->minToTrayClose()){
+    if(tagLock){
+        myHelper::ShowMessageBoxWarning(tr("应用已被锁定，请登录后再关闭！"));
+        event->ignore();
+        return;
+    }
+    else if(appCon->minToTrayClose()){
         hide();
         event->ignore();
         return;
@@ -2857,6 +2862,74 @@ void MainWindow::openBusiTemplate()
         return;
     }
     w->openBusiactionTemplate(type);
+}
+
+void MainWindow::lockWindow()
+{
+    if(!lockObj){
+        lockObj = new LockApp(this);
+        connect(lockObj,SIGNAL(unlock()),this,SLOT(unlockWindow()));
+    }
+    tagLock=true;
+    adjustInterfaceForLock();
+    this->setEnabled(false);
+    installEventFilter(lockObj);
+}
+
+void MainWindow::unlockWindow()
+{
+    QDialog d;
+    d.setWindowTitle(tr("登录系统"));
+    QLabel lu(tr("用户"),&d);
+    QLabel lp(tr("密码"),&d);
+    QComboBox cmbUsers(&d);
+    cmbUsers.addItem(curUser->getName(),curUser->getUserId());
+    if(!curUser->isAdmin()){
+        foreach(User* u, allUsers.values()){
+            if(u->isAdmin())
+                cmbUsers.addItem(u->getName(),u->getUserId());
+        }
+    }
+    if(!curUser->isSuperUser()){
+        foreach(User* u, allUsers.values()){
+            if(u->isSuperUser())
+                cmbUsers.addItem(u->getName(),u->getUserId());
+        }
+    }
+    QLineEdit ep(&d);
+    ep.setEchoMode(QLineEdit::Password);
+    QGridLayout lg;
+    lg.addWidget(&lu,0,0,1,1);
+    lg.addWidget(&cmbUsers,0,1,1,1);
+    lg.addWidget(&lp,1,0,1,1);
+    lg.addWidget(&ep,1,1,1,1);
+    QPushButton btnOk(tr("确定"),&d),btnCancel(tr("取消"),&d);
+    QHBoxLayout lb;
+    lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
+    connect(&btnOk,SIGNAL(clicked()),&d,SLOT(accept()));
+    connect(&btnCancel,SIGNAL(clicked()),&d,SLOT(reject()));
+    QVBoxLayout* lm = new QVBoxLayout;
+    lm->addLayout(&lg); lm->addLayout(&lb);
+    d.setLayout(lm);
+    d.resize(300,200);
+    if(d.exec() == QDialog::Rejected)
+        return;
+    int uid = cmbUsers.currentData().toInt();
+    User* u = allUsers.value(uid);
+    if(!u)
+        return;
+    if(!u->verifyPw(ep.text())){
+        myHelper::ShowMessageBoxWarning(tr("密码不正确！"));
+        return;
+    }
+    if(u != curUser){
+        curUser=u;
+        rfLogin();
+    }
+    removeEventFilter(lockObj);
+    tagLock=false;
+    adjustInterfaceForLock();
+     this->setEnabled(true);
 }
 
 //处理添加凭证动作事件
@@ -4276,6 +4349,40 @@ void MainWindow::createTray()
     _traySystem->show();
 }
 
+/*!
+ * \brief 当应用锁定时，隐藏菜单、工具条、子窗口、浮动窗口、状态条，并在窗口标题中显示锁定状态
+ */
+void MainWindow::adjustInterfaceForLock()
+{
+    ui->menubar->setVisible(!tagLock);
+    ui->statusbar->setVisible(!tagLock);
+    ui->tbrMain->setVisible(!tagLock);
+    ui->tbrAdvanced->setVisible(!tagLock);
+    ui->tbrBaTemplate->setVisible(!tagLock);
+    ui->tbrEdit->setVisible(!tagLock);
+    ui->tbrPzEdit->setVisible(!tagLock);
+    ui->tbrPzs->setVisible(!tagLock);
+    ui->mdiArea->setVisible(!tagLock);
+    foreach(QWidget* w, dockWindows)
+        w->setVisible(!tagLock);
+    setAppTitle();
+}
+
+/*!
+ * \brief MainWindow::setAppTitle()
+ */
+void MainWindow::setAppTitle()
+{
+    if(tagLock)
+        setWindowTitle(QString("%1---%2").arg(appTitle).arg(tr("应用被锁定")));
+    else{
+        if(curAccount)
+            setWindowTitle(QString("%1---%2").arg(appTitle).arg(curAccount->getLName()));
+        else
+            setWindowTitle(QString("%1---%2").arg(appTitle).arg(tr("无账户被打开")));
+    }
+}
+
 //显示账户属性对话框
 void MainWindow::on_actAccProperty_triggered()
 {
@@ -4411,80 +4518,7 @@ void MainWindow::on_actBatchImport_triggered()
 
 bool MainWindow::impTestDatas()
 {
-//    CurInvoiceStatForm* form = new CurInvoiceStatForm(curAccount);
-//    connect(form,SIGNAL(openRelatedPz(int,int)),this,SLOT(openSpecPz(int,int)));
-//    QMdiSubWindow* w = ui->mdiArea->addSubWindow(form);
-//    w->resize(1000,600);
-//    w->show();
 
-
-
-//    int r = 10;
-//    int a = r & 8;
-//    a = r & 4;
-//    a = r & 2;
-//    r &= 0;
-//    r |= 2;
-//    r |= 4;
-//    r |= 8;
-//    r &= 11;
-
-//    QDate d(2015,7,2);
-//    qint64 ii = d.toJulianDay();
-//    qint64 ii = 4218700;
-//    QDate d = QDate::fromJulianDay(ii);
-
-//    QDate d1(1900,1,1);
-//    qint64 dt1 = d1.toJulianDay();
-//    QDate d2(1970,1,1);
-//    qint64 dt2 = d2.toJulianDay();
-//    qint64 diff = dt2-dt1;
-//    QDate d3(2015,7,2);
-//    qint64 dt3 = d3.toJulianDay();
-//    QDate d = QDate::fromJulianDay((42187-diff)*100);
-//    int days1 = d2.daysTo(d3);
-//    int days2 = d1.daysTo(d3);
-
-//    QDate dd = QDate::fromJulianDay(dt1+42187-2);
-
-//    QDateTime local(QDateTime::currentDateTime());
-//    QDateTime UTC(local.toUTC());
-//    qDebug() << "Local time is:" << local;
-//    qDebug() << "UTC time is:" << UTC;
-//    qDebug() << "No difference between times:" << local.secsTo(UTC);
-    int i = 0;
-    //
-    //
-//    QString t1 = "=SUM(E3:F3)";
-//    QString t2 = "=E5+F5";
-//    QRegExp re("=([A-Z])(\\d{1,3})\\+([A-Z])(\\d{1,3})");
-//    int pos = re.indexIn(t2);
-//    pos = re.indexIn(t1);
-//    pos++;
-//    QRegExp re("=SUM\\(([A-Z])(\\d{1,3}):([A-Z])(\\d{1,3})\\)");
-//    QString t1 = "=SUM(E3:F3)";
-//    QString t2 = "=SUM(E55:F55)";
-//    int pos = re.indexIn(t1);
-//    pos = re.indexIn(t2);
-//    QString cap0 = re.cap();
-//    int count = re.captureCount();
-//    int i = 0;
-
-//    QString formula = "=SUM(E3:F3)";
-//    QRegExp re("=(SUM)\\(([A-Z])(\\d{1,3}):([A-Z])(\\d{1,3})\\)");
-//    int pos = re.indexIn(formula);
-//    if(pos != 0)
-//        return false;
-//    if(re.captureCount() != 5)
-//        return false;
-//    if(re.cap(1) != "SUM")
-//        return false;
-//    int lc = re.cap(2).at(0).toLatin1() - 'A';
-//    int lr = re.cap(3).toInt();
-//    int rc = re.cap(4).at(0).toLatin1() - 'A';
-//    int rr = re.cap(5).toInt();
-//    if(lr != rr)
-//        return false;
 }
 
 /**
@@ -4562,4 +4596,26 @@ void MainWindow::on_actICManage_triggered()
     subWinGroups.value(suiteId)->showSubWindow(SUBWIN_INCOST,dlg,winfo);
     if(winfo)
         delete winfo;
+}
+
+////////////////////////////////////////////LockApp///////////////////////////////////////
+LockApp::LockApp(MainWindow *parent):QObject(parent),mainWin(parent)
+{
+
+}
+
+bool LockApp::eventFilter(QObject *obj, QEvent *event)
+{
+    if(obj == mainWin){
+        if (event->type() == QEvent::KeyPress) {
+            QKeyEvent *keyEvent = static_cast<QKeyEvent*>(event);
+            if(!keyEvent->modifiers().testFlag(Qt::ControlModifier))
+                return false;
+            int key = keyEvent->key();
+            if(key != Qt::Key_U)
+                return false;
+            emit unlock();
+            return true;
+        }
+    }
 }

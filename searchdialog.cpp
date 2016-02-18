@@ -116,19 +116,9 @@ void PzSearchDialog::dateScopeChanged(bool on)
     if(!on)
         return;
     QRadioButton* b = qobject_cast<QRadioButton*>(sender());
-    if(b == ui->rdoCurSuilte){
-        setDateScopeForSuite();
+     setDateScope();
+    if(b == ui->rdoCurSuilte || b == ui->rdoCurPzSet)
         enDateScopeEdit(false);
-    }
-    else if(b == ui->rdoCurPzSet){
-        int y = sMgr->getSuiteRecord()->year;
-        int m = sMgr->month();
-        QDate d(y,m,1);
-        ui->deStart->setDate(d);
-        d.setDate(y,m,d.daysInMonth());
-        ui->deEnd->setDate(d);
-        enDateScopeEdit(false);
-    }
     else if(b == ui->rdoDateLimit)
         enDateScopeEdit(true);
 }
@@ -234,7 +224,7 @@ void PzSearchDialog::init()
     connect(ui->cmbFSub,SIGNAL(currentIndexChanged(int)),this,SLOT(fsubSelectChanged(int)));
     ui->cmbFSub->setCurrentIndex(0);
     connect(ui->deStart,SIGNAL(dateChanged(QDate)),this,SLOT(startDateChanged(QDate)));
-    setDateScopeForSuite();
+    setDateScope();
     if(sMgr->month() == 0)
         ui->rdoCurPzSet->setEnabled(false);
     enDateScopeEdit(false);
@@ -250,17 +240,37 @@ void PzSearchDialog::init()
     ui->btnExpand->setIcon(QIcon(":/images/arrow-up"));
 }
 
-void PzSearchDialog::setDateScopeForSuite()
+/*!
+ * \brief PzSearchDialog::setDateScopeForAccount
+ *  设定搜索的时间范围
+ */
+void PzSearchDialog::setDateScope()
 {
-    AccountSuiteRecord* r = sMgr->getSuiteRecord();
-    QDate d(r->year,r->startMonth,1);
-    ui->deStart->setMinimumDate(d);
-    ui->deStart->setDate(d);
-    d.setDate(r->year,r->endMonth,1);
-    d.setDate(r->year,r->endMonth,d.daysInMonth());
-    ui->deStart->setMaximumDate(d);
-    ui->deEnd->setMaximumDate(d);
-    ui->deEnd->setDate(d);
+    QDate sd,ed;
+    if(ui->rdoCurSuilte->isChecked()){
+        AccountSuiteRecord* r = sMgr->getSuiteRecord();
+        if(r){
+            sd = QDate(r->year,r->startMonth,1);
+            ed = QDate(r->year,r->endMonth,1);
+            ed.setDate(r->year,r->endMonth,ed.daysInMonth());
+        }
+    }
+    else if(ui->rdoCurPzSet->isChecked()){
+        int y = sMgr->getSuiteRecord()->year;
+        int m = sMgr->month();
+        sd = QDate(y,m,1);
+        ed = QDate(y,m,sd.daysInMonth());
+    }
+    else{
+        sd= account->getStartDate();
+        ed = account->getEndDate();
+    }
+    ui->deStart->setMinimumDate(sd);
+    ui->deStart->setMaximumDate(ed);
+    ui->deStart->setDate(sd);
+    ui->deEnd->setMinimumDate(sd);
+    ui->deEnd->setMaximumDate(ed);
+    ui->deEnd->setDate(ed);
 }
 
 void PzSearchDialog::enDateScopeEdit(bool en)

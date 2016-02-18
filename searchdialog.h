@@ -89,7 +89,7 @@ signals:
 
 private:
     void init();
-    void setDateScopeForSuite();
+    void setDateScope();
     void enDateScopeEdit(bool en);
     void viewPage(int pageNum);
 

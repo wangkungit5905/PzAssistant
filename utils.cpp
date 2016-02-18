@@ -5599,7 +5599,7 @@ QString PaUtils::terseInvoiceNumsWithMonth(QList<int> months, QList<QStringList>
         return "";
     QString mergeNums;
     for(int i = 0; i < inums.count(); ++i){
-        mergeNums.append(QObject::tr(" %1月%2").arg(months.at(i))
+        mergeNums.append(QObject::tr(" %1月%2").arg(abs(months.at(i)))
                          .arg(terseInvoiceNums(inums.at(i))));
     }
     return mergeNums.trimmed();

@@ -55,7 +55,7 @@
 #include "ysyfinvoicestatform.h"
 #include "curinvoicestatform.h"
 #include "searchdialog.h"
-
+#include "jxtaxmgrform.h"
 
 
 
@@ -806,6 +806,7 @@ void MainWindow::accountInit(AccountCacheItem* ci)
     connect(curSSPanel,SIGNAL(prepareClosePzSet(AccountSuiteManager*,int)),this,SLOT(prepareClosePzSet(AccountSuiteManager*,int)));
     connect(curSSPanel,SIGNAL(pzsetClosed(AccountSuiteManager*,int)),this,SLOT(pzSetClosed(AccountSuiteManager*,int)));
     dockWindows.value(TV_SUITESWITCH)->setWidget(curSSPanel);
+    ui->actJxTaxMgr->setEnabled(curAccount->isJxTaxManaged());
 }
 
 //动态更新窗口菜单
@@ -4520,7 +4521,9 @@ void MainWindow::on_actBatchImport_triggered()
 
 bool MainWindow::impTestDatas()
 {
-
+    QString cName;
+    PaUtils::extractCustomerName("应付宁波茗晗运费00590192",cName);
+    int i = 0;
 }
 
 /**
@@ -4598,6 +4601,15 @@ void MainWindow::on_actICManage_triggered()
     subWinGroups.value(suiteId)->showSubWindow(SUBWIN_INCOST,dlg,winfo);
     if(winfo)
         delete winfo;
+}
+
+/**
+ * @brief MainWindow::on_actJxTaxMgr_triggered
+ */
+void MainWindow::on_actJxTaxMgr_triggered()
+{
+    JxTaxMgrDlg* dlg = new JxTaxMgrDlg(curAccount);
+    dlg->show();
 }
 
 ////////////////////////////////////////////LockApp///////////////////////////////////////

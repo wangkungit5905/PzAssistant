@@ -14,6 +14,7 @@
 #include "accountpropertyconfig.h"
 #include "batemplateform.h"
 #include "searchdialog.h"
+#include "jxtaxmgrform.h"
 
 DbUtil::DbUtil()
 {
@@ -29,6 +30,7 @@ DbUtil::DbUtil()
     pNames[CSUITE] = "currentSuite";
     pNames[SUITENAME] = "suiteNames";
     pNames[LASTACCESS] = "lastAccessTime";
+    pNames[ISJXTAXMGR] = "isJxTaxManaged";
     pNames[LOGFILE] = "logFileName";
     pNames[DBVERSION] = "db_version";
 
@@ -608,6 +610,9 @@ bool DbUtil::initAccount(Account::AccountInfo &infos)
             mv = sl.first().toInt();
             sv = sl.last().toInt();
             break;
+        case ISJXTAXMGR:
+            infos.isJxTaxManaged = q.value(1).toBool();
+            break;
         }
     }
 
@@ -667,6 +672,8 @@ bool DbUtil::saveAccountInfo(Account::AccountInfo &infos)
     if(infos.dbVersion != oldInfos.dbVersion && !saveAccInfoPiece(DBVERSION,infos.dbVersion))
         return false;
     if(infos.logFileName != oldInfos.logFileName && !saveAccInfoPiece(LOGFILE,infos.logFileName))
+        return false;
+    if(infos.isJxTaxManaged ^ oldInfos.isJxTaxManaged && !saveAccInfoPiece(ISJXTAXMGR,infos.isJxTaxManaged?"1":"0"))
         return false;
     //保存外币列表
     bool changed = false;
@@ -5170,6 +5177,33 @@ bool DbUtil::saveIsolatedNameAlias(NameItemAlias *nameAlias)
     return true;
 }
 
+/**
+ * @brief 读取指定发票号码的成本发票的税额、金额与客户名
+ * @param inum
+ * @param tax
+ * @param money
+ * @param client
+ * @return
+ */
+bool DbUtil::readCostInvoiceForTax(QString inum, Double &tax, Double &money, QString &client)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where %2='%3'").arg(tbl_cur_invoices).arg(fld_ci__iNumber).arg(inum);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first()){
+        tax = q.value(FI_CI_TAXMONEY).toDouble();
+        money = q.value(FI_CI_MONEY).toDouble();
+        client = q.value(FI_CI_CLIENT).toString();
+    }
+    return true;
+}
+
+
+
+
 
 /**
  * @brief DbUtil::saveAccInfoPiece
@@ -7506,4 +7540,303 @@ bool DbUtil::findPz(const PzFindFilteCondition &filter, QList<PzFindBaContent *>
     return true;
 }
 
+/**
+ * @brief DbUtil::crtJxTaxTable
+ * @return
+ * 创建进项税发票历史缓存表
+ */
+bool DbUtil::crtJxTaxTable()
+{
+    if(tableExist(tblJxTax))
+        return true;
+    QSqlQuery q(db);
+    QString sql = QString("create table %1(id INTEGER PRIMARY KEY,%2 TEXT,%3 INTEGER,%4 TEXT,%5 INTEGER,%6 TEXT,%7 REAL,%8 REAL)")
+            .arg(tblJxTax).arg(fld_jt_pz).arg(fld_jt_ba).arg(fld_jt_invoice).arg(fld_jt_sndSub).arg(fld_jt_date).arg(fld_jt_tax).arg(fld_jt_money);
+    if(!q.exec(sql)){
+        LOG_SQLERROR(sql);
+        return false;
+    }
+    sql = QString("create table %1(id INTEGER PRIMARY KEY,year INTEGER, month INTEGER, %2 TEXT,%3 REAL,%4 REAL,%5 TEXT)")
+            .arg(tblCurAuthInvoices).arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_client);
+    if(!q.exec(sql)){
+        LOG_SQLERROR(sql);
+        return false;
+    }
+    //按约定，该表的第一行记录的发票号码字段存放认证年月信息，长度与发票号一致8位，
+    //前导的两个字符是“AA”，后面是4位年份和2位月份；税额字段存放税额合计金额，客户字段存放“TAX AMOUNT”
+//    sql = QString("insert into %1(%2,%3,%4,%5) values('AA000000',0,0,'%6')").arg(tblCurAuthInvoices)
+//            .arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_client).arg(fld_taxamount_tag);
+//    if(!q.exec(sql)){
+//        LOG_SQLERROR(sql);
+//        return false;
+//    }
+    return true;
+}
+
+/**
+ * @brief 清除指定年月认证发票信息
+ * @param y
+ * @param m
+ * @return
+ */
+bool DbUtil::clearCurAutoInv(int y, int m)
+{
+    QSqlQuery q(db);
+    QString s = QString("");
+    return true;
+}
+
+/**
+ * @brief DbUtil::读取本月认证成本发票进项税的合计
+ * @param y
+ * @param m
+ * @param value
+ * @return
+ */
+bool DbUtil::readCurAuthCostInvAmount(int y, int m, Double &value)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1 from %2 where year=%3 and month=%4 and %5='%6'").arg(fld_caci_taxMoney)
+            .arg(tblCurAuthInvoices).arg(y).arg(m).arg(fld_caci_num).arg(fld_taxamount_tag);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.first())
+        value = q.value(1).toDouble();
+    return true;
+}
+
+/**
+ * @brief 更新本月认证成本发票进项税的合计
+ * @param y
+ * @param m
+ * @param value
+ * @return
+ */
+bool DbUtil::updateCurAuthCostInvAmount(int y, int m, Double value)
+{
+    QSqlQuery q(db);
+    if(y<1000 || y > 9999 || m < 1 || m > 12)
+        return false;
+    QString s = QString("update %1 set %2=%3 where year=%4 and month=%5 and %6='%7'").arg(tblCurAuthInvoices)
+            .arg(fld_caci_taxMoney).arg(value.toString2()).arg(y).arg(m).arg(fld_caci_num).arg(fld_taxamount_tag);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(q.numRowsAffected() != 1){
+        s = QString("insert into %1(year,month,%2,%3) values(%4,%5,%6,'%7')").arg(tblCurAuthInvoices)
+                .arg(fld_caci_taxMoney).arg(fld_caci_num).arg(y).arg(m).arg(value.toString2()).arg(fld_taxamount_tag);
+        if(!q.exec(s)){
+            LOG_SQLERROR(s);
+            return false;
+        }
+    }
+    return true;
+}
+
+/**
+ * @brief 读取本月认证成本发票进项税信息
+ * @param y
+ * @param m
+ * @param rs
+ * @return
+ */
+bool DbUtil::readCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo *> &rs)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 where year==%2 and month==%3 and %4!='%5'").arg(tblCurAuthInvoices)
+            .arg(y).arg(m).arg(fld_caci_num).arg(fld_taxamount_tag);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while(q.next()){
+        CurAuthCostInvoiceInfo* ri = new CurAuthCostInvoiceInfo;
+        ri->edited = false;
+        ri->id = q.value(0).toInt();
+        ri->cName = q.value(fld_caci_client).toString();
+        ri->inum = q.value(fld_caci_num).toString();
+        ri->taxMoney = q.value(fld_caci_taxMoney).toDouble();
+        ri->money = q.value(fld_caci_money).toDouble();
+        rs<<ri;
+    }
+    return true;
+}
+
+/**
+ * @brief 更新本月认证成本发票进项税信息
+ * @param y
+ * @param m
+ * @param rs
+ * @return
+ */
+bool DbUtil::saveCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo *> rs)
+{
+    if(rs.isEmpty())
+        return true;
+    QSqlQuery q1(db),q2(db);
+    QString s = QString("update %1 set %2=:inum,%3=:tax,%4=:money,%5=:client where id=:id").arg(tblCurAuthInvoices)
+            .arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_client);
+    if(!q1.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("insert into %1(year,month,%2,%3,%4,%5) values(:year,:month,:inum,:tax,:money,:client)").arg(tblCurAuthInvoices)
+            .arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_client);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!db.transaction()){
+        LOG_SQLERROR("Start transaction failed on save current month cost invoice infomations!");
+        return false;
+    }
+    foreach(CurAuthCostInvoiceInfo* ri,rs){
+        if(ri->edited == false)
+            continue;
+        else if(ri->id!=0){
+            q1.bindValue(":inum",ri->inum);
+            q1.bindValue(":tax",ri->taxMoney.toString2());
+            q1.bindValue(":money",ri->money.toString2());
+            q1.bindValue(":client",ri->cName);
+            q1.bindValue(":id",ri->id);
+            if(!q1.exec()){
+                LOG_SQLERROR(q1.lastQuery());
+                return false;
+            }
+        }
+        else{
+            q2.bindValue(":year",y);
+            q2.bindValue(":month",m);
+            q2.bindValue(":inum",ri->inum);
+            q2.bindValue(":tax",ri->taxMoney.toString2());
+            q2.bindValue(":money",ri->money.toString2());
+            q2.bindValue(":client",ri->cName);
+            if(!q2.exec()){
+                LOG_SQLERROR(q2.lastQuery());
+                return false;
+            }
+        }
+    }
+    if(!db.commit()){
+        LOG_SQLERROR("Commit transaction failed on save current month cost invoice infomations!");
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 读取历史未认证成本发票信息
+ * @param rs
+ * @return
+ */
+bool DbUtil::readHisNotAuthCostInvoices(SubjectManager* sm, QList<HisAuthCostInvoiceInfo *> &rs)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1").arg(tblJxTax);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    while (q.next()) {
+        HisAuthCostInvoiceInfo* ri = new HisAuthCostInvoiceInfo;
+        ri->id = q.value(0).toInt();
+        ri->pzNum = q.value(fld_jt_pz).toString();
+        ri->iNum = q.value(fld_jt_invoice).toString();
+        ri->date = q.value(fld_jt_date).toString();
+        int subId = q.value(fld_jt_sndSub).toInt();
+        ri->client = sm->getSndSubject(subId);
+        ri->taxMoney = q.value(fld_jt_tax).toDouble();
+        ri->money = q.value(fld_jt_money).toDouble();
+        ri->baId = q.value(fld_jt_ba).toInt();
+        rs<<ri;
+    }
+    return true;
+}
+
+/**
+ * @brief 保存历史未认证成本发票信息
+ * @param rs
+ * @return
+ */
+bool DbUtil::updateHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> rs)
+{
+    QSqlQuery q1(db),q2(db);
+    QString s = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8) values(:pzNum,:baId,:inum,:sub,:date,:tax,:money)")
+            .arg(tblJxTax).arg(fld_jt_pz).arg(fld_jt_ba).arg(fld_jt_invoice).arg(fld_jt_sndSub).arg(fld_jt_date).arg(fld_jt_tax).arg(fld_jt_money);
+    if(!q1.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    s = QString("update %1 set %2=:pzNum,%3=:baId,%4=:inum,%5=:sub,%6=:date,%7=:tax,%8=:money where id=:id")
+             .arg(tblJxTax).arg(fld_jt_pz).arg(fld_jt_ba).arg(fld_jt_invoice).arg(fld_jt_sndSub).arg(fld_jt_date).arg(fld_jt_tax).arg(fld_jt_money);
+    if(!q2.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    if(!db.transaction()){
+        return false;
+    }
+    foreach (HisAuthCostInvoiceInfo* ri, rs) {
+        if(ri->id == 0){
+            q1.bindValue(":pzNum",ri->pzNum);
+            q1.bindValue(":baId",ri->baId);
+            q1.bindValue(":inum",ri->iNum);
+            q1.bindValue(":sub",ri->client->getId());
+            q1.bindValue(":date",ri->date);
+            q1.bindValue(":tax",ri->taxMoney.toString2());
+            q1.bindValue(":money",ri->money.toString2());
+            if(!q1.exec()){
+                LOG_SQLERROR(q1.lastQuery());
+                return false;
+            }
+        }
+        else{
+            q2.bindValue(":pzNum",ri->pzNum);
+            q2.bindValue(":baId",ri->baId);
+            q2.bindValue(":inum",ri->iNum);
+            q2.bindValue(":sub",ri->client->getId());
+            q2.bindValue(":date",ri->date);
+            q2.bindValue(":tax",ri->taxMoney.toString2());
+            q2.bindValue(":money",ri->money.toString2());
+            if(!q2.exec()){
+                LOG_SQLERROR(q1.lastQuery());
+                return false;
+            }
+        }
+    }
+    if(!db.commit()){
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief 移除历史未认证成本发票信息
+ * @param rs
+ * @return
+ */
+bool DbUtil::removeHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> &rs)
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where id=:id").arg(tblJxTax);
+    if(!q.prepare(s)){
+        LOG_SQLERROR(s);
+        return false;
+    }
+    foreach (HisAuthCostInvoiceInfo* ri, rs) {
+        if(ri->id == 0)
+            continue;
+        q.bindValue(":id", ri->id);
+        if(!q.exec()){
+            LOG_SQLERROR(q.lastQuery());
+            return false;
+        }
+    }
+    qDeleteAll(rs);
+    rs.clear();
+    return true;
+}
 

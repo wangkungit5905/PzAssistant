@@ -37,7 +37,7 @@
      <x>0</x>
      <y>0</y>
      <width>1052</width>
-     <height>24</height>
+     <height>28</height>
     </rect>
    </property>
    <widget class="QMenu" name="mnufile">
@@ -107,6 +107,7 @@
      <addaction name="actAllInstat"/>
      <addaction name="actPzErrorInspect"/>
      <addaction name="actICManage"/>
+     <addaction name="actJxTaxMgr"/>
     </widget>
     <addaction name="separator"/>
     <addaction name="mnuEndProcess"/>
@@ -1045,8 +1046,7 @@
   <action name="actPzErrorInspect">
    <property name="icon">
     <iconset theme="检查凭证中出现的会影响统计结果的错误">
-     <normaloff/>
-    </iconset>
+     <normaloff>.</normaloff>.</iconset>
    </property>
    <property name="text">
     <string>凭证错误检测</string>
@@ -1366,6 +1366,14 @@
    </property>
    <property name="toolTip">
     <string>对当月收入/成本发票进行验证和统计</string>
+   </property>
+  </action>
+  <action name="actJxTaxMgr">
+   <property name="text">
+    <string>进项税发票管理</string>
+   </property>
+   <property name="toolTip">
+    <string>进项税发票管理</string>
    </property>
   </action>
  </widget>

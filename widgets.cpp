@@ -1066,3 +1066,23 @@ void StyledWidget::paintEvent(QPaintEvent *event)
     QPainter p(this);
     style()->drawPrimitive(QStyle::PE_Widget, &opt, &p, this);
 }
+
+
+////////////////////////////////DemandedEdit///////////////////////////////
+DemandedEdit::DemandedEdit(QWidget *parent):QLineEdit(parent)
+{
+    setReadOnly(true);
+    connect(this,SIGNAL(editingFinished()),this,SLOT(editingFinished()));
+}
+
+void DemandedEdit::mouseDoubleClickEvent(QMouseEvent *e)
+{
+    if(e->button() == Qt::LeftButton)
+        setReadOnly(false);
+    QLineEdit::mouseDoubleClickEvent(e);
+}
+
+void DemandedEdit::editingFinished()
+{
+    setReadOnly(true);
+}

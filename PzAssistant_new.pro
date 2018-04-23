@@ -129,7 +129,8 @@ SOURCES += main.cpp\
     batemplateform.cpp \
     ysyfinvoicestatform.cpp \
     curinvoicestatform.cpp \
-    searchdialog.cpp
+    searchdialog.cpp \
+    jxtaxmgrform.cpp
 
 HEADERS  += \
     config.h \
@@ -217,7 +218,8 @@ HEADERS  += \
     ysyfinvoicestatform.h \
     curinvoicestatform.h \
     common/validator.h \
-    searchdialog.h
+    searchdialog.h \
+    jxtaxmgrform.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -291,7 +293,8 @@ FORMS    += \
     forms/batemplateform.ui \
     forms/ysyfinvoicestatform.ui \
     forms/curinvoicestatform.ui \
-    forms/pzsearchdialog.ui
+    forms/pzsearchdialog.ui \
+    forms/jxtaxmgrform.ui
 
 INCLUDEPATH +=  $$PWD/application \
                 $$PWD/common

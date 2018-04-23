@@ -14,6 +14,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QDialog>
+#include <QLineEdit>
 
 #include "commdatastruct.h"
 #include "common.h"
@@ -379,6 +380,20 @@ public:
 
 protected:
     virtual void paintEvent(QPaintEvent * event);
+};
+
+/**
+ * @brief 平时是只读，双击后变可编辑，编辑结束后恢复只读
+ */
+class DemandedEdit : public QLineEdit
+{
+    Q_OBJECT
+public:
+    DemandedEdit(QWidget* parent=0);
+protected:
+    void	mouseDoubleClickEvent(QMouseEvent *e);
+private slots:
+    void editingFinished();
 };
 
 #endif // WIDGETS_H

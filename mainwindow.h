@@ -342,6 +342,8 @@ private slots:
 
     void on_actICManage_triggered();
 
+    void on_actJxTaxMgr_triggered();
+
 private:
     void _closeAccount();
     bool isExecAccountTransform();

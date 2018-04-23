@@ -5543,7 +5543,7 @@ bool PaUtils::extractOnlyInvoiceNum(QString summary, QString &invoiceNumber, Dou
 
 bool PaUtils::extractCustomerName(QString summary, QString &name)
 {
-    QString pattern = QObject::tr("(%1|%2)(.{1,})(运费\\s)")
+    QString pattern = QObject::tr("(%1|%2)(.{1,})(运费)")
             .arg(QObject::tr("收")).arg(QObject::tr("付"));
     QRegExp re_m(pattern);
     int pos = re_m.indexIn(summary);

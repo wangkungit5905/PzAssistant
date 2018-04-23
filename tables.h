@@ -595,6 +595,36 @@ const int FI_CI_STATE = 12;
 const int FI_CI_SKSTATE = 13;
 const int FI_CI_ISPROCESS = 14;
 
+//进项税历史缓存表（保存当月进成本但又未认证的专票）
+const QString tblJxTax = "jxTaxHistorys";
+const QString fld_jt_pz = "pzNum";               //记录该发票的凭证（xxxx年xx月xxx#）
+const QString fld_jt_ba = "baId";                //与发票对应的分录id
+const QString fld_jt_invoice    = "invoiceNum";  //发票号
+const QString fld_jt_sndSub = "subject";         //发票客户对应的应付账款下的二级科目
+const QString fld_jt_date = "date";              //开票日期
+const QString fld_jt_tax    = "taxMoney";        //进项税额
+const QString fld_jt_money = "money";            //发票金额
+const int FI_JX_PZ = 1;
+const int FI_JX_BA = 2;
+const int FI_JX_INVOICE = 3;
+const int FI_JX_SUB = 4;
+const int FI_JX_DATE = 5;
+const int FI_JX_TAX = 6;
+const int FI_JX_MONEY = 7;
+
+//本月认证成本发票暂存表
+const QString tblCurAuthInvoices = "curAuthCostInvoices";
+//前三字段分别是id，year，month
+const QString fld_caci_num = "inum";            //发票号
+const QString fld_caci_taxMoney = "taxMoney";   //税额
+const QString fld_caci_money = "money";         //发票金额
+const QString fld_caci_client = "clientName";   //发票对应客户
+const int FI_CACI_NUM = 3;
+const int FI_CACI_TAXMONEY = 4;
+const int FI_CACI_MONEY = 5;
+const int FI_CACI_CLIENT = 6;
+const QString fld_taxamount_tag = "TAX AMOUNT";     //该表存放每月认证进项税额合计值记录的标记发票号字段
+
 
 //////////*****************基本库数据表********************************//////////
 //币种类别表

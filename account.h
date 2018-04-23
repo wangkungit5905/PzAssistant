@@ -70,7 +70,8 @@ public:
         QString dbVersion;                  //账户文件版本号
         QString logFileName;                //账户日志文件
         QString fileName;                   //账户文件名
-        AccountTranferInfo* transInfo;       //账户转移信息
+        AccountTranferInfo* transInfo;      //账户转移信息
+        bool isJxTaxManaged;                //是否需要进项税管理
     };
 
 
@@ -171,6 +172,8 @@ public:
     bool isImportSubSys(int code);
     bool isSubSysConfiged(int code);
 
+    bool isJxTaxManaged(){return accInfos.isJxTaxManaged;}
+    void setJxTaxManaged(bool ok){accInfos.isJxTaxManaged=ok;}
     bool isConvertExtra(int year);
     //bool convertExtra(QHash<int,Double>& sums, QHash<int,MoneyDirection>& dirs, const QHash<int, int> maps);
     bool convertExtra2(int year, QHash<int,Double>& fsums, QHash<int,MoneyDirection>& fdirs, QHash<int, Double> &dsums, QHash<int, MoneyDirection> &ddirs);

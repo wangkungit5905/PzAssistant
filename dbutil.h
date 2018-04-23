@@ -25,6 +25,8 @@ struct SmartSSubAdapteItem;
 struct InvoiceRowStruct;
 struct PzFindFilteCondition;
 struct PzFindBaContent;
+struct CurAuthCostInvoiceInfo;
+struct HisAuthCostInvoiceInfo;
 
 class DbUtil
 {
@@ -41,6 +43,7 @@ public:
         CSUITE    = 11,          //账户当前帐套年份
         SUITENAME = 12,          //帐套名列表
         LASTACCESS= 13,          //账户最后访问时间
+        ISJXTAXMGR = 14,        //是否需要进项进项税管理
         LOGFILE   = 50,          //与该账户相关的日志文件名
         DBVERSION = 51           //账户文件的版本号（用来表示数据库内表格的变动）
     };
@@ -238,7 +241,7 @@ public:
     bool saveCurInvoice(int y, int m, const QList<CurInvoiceRecord*> &records);
     bool clearCurInvoice(int y, int m,int scope=0);
     bool saveIsolatedNameAlias(NameItemAlias* nameAlias);
-
+    bool readCostInvoiceForTax(QString inum,Double &tax,Double &money,QString &client);
 
     //分录模板数据访问函数
     bool existBaTemlateDatas(int type);
@@ -247,10 +250,23 @@ public:
 
     bool findPz(const PzFindFilteCondition &filter, QList<PzFindBaContent*> &bas, bool &hasnMore, int count=100,bool nextPage=false);
 
+    //进项税发票管理类函数
+    bool crtJxTaxTable();
+    bool clearCurAutoInv(int y,int m);
+    bool readCurAuthCostInvAmount(int y, int m,Double& value);
+    bool updateCurAuthCostInvAmount(int y, int m,Double value);
+    bool readCurAuthCostInvoices(int y,int m,QList<CurAuthCostInvoiceInfo*>& rs);
+    bool saveCurAuthCostInvoices(int y,int m,QList<CurAuthCostInvoiceInfo*> rs);
+    bool readHisNotAuthCostInvoices(SubjectManager *sm, QList<HisAuthCostInvoiceInfo*> &rs);
+    bool updateHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo*> rs);
+    bool removeHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> &rs);
+
 private:
     bool saveAccInfoPiece(InfoField code, QString value);
     bool _readAccountSuites(QList<AccountSuiteRecord*>& suites);
     bool _saveAccountSuite(AccountSuiteRecord* suite);
+
+
 
     //科目相关
     bool _saveFirstSubject(FirstSubject* sub);

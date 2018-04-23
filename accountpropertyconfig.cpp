@@ -51,6 +51,7 @@ void ApcBase::init()
     ui->startDate->setDate(account->getStartDate());
     ui->endDate->setDate(account->getEndDate());
     ui->edtMMt->setText(account->getMasterMt()->name());
+    ui->chkJxTaxMgr->setChecked(account->isJxTaxManaged());
     foreach(Money* mt, wbs){
         QListWidgetItem* item = new QListWidgetItem(mt->name());
         QVariant v; v.setValue<Money*>(mt);
@@ -111,6 +112,10 @@ void ApcBase::windowShallClosed()
         tag = true;
         account->setLName(ui->edtLName->text());
     }
+    if(ui->chkJxTaxMgr->isChecked() ^ account->isJxTaxManaged()){
+        tag = true;
+        account->setJxTaxManaged(ui->chkJxTaxMgr->isChecked());
+    }
     //如果外币数目不同或相同但币种不同，则认为外币发生了改变
 //    if(wbs.count() != account->getWaiMt().count()){
 //        account->setWaiMts(wbs);
@@ -128,8 +133,11 @@ void ApcBase::windowShallClosed()
 //            }
 //        }
 //    }
-    if(tag)
+    if(tag){
         account->saveAccountInfo();
+        if(account->isJxTaxManaged())
+            account->getDbUtil()->crtJxTaxTable();
+    }
 }
 
 void ApcBase::textEdited()

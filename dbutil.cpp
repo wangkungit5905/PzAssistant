@@ -1936,7 +1936,8 @@ bool DbUtil::readAllWbExtraForFSub(int y, int m, QList<int> sids, QList<int> mts
     foreach(int mt, mts){
         if(!_readExtraPoint(y,m,mt,pid))
             return false;
-        pids[mt] = pid;
+        if(pid != 0)
+            pids[mt] = pid;
     }
     QHashIterator<int,int> it(pids);
     while(it.hasNext()){
@@ -6251,11 +6252,10 @@ bool DbUtil::_readExtraPoint(int y, int m, int mt, int& pid)
         LOG_SQLERROR(s);
         return false;
     }
-    if(!q.first()){
+    if(!q.first())
         pid = 0;
-        return false;
-    }
-    pid = q.value(0).toInt();
+    else
+        pid = q.value(0).toInt();
     return true;
 }
 

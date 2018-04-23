@@ -2873,6 +2873,7 @@ void MainWindow::lockWindow()
     tagLock=true;
     adjustInterfaceForLock();
     this->setEnabled(false);
+    QApplication::processEvents();
     installEventFilter(lockObj);
 }
 
@@ -2898,6 +2899,7 @@ void MainWindow::unlockWindow()
     }
     QLineEdit ep(&d);
     ep.setEchoMode(QLineEdit::Password);
+    ep.setFocus();
     QGridLayout lg;
     lg.addWidget(&lu,0,0,1,1);
     lg.addWidget(&cmbUsers,0,1,1,1);

@@ -11,7 +11,7 @@
 #include "delegates.h"
 
 #define INFO_TIMEOUT  5000   //状态信息显示的超时时间
-const int BA_TABLE_MAXROWS = 50;    //会计分录表格预留的最大行数
+const int BA_TABLE_MAXROWS = 51;    //会计分录表格预留的最大行数
 
 #define PZEW_DEF_WIDTH  1000 //默认宽度
 #define PZEW_DEF_HEIGHT 600  //默认高度

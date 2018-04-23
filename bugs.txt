@@ -92,6 +92,11 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 【3-0010+】
     先前已经保存了应收应付发票的统计情况，再次增加应付发票后，统计窗口的保存按钮却始终不可用，
     而按钮的启用情况取决于帐套状态和发票统计情况是否改变。
+【3-0011-】
+    如果当前凭证集没有外币余额，则保存外币余额的指针表就没有对应记录，在结转汇兑损益凭证时，当调用
+    DbUtil::readAllWbExtraForFSub()函数读取外币科目余额时，它继而调用_readExtraPoint()函数
+    读取当前凭证集外币余额指针时没有记录，简单地以错误对待返回false，应该视作正常返回true，并且在
+    DbUtil::readAllWbExtraForFSub()中当返回的指针时0时忽略掉（因为当月没有指定币种的外币余额）
 1、
 2、
 3、在粘贴两条分录后，列表自动滚动到底部了（即把最后两行滚动到列表的可见范围的底部），这是在已经出现

@@ -20,8 +20,10 @@
 int main(int argc, char *argv[])
 {
     MainApplication app(argc,argv);
-    if (app.isClosing())
+    if (app.isClosing()){
+        myHelper::ShowMessageBoxWarning(app.tr("已有一个应用实例正在运行，如需重新启动应用，则先退出前一个应用实例后再启动！"));
         return 0;
+    }
     AppConfig* cfg = AppConfig::getInstance();
     FileAppender* logFile = new FileAppender(LOGS_PATH + "app.log");
     Logger::registerAppender(logFile);

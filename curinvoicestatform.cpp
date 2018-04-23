@@ -1819,6 +1819,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
     }
 
     QList<CurInvoiceColumnType> colTypes;
+    int invoiceColumn = -1;  //此行新增
     QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(ui->lwSheets->currentRow()));
     for(int col = 0; col < tw->columnCount(); ++col){
         QTableWidgetItem* hi = tw->horizontalHeaderItem(col);
@@ -1831,10 +1832,24 @@ void CurInvoiceStatForm::on_btnImport_clicked()
             myHelper::ShowMessageBoxWarning(tr("关键列类型有重复，请再次确认！"));
             return;
         }
+        if(colType == CT_INVOICE)
+            invoiceColumn = col;
         colTypes<<colType;
     }
     errors.clear();
     if(!inspectColTypeSet(colTypes,errors)){
+        myHelper::ShowMessageBoxWarning(errors);
+        return;
+    }
+    //检测是否缺必填项（发票号）
+    QRegExp re("^\\d{8}$");
+    for(int r = sr; r <= er; ++r){
+        QString inum = tw->item(r,invoiceColumn)->text().trimmed();
+        if(inum.isEmpty() || re.indexIn(inum) == -1){
+            errors.append(tr("第%1行的发票号有误！\n").arg(r+1));
+        }
+    }
+    if(!errors.isEmpty()){
         myHelper::ShowMessageBoxWarning(errors);
         return;
     }

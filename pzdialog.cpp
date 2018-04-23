@@ -2200,6 +2200,7 @@ HistoryPzForm::HistoryPzForm(PingZheng *pz, QByteArray *sinfo, QWidget *parent) 
             this,SLOT(colWidthChanged(int,int,int)));
     curY = 0;
     curM = 0;
+    ui->tview->setRowCount(BA_TABLE_MAXROWS);
     viewPzContent();
 }
 
@@ -2333,6 +2334,10 @@ void HistoryPzForm::viewBusiactions()
     if(!pz)
         return;
     ui->tview->clearContents();
+    if(pz->baCount()+3>ui->tview->rowCount())
+        ui->tview->setRowCount(pz->baCount()+3);
+    else if(pz->baCount()+3<BA_TABLE_MAXROWS)
+        ui->tview->setRowCount(BA_TABLE_MAXROWS);
     for(int i = 0; i < pz->baCount(); ++i)
         refreshSingleBa(i,pz->getBusiAction(i));
     ui->tview->setBalance(pz->isBalance());

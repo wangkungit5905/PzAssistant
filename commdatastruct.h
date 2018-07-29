@@ -578,7 +578,9 @@ enum subWindowType{
     SUBWIN_LOGVIEW = 24,        //日志视图
     SUBWIN_YSYFSTAT = 25,       //应收应付发票统计
     SUBWIN_INCOST = 26,         //收入/成本发票管理
-    SUBWIN_PZSEARCH = 27        //凭证搜索对话框
+    SUBWIN_PZSEARCH = 27,       //凭证搜索对话框
+    SUBWIN_QUARTERSTAT = 28,    //季度统计
+    SUBWIN_YEAR = 29            //年度累计
     //设置期初余额的窗口
     //科目配置窗口
 };

@@ -148,6 +148,8 @@
     </widget>
     <addaction name="actSubExtra"/>
     <addaction name="actCurStatNew"/>
+    <addaction name="actQuarterStat"/>
+    <addaction name="actYearStat"/>
     <addaction name="mnuAccBook"/>
     <addaction name="mnuReport"/>
    </widget>
@@ -1046,7 +1048,8 @@
   <action name="actPzErrorInspect">
    <property name="icon">
     <iconset theme="检查凭证中出现的会影响统计结果的错误">
-     <normaloff>.</normaloff>.</iconset>
+     <normaloff/>
+    </iconset>
    </property>
    <property name="text">
     <string>凭证错误检测</string>
@@ -1374,6 +1377,22 @@
    </property>
    <property name="toolTip">
     <string>进项税发票管理</string>
+   </property>
+  </action>
+  <action name="actQuarterStat">
+   <property name="text">
+    <string>季度统计</string>
+   </property>
+   <property name="toolTip">
+    <string>季度统计</string>
+   </property>
+  </action>
+  <action name="actYearStat">
+   <property name="text">
+    <string>年度累计</string>
+   </property>
+   <property name="toolTip">
+    <string>年度累计</string>
    </property>
   </action>
  </widget>

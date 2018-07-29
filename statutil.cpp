@@ -13,7 +13,16 @@ StatUtil::StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager *parent):QObject
     account = parent->getAccount();
     dbUtil = account->getDbUtil();
     smg = account->getSubjectManager(parent->getSubSysCode());
-    masterMt = account->getMasterMt();
+    masterMt = account->getMasterMt();    
+    y = parent->year();
+    _confirmIsCur();
+    
+}
+
+void StatUtil::setPzSet(QList<PingZheng *> *pzs)
+{
+    this->pzs=pzs;
+    _confirmIsCur();
 }
 
 /**
@@ -24,25 +33,25 @@ StatUtil::StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager *parent):QObject
 bool StatUtil::stat()
 {
     _clearDatas();
-    if(!sm->isPzSetOpened()){
-        clear();
-        QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在未打开凭证集时不能进行本期统计！"));
-        return false;
-    }
+    //如下检测应该多余
+    // if(!sm->isPzSetOpened()){
+    //     clear();
+    //     QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在未打开凭证集时不能进行本期统计！"));
+    //     return false;
+    //}
     //因为统计的是已装载到内存中的凭证，如下检测多此一举
     //if(sm->isDirty()){
     //    QMessageBox::warning(0,"",QObject::tr("请先保存，再统计！"));
     //    return false;
     //}
-    y = sm->year();
-    m = sm->month();
-    account->getRates(y,m,rates);
+    //m = sm->month();
+    
     if(!_readPreExtra()){
-        QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在读取%1年%2的前期余额时发生错误！").arg(y).arg(m));
+        QMessageBox::critical(0,QObject::tr("错误提示"),QObject::tr("在读取%1年%2的前期余额时发生错误！").arg(y).arg(startM));
         return false;
     }
     if(!_statCurHappen()){
-        QMessageBox::warning(0,QObject::tr("错误提示"),QObject::tr("在统计%1年%2的本期发生额时，发现凭证有误，请使用凭证集检错工具查看或调阅日志信息！").arg(y).arg(m));
+        QMessageBox::warning(0,QObject::tr("错误提示"),QObject::tr("在统计%1年%2的本期发生额时，发现凭证有误，请使用凭证集检错工具查看或调阅日志信息！").arg(y).arg(startM));
         return false;
     }
     _calEndExtra();
@@ -83,13 +92,13 @@ bool StatUtil::save()
             QMessageBox::warning(0,tr("余额不一致警告"),s);
         }
     }
-    if(!dbUtil->saveExtraForPm(y,m,endFExa,endFDir,endSExa,endSDir))
+    if(!dbUtil->saveExtraForPm(y,startM,endFExa,endFDir,endSExa,endSDir))
         return false;
-    if(!dbUtil->saveExtraForMm(y,m,endFExaM,endSExaM))
+    if(!dbUtil->saveExtraForMm(y,startM,endFExaM,endSExaM))
         return false;
     AccountSuiteManager* pzMgr = account->getSuiteMgr(account->getSuiteRecord(y)->id);
     pzMgr->setExtraState(true);
-    if(!dbUtil->setExtraState(y,m,true))
+    if(!dbUtil->setExtraState(y,startM,true))
         return false;
     return true;
 }
@@ -100,7 +109,7 @@ bool StatUtil::save()
  */
 void StatUtil::clear()
 {
-    y == 0; m == 0;
+    startM = endM = 0;
     rates.clear();
     _clearDatas();
 }
@@ -274,16 +283,21 @@ bool StatUtil::_statCurHappen()
 
     FirstSubject* fsub;
     SecondSubject* ssub;
-    QHash<int,Double> rates;
-    account->getRates(y,m,rates);
+    int curM;   //统计本期发生额时跟踪月份的变化以对应汇率
+    QHash<int,Double> rs;
+    if(pzs->isEmpty())
+        return true;
 
-    //Debug
-    //FirstSubject* cwfySub = smg->getCwfySub();
-    //SecondSubject* hdsySub = cwfySub->getChildSub(smg->getNameItem(QObject::tr("汇兑损益")));
-
+    curM = pzs->first()->getDate2().month();
+    rs = rates.value(curM);
 
     for(int i = 0; i < pzs->count(); ++i){
         pz = pzs->at(i);
+        int m = pz->getDate2().month();
+        if(m != curM){
+            curM = m;
+            rs = rates.value(curM);
+        }
         for(int j = 0; j < pz->baCount(); ++j){
             ba = pz->getBusiAction(j);
             fsub = ba->getFirstSubject();
@@ -348,7 +362,7 @@ bool StatUtil::_statCurHappen()
                     if(!curDS.contains(keyS))
                         curDS[keyS] = Double(0.00);
                     if(mt != masterMt->code()){
-                        v = ba->getValue() * rates.value(mt);
+                        v = ba->getValue() * rs.value(mt);
                         curJFM[keyF] += v;
                         if(!curDFM.contains(keyF))
                             curDFM[keyF] = Double(0.0);
@@ -368,7 +382,7 @@ bool StatUtil::_statCurHappen()
                     if(!curJS.contains(keyS))
                         curJS[keyS] = Double(0.00);
                     if(mt != masterMt->code()){
-                        v = ba->getValue() * rates.value(mt);
+                        v = ba->getValue() * rs.value(mt);
                         curDFM[keyF] += v;
                         if(!curJFM.contains(keyF))
                             curJFM[keyF] = Double(0.0);
@@ -396,14 +410,14 @@ bool StatUtil::_readPreExtra()
 {
     int yy,mm;
     bool isConvert = false;
-    if(m == 1){
+    if(startM == 1){
         yy = y-1;
         mm = 12;
         isConvert = account->isConvertExtra(y);
     }
     else{
         yy = y;
-        mm = m - 1;
+        mm = startM - 1;
     }
 
     if(!dbUtil->readExtraForPm(yy,mm,preFExa,preFDir,preSExa,preSDir))
@@ -1049,6 +1063,23 @@ void StatUtil::_collectSumForFSubMt(FirstSubject* fsub, int mt, Double &sum, Mon
         dir = MDIR_J;
 }
 
+
+//确定凭证集所跨越的月份，假定凭证集按月份和凭证号的从低到高的顺序
+void StatUtil::_confirmIsCur()
+{
+    if(pzs->isEmpty()){
+        startM = endM = 0;
+        return;
+    }
+    startM = pzs->first()->getDate2().month();
+    endM = pzs->last()->getDate2().month();
+    rates.clear();
+    for(int m=startM; m <= endM; ++m){
+        rates[m] = QHash<int, Double>();
+        account->getRates(y,m,rates[m]);
+    }
+}
+
 /**
  * @brief StatUtil::_adjustExtra
  *  增加或减少指定一二级科目统计金额，并重新计算余额
@@ -1061,7 +1092,9 @@ void StatUtil::_collectSumForFSubMt(FirstSubject* fsub, int mt, Double &sum, Mon
  * @param add   true：增加（默认），false：减少
  */
 void StatUtil::_adjustExtra(FirstSubject* fsub, SecondSubject* ssub, Money* mt, Double v, MoneyDirection dir,bool add)
-{
+{    
+    QHash<int, Double> rs = rates.value(sm->month());
+
     //增加或减少本期发生额部分
     if(dir != MDIR_J && dir != MDIR_D)
         return;
@@ -1082,7 +1115,7 @@ void StatUtil::_adjustExtra(FirstSubject* fsub, SecondSubject* ssub, Money* mt, 
         (*cfs)[key_f] += v;
         (*css)[key_s] += v;
         if(mt != masterMt){
-            v *= rates.value(mt->code());
+            v *= rs.value(mt->code());
             (*cfms)[key_f] += v;
             (*csms)[key_s] += v;
         }
@@ -1091,7 +1124,7 @@ void StatUtil::_adjustExtra(FirstSubject* fsub, SecondSubject* ssub, Money* mt, 
         (*cfs)[key_f] -= v;
         (*css)[key_s] -= v;
         if(mt != masterMt){
-            v *= rates.value(mt->code());
+            v *= rs.value(mt->code());
             (*cfms)[key_f] -= v;
             (*csms)[key_s] -= v;
         }

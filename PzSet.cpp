@@ -348,8 +348,10 @@ void AccountSuiteManager::setState(PzsState state,int m )
         mm=curM;
     else
         mm=m;
-    if(!states.contains(mm))
-        dbUtil->getPzsState(suiteRecord->year,mm,state);
+    if(!states.contains(mm)){
+        states[mm] = (PzsState)0;
+        dbUtil->getPzsState(suiteRecord->year,mm,states[mm]);
+    }
     if(state == states.value(mm))
         return;
     states[mm] = state;
@@ -1283,7 +1285,7 @@ void AccountSuiteManager::_determinePzSetState(PzsState &state)
         state = Ps_Jzed;
     else{
         scanPzCount(c_repeal,c_recording,c_verify,c_instat,pzs);
-        if(c_recording > 0 || (c_recording==0 && c_verify==0 && c_instat==0))
+        if(c_recording > 0 || c_verify > 0)
             state = Ps_Rec;
         else
             state = Ps_AllVerified;

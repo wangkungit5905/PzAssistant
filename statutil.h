@@ -31,14 +31,16 @@ class StatUtil : public QObject
 
 public:
     StatUtil(QList<PingZheng *> *pzs, AccountSuiteManager* parent);
-    void setPzSet(QList<PingZheng *> *pzs){this->pzs=pzs;}
+    void setPzSet(QList<PingZheng *> *pzs);
     bool stat();
     bool save();
     void clear();
     Account* getAccount(){return account;}
     SubjectManager* getSubjectManager(){return smg;}
     int year(){return y;}
-    int month(){return m;}
+    int month(){return endM;}
+    int startMonth(){return startM;}
+    int endMonth(){return endM;}
     int count(){return pzs->count();}
 
     //获取期初值和方向
@@ -86,6 +88,7 @@ private slots:
 signals:
     void extraException(BusiAction* ba,Double fv, MoneyDirection fd, Double sv, MoneyDirection sd);//f,s表示一二级科目，v,d表示余额和方向
 private:
+    void _confirmIsCur();
     void _adjustExtra(FirstSubject* fsub, SecondSubject* ssub, Money* mt,Double v, MoneyDirection dir, bool add=true);
     bool _baIsValid(BusiAction* ba);
     void _clearDatas();
@@ -105,9 +108,10 @@ private:
     AccountSuiteManager* sm;
     SubjectManager* smg;
     QList<PingZheng*>* pzs; //凭证对象集合
-    int y,m;                //凭证集所属年月
+    int y;                  //凭证集所属年
+    int startM,endM;        //凭证集跨越的月份
     Money* masterMt;
-    QHash<int,Double> rates;
+    QHash<int, QHash<int,Double> > rates;  //汇率，键为月份，值为对应的汇率
 
 
     //命名约定：J：借方，D：贷方，F：一级科目，S：二级科目，M：表示以本币计

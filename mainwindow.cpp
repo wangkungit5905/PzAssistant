@@ -35,6 +35,7 @@
 #include "subject.h"
 #include "PzSet.h"
 #include "curstatdialog.h"
+#include "quarterstatdialog.h"
 #include "statutil.h"
 #include "showdzdialog.h"
 #include "pzdialog.h"
@@ -427,7 +428,7 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         disconnect(w,SIGNAL(openSpecPz(int,int)),this,SLOT(openSpecPz(int,int)));
         delete w;
     }
-    else if(t == SUBWIN_PZSTAT){
+    else if(t == SUBWIN_PZSTAT || t == SUBWIN_QUARTERSTAT || t == SUBWIN_YEAR){
         CurStatDialog* w = static_cast<CurStatDialog*>(subWin->widget());
         commonState = w->getCommonState();
         properState = w->getProperState();
@@ -995,8 +996,10 @@ void MainWindow::rfSuiteAct()
  */
 void MainWindow::rfPzSetOpenAct()
 {
-
-    bool open = (curUser && curSuiteMgr && curSuiteMgr->isPzSetOpened())?true:false;
+    bool open = (curUser && curSuiteMgr)?true:false;
+    ui->actQuarterStat->setEnabled(open);
+    ui->actYearStat->setEnabled(open);
+    open = (curUser && curSuiteMgr && curSuiteMgr->isPzSetOpened())?true:false;
     ui->actNaviToPz->setEnabled(open);      //凭证定位
     ui->actCurStatNew->setEnabled(open);    //本期统计
     ui->actPzErrorInspect->setEnabled(open);//凭证集错误检测
@@ -2566,6 +2569,8 @@ void MainWindow::prepareClosePzSet(AccountSuiteManager *accSmg, int month)
     if(gm){
         gm->closeSubWindow(SUBWIN_PZEDIT);      //凭证编辑窗口
         gm->closeSubWindow(SUBWIN_PZSTAT);      //本期统计的窗口
+        gm->closeSubWindow(SUBWIN_QUARTERSTAT);
+        gm->closeSubWindow(SUBWIN_YEAR);
         //gm->closeSubWindow(SUBWIN_DETAILSVIEW); //明细账窗口
         //gm->closeSubWindow(TOTALDAILY);         //总分类账窗口
     }
@@ -2702,7 +2707,8 @@ void MainWindow::subWindowActivated(QMdiSubWindow *window)
     if(win){
         subWindowType wType = win->getWindowType();
         if(wType == SUBWIN_PZEDIT || wType == SUBWIN_HISTORYVIEW ||
-                wType == SUBWIN_PZSTAT || wType == SUBWIN_DETAILSVIEW)
+                wType == SUBWIN_PZSTAT || wType == SUBWIN_DETAILSVIEW ||
+                wType == SUBWIN_QUARTERSTAT || wType == SUBWIN_YEAR)
             btnPrint->setEnabled(true);
         else
             btnPrint->setEnabled(false);
@@ -2813,7 +2819,7 @@ void MainWindow::printProcess()
         delete psDlg;
     }
     else if(winType == SUBWIN_PZSTAT || winType == SUBWIN_DETAILSVIEW ||
-            winType == SUBWIN_TOTALVIEW){
+            winType == SUBWIN_TOTALVIEW || winType == SUBWIN_QUARTERSTAT || winType == SUBWIN_YEAR){
         DialogWithPrint* dlg = qobject_cast<DialogWithPrint*>(subWin->widget());
         if(!dlg)
             return;
@@ -3287,34 +3293,7 @@ void MainWindow::on_actFordPl_triggered()
  */
 void MainWindow::on_actCurStatNew_triggered()
 {
-    if(!isContainRight(Right::PzSet_ShowStat_Current))
-        return;
-    if(!curSuiteMgr->isPzSetOpened()){
-        pzsWarning();
-        return;
-    }
-    if(!curSuiteMgr->isDirty())
-        curSuiteMgr->save();
-
-    CurStatDialog* dlg = NULL;
-    SubWindowDim* winfo = NULL;
-    QByteArray cinfo,pinfo;
-    int suiteId = curSuiteMgr->getSuiteRecord()->id;
-    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_PZSTAT)){
-        appCon->getSubWinInfo(SUBWIN_PZSTAT,winfo,&cinfo);
-        dbUtil->getSubWinInfo(SUBWIN_PZSTAT,&pinfo);
-        dlg = new CurStatDialog(curSuiteMgr->getStatUtil(), &cinfo, &pinfo, this);
-        connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
-        connect(dlg,SIGNAL(extraValided()),this,SLOT(extraValid()));
-    }
-    else{
-        dlg = static_cast<CurStatDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_PZSTAT));
-        if(dlg)
-            dlg->stat();
-    }
-    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_PZSTAT,dlg,winfo);
-    if(winfo)
-        delete winfo;
+    showStatWindow(SUBWIN_PZSTAT);
 }
 
 //登录
@@ -4521,8 +4500,12 @@ void MainWindow::on_actBatchImport_triggered()
 
 bool MainWindow::impTestDatas()
 {
-    QString cName;
-    PaUtils::extractCustomerName("应付宁波茗晗运费00590192",cName);
+    int endM = 7;
+    int c1 = endM%3;
+    bool c2 = !endM%3;
+    bool c3 = !1;
+    bool c4 = !2;
+    int c5 = 0 % 5;
     int i = 0;
 }
 
@@ -4612,6 +4595,99 @@ void MainWindow::on_actJxTaxMgr_triggered()
     dlg->show();
 }
 
+/**
+ * @brief MainWindow::showStatWindow
+ * @param winType
+ * 显示统计窗口（本期、季度和年度）
+ */
+
+void MainWindow::showStatWindow(subWindowType winType)
+{
+    if(winType != SUBWIN_PZSTAT && winType != SUBWIN_QUARTERSTAT && winType != SUBWIN_YEAR)
+        return;
+    if(!isContainRight(Right::PzSet_ShowStat_Current))
+       return;
+    if(winType == SUBWIN_PZSTAT && !curSuiteMgr->isPzSetOpened()){
+        pzsWarning();
+        return;
+    }
+    if(curSuiteMgr->isDirty())
+        curSuiteMgr->save();
+
+    CurStatDialog* dlg = NULL;
+    SubWindowDim* winfo = NULL;
+    QByteArray cinfo,pinfo;
+    int suiteId = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(winType)){
+        appCon->getSubWinInfo(winType,winfo,&cinfo);
+        dbUtil->getSubWinInfo(winType,&pinfo);
+        CurStatDialog::StatType type;
+        StatUtil* statUtil;
+        if(winType == SUBWIN_PZSTAT){
+            type = CurStatDialog::ST_CURRENT;
+            statUtil = curSuiteMgr->getStatUtil();
+        }
+        else if(winType == SUBWIN_QUARTERSTAT){
+            type = CurStatDialog::ST_QUARTER;
+            pzs.clear();
+            int endM = curSuiteMgr->getSuiteRecord()->endMonth;
+            if(endM % 3){
+                while(endM % 3 && endM > 1)
+                    endM--;
+                if(endM == 1)
+                    return;
+            }
+            QList<PingZheng* > pzLst;
+            for(int m = endM-2; m <= endM; ++m){
+                curSuiteMgr->getPzSet(m, pzLst);
+                pzs<<pzLst;
+            }
+            statUtil = new StatUtil(&pzs, curSuiteMgr);
+        }
+        else{
+            type = CurStatDialog::ST_YEAR;
+            pzs.clear();
+            int endM = curSuiteMgr->getSuiteRecord()->endMonth;
+            QList<PingZheng* > pzLst;
+            for(int m = 1; m <= endM; ++m){
+                curSuiteMgr->getPzSet(m, pzLst);
+                pzs.append(pzLst);
+            }
+            statUtil = new StatUtil(&pzs, curSuiteMgr);
+        }
+        dlg = new CurStatDialog(statUtil, &cinfo, &pinfo, type, this);
+        if(winType == SUBWIN_PZSTAT){
+            dlg->setWindowTitle(tr("本期统计"));
+            connect(dlg,SIGNAL(infomation(QString)),this,SLOT(showTemInfo(QString)));
+            connect(dlg,SIGNAL(extraValided()),this,SLOT(extraValid()));
+        }
+        else if(winType == SUBWIN_QUARTERSTAT)
+            dlg->setWindowTitle(tr("季度统计"));
+        else
+            dlg->setWindowTitle(tr("年度累计"));
+    }
+    else{
+        dlg = static_cast<CurStatDialog*>(subWinGroups.value(suiteId)->getSubWinWidget(winType));
+        if(dlg)
+            dlg->stat();
+    }
+    subWinGroups.value(suiteId)->showSubWindow(winType,dlg,winfo);
+    if(winfo)
+        delete winfo;
+}
+
+void MainWindow::on_actQuarterStat_triggered()
+{
+    showStatWindow(SUBWIN_QUARTERSTAT);
+}
+
+
+void MainWindow::on_actYearStat_triggered()
+{
+    showStatWindow(SUBWIN_YEAR);
+}
+
+
 ////////////////////////////////////////////LockApp///////////////////////////////////////
 LockApp::LockApp(MainWindow *parent):QObject(parent),mainWin(parent)
 {
@@ -4633,3 +4709,4 @@ bool LockApp::eventFilter(QObject *obj, QEvent *event)
         }
     }
 }
+

@@ -344,6 +344,10 @@ private slots:
 
     void on_actJxTaxMgr_triggered();
 
+    void on_actQuarterStat_triggered();
+
+    void on_actYearStat_triggered();
+
 private:
     void _closeAccount();
     bool isExecAccountTransform();
@@ -358,6 +362,7 @@ private:
     void accountInit(AccountCacheItem *ci);
     subWindowType activedMdiChild();
     void addSubWindowMenuItem(QList<MyMdiSubWindow*> windows);
+    void showStatWindow(subWindowType winType);
 
     //菜单项启用性控制
     bool isContainRight(Right::RightCode rc);
@@ -436,6 +441,8 @@ private:
     AppConfig* appCon;
     LockApp* lockObj;
     bool tagLock;
+
+    QList<PingZheng*> pzs;  //用于保存季度或年度统计时的凭证集
 
 public:
     bool showSplashScreen_;

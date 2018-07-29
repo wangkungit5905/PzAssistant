@@ -1,5 +1,5 @@
-#ifndef CURSTATDIALOG_H
-#define CURSTATDIALOG_H
+#ifndef QUARTERSTATDIALOG_H
+#define QUARTERSTATDIALOG_H
 
 #include <QMetaType>
 #include <QDialog>
@@ -11,29 +11,16 @@
 
 
 namespace Ui {
-class CurStatDialog;
+class QuarterStatDialog;
 }
 
-class QMenu;
 class StatUtil;
 class Account;
-class QStandardItem;
-class QStandardItemModel;
+class AccountSuiteManager;
 class HierarchicalHeaderView;
 class MyWithHeaderModels;
-class FirstSubject;
-class SecondSubject;
-class Money;
-class Double;
-class SubjectManager;
 
-
-
-/**
- * @brief The CurStatDialog class
- *  本期统计对话框类（统计数据来自于StatUtil类）
- */
-class CurStatDialog : public DialogWithPrint
+class QuarterStatDialog : public DialogWithPrint
 {
     Q_OBJECT
     
@@ -49,59 +36,17 @@ public:
         TRT_SUM     = 3     //合计行
     };
 
-    enum StatType{
-        ST_CURRENT  = 1,    //本期统计
-        ST_QUARTER  = 2,    //季度统计
-        ST_YEAR     = 3     //年度累计
-    };
 
-    //状态信息结构
-    struct StateInfo{
-        TableFormat tFormat;  //最后关闭时，显示的表格格式
-        bool viewDetails;     //最后关闭时，是否选择了显示明细选择框
-        QPrinter::Orientation pageOrientation;  //打印模板的页面方向
-        PageMargin margins;                        //页边距
-        QHash<TableFormat, QList<int> > colWidths; //各种表格格式下的列宽
-        QHash<TableFormat, QList<int> > colPriWidths; //打印各种表格格式时的列宽
-    } stateInfo;
-
-    explicit CurStatDialog(StatUtil* statUtil, QByteArray* cinfo, QByteArray* pinfo, StatType statType=ST_CURRENT, QWidget *parent = 0);
-    ~CurStatDialog();
-    QByteArray* getCommonState();
-    QByteArray* getProperState();
-    void stat();
+    explicit QuarterStatDialog(StatUtil* statUtil, QByteArray* cinfo, QByteArray* pinfo, bool isQuarterStat=true, QWidget *parent = 0);
+    ~QuarterStatDialog();
     void print(PrintActionClass action = PAC_TOPRINTER);
-
-public slots:
-    void save();
-    void colWidthChanged(int logicalIndex, int oldSize, int newSize);
-
+    
 private slots:
     void onSelFstSub(int index);
     void onSelSndSub(int index);
-    void onTableFormatChanged(bool checked);
-    void onDetViewChanged(bool checked);
-    void onQuarterOrMonthChanged(int index);
-    
-    void on_actPrint_triggered();
+    void colWidthChanged(int logicalIndex, int oldSize, int newSize);
 
-    void on_actPreview_triggered();
-
-    void on_actToPDF_triggered();
-
-    void on_actToExcel_triggered();
-
-    void on_btnSave_clicked();
-
-    void on_btnRefresh_clicked();
-
-    void on_btnClose_clicked();
-
-signals:
-    void infomation(QString info);       //向主窗口发送要在状态条上显示的信息
-    void extraValided();    //向主窗口报告余额已经保存，有效了
-
-private:    
+private:
     void setCommonState(QByteArray* info);
     void setProperState(QByteArray* info);
     void init();
@@ -114,11 +59,15 @@ private:
     void setTableRowBackground(TableRowType rt, const QList<QStandardItem*> l);
     void setTableRowTextColor(TableRowType rt, const QList<QStandardItem*> l);
 
-    Ui::CurStatDialog *ui;
+
+    Ui::QuarterStatDialog *ui;
     Account* account;
     StatUtil* statUtil;
-    StatType statType;
-    
+    AccountSuiteManager* suiteMgr;
+    SubjectManager* smg;
+    FirstSubject* fsub;     //当前选择的一二级科目对象
+    SecondSubject* ssub;
+    bool isQuarterStat;     //季度统计（true）/或年度累计（false）
     QPrinter* printer;
 
     //与表格有关的数据成员
@@ -130,6 +79,7 @@ private:
     QHash<int,Money*> allMts;      //所有币种代码到币种名称的映射
     QList<int> mts; //外币代码列表（用于保持外币金额显示的一致顺序）取代上面4个列表
 
+    
     //数据表（键为科目id * 10 + 币种代码）
     QHash<int,Double> preExa, preDetExa;                    //期初余额（以原币计）
     QHash<int,Double> preExaR, preDetExaR;                  //期初余额（以本币计）
@@ -142,19 +92,11 @@ private:
     QHash<int,MoneyDirection>    endExaDir,endDetExaDir;               //期末余额方向（以原币计）
     QHash<int,MoneyDirection>    endExaDirR,endDetExaDirR;             //期末余额方向（以本币计）
 
-    QMenu* mnuPrint; //附加在打印按钮上的菜单
-
-    //SubjectComplete *fcom, *scom;  //一二级科目选择框使用的完成器
-    FirstSubject* fsub;     //当前选择的一二级科目对象
-    SecondSubject* ssub;
-    bool isCanSave; //是否可以保存余额（基于当前的凭证集状态）
-
-    SubjectManager* smg;
     //表格行背景色
     QColor row_bk_ssub;    //子目行
     QColor row_bk_fsub;    //总目行
     QColor row_bk_sum;     //合计行
 };
-Q_DECLARE_METATYPE(CurStatDialog::StateInfo)
+//Q_DECLARE_METATYPE(QuarterStatDialog::StateInfo)
 
-#endif // CURSTATDIALOG_H
+#endif // QUARTERSTATDIALOG_H

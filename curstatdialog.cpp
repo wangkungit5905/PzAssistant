@@ -14,8 +14,8 @@
 #include "outputexceldlg.h"
 #include "myhelper.h"
 
-CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* cinfo, QByteArray* pinfo, QWidget *parent)
-    :DialogWithPrint(parent),ui(new Ui::CurStatDialog),statUtil(statUtil)
+CurStatDialog::CurStatDialog(StatUtil *statUtil, QByteArray* cinfo, QByteArray* pinfo, CurStatDialog::StatType statType, QWidget *parent)
+    :DialogWithPrint(parent),ui(new Ui::CurStatDialog),statUtil(statUtil),statType(statType)
 {
     ui->setupUi(this);
     account = statUtil->getAccount();
@@ -436,6 +436,48 @@ void CurStatDialog::onDetViewChanged(bool checked)
 
 void CurStatDialog::init()
 {    
+    //根据统计类型调整视图界面
+    switch(statType){
+        case ST_CURRENT:
+            ui->lblm->setVisible(true);
+            ui->cmbMonth->setVisible(false);
+            break;
+
+        case ST_QUARTER: {
+            ui->lblm->setVisible(false);
+            ui->label_4->setText(tr("季度"));
+            ui->cmbMonth->setVisible(true);
+            ui->btnSave->setEnabled(false);
+            //根据结束月份初始化可以选择的季度
+            int endM = account->getSuiteMgr()->getSuiteRecord()->endMonth;
+            if(endM % 3 == 0){
+                endM = endM/3;
+            }
+            else{
+                while(endM%3 && endM > 0)
+                    endM--;
+            }
+            endM = endM / 3;
+            for(int i = 1; i <= endM; ++i)
+                ui->cmbMonth->addItem(QString::number(i),i);
+            ui->cmbMonth->setCurrentIndex(endM-1);
+            connect(ui->cmbMonth,SIGNAL(currentIndexChanged(int)),this,SLOT(onQuarterOrMonthChanged(int)));
+            break;
+        }
+        case ST_YEAR:
+            ui->lblm->setVisible(false);
+            ui->label_4->setText(tr("月"));
+            ui->cmbMonth->setEnabled(true);
+            ui->btnSave->setEnabled(false);
+            int endM = account->getSuiteMgr()->getSuiteRecord()->endMonth;
+            for(int i = 1; i <= endM; ++i)
+                ui->cmbMonth->addItem(QString::number(i),i);
+            ui->cmbMonth->setCurrentIndex(endM-1);
+            connect(ui->cmbMonth,SIGNAL(currentIndexChanged(int)),this,SLOT(onQuarterOrMonthChanged(int)));
+            break;
+    }
+    
+
     ui->cmbFstSub->setSubjectManager(smg);
     ui->cmbFstSub->setSubjectClass();
     ui->cmbFstSub->insertItem(0,tr("所有"));
@@ -483,16 +525,17 @@ void CurStatDialog::initHashs()
     //allSSubs = smg->getAllSndSubHash();
     allMts = account->getAllMoneys();
     int y = statUtil->year();
-    int m = statUtil->month();
-    account->getRates(y,m,sRates);
+    int startM = statUtil->startMonth();
+    int endM = statUtil->endMonth();
+    account->getRates(y,startM,sRates);
     int yy,mm;
-    if(m == 12){
+    if(endM == 12){
         yy = y+1;
         mm = 1;
     }
     else{
         yy = y;
-        mm = m+1;
+        mm = endM+1;
     }
     account->getRates(yy,mm,eRates);
 
@@ -526,7 +569,12 @@ void CurStatDialog::initHashs()
 //        }
 //    }
 
-    PzsState pzsState = account->getSuiteMgr(account->getSuiteRecord(statUtil->year())->id)->getState(m);
+    //PzsState pzsState = account->getSuiteMgr(account->getSuiteRecord(statUtil->year())->id)->getState(startM);
+    int year = statUtil->year();
+    AccountSuiteRecord* asrc = account->getSuiteRecord(year);
+    int id = asrc->id;
+    AccountSuiteManager* sm = account->getSuiteMgr(id);
+    PzsState pzsState = sm->getState(startM);
     ui->lblPzsState->setText(pzsStates.value(pzsState));
     ui->lblPzsState->setToolTip(pzsStateDescs.value(pzsState));
 
@@ -574,23 +622,23 @@ void CurStatDialog::initHashs()
 //                                 endExaR,endDetExaR,endExaDirR,endDetExaDirR);
 
     //debug 输出应收-宁波佳利的前期余额、本期发生、期末余额及其方向
-    QString title = "(new)YS-nbjl";
-    qDebug()<<tr("%1--Pre:  rmb=%2, usd=%3, rmb-dir=%4, usd-dir=%5")
-              .arg(title).arg(preDetExa.value(961).toString()).arg(preDetExa.value(962).toString())
-              .arg(preDetExaDir.value(961)).arg(preDetExaDir.value(962));
-    qDebug()<<tr("%1--PreR:  usdR=%2")
-              .arg(title).arg(preDetExaR.value(962).toString());
-    qDebug()<<tr("%1--CurJ: rmb=%2, usd=%3").arg(title).arg(curJDHpn.value(961).toString())
-              .arg(curJDHpn.value(962).toString());
-    qDebug()<<tr("%1--CurJR: usdR=%2").arg(title).arg(curJDHpnR.value(962).toString());
-    qDebug()<<tr("%1--CurD: rmb=%2, usd=%3").arg(title).arg(curDDHpn.value(961).toString())
-              .arg(curDDHpn.value(962).toString());
-    qDebug()<<tr("%1--CurDR: usdR=%2").arg(title).arg(curDDHpnR.value(962).toString());
-    qDebug()<<tr("%1--End: rmb=%2, usd=%3, rmb-dir=%4, usd-dir=%5").arg(title)
-              .arg(endDetExa.value(961).toString()).arg(endDetExa.value(962).toString())
-              .arg(endDetExaDir.value(961)).arg(endDetExaDir.value(962));
-    qDebug()<<tr("%1--EndR: usdR=%2").arg(title)
-              .arg(endDetExaR.value(962).toString());
+    // QString title = "(new)YS-nbjl";
+    // qDebug()<<tr("%1--Pre:  rmb=%2, usd=%3, rmb-dir=%4, usd-dir=%5")
+    //           .arg(title).arg(preDetExa.value(961).toString()).arg(preDetExa.value(962).toString())
+    //           .arg(preDetExaDir.value(961)).arg(preDetExaDir.value(962));
+    // qDebug()<<tr("%1--PreR:  usdR=%2")
+    //           .arg(title).arg(preDetExaR.value(962).toString());
+    // qDebug()<<tr("%1--CurJ: rmb=%2, usd=%3").arg(title).arg(curJDHpn.value(961).toString())
+    //           .arg(curJDHpn.value(962).toString());
+    // qDebug()<<tr("%1--CurJR: usdR=%2").arg(title).arg(curJDHpnR.value(962).toString());
+    // qDebug()<<tr("%1--CurD: rmb=%2, usd=%3").arg(title).arg(curDDHpn.value(961).toString())
+    //           .arg(curDDHpn.value(962).toString());
+    // qDebug()<<tr("%1--CurDR: usdR=%2").arg(title).arg(curDDHpnR.value(962).toString());
+    // qDebug()<<tr("%1--End: rmb=%2, usd=%3, rmb-dir=%4, usd-dir=%5").arg(title)
+    //           .arg(endDetExa.value(961).toString()).arg(endDetExa.value(962).toString())
+    //           .arg(endDetExaDir.value(961)).arg(endDetExaDir.value(962));
+    // qDebug()<<tr("%1--EndR: usdR=%2").arg(title)
+    //           .arg(endDetExaR.value(962).toString());
 }
 
 /**
@@ -781,7 +829,7 @@ void CurStatDialog::genDatas()
     QHash<int,MoneyDirection> spreExaDir = statUtil->getSumPreDirF();   //期初余额方向
     QHash<int,MoneyDirection> spreDetExaDir = statUtil->getSumPreDirS();
 
-    QHash<int,Double> scurJHpn = statUtil->getSumCurValueJF();          //当期借贷发生额
+    QHash<int,Double> scurJHpn = statUtil->getSumCurValueJF();          //期间借贷发生额
     QHash<int,Double> scurJDHpn = statUtil->getSumCurValueJS();
     QHash<int,Double> scurDHpn = statUtil->getSumCurValueDF();
     QHash<int,Double> scurDDHpn = statUtil->getSumCurValueDS();
@@ -1245,4 +1293,33 @@ void CurStatDialog::on_btnClose_clicked()
     MyMdiSubWindow* w = static_cast<MyMdiSubWindow*>(parent());
     if(w)
         w->close();
+}
+
+/**
+ * @brief CurStatDialog::on_cmbMonth_currentIndexChanged
+ * 当选择的季度或最后月份改变
+ * @param index
+ */
+void CurStatDialog::onQuarterOrMonthChanged(int index)
+{
+    int startM=0, endM=0;
+    if(statType == ST_QUARTER){
+        endM = 3 * (index + 1);
+        startM = endM - 2;
+    }
+    else if(statType == ST_YEAR){
+        startM = 1;
+        endM = index + 1;
+    }
+
+    QList<PingZheng* > pzs;
+    QList<PingZheng* > pzLst;
+    AccountSuiteManager* sm = account->getSuiteMgr();
+
+    for(int m = startM; m <= endM; ++m){
+        sm->getPzSet(m, pzLst);
+        pzs.append(pzLst);
+    }
+    statUtil->setPzSet(&pzs);
+    stat();
 }

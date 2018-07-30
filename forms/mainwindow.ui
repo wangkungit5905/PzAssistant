@@ -79,6 +79,7 @@
       <string>期末处理</string>
      </property>
      <addaction name="actImpOtherPz"/>
+     <addaction name="actCrtJtpz"/>
      <addaction name="actFordEx"/>
      <addaction name="actFordPl"/>
      <addaction name="actJzbnlr"/>
@@ -363,7 +364,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/acc_new.png</normaloff>:/images/acc_new.png</iconset>
    </property>
    <property name="text">
@@ -375,7 +376,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/acc_open.png</normaloff>:/images/acc_open.png</iconset>
    </property>
    <property name="text">
@@ -387,7 +388,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/acc_close.png</normaloff>:/images/acc_close.png</iconset>
    </property>
    <property name="text">
@@ -399,7 +400,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/accountRefresh.png</normaloff>:/images/accountRefresh.png</iconset>
    </property>
    <property name="text">
@@ -414,7 +415,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/acc_import.png</normaloff>:/images/acc_import.png</iconset>
    </property>
    <property name="text">
@@ -429,7 +430,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/acc_export.png</normaloff>:/images/acc_export.png</iconset>
    </property>
    <property name="text">
@@ -525,7 +526,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/pz_add.png</normaloff>:/images/pz_add.png</iconset>
    </property>
    <property name="text">
@@ -537,7 +538,7 @@
   </action>
   <action name="actDelPz">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/pz_del.png</normaloff>:/images/pz_del.png</iconset>
    </property>
    <property name="text">
@@ -552,7 +553,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/go-up.png</normaloff>:/images/go-up.png</iconset>
    </property>
    <property name="text">
@@ -564,7 +565,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/go-down.png</normaloff>:/images/go-down.png</iconset>
    </property>
    <property name="text">
@@ -579,7 +580,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/go_first.png</normaloff>:/images/go_first.png</iconset>
    </property>
    <property name="text">
@@ -594,7 +595,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/go_previous.png</normaloff>:/images/go_previous.png</iconset>
    </property>
    <property name="text">
@@ -609,7 +610,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/go_next.png</normaloff>:/images/go_next.png</iconset>
    </property>
    <property name="text">
@@ -624,7 +625,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/go_last.png</normaloff>:/images/go_last.png</iconset>
    </property>
    <property name="text">
@@ -639,7 +640,7 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/pz_save.png</normaloff>:/images/pz_save.png</iconset>
    </property>
    <property name="text">
@@ -802,7 +803,7 @@
   </action>
   <action name="actAddAction">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/action_add.png</normaloff>:/images/action_add.png</iconset>
    </property>
    <property name="text">
@@ -817,7 +818,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/action_del.png</normaloff>:/images/action_del.png</iconset>
    </property>
    <property name="text">
@@ -832,7 +833,7 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/pz-cancel.png</normaloff>
      <normalon>:/images/pz-cancel.png</normalon>:/images/pz-cancel.png</iconset>
    </property>
@@ -845,7 +846,7 @@
   </action>
   <action name="actSearch">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/pz_search.png</normaloff>:/images/pz_search.png</iconset>
    </property>
    <property name="text">
@@ -860,7 +861,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/naviTo.png</normaloff>:/images/naviTo.png</iconset>
    </property>
    <property name="text">
@@ -872,7 +873,7 @@
   </action>
   <action name="actAntiRepeat">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/pz-ok.png</normaloff>:/images/pz-ok.png</iconset>
    </property>
    <property name="text">
@@ -906,7 +907,7 @@
   </action>
   <action name="actAntiVerify">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/recordPz_ok.png</normaloff>:/images/recordPz_ok.png</iconset>
    </property>
    <property name="text">
@@ -921,7 +922,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/pz_insert.png</normaloff>:/images/pz_insert.png</iconset>
    </property>
    <property name="text">
@@ -1016,7 +1017,7 @@
   </action>
   <action name="actAccProperty">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/accProperty/accProperty.png</normaloff>:/images/accProperty/accProperty.png</iconset>
    </property>
    <property name="text">
@@ -1108,7 +1109,7 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/edit-undo.png</normaloff>:/images/edit-undo.png</iconset>
    </property>
    <property name="text">
@@ -1123,7 +1124,7 @@
     <bool>false</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/edit-redo.png</normaloff>:/images/edit-redo.png</iconset>
    </property>
    <property name="text">
@@ -1135,7 +1136,7 @@
   </action>
   <action name="actInsertBa">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/action_insert.png</normaloff>:/images/action_insert.png</iconset>
    </property>
    <property name="text">
@@ -1147,7 +1148,7 @@
   </action>
   <action name="actRecordPz">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/recordPz_not.png</normaloff>
      <normalon>:/images/recordPz_ok.png</normalon>:/images/recordPz_not.png</iconset>
    </property>
@@ -1163,7 +1164,7 @@
     <bool>true</bool>
    </property>
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/accSuite.png</normaloff>:/images/accSuite.png</iconset>
    </property>
    <property name="text">
@@ -1265,7 +1266,7 @@
   </action>
   <action name="actBankIncome">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/baBankIncome.png</normaloff>:/images/baBankIncome.png</iconset>
    </property>
    <property name="text">
@@ -1277,7 +1278,7 @@
   </action>
   <action name="actYsIncome">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/baYsIncome.png</normaloff>:/images/baYsIncome.png</iconset>
    </property>
    <property name="text">
@@ -1289,7 +1290,7 @@
   </action>
   <action name="actYfCost">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/baYfCost.png</normaloff>:/images/baYfCost.png</iconset>
    </property>
    <property name="text">
@@ -1301,7 +1302,7 @@
   </action>
   <action name="actBankCost">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/baBankCost.png</normaloff>:/images/baBankCost.png</iconset>
    </property>
    <property name="text">
@@ -1313,7 +1314,7 @@
   </action>
   <action name="actYsGather">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/baYsGather.png</normaloff>:/images/baYsGather.png</iconset>
    </property>
    <property name="text">
@@ -1325,7 +1326,7 @@
   </action>
   <action name="actYfGather">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/baYfGather.png</normaloff>:/images/baYfGather.png</iconset>
    </property>
    <property name="text">
@@ -1337,7 +1338,7 @@
   </action>
   <action name="actInvoiceStat">
    <property name="icon">
-    <iconset resource="../imgers.qrc">
+    <iconset>
      <normaloff>:/images/invoiceStat.png</normaloff>:/images/invoiceStat.png</iconset>
    </property>
    <property name="text">
@@ -1395,6 +1396,14 @@
     <string>年度累计</string>
    </property>
   </action>
+  <action name="actCrtJtpz">
+   <property name="text">
+    <string>创建记提凭证</string>
+   </property>
+   <property name="toolTip">
+    <string>创建记提凭证</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -1403,9 +1412,7 @@
    <header>mainwindow.h</header>
   </customwidget>
  </customwidgets>
- <resources>
-  <include location="../imgers.qrc"/>
- </resources>
+ <resources/>
  <connections/>
  <slots>
   <slot>subWindowActivated(QMdiSubWindow*)</slot>

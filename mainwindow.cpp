@@ -57,7 +57,7 @@
 #include "curinvoicestatform.h"
 #include "searchdialog.h"
 #include "jxtaxmgrform.h"
-
+#include "jtpzdlg.h"
 
 
 
@@ -1003,6 +1003,7 @@ void MainWindow::rfPzSetOpenAct()
     ui->actNaviToPz->setEnabled(open);      //凭证定位
     ui->actCurStatNew->setEnabled(open);    //本期统计
     ui->actPzErrorInspect->setEnabled(open);//凭证集错误检测
+    ui->actCrtJtpz->setEnabled(open);
     rfPzSetStateAct();
 }
 
@@ -4500,13 +4501,7 @@ void MainWindow::on_actBatchImport_triggered()
 
 bool MainWindow::impTestDatas()
 {
-    int endM = 7;
-    int c1 = endM%3;
-    bool c2 = !endM%3;
-    bool c3 = !1;
-    bool c4 = !2;
-    int c5 = 0 % 5;
-    int i = 0;
+
 }
 
 /**
@@ -4687,6 +4682,35 @@ void MainWindow::on_actYearStat_triggered()
     showStatWindow(SUBWIN_YEAR);
 }
 
+/**
+ * @brief MainWindow::on_actCrtJtpz_triggered
+ * 创建记提凭证
+ */
+void MainWindow::on_actCrtJtpz_triggered()
+{
+//    if(!isContainRight(Right::Pz_Advanced_JzHdsy))
+//        return;
+    if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
+        return;
+    int key = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT)){
+        myHelper::ShowMessageBoxInfo(tr("请先打开凭证编辑窗口，再执行结转！"));
+        return;
+    }
+    JtpzDlg dlg(curSuiteMgr, this);
+    if(dlg.exec() == QDialog::Rejected)
+        return;
+    QList<JtpzDatas*> datas = dlg.getDatas();
+    if(datas.isEmpty())
+        return;
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
+    if(w && !w->crtJtpz(datas))
+        myHelper::ShowMessageBoxWarning(tr("在创建记提凭证时发生错误!"));
+
+
+}
+
+
 
 ////////////////////////////////////////////LockApp///////////////////////////////////////
 LockApp::LockApp(MainWindow *parent):QObject(parent),mainWin(parent)
@@ -4709,4 +4733,5 @@ bool LockApp::eventFilter(QObject *obj, QEvent *event)
         }
     }
 }
+
 

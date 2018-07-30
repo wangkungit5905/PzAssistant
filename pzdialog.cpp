@@ -843,6 +843,29 @@ bool PzDialog::crtJzbnlr()
 }
 
 /**
+ * @brief PzDialog::crtJtpz
+ * @return
+ * 创建记提凭证
+ */
+bool PzDialog::crtJtpz(QList<JtpzDatas*> datas)
+{
+    QUndoCommand* mainCmd = new QUndoCommand(tr("记提凭证"));
+    QList<PingZheng*> pzLst;
+    if(!pzMgr->crtJtpz(datas,pzLst)){
+        delete mainCmd;
+        return false;
+    }
+    //创建一个添加多个凭证对象到当前凭证集的命令对象
+    foreach(PingZheng* pz, pzLst){
+        AppendPzCmd* cmd = new AppendPzCmd(pzMgr,pz,mainCmd);
+    }
+    pzMgr->getUndoStack()->push(mainCmd);
+    //刷新状态
+    refreshPzContent();
+    return true;
+}
+
+/**
  * @brief PzDialog::moveUpBa
  * 向上移动当前会计分录
  */

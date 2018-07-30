@@ -43,7 +43,8 @@ public:
         SSC_YF      = 8,    //应付账款
         SSC_YJSJ    = 9,    //应交税金
         SSC_ZYSR    = 10,   //主营业务收入
-        SSC_ZYCB    = 11    //主营业务成本
+        SSC_ZYCB    = 11,   //主营业务成本
+        SSC_GLFY    = 12    //管理费用
     };
 
     /**

@@ -438,6 +438,7 @@ public:
     FirstSubject* getBankSub(){return bankSub;}
     FirstSubject* getGdzcSub(){return gdzcSub;}
     FirstSubject* getLjzjSub(){return ljzjSub;}
+    FirstSubject* getglfySub(){return glfySub;}
     FirstSubject* getCwfySub(){return cwfySub;}
     FirstSubject* getDtfySub(){return dtfySub;}
     FirstSubject* getBnlrSub(){return bnlrSub;}
@@ -511,6 +512,7 @@ private:
     FirstSubject *cashSub,*bankSub,*ysSub,*yfSub;  //现金、银行科目对象
     FirstSubject *gdzcSub,*dtfySub,*ljzjSub,*bnlrSub,*lrfpSub;//固定资产、待摊费用、累计折旧、本年利润和利润分配科目id
     FirstSubject *cwfySub,*yjsjSub; //财务费用、应交税金
+    FirstSubject *glfySub;          //管理费用
     FirstSubject *zysrSub, *zycbSub; //主营业务收入、主营业务成本
 
     friend class DbUtil;

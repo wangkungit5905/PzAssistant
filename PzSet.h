@@ -117,6 +117,7 @@ public:
     bool crtJzsyPz(int y, int m, QList<PingZheng*>& createdPzs);
     void getJzsyPz(QList<PingZheng*>& pzLst);
     bool crtJzlyPz(int y, int m, PingZheng* pz);
+    bool crtJtpz(QList<JtpzDatas *> datas, QList<PingZheng *> &pzLst);
 
     bool crtGdzcPz();
     bool crtDtfyImpPz(int y, int m, QList<PzData *> pzds);

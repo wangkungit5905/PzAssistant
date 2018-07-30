@@ -1924,7 +1924,7 @@ int AccountSuiteManager::getJzhdsyMustPzNums()
 
 /**
  * @brief PzSetMgr::crtJzsyPz
- *  创建结转汇兑损益凭证
+ *  创建结转损益凭证
  * @param y
  * @param m
  * @param createdPzs
@@ -2099,6 +2099,62 @@ bool AccountSuiteManager::delDtfyPz()
 bool AccountSuiteManager::crtJzlyPz(int y, int m, PingZheng *pz)
 {
 
+}
+
+//创建记提凭证
+bool AccountSuiteManager::crtJtpz(QList<JtpzDatas*> datas, QList<PingZheng*> &pzLst)
+{
+    if(datas.isEmpty())
+        return true;
+    int curGroup = 0;
+    PingZheng* pz = new PingZheng(this);
+    QDate dat(year(),month(),1);
+    if(!pzs->isEmpty())
+        dat = pzs->last()->getDate2();
+    pz->setDate(dat);
+    foreach (JtpzDatas* d, datas) {
+        if(curGroup != d->group){
+            pz = new PingZheng(this);
+            pz->setDate(dat);
+            pzLst<<pz;
+            curGroup = d->group;
+        }
+        if(d->dSsub->getName() == tr("未交增值税")){
+            BusiAction* ba = pz->appendBlank();
+            ba->setSummary(d->summary);
+            ba->setFirstSubject(d->jFsub);
+            ba->setSecondSubject(d->jSsub);
+            ba->setMt(account->getMasterMt(),d->value);
+            ba->setDir(MDIR_J);
+            ba = pz->appendBlank();
+            ba->setSummary(d->summary);
+            ba->setFirstSubject(d->dFsub);
+            ba->setSecondSubject(d->dSsub2);
+            ba->setMt(account->getMasterMt(),d->value);
+            ba->setDir(MDIR_D);
+            ba = pz->appendBlank();
+            ba->setSummary(d->summary);
+            ba->setFirstSubject(d->dFsub);
+            ba->setSecondSubject(d->dSsub);
+            ba->setMt(account->getMasterMt(),d->value);
+            ba->setDir(MDIR_D);
+        }
+        else{
+            BusiAction* ba = pz->appendBlank();
+            ba->setSummary(d->summary);
+            ba->setFirstSubject(d->jFsub);
+            ba->setSecondSubject(d->jSsub);
+            ba->setMt(account->getMasterMt(),d->value);
+            ba->setDir(MDIR_J);
+            ba = pz->appendBlank();
+            ba->setSummary(d->summary);
+            ba->setFirstSubject(d->dFsub);
+            ba->setSecondSubject(d->dSsub);
+            ba->setMt(account->getMasterMt(),d->value);
+            ba->setDir(MDIR_D);
+        }
+    }
+    return true;
 }
 
 //结账

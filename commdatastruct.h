@@ -783,6 +783,20 @@ struct CurInvoiceRecord{
 };
 Q_DECLARE_METATYPE(CurInvoiceRecord*)
 
+/**
+ * @brief The JtpzDatas struct
+ * 创建记提凭证所需要的数据记录
+ */
+struct JtpzDatas{
+    FirstSubject* jFsub=0,*dFsub=0;  //借方一级科目，贷方一级科目
+    SecondSubject* jSsub=0,*dSsub=0; //借方二级科目，贷方二级科目
+    SecondSubject* dSsub2=0;         //贷方二级科目（记提增值税时有2个贷方）
+    QString summary;                 //分录摘要
+    Double value=0.0;                //金额
+    int group=0;                     //所属组（一个组代表一张凭证，一般记提凭证有3张即有3组）
+};
+
+
 enum CurInvoiceRecordModifyTag{
     CI_TAG_ISINCOME = 0,
     CI_TAG_TYPE     = 1,

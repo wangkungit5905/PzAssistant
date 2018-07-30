@@ -141,6 +141,7 @@ public:
     bool crtJzhdPz();
     bool crtJzsyPz();
     bool crtJzbnlr();
+    bool crtJtpz(QList<JtpzDatas*> datas);
 
     //会计分录操作方法
     void moveUpBa();

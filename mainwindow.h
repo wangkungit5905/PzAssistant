@@ -348,6 +348,8 @@ private slots:
 
     void on_actYearStat_triggered();
 
+    void on_actCrtJtpz_triggered();
+
 private:
     void _closeAccount();
     bool isExecAccountTransform();

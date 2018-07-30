@@ -131,7 +131,8 @@ SOURCES += main.cpp\
     curinvoicestatform.cpp \
     searchdialog.cpp \
     jxtaxmgrform.cpp \
-    quarterstatdialog.cpp
+    quarterstatdialog.cpp \
+    jtpzdlg.cpp
 
 HEADERS  += \
     config.h \
@@ -221,7 +222,8 @@ HEADERS  += \
     common/validator.h \
     searchdialog.h \
     jxtaxmgrform.h \
-    quarterstatdialog.h
+    quarterstatdialog.h \
+    jtpzdlg.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -297,7 +299,8 @@ FORMS    += \
     forms/curinvoicestatform.ui \
     forms/pzsearchdialog.ui \
     forms/jxtaxmgrform.ui \
-    forms/quarterstatdialog.ui
+    forms/quarterstatdialog.ui \
+    jtpzdlg.ui
 
 INCLUDEPATH +=  $$PWD/application \
                 $$PWD/common
@@ -320,5 +323,4 @@ win32{
 }
 
 DISTFILES += \
-    3rdparty/qtxlsx/qtxlsx.pri \
-    统计功能验证信息.txt
+    3rdparty/qtxlsx/qtxlsx.pri

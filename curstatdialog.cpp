@@ -449,18 +449,23 @@ void CurStatDialog::init()
             ui->cmbMonth->setVisible(true);
             ui->btnSave->setEnabled(false);
             //根据结束月份初始化可以选择的季度
+            int startM = account->getSuiteMgr()->getSuiteRecord()->startMonth;
             int endM = account->getSuiteMgr()->getSuiteRecord()->endMonth;
-            if(endM % 3 == 0){
-                endM = endM/3;
-            }
-            else{
-                while(endM%3 && endM > 0)
-                    endM--;
-            }
-            endM = endM / 3;
-            for(int i = 1; i <= endM; ++i)
+            int sq,eq;
+            if(startM >= 1 && startM <= 3)
+                sq = 1;
+            else if(startM >= 4 && startM <= 6)
+                sq = 2;
+            else if(startM >= 7 && startM <= 9)
+                sq = 3;
+            else
+                sq = 4;
+            eq = endM/3;
+            if(endM % 3 != 0)
+                eq++;
+            for(int i = sq; i <= eq; ++i)
                 ui->cmbMonth->addItem(QString::number(i),i);
-            ui->cmbMonth->setCurrentIndex(endM-1);
+            ui->cmbMonth->setCurrentIndex(eq-sq);
             connect(ui->cmbMonth,SIGNAL(currentIndexChanged(int)),this,SLOT(onQuarterOrMonthChanged(int)));
             break;
         }
@@ -469,10 +474,11 @@ void CurStatDialog::init()
             ui->label_4->setText(tr("月"));
             ui->cmbMonth->setEnabled(true);
             ui->btnSave->setEnabled(false);
+            int startM = account->getSuiteMgr()->getSuiteRecord()->startMonth;
             int endM = account->getSuiteMgr()->getSuiteRecord()->endMonth;
-            for(int i = 1; i <= endM; ++i)
+            for(int i = startM; i <= endM; ++i)
                 ui->cmbMonth->addItem(QString::number(i),i);
-            ui->cmbMonth->setCurrentIndex(endM-1);
+            ui->cmbMonth->setCurrentIndex(endM-startM);
             connect(ui->cmbMonth,SIGNAL(currentIndexChanged(int)),this,SLOT(onQuarterOrMonthChanged(int)));
             break;
     }
@@ -1304,12 +1310,12 @@ void CurStatDialog::onQuarterOrMonthChanged(int index)
 {
     int startM=0, endM=0;
     if(statType == ST_QUARTER){
-        endM = 3 * (index + 1);
+        endM = 3 * ui->cmbMonth->currentData().toInt();
         startM = endM - 2;
     }
     else if(statType == ST_YEAR){
-        startM = 1;
-        endM = index + 1;
+        startM = ui->cmbMonth->itemData(0).toInt();
+        endM = ui->cmbMonth->currentData().toInt();
     }
 
     QList<PingZheng* > pzs;

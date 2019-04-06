@@ -19,6 +19,7 @@
 
 int main(int argc, char *argv[])
 {
+    //测试新的提交（20190406）
     MainApplication app(argc,argv);
     if (app.isClosing()){
         myHelper::ShowMessageBoxWarning(app.tr("已有一个应用实例正在运行，如需重新启动应用，则先退出前一个应用实例后再启动！"));

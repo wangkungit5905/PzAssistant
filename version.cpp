@@ -123,6 +123,7 @@ VMAccount::VMAccount(QString filename):fileName(filename)
     appendVersion(1,7,&VMAccount::updateTo1_7);
     appendVersion(1,8,&VMAccount::updateTo1_8);
     appendVersion(1,9,&VMAccount::updateTo1_9);
+    appendVersion(2,0,&VMAccount::updateTo2_0);
     _getSysVersion();
     if(!_getCurVersion()){
         if(!perfectVersion()){
@@ -802,7 +803,7 @@ bool VMAccount::updateTo1_3()
     sy = d.year(),sm = d.month();
 
     s = QString("select %1 from %2 where %3=%4")
-            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ETIME);
+            .arg(fld_acci_value).arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ENDTIME);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("读取账户结束时间时，发生错误！"),VUR_ERROR);
         return false;
@@ -877,7 +878,7 @@ bool VMAccount::updateTo1_3()
 
     //从账户信息表中移除账户起止信息
     s = QString("delete from %1 where %2=%3 or %2=%4")
-            .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::STIME).arg(Account::ETIME);
+            .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::STIME).arg(Account::ENDTIME);
     if(!q.exec(s)){
         emit upgradeStep(verNum,tr("从账户信息表中移除账户起止信息时发生错误"),VUR_ERROR);
         return false;
@@ -1727,8 +1728,38 @@ bool VMAccount::updateTo1_6()
  */
 bool VMAccount::updateTo2_0()
 {
-//    QSqlQuery q(db);
-//    QString s;
+    QSqlQuery q(db);
+    QString s;
+    int verNum = 200;
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY AUTOINCREMENT,%2 INTEGER,%3 TEXT,%4 INTEGER,%5 INTEGER,"
+                "%6 TEXT,%7 REAL, %8 REAL,%9 TEXT, %10 TEXT,%11 INTEGER)").arg(tbl_journals).arg(fld_jo_priNum)
+                .arg(fld_jo_date).arg(fld_jo_bank).arg(fld_jo_isIncome).arg(fld_jo_summary).arg(fld_jo_value)
+                .arg(fld_jo_balance).arg(fld_jo_invoice).arg(fld_jo_remark).arg(fld_jo_vtag);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_journals),VUR_ERROR);
+        return false;
+    }
+
+    s = QString("CREATE TABLE %1(id INTEGER PRIMARY KEY,%2 INTEGER,%3 INTEGER,%4 INTEGER,%5 INTEGER,"
+                "%6 TEXT,%7 INTEGER,%8 INTEGER,%9 INTEGER,%10 INTEGER,%11 REAL)")
+                .arg(tbl_journalizings).arg(fld_jol_gid).arg(fld_jol_gnum).arg(fld_jol_numInGroup)
+                .arg(fld_jol_pnum).arg(fld_jol_summary).arg(fld_jol_fid).arg(fld_jol_sid)
+                .arg(fld_jol_mt).arg(fld_jol_dir).arg(fld_jol_value);
+    if(!q.exec(s)){
+        LOG_SQLERROR(s);
+        emit upgradeStep(verNum,tr("在创建表“%1”时发生错误！").arg(tbl_journalizings),VUR_ERROR);
+        return false;
+    }
+
+    if(setCurVersion(2,0)){
+        emit upgradeStep(verNum,tr("成功更新到版本%1").arg(verNum),VUR_OK);
+        return true;
+    }
+    else{
+        emit upgradeStep(verNum,tr("成功更新到版本%1，但不能正确设置版本号！").arg(verNum),VUR_WARNING);
+        return false;
+    }
 
 //    //2、导入新科目系统的科目
 //    QSqlDatabase ndb = QSqlDatabase::addDatabase("QSQLITE","importNewSub");

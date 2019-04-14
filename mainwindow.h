@@ -350,6 +350,14 @@ private slots:
 
     void on_actCrtJtpz_triggered();
 
+    void on_actImpBeginExtra_triggered();
+
+    void on_actImpJournal_triggered();
+
+    void on_actGenJos_triggered();
+
+    void on_actCrtGatherPz_triggered();
+
 private:
     void _closeAccount();
     bool isExecAccountTransform();

@@ -132,7 +132,10 @@ SOURCES += main.cpp\
     searchdialog.cpp \
     jxtaxmgrform.cpp \
     quarterstatdialog.cpp \
-    jtpzdlg.cpp
+    jtpzdlg.cpp \
+    impbeginextradlg.cpp \
+    impjournarydlg.cpp \
+    journalizingpreviewdlg.cpp
 
 HEADERS  += \
     config.h \
@@ -223,7 +226,10 @@ HEADERS  += \
     searchdialog.h \
     jxtaxmgrform.h \
     quarterstatdialog.h \
-    jtpzdlg.h
+    jtpzdlg.h \
+    impbeginextradlg.h \
+    impjournarydlg.h \
+    journalizingpreviewdlg.h
 
 FORMS    += \
     forms/createaccountdialog.ui \
@@ -300,7 +306,10 @@ FORMS    += \
     forms/pzsearchdialog.ui \
     forms/jxtaxmgrform.ui \
     forms/quarterstatdialog.ui \
-    jtpzdlg.ui
+    jtpzdlg.ui \
+    forms/impbeginextradlg.ui \
+    forms/impjournarydlg.ui \
+    forms/journalizingpreviewdlg.ui
 
 INCLUDEPATH +=  $$PWD/application \
                 $$PWD/common

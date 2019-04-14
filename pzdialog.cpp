@@ -703,6 +703,30 @@ void PzDialog::removePz()
 }
 
 /**
+ * @brief 创建发票聚合凭证
+ * @return
+ */
+bool PzDialog::crtGatherPz()
+{
+    QList<PingZheng*> pzLst;
+    QUndoCommand* mainCmd = new QUndoCommand(tr("发票聚合凭证"));
+    if(!pzMgr->crtGatherPz(pzMgr->year(),pzMgr->month(),pzLst) || !pzMgr->crtGatherPz(pzMgr->year(),pzMgr->month(),pzLst,false)){
+        delete mainCmd;
+        return false;
+    }
+    if(pzLst.isEmpty()){
+        myHelper::ShowMessageBoxInfo(tr("本月导入的发票都已经销账！"));
+        return true;
+    }
+    foreach(PingZheng* pz, pzLst)
+        AppendPzCmd* cmd = new AppendPzCmd(pzMgr,pz,mainCmd);
+    pzMgr->getUndoStack()->push(mainCmd);
+    //刷新状态
+    refreshPzContent();
+    return true;
+}
+
+/**
  * @brief PzDialog::crtJzhdPz
  *  创建结转汇兑损益的凭证
  * @return

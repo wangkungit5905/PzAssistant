@@ -27,6 +27,7 @@ struct PzFindFilteCondition;
 struct PzFindBaContent;
 struct CurAuthCostInvoiceInfo;
 struct HisAuthCostInvoiceInfo;
+struct Journal;
 
 class DbUtil
 {
@@ -39,7 +40,7 @@ public:
         MASTERMT  = 7,           //本币代码
         WAIMT     = 8,           //外币代码列表
         STIME     = 9,           //账户记账起始时间
-        ETIME     = 10,          //账户记账终止时间（当前账户最后记账时间）
+        ENDTIME     = 10,          //账户记账终止时间（当前账户最后记账时间）
         CSUITE    = 11,          //账户当前帐套年份
         SUITENAME = 12,          //帐套名列表
         LASTACCESS= 13,          //账户最后访问时间
@@ -260,6 +261,15 @@ public:
     bool readHisNotAuthCostInvoices(SubjectManager *sm, QList<HisAuthCostInvoiceInfo*> &rs);
     bool updateHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo*> rs);
     bool removeHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> &rs);
+
+    //自动凭证生成相关
+    bool saveJournals(QList<Journal* > js);
+    bool readJournals(int year,int month,QList<Journal* > &js,SubjectManager* sm);
+    bool readJournays(int y, int m, QList<SecondSubject*> &bankSubs, QList<QList<Journal *> *> &jjs, SubjectManager* sm);
+    bool saveJournalizings(QList<Journalizing* > js);
+    bool readJournalizings(QList<Journalizing* > &js, const QHash<int, Journal *> &jMaps, SubjectManager* sm);
+    bool removeJournalizings(const QList<Journalizing *> js);
+    bool clearJournalizings();
 
 private:
     bool saveAccInfoPiece(InfoField code, QString value);

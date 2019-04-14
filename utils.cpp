@@ -5479,11 +5479,31 @@ void PaUtils::extractInvoiceNum(QString summary, QList<int> &months, QList<QStri
 void PaUtils::extractInvoiceNum2(QString summary, QStringList &invoiceNums)
 {
     QRegExp re("((\\d{8})(/\\d{2,4}){0,})|((\\d{8})(-\\d{2,2}){0,})");
+    //QRegExp re("(\\d{8}/{0,1})|((\\d{8})(/\\d{2,4}){0,})|((\\d{8})(-\\d{2,2}){0,})");
     int pos = re.indexIn(summary);
     while(pos != -1){
         getNumberFromSequence(re.cap(0),invoiceNums);
         pos += re.captureCount();
         pos = re.indexIn(summary,pos);
+    }
+}
+
+/**
+ * @brief 从使用斜杠分隔的文本中提取表示发票号的字符串
+ * 比如：07358194-07358195/09537061-09537072，或：00162543对冲发票号：01940908，
+ * 或：04467808/04467795，或：01924743，或：00012346-47
+ * 或：01060672-92/01060694/01060695/01060696/01060698/01587704
+ * @param t
+ * @param inviceNums
+ */
+void PaUtils::extractInvoiceNum3(QString t, QStringList &invoiceNums)
+{
+    QRegExp re("((\\d{8})(-\\d{1,8}){0,1}/{0,1})");
+    int pos = re.indexIn(t);
+    while(pos != -1){
+        getNumberFromSequence(re.cap(0),invoiceNums);
+        pos += re.cap(0).count();
+        pos = re.indexIn(t,pos);
     }
 }
 
@@ -5613,7 +5633,7 @@ QString PaUtils::terseInvoiceNumsWithMonth(QList<int> months, QList<QStringList>
 void PaUtils::getNumberFromSequence(QString text, QStringList &InvoiceNums)
 {
     QRegExp re1("(\\d{8})(/\\d{2,4}){0,}");  //断续型
-    QRegExp re2("(\\d{8})(-\\d{2,2}){0,}");  //连续型
+    QRegExp re2("(\\d{8})(-\\d{2,8}){0,}");  //连续型
     int i1 = re1.indexIn(text);
     if(i1 == -1)
         return;
@@ -5632,20 +5652,61 @@ void PaUtils::getNumberFromSequence(QString text, QStringList &InvoiceNums)
     }
     else{                       //处理连续型
         InvoiceNums<<re2.cap(1);
-        QString endNumStr = re2.cap(2).right(2); //连续型的后缀长度固定为2
+        int suffLen = re2.cap(2).count()-1;
+        if(suffLen>3) //实际连续型的后缀长度3位足以
+            suffLen=3;
+        QString endNumStr = re2.cap(2).right(suffLen);
         int si = re2.cap(1).right(endNumStr.count()).toInt()+1;
         int ei = endNumStr.toInt();
         if(si > ei)    //遵循升序
             return;
-        QString prefix = re2.cap(1).left(6);
+        QString prefix = re2.cap(1).left(8-endNumStr.count());
         for(int i = si; i <= ei; ++i){
-            if(i < 10)
-                InvoiceNums<<prefix+"0"+QString::number(i);
-            else
-                InvoiceNums<<prefix+QString::number(i);
+            QString suffer = QString::number(i);
+            while(suffer.count()<endNumStr.count())
+                suffer = "0"+suffer;
+            InvoiceNums<<prefix+suffer;
         }
     }
 }
+
+//以前版本，只能正确取得2位后缀连续型
+//void PaUtils::getNumberFromSequence(QString text, QStringList &InvoiceNums)
+//{
+//    QRegExp re1("(\\d{8})(/\\d{2,4}){0,}");  //断续型
+//    QRegExp re2("(\\d{8})(-\\d{2,2}){0,}");  //连续型
+//    int i1 = re1.indexIn(text);
+//    if(i1 == -1)
+//        return;
+//    re2.indexIn(text);
+//    QStringList cs1 = re1.capturedTexts();
+//    QStringList cs2 = re2.capturedTexts();
+//    if(cs1.at(2).isEmpty() && cs2.at(2).isEmpty()){
+//        InvoiceNums<<cs1.at(1);
+//        return;
+//    }
+//    if(!cs1.at(2).isEmpty()){   //处理断续型
+//        InvoiceNums<<re1.cap(1);
+//        QString suff = text.mid(i1+8,re1.captureCount()-8);
+//        getSuffixeNumber(suff,re1.cap(1),InvoiceNums);
+
+//    }
+//    else{                       //处理连续型
+//        InvoiceNums<<re2.cap(1);
+//        QString endNumStr = re2.cap(2).right(2); //连续型的后缀长度固定为2
+//        int si = re2.cap(1).right(endNumStr.count()).toInt()+1;
+//        int ei = endNumStr.toInt();
+//        if(si > ei)    //遵循升序
+//            return;
+//        QString prefix = re2.cap(1).left(6);
+//        for(int i = si; i <= ei; ++i){
+//            if(i < 10)
+//                InvoiceNums<<prefix+"0"+QString::number(i);
+//            else
+//                InvoiceNums<<prefix+QString::number(i);
+//        }
+//    }
+//}
 
 /**
  * @brief 在给定的发票号列表中，从start指定的位置开始查找长度为plen的前缀相等的发票号

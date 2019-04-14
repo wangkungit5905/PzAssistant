@@ -44,7 +44,10 @@ public:
         SSC_YJSJ    = 9,    //应交税金
         SSC_ZYSR    = 10,   //主营业务收入
         SSC_ZYCB    = 11,   //主营业务成本
-        SSC_GLFY    = 12    //管理费用
+        SSC_GLFY    = 12,   //管理费用
+        SSC_XSFY    = 13,   //销售费用
+        SSC_YFGZ    = 14,   //应付职工薪酬
+        SSC_SSZB    = 15    //实收资本
     };
 
     /**

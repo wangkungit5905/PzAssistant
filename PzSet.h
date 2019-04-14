@@ -13,6 +13,7 @@ class StatUtil;
 class QUndoStack;
 class FirstSubject;
 class SubjectManager;
+struct CurAuthCostInvoiceInfo;
 
 const int MAXUNDOSTACK = 100;    //Undo栈的最大容量
 
@@ -110,6 +111,7 @@ public:
     bool save(SaveWitch witch=SW_ALL);
 
     //期末处理方法
+    bool crtGatherPz(int y, int m, QList<PingZheng*> &createdPzs, bool isIncome=true);
     bool crtJzhdsyPz(int y, int m, QList<PingZheng*>& createdPzs,
                       QHash<int,Double> sRate,QHash<int,Double> erate, User* user);
     void getJzhdsyPz(QList<PingZheng*>& pzLst);
@@ -118,6 +120,7 @@ public:
     void getJzsyPz(QList<PingZheng*>& pzLst);
     bool crtJzlyPz(int y, int m, PingZheng* pz);
     bool crtJtpz(QList<JtpzDatas *> datas, QList<PingZheng *> &pzLst);
+    PingZheng* crtJxTaxPz(QList<CurAuthCostInvoiceInfo*> caIncoices);
 
     bool crtGdzcPz();
     bool crtDtfyImpPz(int y, int m, QList<PzData *> pzds);
@@ -193,6 +196,7 @@ private:
     void _determinePzSetState(PzsState& state);
     void _determineCurPzChanged(PingZheng* oldPz);
     bool _inspectDirEngageError(FirstSubject* fsud, MoneyDirection dir, PzClass pzc, QString& eStr);
+    bool _removeInvoice(QString invoiceNum, QList<CurInvoiceRecord *> &invoiceNums);
 
     void pzsNotOpenWarning();
 

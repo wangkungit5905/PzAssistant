@@ -15,6 +15,7 @@
 #include "batemplateform.h"
 #include "searchdialog.h"
 #include "jxtaxmgrform.h"
+#include "commdatastruct.h"
 
 DbUtil::DbUtil()
 {
@@ -26,7 +27,7 @@ DbUtil::DbUtil()
     pNames[MASTERMT] = "masterMt";
     pNames[WAIMT] = "WaiBiList";
     pNames[STIME] = "startTime";
-    pNames[ETIME] = "endTime";
+    pNames[ENDTIME] = "endTime";
     pNames[CSUITE] = "currentSuite";
     pNames[SUITENAME] = "suiteNames";
     pNames[LASTACCESS] = "lastAccessTime";
@@ -1007,6 +1008,10 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             smg->gdzcSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_GLFY))
             smg->glfySub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_XSFY))
+            smg->xsfySub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_SSZB))
+            smg->sszbSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_CWFY))
             smg->cwfySub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_BNLR))
@@ -1023,6 +1028,8 @@ bool DbUtil::initSubjects(SubjectManager *smg, int subSys)
             smg->zysrSub = fsub;
         else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_ZYCB))
             smg->zycbSub = fsub;
+        else if(code == conf->getSpecSubCode(subSys,AppConfig::SSC_YFGZ))
+            smg->gzSub = fsub;
     }
 
     //3、判定科目系统的开始、截止日期
@@ -3940,6 +3947,8 @@ bool DbUtil::savePingZheng(PingZheng *pz)
  */
 bool DbUtil::delPingZhengs(QList<PingZheng *> pzs)
 {
+    if(pzs.isEmpty())
+        return true;
     if(!db.transaction()){
         warn_transaction(Transaction_open,QObject::tr("when delete a Ping Zheng failed!"));
         return false;
@@ -7839,6 +7848,328 @@ bool DbUtil::removeHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> &rs)
     }
     qDeleteAll(rs);
     rs.clear();
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveJournals
+ * @param js
+ * @return
+ */
+bool DbUtil::saveJournals(QList<Journal *> js)
+{
+    if(js.isEmpty())
+            return true;
+    QSqlQuery qi = QSqlQuery(db);
+    QSqlQuery qu = QSqlQuery(db);
+    QString sql = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11) values(:priNum,:date,:bank,:isIncome,:summary,"
+                   ":value,:balance,:invoices,:remark,:vTag)").arg(tbl_journals).arg(fld_jo_priNum).arg(fld_jo_date).arg(fld_jo_bank)
+                   .arg(fld_jo_isIncome).arg(fld_jo_summary).arg(fld_jo_value).arg(fld_jo_balance).arg(fld_jo_invoice)
+                   .arg(fld_jo_remark).arg(fld_jo_vtag);
+    if(!qi.prepare(sql))
+        return false;
+    sql  = QString("update %1 set %2=:priNum,%3=:date,%4=:bank,%5=:isIncome,%6=:summary,%7=:value,%8=:balance,%9=:invoices,"
+                   "%10=:remark,%11=:vTag where id=:id")
+                  .arg(tbl_journals).arg(fld_jo_priNum).arg(fld_jo_date).arg(fld_jo_bank).arg(fld_jo_isIncome)
+                  .arg(fld_jo_summary).arg(fld_jo_value).arg(fld_jo_balance).arg(fld_jo_invoice).arg(fld_jo_remark)
+                  .arg(fld_jo_vtag);
+    if(!qu.prepare(sql))
+        return false;
+    if(!db.transaction())
+        return false;
+    for(int i = 0; i < js.count(); ++i){
+        Journal* jo = js.at(i);
+        if(jo->id){
+            qu.bindValue(":id",jo->id);
+            qu.bindValue(":priNum",jo->priNum);
+            qu.bindValue(":date",jo->date);
+            qu.bindValue(":bank",jo->bankId);
+            qu.bindValue(":isIncome",jo->dir);
+            qu.bindValue(":summary",jo->summary);
+            qu.bindValue(":value",jo->value.toString2());
+            qu.bindValue(":balance",jo->balance.toString2());
+            qu.bindValue(":invoices",jo->invoices);
+            qu.bindValue(":remark",jo->remark);
+            qu.bindValue(":vTag",jo->vTag?1:0);
+            if(!qu.exec())
+                return false;
+        }
+        else{
+            qi.bindValue(":priNum",jo->priNum);
+            qi.bindValue(":date",jo->date);
+            qi.bindValue(":bank",jo->bankId);
+            qi.bindValue(":isIncome",jo->dir);
+            qi.bindValue(":summary",jo->summary);
+            qi.bindValue(":value",jo->value.toString2());
+            qi.bindValue(":balance",jo->balance.toString2());
+            qi.bindValue(":invoices",jo->invoices);
+            qi.bindValue(":remark",jo->remark);
+            qi.bindValue(":vTag",jo->vTag?1:0);
+            if(!qi.exec())
+                return false;
+            jo->id = qi.lastInsertId().toInt();
+        }
+    }
+    if(!db.commit()){
+        db.rollback();
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::readJournals
+ * @param year
+ * @param month
+ * @param js
+ * @return
+ */
+bool DbUtil::readJournals(int year, int month, QList<Journal *> &js,SubjectManager* sm)
+{
+    QSqlQuery q(db);
+    QString ds = QDate(year,month,1).toString(Qt::ISODate);
+    ds = ds.left(7);
+    //按日期、先现金，后银行，先借后贷
+    QString sql = QString("select * from %1 where %2 like '%%3%' order by %2,%5,%4")
+                  .arg(tbl_journals).arg(fld_jo_date).arg(ds).arg(fld_jo_isIncome)
+                  .arg(fld_jo_bank);
+    if(!q.exec(sql))
+        return false;
+    QHash<int,Money*> mtHashs;
+    mtHashs[sm->getCashSub()->getDefaultSubject()->getId()] = sm->getAccount()->getMasterMt();
+    foreach(SecondSubject* ssub, sm->getBankSub()->getChildSubs())
+        mtHashs[ssub->getId()] = sm->getSubMatchMt(ssub);
+
+    while(q.next()){
+        Journal* jo = new Journal;
+        jo->id = q.value(0).toInt();
+        jo->priNum = q.value(FI_JO_PRINUM).toInt();
+        jo->date = q.value(FI_JO_DATE).toString();
+        jo->bankId = q.value(FI_JO_BANK).toInt();
+        jo->mt = mtHashs.value(jo->bankId);
+        jo->dir = (MoneyDirection)q.value(FI_JO_ISINCOME).toInt();
+        jo->summary = q.value(FI_JO_SUMMARY).toString();
+        jo->value = q.value(FI_JO_VALUE).toDouble();
+        jo->balance = q.value(FI_JO_BALANCE).toDouble();
+        jo->invoices = q.value(FI_JO_INVOICE).toString();
+        jo->remark = q.value(FI_JO_REMARK).toString();
+        jo->vTag = q.value(FI_JO_VTAG).toBool();
+        js<<jo;
+    }
+    return true;
+}
+
+/**
+ * 读取本地保存的指定年月流水账数据
+ * @param  y       年份
+ * @param  m       月份
+ * @param  bankIds 银行或现金子目id
+ * @param  jjs     列表的列表，每个列表包含对应银行或现金的流水账数据
+ * @param  sm      科目管理区对象
+ * @return
+ */
+bool DbUtil::readJournays(int y,int m,QList<SecondSubject*> &bankSubs,QList<QList<Journal*>* >&jjs,SubjectManager* sm)
+{
+    QSqlQuery q(db);
+    QDate d(y,m,1);
+    QString ds = d.toString(Qt::ISODate);
+    ds = ds.left(7);
+    QString s = QString("select * from %1 where %2 like '%%3%' order by %4,%5")
+                .arg(tbl_journals).arg(fld_jo_date).arg(ds).arg(fld_jo_bank).arg(fld_jo_priNum);
+    if(!q.exec(s))
+        return false;
+
+    QHash<int,Money*> mtHashs;
+    mtHashs[sm->getCashSub()->getChildSubs().first()->getId()] = sm->getAccount()->getMasterMt();
+    foreach(SecondSubject* ssub, sm->getBankSub()->getChildSubs())
+        mtHashs[ssub->getId()] = sm->getSubMatchMt(ssub);
+
+    QHash<int,SecondSubject* > subs;
+    SecondSubject* sub = sm->getCashSub()->getChildSubs().first();
+    subs[sub->getId()] = sub;
+    foreach(SecondSubject* sub, sm->getBankSub()->getChildSubs())
+        subs[sub->getId()] = sub;
+    int bankId = 0;
+    while(q.next()){
+        QList<Journal* >* js;
+        int bid = q.value(FI_JO_BANK).toInt();
+        if(bankId != bid){
+            bankId = bid;
+            bankSubs<<subs.value(bid);
+            js = new QList<Journal* >;
+            jjs<<js;
+        }
+        Journal* j = new Journal;
+        j->id = q.value(0).toInt();
+        j->priNum = q.value(FI_JO_PRINUM).toInt();
+        j->bankId = q.value(FI_JO_BANK).toInt();
+        j->mt = mtHashs.value(j->bankId);
+        j->date = q.value(FI_JO_DATE).toString();
+        j->summary = q.value(FI_JO_SUMMARY).toString();
+        j->value = Double(q.value(FI_JO_VALUE).toDouble());
+        j->dir = (MoneyDirection)q.value(FI_JO_ISINCOME).toInt();
+        j->balance = Double(q.value(FI_JO_BALANCE).toDouble());
+        j->invoices = q.value(FI_JO_INVOICE).toString();
+        j->remark = q.value(FI_JO_REMARK).toString();
+        j->vTag = q.value(FI_JO_VTAG).toBool();
+        js->append(j);
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::saveJournalizings
+ * @param js
+ * @return
+ */
+bool DbUtil::saveJournalizings(QList<Journalizing *> js)
+{
+    if(js.isEmpty())
+        return true;
+    //bool r = db.commit();
+    if(!db.transaction()){
+        QString s = db.lastError().text();
+        return false;
+    }
+    QSqlQuery qi = QSqlQuery(db);
+    QSqlQuery qu = QSqlQuery(db);
+    QString sql = QString("insert into %1(%2,%3,%4,%5,%6,%7,%8,%9,%10,%11) values(:gid,:gnum,:numInGroup,:pnum,"
+                   ":summary,:fsub,:ssub,:mt,:dir,:value)").arg(tbl_journalizings).arg(fld_jol_gid)
+                   .arg(fld_jol_gnum).arg(fld_jol_numInGroup).arg(fld_jol_pnum).arg(fld_jol_summary)
+                   .arg(fld_jol_fid).arg(fld_jol_sid).arg(fld_jol_mt).arg(fld_jol_dir).arg(fld_jol_value);
+    if(!qi.prepare(sql))
+        return false;
+    sql = QString("update %1 set %2=:gid,%3=:gnum,%4=:numInGroup,%5=:pnum,%6=:summary,%7=:fsub,"
+                  "%8=:ssub,%9=:mt,%10=:dir,%11=:value where id=:id").arg(tbl_journalizings).arg(fld_jol_gid)
+                   .arg(fld_jol_gnum).arg(fld_jol_numInGroup).arg(fld_jol_pnum).arg(fld_jol_summary)
+                   .arg(fld_jol_fid).arg(fld_jol_sid).arg(fld_jol_mt).arg(fld_jol_dir).arg(fld_jol_value);
+    if(!qu.prepare(sql))
+        return false;
+    for(int i = 0; i < js.count(); ++i){
+        Journalizing* jo = js.at(i);
+        if(jo->ssub && jo->ssub->getId() == 0)
+            _saveSecondSubject(jo->ssub);
+        if(jo->id){
+            qu.bindValue(":id",jo->id);
+            qu.bindValue(":gid",jo->journal?jo->journal->id:0);
+            qu.bindValue(":gnum",jo->gnum);
+            qu.bindValue(":numInGroup",jo->numInGroup);
+            qu.bindValue(":pnum",jo->pnum);
+            qu.bindValue(":summary",jo->summary);
+            qu.bindValue(":fsub",jo->fsub?jo->fsub->getId():0);
+            qu.bindValue(":ssub",jo->ssub?jo->ssub->getId():0);
+            qu.bindValue(":mt",jo->mt->code());
+            qu.bindValue(":dir",jo->dir);
+            qu.bindValue(":value",jo->value.toString2());
+            if(!qu.exec())
+                return false;
+        }
+        else{
+            qi.bindValue(":gid",jo->journal?jo->journal->id:0);
+            qi.bindValue(":gnum",jo->gnum);
+            qi.bindValue(":numInGroup",jo->numInGroup);
+            qi.bindValue(":pnum",jo->pnum);
+            qi.bindValue(":summary",jo->summary);
+            qi.bindValue(":fsub",jo->fsub?jo->fsub->getId():0);
+            qi.bindValue(":ssub",jo->ssub?jo->ssub->getId():0);
+            qi.bindValue(":mt",jo->mt->code());
+            qi.bindValue(":dir",jo->dir);
+            qi.bindValue(":value",jo->value.toString2());
+            if(!qi.exec())
+                return false;
+            jo->id = qi.lastInsertId().toInt();
+        }
+        jo->changed = false;
+    }
+    if(!db.commit()){
+        db.rollback();
+        return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::readJournalizings
+ * @param js
+ * @param jMaps 键为流水帐id，值为对应原始流水帐
+ * @param sm
+ * @return
+ */
+bool DbUtil::readJournalizings(QList<Journalizing* > &js, const QHash<int, Journal *> &jMaps, SubjectManager* sm)
+{
+    QSqlQuery q(db);
+    QString s = QString("select * from %1 order by %2,%3").arg(tbl_journalizings)
+                .arg(fld_jol_gnum).arg(fld_jol_numInGroup);
+    if(!q.exec(s))
+        return false;
+    int curGNum = 0;
+    QHash<int,SecondSubject* > subs;
+    foreach(SecondSubject* sub,sm->getBankSub()->getChildSubs())
+            subs[sub->getId()] = sub;
+    QHash<int,Money*> mts = sm->getAccount()->getAllMoneys();
+    int row = -1;
+    while(q.next()){
+            int gid = q.value(FI_JOL_GID).toInt();
+            Journal* jo = jMaps.value(gid);
+            if(!jo)
+                continue;
+            row++;
+            Journalizing* j = new Journalizing;
+            j->id = q.value(0).toInt();
+            j->journal = jo;
+            j->gnum = q.value(FI_JOL_GNUM).toInt();
+            if(j->gnum != curGNum){
+                curGNum = j->gnum;
+                jo->startPos = row;
+                jo->numOfBas = 1;
+            }
+            else
+                jo->numOfBas++;
+            j->numInGroup = q.value(FI_JOL_NUMINGROUP).toInt();
+            j->pnum = q.value(FI_JOL_PNUM).toInt();
+            j->summary = q.value(FI_JOL_SUMMARY).toString();
+            j->fsub = sm->getFstSubject(q.value(FI_JOL_FID).toInt());
+            //j->ssub = subs.value(q.value(FI_JOL_SID).toInt());
+            j->ssub = sm->getSndSubject(q.value(FI_JOL_SID).toInt());
+            j->mt = mts.value(q.value(FI_JOL_MT).toInt());
+            j->dir = (MoneyDirection)q.value(FI_JOL_DIR).toInt();
+            j->value = q.value(FI_JOL_VALUE).toDouble();
+            js<<j;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::removeJournalizings
+ * @param js
+ * @return
+ */
+bool DbUtil::removeJournalizings(const QList<Journalizing *> js)
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1 where id=:id").arg(tbl_journalizings);
+    if(!q.prepare(s))
+        return false;
+    foreach(Journalizing* j,js){
+        if(j->id == 0)
+            continue;
+        q.bindValue("id",j->id);
+        if(!q.exec())
+            return false;
+    }
+    return true;
+}
+
+/**
+ * @brief DbUtil::clearJournalizings
+ * @return
+ */
+bool DbUtil::clearJournalizings()
+{
+    QSqlQuery q(db);
+    QString s = QString("delete from %1").arg(tbl_journalizings);
+    if(!q.exec(s))
+        return false;
     return true;
 }
 

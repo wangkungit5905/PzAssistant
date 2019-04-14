@@ -7,6 +7,8 @@
 #include "commands.h"
 #include "myhelper.h"
 #include "utils.h"
+#include "journalizingpreviewdlg.h"
+#include "jxtaxmgrform.h"
 
 
 
@@ -1407,6 +1409,23 @@ bool AccountSuiteManager::_inspectDirEngageError(FirstSubject *fsub, MoneyDirect
     }
 }
 
+/**
+ * @brief 从发票记录队列中移除指定发票号的记录
+ * @param invoiceNum
+ * @param invoiceNums
+ * @return
+ */
+bool AccountSuiteManager::_removeInvoice(QString invoiceNum, QList<CurInvoiceRecord *> &invoiceNums)
+{
+    foreach(CurInvoiceRecord* r, invoiceNums){
+        if(r->inum == invoiceNum){
+            invoiceNums.removeOne(r);
+            return true;
+        }
+    }
+    return false;
+}
+
 
 
 /**
@@ -1671,6 +1690,251 @@ bool AccountSuiteManager::save(SaveWitch witch)
             return false;
         break;
         dirty = false;
+    }
+    return true;
+}
+
+/**
+ * @brief 创建应收或应付聚合分录，此方法在所有与发票相关的凭证都做完后，调用此方法将一流的发票聚合成凭证
+ * @param y
+ * @param m
+ * @param createdPzs
+ * @param isIncome
+ */
+bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdPzs, bool isIncome)
+{
+    QList<CurInvoiceRecord* > invoices;
+    if(isIncome){
+        foreach(CurInvoiceRecord* r, *getCurInvoiceRecords()){
+            if(r->inum == "00000000") //不开票收入
+                continue;
+            invoices<<r;
+        }
+    }
+    else{
+        foreach(CurInvoiceRecord* r, *getCurInvoiceRecords(false)){
+            if(r->inum == "00000000")
+                continue;
+            invoices<<r;
+        }
+    }
+    SubjectManager* sm = account->getSubjectManager(suiteRecord->subSys);
+    FirstSubject *zysrFSub = sm->getZysrSub();
+    FirstSubject *zycbFSub = sm->getZycbSub();
+    FirstSubject* ysFSub = sm->getYsSub();
+    FirstSubject* yfFSub = sm->getYfSub();
+    FirstSubject* yjsjFSub = sm->getYjsjSub();
+    SecondSubject* jxseSSub = sm->getJxseSSub();
+    SecondSubject* xxseSSub = sm->getXxseSSub();
+    QDate d(y,m,1);
+    QString ds = QDate(y,m,d.daysInMonth()).toString(Qt::ISODate);
+    CurInvoiceRecord* r;
+    foreach(PingZheng* pz, *pzs){
+        foreach(BusiAction* ba, pz->baList()){
+            if(isIncome && ba->getFirstSubject() == zysrFSub && ba->getDir() == MDIR_D){
+                QStringList invoiceNums;
+                PaUtils::extractInvoiceNum3(ba->getSummary(),invoiceNums);
+                if(!invoiceNums.isEmpty()){
+                    foreach(QString invoiceNum, invoiceNums)
+                        _removeInvoice(invoiceNum,invoices);
+                }
+                continue;
+            }
+            if(!isIncome && ba->getFirstSubject() == zycbFSub  && ba->getDir() == MDIR_J){
+                QStringList invoiceNums;
+                PaUtils::extractInvoiceNum3(ba->getSummary(),invoiceNums);
+                if(!invoiceNums.isEmpty()){
+                    foreach(QString invoiceNum, invoiceNums)
+                        _removeInvoice(invoiceNum,invoices);
+                }
+            }
+        }
+    }
+    QList<BusiAction*> bas;
+    Money* mmt = account->getMasterMt();
+    if(!invoices.isEmpty()){
+        if(isIncome)
+            qSort(invoices.begin(),invoices.end(),incomeInvoiceThan);
+        else
+            qSort(invoices.begin(),invoices.end(),costInvoiceThan);
+        int startPos=-1;  //专票开始索引位
+        for(int i=0; i<invoices.count(); ++i){
+            if(invoices.at(i)->type){
+                startPos = i;
+                break;
+            }
+        }
+        QString summary;
+        SecondSubject* ssub;
+        BusiAction *ba1,*ba2;
+        PingZheng* pz = 0;
+        PingZheng* p = new PingZheng(this);
+        //普票
+        if(startPos>0){
+            for(int i = 0; i < startPos; ++i){
+                r = invoices.at(i);
+                QString cname = r->ni?r->ni->getShortName():r->client;
+                ba1 = new BusiAction();
+                ba1->setParent(p);
+                ba1->setValue(r->money);
+                ba1->setMt(mmt,r->money);
+                if(isIncome){
+                    ba1->setDir(MDIR_J);
+                    ba1->fsub = ysFSub;
+                    ssub = ysFSub->getChildSub(r->ni);
+                    if(!ssub)
+                        ssub = ysFSub->addChildSub(r->ni);
+                    ba1->setSecondSubject(ssub);
+                    if(r->wbMoney != 0)
+                        summary = tr("应收%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
+                    else
+                        summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
+                    ba1->setSummary(summary);
+                }
+                else{
+                    ba1->setDir(MDIR_D);
+                    ba1->setFirstSubject(yfFSub);
+                    ssub = yfFSub->getChildSub(r->ni);
+                    if(!ssub)
+                        ssub = ysFSub->addChildSub(r->ni);
+                    ba1->setSecondSubject(ssub);
+                    if(r->wbMoney != 0)
+                        summary = tr("应付%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
+                    else
+                        summary = tr("应付%1运费 %2").arg(cname).arg(r->inum);
+                    ba1->setSummary(summary);
+                }
+                bas<<ba1;
+            }
+        }
+        //创建普票凭证
+        Double sum;
+        while(!bas.isEmpty()){
+            sum = 0;
+            int nums = bas.count();
+            QList<BusiAction*> bs;
+            pz = new PingZheng(this);
+            pz->setDate(ds);
+            if(nums<=63){
+                bs = bas;
+                bas.clear();
+            }
+            else if(nums>63 && nums<96){
+                for(int i = 0; i < 47; ++i)
+                    bs<<bas.takeAt(0);
+            }
+            else{
+                for(int i = 0; i < 63; ++i)
+                    bs<<bas.takeAt(0);
+            }
+            ba1 = new BusiAction();
+            ba1->setParent(pz);
+            ba1->setSummary(isIncome?tr("应收运费"):tr("应付运费"));
+            ba1->setFirstSubject(isIncome?zysrFSub:zycbFSub);
+            ba1->setSecondSubject(ba1->getFirstSubject()->getDefaultSubject());
+            foreach(BusiAction* b,bs)
+                sum += b->getValue();
+            ba1->setMt(mmt,sum);
+            ba1->setDir(isIncome?MDIR_D:MDIR_J);
+            if(isIncome)
+                bs<<ba1;
+            else
+                bs.push_front(ba1);
+            pz->setBaList(bs);
+            createdPzs<<pz;
+        }
+
+        //专票
+        sum = 0;
+        if(startPos != -1){
+            for(int i=startPos; i < invoices.count(); ++i){
+                r = invoices.at(i);
+                QString cname = r->ni?r->ni->getShortName():r->client;
+                ba1 = new BusiAction();
+                ba1->setParent(p);
+                ba1->setMt(mmt,r->money);
+                ba2 = new BusiAction();
+                ba2->setParent(p);
+                ba2->setMt(mmt,r->taxMoney);
+                if(isIncome){
+                    if(r->wbMoney > 0)
+                        summary = tr("应收%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
+                    else
+                        summary = summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
+                    ba1->setSummary(summary);
+                    ba1->setFirstSubject(ysFSub);
+                    ssub = ysFSub->getChildSub(r->ni);
+                    if(!ssub)
+                        ssub = ysFSub->addChildSub(r->ni);
+                    ba1->setSecondSubject(ssub);
+                    ba1->setDir(MDIR_J);
+                    bas<<ba1;
+                    ba2->summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
+                    ba2->fsub = yjsjFSub;
+                    ba2->ssub = xxseSSub;
+                    ba2->dir = MDIR_D;
+                    bas<<ba2;
+                }
+                else{
+                    if(r->wbMoney > 0)
+                        summary = tr("应付%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
+                    else
+                        summary = summary = tr("应付%1运费 %2").arg(cname).arg(r->inum);
+                    ba1->setSummary(summary);
+                    ba1->setFirstSubject(yfFSub);
+                    ssub = yfFSub->getChildSub(r->ni);
+                    if(!ssub)
+                        ssub = yfFSub->addChildSub(r->ni);
+                    ba1->setSecondSubject(ssub);
+                    ba1->setDir(MDIR_D);
+                    ba2->setSummary(tr("应付%1运费 %2").arg(cname).arg(r->inum));
+                    ba2->setFirstSubject(yjsjFSub);
+                    ba2->setSecondSubject(jxseSSub);
+                    ba2->setDir(MDIR_J);
+                    bas<<ba2;
+                    bas<<ba1;
+                }
+            }
+            //创建专票凭证
+            while(!bas.isEmpty()){
+                int nums = bas.count();
+                QList<BusiAction*> bs;
+                pz = new PingZheng(this);
+                pz->setDate(ds);
+                if(nums<=61){
+                    bs = bas;
+                    bas.clear();
+                }
+                else if(nums>63 && nums<93){
+                    for(int i = 0; i < 45; ++i)
+                        bs<<bas.takeAt(0);
+                }
+                else{
+                    for(int i = 0; i < 61; ++i)
+                        bs<<bas.takeAt(0);
+                }
+                ba1 = new BusiAction();
+                ba1->setParent(pz);
+                ba1->setSummary(isIncome?tr("应收运费"):tr("应付运费"));
+                ba1->setFirstSubject(isIncome?zysrFSub:zycbFSub);
+                ba1->setSecondSubject(ba1->getFirstSubject()->getDefaultSubject());
+                Double dy,dj;
+                foreach(BusiAction* b,bs){
+                    if(b->getFirstSubject() == yjsjFSub)
+                        dj += b->getValue();
+                    else
+                        dy += b->getValue();
+                }
+                ba1->setMt(mmt,dy-dj);
+                ba1->setDir(isIncome?MDIR_D:MDIR_J);
+                if(isIncome)
+                    bs<<ba1;
+                else
+                    bs.push_front(ba1);
+                pz->setBaList(bs);
+                createdPzs<<pz;
+            }
+        }
     }
     return true;
 }
@@ -2157,10 +2421,56 @@ bool AccountSuiteManager::crtJtpz(QList<JtpzDatas*> datas, QList<PingZheng*> &pz
     return true;
 }
 
+/**
+ * @brief 创建历史进项税调整凭证
+ * @param haIncoices
+ * @param createdPzs
+ * @return
+ */
+PingZheng* AccountSuiteManager::crtJxTaxPz(QList<CurAuthCostInvoiceInfo *> caIncoices)
+{
+    if(!isPzSetOpened() && caIncoices.isEmpty())
+        return 0;
+    QDate d(year(),month(),1);
+    d.setDate(year(),month(),d.daysInMonth());
+    QString ds = d.toString(Qt::ISODate);
+    SubjectManager* subMgr = account->getSubjectManager(suiteRecord->subSys);
+    PingZheng* pz = new PingZheng(this);
+    pz->setDate(ds);
+    pz->setEncNumber(0);
+    pz->setPzState(Pzs_Recording);
+    pz->setRecordUser(curUser);
+    BusiAction* ba;
+    FirstSubject* yjsjFSub = subMgr->getYjsjSub();
+    FirstSubject* yfFSub = subMgr->getYfSub();
+    SecondSubject* jxseSSub = subMgr->getJxseSSub();
+    Money* mmt = account->getMasterMt();
+    QString summary;
+    foreach(CurAuthCostInvoiceInfo* ca,caIncoices){
+        ba = pz->appendBlank();
+        summary = tr("付%1运费 %2").arg(ca->ni->getShortName()).arg(ca->inum);
+        ba->setSummary(summary);
+        ba->setFirstSubject(yjsjFSub);
+        ba->setSecondSubject(jxseSSub);
+        ba->setMt(mmt,ca->taxMoney);
+        ba->setDir(MDIR_J);
+        ba = pz->appendBlank();
+        summary = tr("付%1运费 %2（税金）").arg(ca->ni->getShortName()).arg(ca->inum);
+        ba->setSummary(summary);
+        ba->setFirstSubject(yfFSub);
+        ba->setSecondSubject(yfFSub->getChildSub(ca->ni));
+        ba->setMt(mmt,ca->taxMoney);
+        ba->setDir(MDIR_D);
+    }
+    return pz;
+}
+
 //结账
 void AccountSuiteManager::finishAccount()
 {
-
+    dbUtil->clearJournalizings();
+    setState(Ps_Jzed);
+    save();
 }
 
 //统计本期发生额
@@ -2849,41 +3159,50 @@ void AccountSuiteManager::loadInCost()
     //开始一次孤立别名的匹配（有些发票可能前次已经通过创建孤立别名-即创建新名称对象，来匹配客户，但由于表格内没有与孤立别名连接的字段，所以在这里进行处理）
     QList<NameItemAlias*> isolatedAlias;
     isolatedAlias = getSubjectManager()->getAllIsolatedAlias();
-    QHash<QString,NameItemAlias*> matched;
+    QHash<QString,NameItemAlias*> matchToAlias;
+    QHash<QString,SubjectNameItem*> matchToNIs;
     CurInvoiceRecord* r;
     for(int i = 0; i < incomes.count(); ++i){
         r = incomes.at(i);
         if(r->ni)
             continue;
-        r->alias = matched.value(r->client);
-        if(!r->alias){
+        r->alias = matchToAlias.value(r->client);
+        r->ni = matchToNIs.value(r->client);
+        if(!r->ni){
             foreach(NameItemAlias* nia, isolatedAlias){
                 if(nia->longName() == r->client){
                     r->alias = nia;
+                    r->ni = new SubjectNameItem(r->alias);
+                    matchToAlias[r->client] = nia;
+                    matchToNIs[r->client] = r->ni;
                     break;
                 }
             }
         }
-        if(!r->alias)
-            continue;
-        r->ni = new SubjectNameItem(r->alias);
+        //if(!r->alias)
+        //    continue;
+        //r->ni = new SubjectNameItem(r->alias);
     }
     for(int i = 0; i < costs.count(); ++i){
         r = costs.at(i);
         if(r->ni)
             continue;
-        r->alias = matched.value(r->client);
-        if(!r->alias){
+        r->alias = matchToAlias.value(r->client);
+        r->ni = matchToNIs.value(r->client);
+        if(!r->ni){
             foreach(NameItemAlias* nia, isolatedAlias){
                 if(nia->longName() == r->client){
                     r->alias = nia;
+                    r->ni = new SubjectNameItem(r->alias);
+                    matchToAlias[r->client] = nia;
+                    matchToNIs[r->client] = r->ni;
                     break;
                 }
             }
         }
-        if(!r->alias)
-            continue;
-        r->ni = new SubjectNameItem(r->alias);
+        //if(!r->alias)
+        //    continue;
+        //r->ni = new SubjectNameItem(r->alias);
     }
     isICLoader = true;
 }

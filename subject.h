@@ -319,7 +319,6 @@ public:
     void setLName(QString name){nItem->setLongName(name);}
     //int getNameCls(){return nItem->getClassId();}//返回科目使用的名称条目的所属类别代码
     //int getNameId(){return nItem->getId();}    //返回科目使用的名称条目的id
-    void setParent(FirstSubject* p){if(p){parent=p;witchEdit |= ES_SS_FID;}}
     FirstSubject* getParent(){return parent;}
     SubjectNameItem* getNameItem(){return nItem;}
     void setNameItem(SubjectNameItem* ni){nItem=ni; witchEdit |= ES_SS_NID;}
@@ -335,6 +334,7 @@ public:
     bool operator !=(SecondSubject& other){/*if(&other == SS_ALL) return false;else*/ return md != other.md;}
 
 private:
+    void setParent(FirstSubject* p){if(p){parent=p;witchEdit |= ES_SS_FID;}}
     //void setId(int id){this->id=id;}
 
 private:
@@ -353,6 +353,7 @@ private:
     SecondSubjectEditStates witchEdit; //记录那些部分被修改了的标志
 
     friend class SubjectManager;
+    friend class FirstSubject;
     friend class DbUtil;
 };
 
@@ -448,6 +449,9 @@ public:
     FirstSubject* getYjsjSub(){return yjsjSub;}
     FirstSubject* getZysrSub(){return zysrSub;}
     FirstSubject* getZycbSub(){return zycbSub;}
+    FirstSubject* getXsfySub(){return xsfySub;}
+    FirstSubject* getSszbSub(){return sszbSub;}
+    FirstSubject* getGzSub(){return gzSub;}
     bool isSySubject(int sid);
     bool isSyClsSubject(int sid, bool &yes, bool isFst=true);
 
@@ -512,8 +516,9 @@ private:
     FirstSubject *cashSub,*bankSub,*ysSub,*yfSub;  //现金、银行科目对象
     FirstSubject *gdzcSub,*dtfySub,*ljzjSub,*bnlrSub,*lrfpSub;//固定资产、待摊费用、累计折旧、本年利润和利润分配科目id
     FirstSubject *cwfySub,*yjsjSub; //财务费用、应交税金
-    FirstSubject *glfySub;          //管理费用
+    FirstSubject *glfySub,*xsfySub,*sszbSub; //管理费用，销售费用，实收资本
     FirstSubject *zysrSub, *zycbSub; //主营业务收入、主营业务成本
+    FirstSubject *gzSub;             //应付职工薪酬
 
     friend class DbUtil;
 };

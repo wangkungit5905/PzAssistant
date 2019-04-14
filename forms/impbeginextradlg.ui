@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>ImpBeginExtraDlg</class>
+ <widget class="QDialog" name="ImpBeginExtraDlg">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>700</width>
+    <height>453</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QLineEdit" name="edtFille"/>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnBrowse">
+       <property name="text">
+        <string>浏览</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="currentIndex">
+      <number>1</number>
+     </property>
+     <widget class="QWidget" name="tabYs">
+      <attribute name="title">
+       <string>应收</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_2">
+       <item>
+        <widget class="QTableWidget" name="twYs">
+         <column>
+          <property name="text">
+           <string>科目代码</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>客户名称</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>新建列</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>贷方余额</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabYf">
+      <attribute name="title">
+       <string>应付</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayout_3">
+       <item>
+        <widget class="QTableWidget" name="twYf">
+         <column>
+          <property name="text">
+           <string>新建列</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>客户名称</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>借方余额</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>贷方余额</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="horizontalLayout_4">
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnImport">
+       <property name="text">
+        <string>导入余额</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="btnCancel">
+       <property name="text">
+        <string>取消</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections>
+  <connection>
+   <sender>btnCancel</sender>
+   <signal>clicked()</signal>
+   <receiver>ImpBeginExtraDlg</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>632</x>
+     <y>427</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>467</x>
+     <y>417</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
+</ui>

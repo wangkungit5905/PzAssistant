@@ -626,6 +626,53 @@ const int FI_CACI_CLIENT = 6;
 const QString fld_taxamount_tag = "TAX AMOUNT";     //该表存放每月认证进项税额合计值记录的标记发票号字段
 
 
+//原始流水账表（journals）
+const QString tbl_journals = "journals";
+const QString fld_jo_priNum  = "priNum";       //原始序号
+const QString fld_jo_date = "date";            //日期
+const QString fld_jo_bank = "bankID";          //银行账号/现金子目id
+const QString fld_jo_isIncome = "isIncome";    //收入/支出
+const QString fld_jo_summary = "summary";      //摘要
+const QString fld_jo_value = "value";          //金额
+const QString fld_jo_balance = "balance";      //余额
+const QString fld_jo_invoice = "invoices";     //发票号
+const QString fld_jo_remark = "remark";        //备注
+const QString fld_jo_vtag = "vtag";            //审核标志（初值为0，1：表通过）
+const int FI_JO_PRINUM = 1;
+const int FI_JO_DATE = 2;
+const int FI_JO_BANK = 3;
+const int FI_JO_ISINCOME = 4;
+const int FI_JO_SUMMARY = 5;
+const int FI_JO_VALUE = 6;
+const int FI_JO_BALANCE = 7;
+const int FI_JO_INVOICE = 8;
+const int FI_JO_REMARK = 9;
+const int FI_JO_VTAG = 10;
+
+//由流水账生成的分录缓存表（journalizings）
+const QString tbl_journalizings = "journalizings";
+const QString fld_jol_gid = "gid";                  //组id--每条流水账对应一组分录，可以作为外键，指向流水账表的id
+const QString fld_jol_gnum = "gnum";                //组序号--表征实际的导入顺序，也是在此从分录缓存表中读入时保留原始的导入顺序的保证
+const QString fld_jol_numInGroup = "numInGroup";    //组内序号
+const QString fld_jol_pnum = "pnum";                //虚拟凭证号
+const QString fld_jol_summary = "summary";          //摘要
+const QString fld_jol_fid = "fid";                  //主目
+const QString fld_jol_sid = "sid";                  //子目
+const QString fld_jol_mt = "mt";                    //币种
+const QString fld_jol_dir = "dir";                  //借贷方向
+const QString fld_jol_value = "value";               //金额
+const int FI_JOL_GID = 1;
+const int FI_JOL_GNUM = 2;
+const int FI_JOL_NUMINGROUP = 3;
+const int FI_JOL_PNUM = 4;
+const int FI_JOL_SUMMARY = 5;
+const int FI_JOL_FID = 6;
+const int FI_JOL_SID = 7;
+const int FI_JOL_MT = 8;
+const int FI_JOL_DIR = 9;
+const int FI_JOL_VALUE = 10;
+
+
 //////////*****************基本库数据表********************************//////////
 //币种类别表
 const QString tbl_base_mt = "MoneyTypes";

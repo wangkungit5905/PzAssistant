@@ -58,6 +58,9 @@
 #include "searchdialog.h"
 #include "jxtaxmgrform.h"
 #include "jtpzdlg.h"
+#include "impbeginextradlg.h"
+#include "impjournarydlg.h"
+#include "journalizingpreviewdlg.h"
 
 
 
@@ -409,6 +412,12 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
     if(t == SUBWIN_PZEDIT){
         PzDialog* w = static_cast<PzDialog*>(subWin->widget());
         commonState = w->getCommonState();
+        delete w;
+    }
+    if(t == SUBWIN_JOURNALIZING){
+        JournalizingPreviewDlg* w = static_cast<JournalizingPreviewDlg*>(subWin->widget());
+        if(w->isDirty() && myHelper::ShowMessageBoxQuesion(tr("内容已修改，要保存吗？")) == QDialog::Accepted)
+            w->save();
         delete w;
     }
     else if(t == SUBWIN_HISTORYVIEW){
@@ -3599,8 +3608,8 @@ void MainWindow::on_actEndAcc_triggered()
     if(QMessageBox::Yes == QMessageBox::information(this,tr("提示信息"),
                                                     tr("结账后，将不能再次对凭证集进行修改，确认要结账吗？"),
                                                     QMessageBox::Yes | QMessageBox::No)){
-        curSuiteMgr->setState(Ps_Jzed);
-        curSuiteMgr->save();
+
+        curSuiteMgr->finishAccount();
         if(dockWindows.contains(TV_SUITESWITCH)){
             SuiteSwitchPanel* w = static_cast<SuiteSwitchPanel*>(dockWindows.value(TV_SUITESWITCH)->widget());
             w->setJzState(curSuiteMgr,curSuiteMgr->month());
@@ -4499,10 +4508,6 @@ void MainWindow::on_actBatchImport_triggered()
     }
 }
 
-bool MainWindow::impTestDatas()
-{
-
-}
 
 /**
  * @brief 初始化应收/应付发票统计记录（尽在第一次使用应收/应付发票信息前执行一次）
@@ -4586,8 +4591,33 @@ void MainWindow::on_actICManage_triggered()
  */
 void MainWindow::on_actJxTaxMgr_triggered()
 {
-    JxTaxMgrDlg* dlg = new JxTaxMgrDlg(curAccount);
-    dlg->show();
+//    JxTaxMgrDlg* dlg = new JxTaxMgrDlg(curAccount);
+//    dlg->show();
+
+//    if(!curUser->isAdmin() && !curUser->isSuperUser()){
+//        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
+//        return;
+//    }
+    if(!curSuiteMgr->isPzSetOpened()){
+        pzsWarning();
+        return;
+    }
+    JxTaxMgrDlg* dlg = NULL;
+    SubWindowDim* winfo = NULL;
+    QByteArray cinfo,pinfo;
+    int suiteId = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_JXTAXMGR)){
+        appCon->getSubWinInfo(SUBWIN_JXTAXMGR,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_JXTAXMGR,&pinfo);
+        dlg = new JxTaxMgrDlg(curAccount, this);
+    }
+    else{
+        dlg = static_cast<JxTaxMgrDlg*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_JXTAXMGR));
+
+    }
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_JXTAXMGR,dlg,winfo);
+    if(winfo)
+        delete winfo;
 }
 
 /**
@@ -4735,3 +4765,123 @@ bool LockApp::eventFilter(QObject *obj, QEvent *event)
 }
 
 
+//导入期初余额
+void MainWindow::on_actImpBeginExtra_triggered()
+{
+    ImpBeginExtraDlg* dlg = new ImpBeginExtraDlg(curAccount,this);
+    dlg->exec();
+}
+
+/**
+ * @brief 导入流水账单
+ */
+void MainWindow::on_actImpJournal_triggered()
+{
+    if(!curUser->isAdmin() && !curUser->isSuperUser()){
+        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
+        return;
+    }
+    if(!curSuiteMgr->isPzSetOpened()){
+        pzsWarning();
+        return;
+    }
+    ImpJournaryDlg* dlg = NULL;
+    SubWindowDim* winfo = NULL;
+    QByteArray cinfo,pinfo;
+    int suiteId = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_IMPJOURNAL)){
+        appCon->getSubWinInfo(SUBWIN_IMPJOURNAL,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_IMPJOURNAL,&pinfo);
+        dlg = new ImpJournaryDlg(curSuiteMgr->getSubjectManager(), this);
+    }
+    else{
+        dlg = static_cast<ImpJournaryDlg*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_IMPJOURNAL));
+
+    }
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_IMPJOURNAL,dlg,winfo);
+    if(winfo)
+        delete winfo;
+}
+
+/**
+ * @brief 从流水账单生成账单分录
+ */
+void MainWindow::on_actGenJos_triggered()
+{
+    if(!curUser->isAdmin() && !curUser->isSuperUser()){
+        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
+        return;
+    }
+    if(!curSuiteMgr->isPzSetOpened()){
+        pzsWarning();
+        return;
+    }
+    JournalizingPreviewDlg* dlg = NULL;
+    SubWindowDim* winfo = NULL;
+    QByteArray cinfo,pinfo;
+    int suiteId = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(suiteId)->isSpecSubOpened(SUBWIN_JOURNALIZING)){
+        appCon->getSubWinInfo(SUBWIN_JOURNALIZING,winfo,&cinfo);
+        dbUtil->getSubWinInfo(SUBWIN_JOURNALIZING,&pinfo);
+        dlg = new JournalizingPreviewDlg(curSuiteMgr->getSubjectManager(), this);
+    }
+    else{
+        dlg = static_cast<JournalizingPreviewDlg*>(subWinGroups.value(suiteId)->getSubWinWidget(SUBWIN_JOURNALIZING));
+    }
+    subWinGroups.value(suiteId)->showSubWindow(SUBWIN_JOURNALIZING,dlg,winfo);
+    if(winfo)
+        delete winfo;
+}
+
+
+//#include <QSettings>
+//#include <QTextCodec>
+bool MainWindow::impTestDatas()
+{
+//    QSettings *kwSetting = new QSettings("./config/app/keywords.ini", QSettings::IniFormat);
+//    kwSetting->setIniCodec("UTF-8");
+//    kwSetting->beginGroup("keywords");
+//    QStringList kwCash;
+//    kwCash<<"提取备用金"<<"提现";
+//    kwSetting->setValue("cash",kwCash);
+//    kwCash.clear();
+//    kwCash = kwSetting->value("cash").toStringList();
+//    kwSetting->endGroup();
+    QStringList inums;
+    QString t1= "04467808/04467795";
+    QString t2= "01924743";
+    QString t3= "00012346-47";
+    QString t4= "01060698-702/01060694/01060695/01060696/01060698/01587695-01587703";
+    QString t5="11.15票07358194-07358195/09537061-09537072";
+    QString t6="2018.11.21票09700070-09700075/2018.12.17票09700154-09700160/04461244-04461297";
+//    QString t7="";
+//    QString t8="";
+//    QString t9="";
+    PaUtils::extractInvoiceNum3(t1,inums);
+    PaUtils::extractInvoiceNum3(t2,inums);
+    PaUtils::extractInvoiceNum3(t3,inums);
+    PaUtils::extractInvoiceNum3(t4,inums);
+    PaUtils::extractInvoiceNum3(t5,inums);
+    PaUtils::extractInvoiceNum3(t6,inums);
+//    PaUtils::extractInvoiceNum2(t7,inums);
+//    PaUtils::extractInvoiceNum2(t8,inums);
+//    PaUtils::extractInvoiceNum2(t9,inums);
+    int i;
+}
+
+/**
+ * @brief MainWindow::on_actCrtGatherPz_triggered
+ */
+void MainWindow::on_actCrtGatherPz_triggered()
+{
+    if(!curSuiteMgr->isPzSetOpened() || curSuiteMgr->getState() == Ps_Jzed)
+        return;
+    int key = curSuiteMgr->getSuiteRecord()->id;
+    if(!subWinGroups.value(key)->isSpecSubOpened(SUBWIN_PZEDIT)){
+        myHelper::ShowMessageBoxInfo(tr("请先打开凭证编辑窗口，再执行结转操作！"));
+        return;
+    }
+    PzDialog* w = static_cast<PzDialog*>(subWinGroups.value(key)->getSubWinWidget(SUBWIN_PZEDIT));
+    if(w && !w->crtGatherPz())
+        myHelper::ShowMessageBoxWarning(tr("在创建发票聚合凭证时发生错误!"));
+}

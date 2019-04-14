@@ -81,16 +81,16 @@ private:
 };
 
 
-enum BaUpdateColumn{
-    BUC_SUMMARY     = 0x01,
-    BUC_FSTSUB      = 0x02,
-    BUC_SNDSUB      = 0x04,
-    BUC_MTYPE       = 0x08,
-    BUC_VALUE       = 0x10,
-    BUC_ALL         = 0x12
-};
-Q_DECLARE_FLAGS(BaUpdateColumns, BaUpdateColumn)
-Q_DECLARE_OPERATORS_FOR_FLAGS(BaUpdateColumns)
+//enum BaUpdateColumn{
+//    BUC_SUMMARY     = 0x01,
+//    BUC_FSTSUB      = 0x02,
+//    BUC_SNDSUB      = 0x04,
+//    BUC_MTYPE       = 0x08,
+//    BUC_VALUE       = 0x10,
+//    BUC_ALL         = 0x12
+//};
+//Q_DECLARE_FLAGS(BaUpdateColumns, BaUpdateColumn)
+//Q_DECLARE_OPERATORS_FOR_FLAGS(BaUpdateColumns)
 
 
 
@@ -138,6 +138,7 @@ public:
     void addPz();
     void insertPz();
     void removePz();
+    bool crtGatherPz();
     bool crtJzhdPz();
     bool crtJzsyPz();
     bool crtJzbnlr();

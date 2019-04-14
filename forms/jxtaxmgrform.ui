@@ -17,13 +17,13 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>0</number>
+      <number>2</number>
      </property>
      <widget class="QWidget" name="tabHistory">
       <attribute name="title">
        <string>历史未认证发票</string>
       </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout">
+      <layout class="QHBoxLayout" name="horizontalLayout" stretch="8,1">
        <item>
         <widget class="QTableWidget" name="twHistorys">
          <property name="contextMenuPolicy">
@@ -111,6 +111,16 @@
             </size>
            </property>
           </spacer>
+         </item>
+         <item>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>查询发票号</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="lineEdit"/>
          </item>
         </layout>
        </item>
@@ -201,6 +211,11 @@
          </attribute>
          <column>
           <property name="text">
+           <string>是否本月</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
            <string>发票号码</string>
           </property>
          </column>
@@ -250,6 +265,13 @@
             <widget class="QPushButton" name="btnSaveCur">
              <property name="text">
               <string>保存</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnCrtPz">
+             <property name="text">
+              <string>创建调整凭证</string>
              </property>
             </widget>
            </item>
@@ -355,6 +377,14 @@
    </property>
    <property name="toolTip">
     <string>移除本月认证记录</string>
+   </property>
+  </action>
+  <action name="actJrby">
+   <property name="text">
+    <string>计入本月</string>
+   </property>
+   <property name="toolTip">
+    <string>计入本月</string>
    </property>
   </action>
  </widget>

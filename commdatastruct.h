@@ -580,7 +580,10 @@ enum subWindowType{
     SUBWIN_INCOST = 26,         //收入/成本发票管理
     SUBWIN_PZSEARCH = 27,       //凭证搜索对话框
     SUBWIN_QUARTERSTAT = 28,    //季度统计
-    SUBWIN_YEAR = 29            //年度累计
+    SUBWIN_YEAR = 29,           //年度累计
+    SUBWIN_IMPJOURNAL = 30,     //导入流水账
+    SUBWIN_JOURNALIZING = 31,   //流水分录预览调整
+    SUBWIN_JXTAXMGR = 32        //进项税管理
     //设置期初余额的窗口
     //科目配置窗口
 };
@@ -834,5 +837,86 @@ enum TableColValueType{
     TCVT_DOUBLE = 2,
     TCVT_BOOL   = 3
 };
+
+
+/**
+ * 银行/现金流水账结构
+ */
+struct Journal{
+    int id;
+    int priNum;       //原始序号，基于1
+    QString date;     //日期
+    int bankId;       //科目id
+    Money* mt;        //币种
+    MoneyDirection dir;    //收入1/支出-1
+    QString summary;  //摘要
+    Double value;     //金额
+    Double balance;   //余额
+    QString invoices; //发票号
+    QString remark;   //备注
+    bool vTag;        //审核标志（初值为0，1：表通过）
+    int oppoId;       //相对方流水账id（比如对于银行间划款或提现，都必须将对方流水并入此流水算一次）
+    int startPos;     //组的第一条分录所在索引位置
+    int numOfBas;     //组包含的分录数目
+    Journal(){
+        id = 0;
+        priNum = 0;
+        bankId = 0;
+        mt = 0;
+        dir = MDIR_P;
+        vTag = false;
+        oppoId = 0;
+        startPos = -1;
+        numOfBas = 0;
+    }
+};
+Q_DECLARE_METATYPE(Journal*)
+
+/**
+ * 流水账分录结构
+ */
+struct Journalizing{
+    int id;
+    Journal* journal;     //分录对应流水帐
+    int gnum;             //组序号
+    int numInGroup;       //组内序号
+    int pnum;             //凭证号
+    QString summary;
+    FirstSubject* fsub;
+    SecondSubject* ssub;
+    Money* mt;
+    MoneyDirection dir;
+    Double value;
+    bool changed;
+    Journalizing(){
+        id = 0;
+        journal = 0;
+        gnum = 0;
+        numInGroup = 0;
+        pnum = 0;
+        fsub = 0;
+        ssub = 0;
+        mt = 0;
+        dir = MDIR_P;
+        changed = false;
+    }
+};
+Q_DECLARE_METATYPE(Journalizing*)
+
+
+/**
+ * @brief
+ */
+enum BaUpdateColumn{
+    BUC_SUMMARY     = 0x01,
+    BUC_FSTSUB      = 0x02,
+    BUC_SNDSUB      = 0x04,
+    BUC_MTYPE       = 0x08,
+    BUC_VALUE       = 0x10,
+    BUC_ALL         = 0x12
+};
+Q_DECLARE_FLAGS(BaUpdateColumns, BaUpdateColumn)
+Q_DECLARE_OPERATORS_FOR_FLAGS(BaUpdateColumns)
+
 
 #endif // COMMDATASTRUCT_H

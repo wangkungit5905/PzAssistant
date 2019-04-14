@@ -490,7 +490,7 @@ void ImportOVAccDlg::on_btnFile_clicked()
     }
     //判断是否存在比当前账户更新的凭证集
     s = QString("select %1 from %2 where %3=%4").arg(fld_acci_value)
-                .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ETIME);
+                .arg(tbl_accInfo).arg(fld_acci_code).arg(Account::ENDTIME);
     QDateTime date;
     if(!qs.exec(s) || !qs.first()){
         QMessageBox::warning(this,"",tr("该账户文件缺失记账终止时间信息！"));

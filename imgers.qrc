@@ -121,5 +121,7 @@
         <file>images/invoiceType/i_cost.png</file>
         <file>images/btn_ok.png</file>
         <file>images/btn_close.png</file>
+        <file>images/bank.png</file>
+        <file>images/cash.png</file>
     </qresource>
 </RCC>

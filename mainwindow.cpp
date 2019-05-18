@@ -4777,10 +4777,10 @@ void MainWindow::on_actImpBeginExtra_triggered()
  */
 void MainWindow::on_actImpJournal_triggered()
 {
-    if(!curUser->isAdmin() && !curUser->isSuperUser()){
-        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
-        return;
-    }
+//    if(!curUser->isAdmin() && !curUser->isSuperUser()){
+//        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
+//        return;
+//    }
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
         return;
@@ -4808,10 +4808,10 @@ void MainWindow::on_actImpJournal_triggered()
  */
 void MainWindow::on_actGenJos_triggered()
 {
-    if(!curUser->isAdmin() && !curUser->isSuperUser()){
-        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
-        return;
-    }
+//    if(!curUser->isAdmin() && !curUser->isSuperUser()){
+//        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
+//        return;
+//    }
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
         return;
@@ -4857,15 +4857,23 @@ bool MainWindow::impTestDatas()
 //    QString t7="";
 //    QString t8="";
 //    QString t9="";
-    PaUtils::extractInvoiceNum3(t1,inums);
-    PaUtils::extractInvoiceNum3(t2,inums);
-    PaUtils::extractInvoiceNum3(t3,inums);
-    PaUtils::extractInvoiceNum3(t4,inums);
-    PaUtils::extractInvoiceNum3(t5,inums);
-    PaUtils::extractInvoiceNum3(t6,inums);
+//    PaUtils::extractInvoiceNum3(t1,inums);
+//    PaUtils::extractInvoiceNum3(t2,inums);
+//    PaUtils::extractInvoiceNum3(t3,inums);
+//    PaUtils::extractInvoiceNum3(t4,inums);
+//    PaUtils::extractInvoiceNum3(t5,inums);
+//    PaUtils::extractInvoiceNum3(t6,inums);
 //    PaUtils::extractInvoiceNum2(t7,inums);
 //    PaUtils::extractInvoiceNum2(t8,inums);
 //    PaUtils::extractInvoiceNum2(t9,inums);
+
+    QString s1 = "台州市森田2卫浴有限公司2";
+    QString s2 = "台州市森田43卫浴有限公司12";
+    QString s3 = "华泓国际货代(中国)有限公司宁波分公司";
+    s1.replace(QRegExp("[0-9]{1,2}$"), "");
+    s2.replace(QRegExp("[0-9]{1,2}$"), "");
+    s3.replace('(', "（");
+    s3.replace(')', "）");
     int i;
 }
 

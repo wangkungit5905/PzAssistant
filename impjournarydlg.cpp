@@ -138,13 +138,16 @@ bool ImpJournaryDlg::readSheet(int index, QTableWidget* tw)
     QString strRemark = tr("备注");
     bool isCash = false;
     Cell* cell = sheet->cellAt(1,1);
+    if(!cell){
+        myHelper::ShowMessageBoxWarning(tr("报表的第一行必须是表示银行或现金的有效标题栏！"));
+        return false;
+    }
     QString t = cell->value().toString();
     t.replace(" ","");
     if(t.contains(tr("现金")))
         isCash = true;
 
     int titleRow = 2;    //标题栏行
-    int initBalRow = 3;  //期初余额所在行
     for(int c = 0; c < 10; ++c){
         cell = sheet->cellAt(titleRow,c);
         if(!cell)
@@ -196,60 +199,69 @@ bool ImpJournaryDlg::readSheet(int index, QTableWidget* tw)
     cols<<colDate<<colSummary<<colIncome<<colPay<<colInvoice<<colRemark;
     Double v;
     QList<Journal*> js;
+
+    //定位月度流水账的开始行和结束行，从第4行开始是有效的流水账数据行
+    int curY = sm->getAccount()->getSuiteMgr()->year();
+    int curM = sm->getAccount()->getSuiteMgr()->month();
+    QDate sDay = QDate(curY,curM,1);
+    QDate eDay = QDate(curY,curM,sDay.daysInMonth());
+    int row=3,startRow=0,endRow=0;
+    bool ok = false;
+    while(!endRow){
+        row++;
+        cell = sheet->cellAt(row,colDate);
+        if(!cell){
+            endRow = row;
+            break;
+        }
+        qint64 dv = cell->value().toLongLong(&ok);
+        if(ok && dv != 0){
+            dv += pdInt;
+            QDate d = QDate::fromJulianDay(dv);
+            if(d.isNull() || !d.isValid()){
+                endRow = row;
+                break;
+            }
+            if(d < sDay)
+                continue;
+            else if(!startRow && d >= sDay && d <= eDay){
+                startRow = row;
+                continue;
+            }
+            else if(d > eDay){
+                endRow = row;
+                break;
+            }
+        }
+        else{
+            myHelper::ShowMessageBoxWarning(tr("第%1行出现无效的日期格式！").arg(row));
+            endRow = row;
+            break;
+        }
+    }
+    if(!startRow || !endRow){
+        myHelper::ShowMessageBoxWarning(tr("无法定位%1年%2月的流水账的开始或结束行，请检查报表是否正确！").arg(curY).arg(curM));
+        return false;
+    }
+
     //读取期初余额
-    t = sheet->read(initBalRow,colSummary).toString();
-    if(!isContainKeyword(t,kwBeginBlas)){
-        myHelper::ShowMessageBoxWarning(tr("无法定位期初余额所在行！"));
-        return false;
-    }
-    cell = sheet->cellAt(initBalRow,colBalance);
-    if(!cell){
-        myHelper::ShowMessageBoxWarning(tr("无法读取到期初余额！"));
-        return false;
-    }
+    cell = sheet->cellAt(startRow-1,colBalance);
     Journal* j = new Journal;
     j->id = 0;
     j->summary = tr("期初余额");
     j->balance = Double(cell->value().toDouble());
     j->priNum = 0;
     js<<j;
-    int year = sm->getAccount()->getSuiteMgr()->year();
-    int month = sm->getAccount()->getSuiteMgr()->month();
-    QDate sd = QDate(year,month,1);
-    QString startDate = sd.toString(Qt::ISODate);
-    QString endDate = QDate(year,month,sd.daysInMonth()).toString(Qt::ISODate);
-
-    //行数基于0,数据从第3行开始，第2行是期初余额，第1行是标题栏，0行是标题
-    int row=initBalRow+1;
-    bool ok=false;
-    bool endRead = false;
-    while(!endRead){
+    //读取本月流水账
+    for(int r = startRow; r < endRow; r++){
         j = new Journal;
         j->id = 0;
-        j->priNum = row-3;
+        j->priNum = r;
         foreach(int c,cols){            
             t="";
-            cell = sheet->cellAt(row,c);
-            if(!cell){
-                if(c == colDate){
-                    endRead = true;
-                    break;
-//                    QString t =  sheet->read(row,colSummary).toString();
-//                    if(t == tr("期末余额")){
-//                        j->summary = t;
-//                        break;
-//                    }
-//                    else{
-//                        myHelper::ShowMessageBoxWarning(tr("第%1行日期列有错误!").arg(row));
-//                        qDeleteAll(js);
-//                        return false;
-//                    }
-                }
-                else
-                    // tw->setItem(tr,tc,new QTableWidgetItem);
-                    // tc++
-                    continue;
-            }
+            cell = sheet->cellAt(r,c);
+            if(!cell)
+                continue;
 
             if(c == colDate){
                 qint64 dv = cell->value().toLongLong(&ok);
@@ -257,17 +269,6 @@ bool ImpJournaryDlg::readSheet(int index, QTableWidget* tw)
                     dv += pdInt;
                     QDate d = QDate::fromJulianDay(dv);
                     j->date = d.toString(Qt::ISODate);
-                }
-                else
-                    j->date = cell->value().toString();
-                if(j->date.isEmpty()){
-                    endRead = true;
-                    break;
-                }
-                if(j->date < startDate || j->date > endDate){
-                	myHelper::ShowMessageBoxWarning(tr("第%1行出现非本月流水!").arg(row));
-                    qDeleteAll(js);
-                    return false;
                 }
             }
             else if(c == colSummary || c == colInvoice || c == colRemark){
@@ -290,26 +291,19 @@ bool ImpJournaryDlg::readSheet(int index, QTableWidget* tw)
                 }
             }
         }
-        if(!endRead){
-            js<<j;
-            int co = js.count();
-            if(co>=2){
-                Journal* jp = js.at(co-2);
-                if(j->dir == MDIR_J)
-                    j->balance = jp->balance + j->value;
-                else
-                    j->balance = jp->balance - j->value;
-            }
-            row++;
-        }
-        if(!isCash && j->invoices.isEmpty() && !j->remark.isEmpty() && hasInvoice(j->remark)){  //某些账户将发票号写到了备注栏
-            j->invoices=j->remark;
-            j->remark="";
+        js<<j;
+        int co = js.count();
+        if(co>=2){
+            Journal* jp = js.at(co-2);
+            if(j->dir == MDIR_J)
+                j->balance = jp->balance + j->value;
+            else
+                j->balance = jp->balance - j->value;
         }
     }
 
     //读取期末余额
-    cell = sheet->cellAt(row,colBalance);
+    cell = sheet->cellAt(endRow-1,colBalance);
     if(!cell){
         myHelper::ShowMessageBoxWarning(tr("无法读取到期末余额！"));
         return false;
@@ -327,10 +321,6 @@ bool ImpJournaryDlg::readSheet(int index, QTableWidget* tw)
         if(r>0 && r<js.count()-1 && j->value == 0)
         	myHelper::ShowMessageBoxWarning(tr("第%1行 没有金额！").arg(j->priNum));
     }
-
-
-
-
     return true;
 }
 

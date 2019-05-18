@@ -324,7 +324,6 @@ RESOURCES += \
 OTHER_FILES += \
     PrjExplain/ProjectExplain.txt \
     todos.txt \
-    revisionHistorys \
     bugs.txt
 
 win32{
@@ -332,4 +331,5 @@ win32{
 }
 
 DISTFILES += \
-    3rdparty/qtxlsx/qtxlsx.pri
+    3rdparty/qtxlsx/qtxlsx.pri \
+    revisionHistorys.md

@@ -1382,44 +1382,58 @@ void BaTemplateForm::dkProcess()
     if(act == ui->actDkNot)
         item->setType(IIT_COMMON);
     else if(act == ui->actDkCost2In){
-        item->setType(IIT_COST2IN);
-        autoSetInCost(row,item->text(),false);
+        foreach(int row, selectedRows()){
+            item->setType(IIT_COST2IN);
+            autoSetInCost(row,item->text(),false);
+        }
     }
     else if(act == ui->actDkCost2Ys){
-        item->setType(IIT_COST2YS);
-        autoSetInCost(row,item->text(),false);
+        foreach(int row, selectedRows()){
+            item->setType(IIT_COST2YS);
+            autoSetInCost(row,item->text(),false);
+        }
     }
     else if(act == ui->actDkIn2Cost){
-        item->setType(IIT_IN2COST);
-        autoSetInCost(row,item->text());
+        foreach(int row, selectedRows()){
+            item->setType(IIT_IN2COST);
+            autoSetInCost(row,item->text());
+        }
     }
     else if(act == ui->actDkIn2Yf){
-        item->setType(IIT_IN2YF);
-        autoSetInCost(row,item->text());
+        foreach(int row, selectedRows()){
+            item->setType(IIT_IN2YF);
+            autoSetInCost(row,item->text());
+        }
     }
     else if(act == ui->actRegardYs){//作为应收
         item->setType(IIT_YS);
-        if(curCusSSub)
-            setYsYfMoney(row,curCusSSub);
+        if(curCusSSub){
+            foreach(int row, selectedRows())
+                setYsYfMoney(row,curCusSSub);
+        }
     }
     else if(act == ui->actRegardYf){ //作为应付
         item->setType(IIT_YF);
-        if(curCusSSub)
-            setYsYfMoney(row,curCusSSub);
+        if(curCusSSub){
+            foreach(int row, selectedRows())
+                setYsYfMoney(row,curCusSSub);
+        }
     }
     else{
         if(act == ui->actDkYf2In){
             item->setType(IIT_YF2IN);
             if(curCusSSub){
                 SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(row,ssub);
+                foreach(int row, selectedRows())
+                    setYsYfMoney(row,ssub);
             }
         }
         else if(act == ui->actDkYf2Ys){
             item->setType(IIT_YF2YS);
             if(curCusSSub){
                 SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(row,ssub);
+                foreach(int row, selectedRows())
+                    setYsYfMoney(row,ssub);
             }
 
         }
@@ -1427,14 +1441,16 @@ void BaTemplateForm::dkProcess()
             item->setType(IIT_YS2COST);
             if(curCusSSub){
                 SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(row,ssub);
+                foreach(int row, selectedRows())
+                    setYsYfMoney(row,ssub);
             }
         }
         else if(act == ui->actDkYs2Yf){
             item->setType(IIT_YS2YF);
             if(curCusSSub){
                 SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
-                setYsYfMoney(row,ssub);
+                foreach(int row, selectedRows())
+                    setYsYfMoney(row,ssub);
             }
         }
     }
@@ -1700,7 +1716,8 @@ void BaTemplateForm::createBankIncomeBas()
             continue;
         }
         Double zmMoney = ui->tw->item(i,CI_MONEY)->text().toDouble();
-        Double taxMoney = ui->tw->item(i,CI_TAXMONEY)->text().toDouble();        
+        Double taxMoney = ui->tw->item(i,CI_TAXMONEY)->text().toDouble();
+        Double wbMoney = ui->tw->item(i,CI_WMONEY)->text().toDouble();
         if(type == IIT_COMMON){
             Double srMoney;
             if(taxMoney == 0)
@@ -1708,6 +1725,8 @@ void BaTemplateForm::createBankIncomeBas()
             else
                 srMoney = zmMoney - taxMoney;
             summary = tr("收%1运费 %2").arg(curCusSSub->getName()).arg(invoice);
+            if(wbMoney != 0)
+                summary += tr("（$%1）").arg(wbMoney.toString());
             bas_d<<new BusiAction(0,pz,summary,srFSub,srDefSSub,mmt,MDIR_D,srMoney,0);
             if(taxMoney != 0)
                 bas_d<<new BusiAction(0,pz,summary,sjFSub,xxSSub,mmt,MDIR_D,taxMoney,0);
@@ -1719,6 +1738,8 @@ void BaTemplateForm::createBankIncomeBas()
             else
                 costMoney = zmMoney - taxMoney;
             summary = tr("%1成本抵扣收入 %2").arg(curCusSSub->getName()).arg(invoice);
+            if(wbMoney != 0)
+                summary += tr("（$%1）").arg(wbMoney.toString());
             bas_j<<new BusiAction(0,pz,summary,cbFSub,cbDefSSub,mmt,MDIR_J,costMoney,0);
             if(taxMoney != 0)
                 bas_j<<new BusiAction(0,pz,summary,sjFSub,jxSSub,mmt,MDIR_J,taxMoney,0);
@@ -1728,10 +1749,12 @@ void BaTemplateForm::createBankIncomeBas()
         Double yfSums,money;
         QHash<int,QStringList> invoices;
         bool exist = false;
+        Double wbMoneySum;
         foreach (int row, yfRows) {
             QString inum = ui->tw->item(row,CI_INVOICE)->text();
             int month = ui->tw->item(row,CI_MONTH)->text().toInt();
             money = ui->tw->item(row,CI_MONEY)->text().toDouble();
+            wbMoneySum += ui->tw->item(row,CI_WMONEY)->text().toDouble();
             if(!invoices.contains(month))
                 invoices[month] = QStringList();
             if(!exist){
@@ -1751,6 +1774,8 @@ void BaTemplateForm::createBankIncomeBas()
             inums<<invoices.value(months.at(i));
         QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
         QString summary = tr("%1应付抵扣收入 %2").arg(curCusSSub->getName()).arg(compactNums);
+        if(wbMoneySum != 0)
+            summary += tr("（$%1）").arg(wbMoneySum.toString());
         SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getNameItem());
         if(!ssub){
             myHelper::ShowMessageBoxWarning(tr("在“%1”科目下不存在“%2”子目！")
@@ -1760,13 +1785,14 @@ void BaTemplateForm::createBankIncomeBas()
         bas_j<<new BusiAction(0,pz,summary,yfFSub,ssub,mmt,MDIR_J,yfSums,0);
     }
     if(!ysRows.isEmpty()){
-        Double ysSums,money;
+        Double ysSums,money,wbMoneySum;
         QHash<int,QStringList> invoices;
         bool exist = false;
         foreach (int row, ysRows) {
             QString inum = ui->tw->item(row,CI_INVOICE)->text();
             int month = ui->tw->item(row,CI_MONTH)->text().toInt();
             money = ui->tw->item(row,CI_MONEY)->text().toDouble();
+            wbMoneySum += ui->tw->item(row,CI_WMONEY)->text().toDouble();
             if(!invoices.contains(month))
                 invoices[month] = QStringList();
             if(!exist){
@@ -1786,6 +1812,8 @@ void BaTemplateForm::createBankIncomeBas()
             inums<<invoices.value(months.at(i));
         QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
         QString summary = tr("收%1运费 %2").arg(curCusSSub->getName()).arg(compactNums);
+        if(wbMoneySum != 0)
+            summary += tr("（$%1）").arg(wbMoneySum.toString());
         SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getNameItem());
         if(!ssub){
             myHelper::ShowMessageBoxWarning(tr("在“%1”科目下不存在“%2”子目！")
@@ -1847,12 +1875,13 @@ void BaTemplateForm::createBankCostBas()
     QString summary;
     QHash<int,QStringList> invoices_ys,invoices_yf;
     bool exist_ys = false,exist_yf = false;
-    Double sum_ys,sum_yf;
+    Double sum_ys,sum_yf,wbsum_ys,wbsum_yf;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         InvoiceTableItem* ti = static_cast<InvoiceTableItem*>(ui->tw->item(i,CI_INVOICE));
         QString invoice = ui->tw->item(i,CI_INVOICE)->text();
         Double zmMoney = ui->tw->item(i,CI_MONEY)->text().toDouble();
         Double taxMoney = ui->tw->item(i,CI_TAXMONEY)->text().toDouble();
+        Double wbMoney = ui->tw->item(i,CI_WMONEY)->text().toDouble();
         Double inOrCost;
         if(taxMoney == 0)
             inOrCost = zmMoney;
@@ -1860,12 +1889,16 @@ void BaTemplateForm::createBankCostBas()
             inOrCost = zmMoney - taxMoney;
         if(ti->invoiceType() == IIT_COMMON){
             summary = tr("付%1运费 %2").arg(curCusSSub->getName()).arg(invoice);
+            if(wbMoney != 0)
+                summary += tr("（$%1）").arg(wbMoney.toString());
             bas_j<<new BusiAction(0,pz,summary,cbFSub,cbDefSSub,mmt,MDIR_J,inOrCost,0);
             if(taxMoney != 0)
                 bas_j<<new BusiAction(0,pz,summary,sjFSub,jxSSub,mmt,MDIR_J,taxMoney,0);
         }
         else if(ti->invoiceType() == IIT_IN2COST){
             summary = tr("%1收入抵扣成本 %2").arg(curCusSSub->getName()).arg(invoice);
+            if(wbMoney != 0)
+                summary += tr("（$%1）").arg(wbMoney.toString());
             bas_j<<new BusiAction(0,pz,summary,srFSub,srDefSSub,mmt,MDIR_D,inOrCost,0);
             if(taxMoney != 0)
                 bas_j<<new BusiAction(0,pz,summary,sjFSub,xxSSub,mmt,MDIR_D,taxMoney,0);
@@ -1882,6 +1915,7 @@ void BaTemplateForm::createBankCostBas()
             }
             invoices_ys[month]<<invoice;
             sum_ys += zmMoney;
+            wbsum_ys += wbMoney;
         }
         else if(ti->invoiceType() == IIT_YF){
             int month = ui->tw->item(i,CI_MONTH)->text().toInt();
@@ -1895,6 +1929,7 @@ void BaTemplateForm::createBankCostBas()
             }
             invoices_yf[month]<<invoice;
             sum_yf += zmMoney;
+            wbsum_yf += wbMoney;
         }
     }
     if(!invoices_ys.isEmpty()){
@@ -1906,6 +1941,8 @@ void BaTemplateForm::createBankCostBas()
             inums<<invoices_ys.value(months.at(i));
         QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
         summary = tr("%1应收抵扣成本 %2").arg(curCusSSub->getName()).arg(compactNums);
+        if(wbsum_ys != 0)
+            summary += tr("（$%1）").arg(wbsum_ys.toString());
         SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
         bas_d<<new BusiAction(0,pz,summary,ysFSub,ssub,mmt,MDIR_D,sum_ys,0);
     }
@@ -1918,6 +1955,8 @@ void BaTemplateForm::createBankCostBas()
             inums<<invoices_yf.value(months.at(i));
         QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
         summary = tr("付%1运费 %2").arg(curCusSSub->getName()).arg(compactNums);
+        if(wbsum_yf != 0)
+            summary += tr("（$%1）").arg(wbsum_yf.toString());
         SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
         bas_j<<new BusiAction(0,pz,summary,yfFSub,ssub,mmt,MDIR_J,sum_yf,0);
     }
@@ -1959,16 +1998,19 @@ void BaTemplateForm::createYsBas()
     QHash<int,QStringList> invoices_ys,invoices_yf;
     QList<BusiAction*> bas_j,bas_d;
     bool exist_ys = false,exist_yf = false;
-    Double sum_ys,sum_yf;
+    Double sum_ys,sum_yf,wbsum_ys,wbsum_yf;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         QString inum = ui->tw->item(i,CI_INVOICE)->text();
         InvoiceTableItem* ti = static_cast<InvoiceTableItem*>(ui->tw->item(i,CI_INVOICE));
         if(ti->invoiceType() == IIT_COST2YS){
             Double vm = ui->tw->item(i,CI_MONEY)->text().toDouble();
             Double vt = ui->tw->item(i,CI_TAXMONEY)->text().toDouble();
+            Double vw = ui->tw->item(i,CI_WMONEY)->text().toDouble();
             if(vt != 0)
                 vm -= vt;
             QString summary = tr("%1成本抵扣应收 %2").arg(curCusSSub->getName()).arg(inum);
+            if(vw != 0)
+                summary += tr("（$%1）").arg(vw.toString());
             bas_j<<new BusiAction(0,pz,summary,cbFSub,cbDefSSub,mmt,MDIR_J,vm,0);
             if(vt != 0)
                 bas_j<<new BusiAction(0,pz,summary,sjFSub,jxSSub,mmt,MDIR_J,vt,0);
@@ -1979,6 +2021,7 @@ void BaTemplateForm::createYsBas()
             if(!invoices_ys.contains(month))
                 invoices_ys[month] = QStringList();
             Double money = ui->tw->item(i,CI_MONEY)->text().toDouble();
+            Double wbMoney = ui->tw->item(i,CI_WMONEY)->text().toDouble();
             if(!exist_ys){
                 if(money == 0){
                     exist_ys = true;
@@ -1987,11 +2030,13 @@ void BaTemplateForm::createYsBas()
             }
             invoices_ys[month]<<inum;
             sum_ys += money;
+            wbsum_ys += wbMoney;
         }
         else if(ti->invoiceType() == IIT_YF2YS){
             if(!invoices_yf.contains(month))
                 invoices_yf[month] = QStringList();
             Double money = ui->tw->item(i,CI_MONEY)->text().toDouble();
+            Double wbMoney = ui->tw->item(i,CI_WMONEY)->text().toDouble();
             if(!exist_yf){
                 if(money == 0){
                     exist_ys = true;
@@ -2000,6 +2045,7 @@ void BaTemplateForm::createYsBas()
             }
             invoices_yf[month]<<inum;
             sum_yf += money;
+            wbsum_yf += wbMoney;
         }
     }
     QList<int> months;
@@ -2070,6 +2116,8 @@ void BaTemplateForm::createYsBas()
     QString summary = tr("收%1运费").arg(curCusSSub->getName());
     bas_j<<new BusiAction(0,pz,summary,bankFSub,bankSSub,mt,MDIR_J,bv,0);
     summary.append(QString(" %1").arg(compactNums));
+    if(wbsum_ys != 0)
+        summary.append(tr("（$%1）").arg(wbsum_ys.toString()));
     bas_d<<new BusiAction(0,pz,summary,ysFSub,curCusSSub,mmt,MDIR_D,sum_ys,0);
     if(sum_yf != 0){
         inums.clear();
@@ -2079,6 +2127,8 @@ void BaTemplateForm::createYsBas()
             inums<<invoices_yf.value(months.at(i));
         compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
         summary = tr("%1应付抵扣 %2").arg(curCusSSub->getName()).arg(compactNums);
+        if(wbsum_yf != 0)
+            summary.append(tr("（$%1）").arg(wbsum_yf.toString()));
         SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
         bas_j<<new BusiAction(0,pz,summary,yfFSub,ssub,mmt,MDIR_J,sum_yf,0);
     }
@@ -2118,13 +2168,14 @@ void BaTemplateForm::createYfBas()
     //
     QHash<int,QStringList> invoices_yf,invoices_ys;
     bool exist_yf=false,exist_ys = false;
-    Double sum_ys,sum_yf;
+    Double sum_ys,sum_yf,wbsum_ys,wbsum_yf;
     QString summary;
     QList<BusiAction*> bas_j,bas_d;
     for(int i = 0; i < ui->tw->rowCount()-1; ++i){
         QString inum = ui->tw->item(i,CI_INVOICE)->text();
         Double zmMoney = ui->tw->item(i,CI_MONEY)->text().toDouble();
         Double taxMoney = ui->tw->item(i,CI_TAXMONEY)->text().toDouble();
+        Double wbMoney = ui->tw->item(i,CI_WMONEY)->text().toDouble();
         InvoiceTableItem* ti = static_cast<InvoiceTableItem*>(ui->tw->item(i,CI_INVOICE));
         if(ti->invoiceType() == IIT_IN2YF){
             Double inMoney;
@@ -2133,6 +2184,8 @@ void BaTemplateForm::createYfBas()
             else
                 inMoney = zmMoney - taxMoney;
             summary = tr("%1收入抵扣应付 %2").arg(curCusSSub->getName()).arg(inum);
+            if(wbMoney != 0)
+                summary += tr("（$%1）").arg(wbMoney.toString());
             bas_d<<new BusiAction(0,pz,summary,srFSub,srDefSSub,mmt,MDIR_D,inMoney,0);
             if(taxMoney != 0)
                 bas_d<<new BusiAction(0,pz,summary,sjFSub,xxSSub,mmt,MDIR_D,taxMoney,0);
@@ -2150,6 +2203,7 @@ void BaTemplateForm::createYfBas()
             }
             invoices_yf[month]<<inum;
             sum_yf += zmMoney;
+            wbsum_yf += wbMoney;
         }
         else if(ti->invoiceType() == IIT_YS2YF){
             if(!invoices_ys.contains(month))
@@ -2162,6 +2216,7 @@ void BaTemplateForm::createYfBas()
             }
             invoices_ys[month]<<inum;
             sum_ys += zmMoney;
+            wbsum_ys += wbMoney;
         }
     }
     QList<int> months;
@@ -2193,6 +2248,8 @@ void BaTemplateForm::createYfBas()
     if(diff != 0)
         bas_j<<new BusiAction(0,pz,tr("汇兑损益"),cwFSub,hdsySSub,mmt,MDIR_J,diff,0);
     summary = tr("付%1运费 %2").arg(curCusSSub->getName()).arg(compactNums);
+    if(wbsum_yf != 0)
+        summary += tr("（$%1）").arg(wbsum_yf.toString());
     bas_j<<new BusiAction(0,pz,summary,yfFSub,curCusSSub,mmt,MDIR_J,sum_yf,0);
     if(sum_ys != 0){
         inums.clear();
@@ -2202,6 +2259,8 @@ void BaTemplateForm::createYfBas()
             inums<<invoices_ys.value(months.at(i));
         QString compactNums = PaUtils::terseInvoiceNumsWithMonth(months,inums);
         summary = tr("%1应收抵扣应付 %2").arg(curCusSSub->getName()).arg(compactNums);
+        if(wbsum_ys != 0)
+            summary += tr("（$%1）").arg(wbsum_ys.toString());
         SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
         bas_d<<new BusiAction(0,pz,summary,ysFSub,ssub,mmt,MDIR_D,sum_ys,0);
     }

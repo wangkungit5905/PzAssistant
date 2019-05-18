@@ -8026,10 +8026,11 @@ bool DbUtil::saveJournalizings(QList<Journalizing *> js)
 {
     if(js.isEmpty())
         return true;
-    //bool r = db.commit();
     if(!db.transaction()){
-        QString s = db.lastError().text();
-        return false;
+        //QString s = db.lastError().text();
+        db.commit();   //添加此行的原因是有个账户（三友）在启动事务时会失败（提示在一个事务内不能启动事务），但其他账户没有此问题，也许可能是此账户数据库文件有问题
+        if(!db.transaction())
+            return false;
     }
     QSqlQuery qi = QSqlQuery(db);
     QSqlQuery qu = QSqlQuery(db);

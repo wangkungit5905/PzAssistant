@@ -799,7 +799,7 @@ QList<Journalizing*> JournalizingPreviewDlg::processInvoices(int gnum,Journal* j
             jb->summary = tr("收%1运费").arg(cname);
         }
         else{
-            jb->summary = tr("付%1运费").arg(cname);            
+            jb->summary = tr("付%1运费").arg(cname);
         }
         jb->fsub = fsub;
         jb->ssub = ssub;
@@ -832,46 +832,67 @@ QList<Journalizing*> JournalizingPreviewDlg::processInvoices(int gnum,Journal* j
             }
             js<<jb;
         }
-        //检查借贷平衡
-        Double vj,vd;
-        foreach (Journalizing *j, js) {
-            if(j->dir == MDIR_J){
-                if(j->mt == mmt)
-                    vj += j->value;
-                else
-                    vj += j->value * rates.value(j->mt->code());
-            }
-            else{
-                if(j->mt == mmt)
-                    vd += j->value;
-                else
-                    vd += j->value * rates.value(j->mt->code());
-            }
+        //检查借贷是否平衡，如果不平衡，且任一分录或任一发票有外币金额，则插入汇兑损益分录
+        Double jsum,dsum;
+        foreach(Journalizing* j, js){
+            Double v = j->mt==mmt?j->value:j->value*rates.value(j->mt->code());
+            if(j->dir == MDIR_J)
+                jsum += v;
+            else
+                dsum += v;
         }
-        if(vj != vd){
-            bool isWb = false;
+        if(jsum != dsum){
+            bool hasWb = false;
             foreach (Journalizing *j, js) {
                 if(j->mt != mmt){
-                    isWb = true;
+                    hasWb = true;
                     break;
                 }
             }
-            if(isWb){  //创建汇兑损益分录
+            if(!hasWb && !incomes.isEmpty()){
+                foreach(CurInvoiceRecord* r, incomes){
+                    if(r->wbMoney != 0){
+                        hasWb = true;
+                        break;
+                    }
+                }
+            }
+            if(!hasWb && !costs.isEmpty()){
+                foreach(CurInvoiceRecord* r, costs){
+                    if(r->wbMoney != 0){
+                        hasWb = true;
+                        break;
+                    }
+                }
+            }
+            if(!hasWb && !yss.isEmpty()){
+                foreach(InvoiceRecord* r, yss){
+                    if(r->wmoney != 0){
+                        hasWb = true;
+                        break;
+                    }
+                }
+            }
+            if(!hasWb && !yfs.isEmpty()){
+                foreach(InvoiceRecord* r, yfs){
+                    if(r->wmoney != 0){
+                        hasWb = true;
+                        break;
+                    }
+                }
+            }
+            if(hasWb){
                 jb = new Journalizing;
                 jb->journal = j;
                 jb->gnum = gnum;
-                jb->numInGroup = 1;
                 jb->summary = tr("汇兑损益");
                 jb->fsub = cwfySub;
                 jb->ssub = hdsySSub;
                 jb->mt = mmt;
-                jb->value = vd - vj;
                 jb->dir = MDIR_J;
+                jb->value = dsum - jsum;
                 js.push_front(jb);
             }
-            //调整其他分录的组内序号
-            for(int i = 1; i<js.count(); ++i)
-                js.at(i)->numInGroup = i+1;
         }
     }
     else{  //没有关联发票的收付款，目前仅原样展现
@@ -903,6 +924,7 @@ QList<Journalizing*> JournalizingPreviewDlg::processInvoices(int gnum,Journal* j
         js.at(i)->numInGroup = i+1;
     return js;
 }
+
 
 /**
  * 流水账的备注和摘要是否包含指定关键字
@@ -1671,6 +1693,8 @@ QList<Journalizing*> JournalizingPreviewDlg::genBaForIncomeOrCost(Journal *jo, i
             j->ssub = zycbSub->getDefaultSubject();
             j->dir = MDIR_J;
         }
+        if(r->wbMoney != 0)
+            j->summary += tr("（$%1）").arg(r->wbMoney.toString());
         j->mt = mmt;
         j->value = r->money;
         js<<j;
@@ -1726,12 +1750,16 @@ Journalizing* JournalizingPreviewDlg::genBaForYsOrYf(Journal* jo, int gnum, QLis
         j->ssub = yfSub->getChildSub(ni);
         sOrf = tr("付");
     }
-    Double v;
-    foreach(InvoiceRecord* r, ls)
+    Double v,wv;
+    foreach(InvoiceRecord* r, ls){
         v += r->money;
+        wv += r->wmoney;
+    }
     j->value = v;
     QString strInvoices = genTerseInvoiceNums(ls); //生成应收或应付发票号串
     j->summary = tr("%1%2运费 %3").arg(sOrf).arg(ni->getShortName()).arg(strInvoices);
+    if(wv != 0)
+        j->summary += tr("（$%1）").arg(wv.toString());
     return j;
 }
 
@@ -1761,13 +1789,16 @@ QList<Journalizing*> JournalizingPreviewDlg::genDeductionForIncome(Journal* jo, 
         j->value = i->money;
         j->mt = mmt;
         j->summary = tr("%1成本抵扣%2 %3").arg(i->ni?i->ni->getShortName():i->client).arg(strInOrYf).arg(i->inum);
+        if(i->wbMoney != 0)
+            j->summary += tr("（$%1）").arg(i->wbMoney.toString());
         js<<j;
     }
     if(!yfs.isEmpty()){
-        Double v;
+        Double v,wv;
         QString strInvoices = genTerseInvoiceNums(yfs);
         foreach(InvoiceRecord* i, yfs){
             v += i->money;
+            wv += i->wmoney;
         } 
         Journalizing* j = new Journalizing;
         j->journal = jo;
@@ -1779,6 +1810,8 @@ QList<Journalizing*> JournalizingPreviewDlg::genDeductionForIncome(Journal* jo, 
         QString cname = yfs.first()->customer?yfs.first()->customer->getShortName():"";
         j->ssub = yfSub->getChildSub(yfs.first()->customer);
         j->summary = tr("%1应付抵扣%2 %3").arg(cname).arg(strInOrYf).arg(strInvoices);
+        if(wv != 0)
+            j->summary += tr("（$%1）").arg(wv.toString());
         js<<j;
     }
     return js;
@@ -1799,7 +1832,7 @@ QList<Journalizing*> JournalizingPreviewDlg::genDeductionForCost(Journal* jo, in
         strCostOrYs = tr("成本");
     else
         strCostOrYs = tr("应付");
-    foreach(CurInvoiceRecord* i, costs){
+    foreach(CurInvoiceRecord* i, incomes){
         this->incomes.removeOne(i);
         Journalizing* j = new Journalizing;
         j->journal = jo;
@@ -1810,13 +1843,16 @@ QList<Journalizing*> JournalizingPreviewDlg::genDeductionForCost(Journal* jo, in
         j->value = i->money;
         j->mt = mmt;
         j->summary = tr("%1收入抵扣%2 %3").arg(i->ni?i->ni->getShortName():i->client).arg(strCostOrYs).arg(i->inum);
+        if(i->wbMoney != 0)
+            j->summary += tr("（$%1）").arg(i->wbMoney.toString());
         js<<j;
     }
     if(!yss.isEmpty()){
-        Double v;
+        Double v,wv;
         QString strInvoices = genTerseInvoiceNums(yss);
         foreach(InvoiceRecord* i, yss){
             v += i->money;
+            wv += i->wmoney;
         } 
         Journalizing* j = new Journalizing;
         j->journal = jo;
@@ -1828,6 +1864,8 @@ QList<Journalizing*> JournalizingPreviewDlg::genDeductionForCost(Journal* jo, in
         QString cname = yss.first()->customer?yss.first()->customer->getShortName():"";
         j->ssub = ysSub->getChildSub(yss.first()->customer);
         j->summary = tr("%1应收抵扣%2 %3").arg(cname).arg(strCostOrYs).arg(strInvoices);
+        if(wv != 0)
+            j->summary += tr("（$%1）").arg(wv.toString());
         js<<j;
     }
     return js;
@@ -2078,6 +2116,7 @@ bool JournalizingPreviewDlg::createPzs()
             }
             curPzNum = j->pnum;
             pz = new PingZheng(smg);
+            pz->setRecordUser(curUser);
             pz->setNumber(curPzNum);
             pz->setDate(j->journal?j->journal->date:endDay);
             smg->append(pz);
@@ -3172,7 +3211,7 @@ bool costInvoiceThan(CurInvoiceRecord *i1, CurInvoiceRecord *i2)
 {
     if(i1->type != i2->type)
         return !i1->type && i2->type;
-    if(i1->client == i1->client)
+    if(i1->client == i2->client)
         return i1->inum < i2->inum;
     return i1->client < i2->client;
 }

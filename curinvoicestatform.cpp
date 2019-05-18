@@ -2039,6 +2039,8 @@ void CurInvoiceStatForm::on_actAutoMatch_triggered()
         rs = costs;
         t = ui->twCost;
     }
+
+
     QHash<QString, SubjectNameItem*> matchedHashs;  //已找到匹配的缓存
     QList<SubjectNameItem*> nameItems;              //系统所有的名称对象
     nameItems = sm->getAllNameItems(SORTMODE_NAME);
@@ -2051,6 +2053,16 @@ void CurInvoiceStatForm::on_actAutoMatch_triggered()
         CurInvoiceRecord* r = t->item(i,TI_INUMBER)->data(Qt::UserRole).value<CurInvoiceRecord*>();
         if(r->ni)
             continue;
+        //先对客户名进项预处理，比如替换英文括弧为中文，去除名称后面多余的数字等（成本票）
+        QString cn = r->client;
+        cn.replace('(', "（");
+        cn.replace(')', "）");
+        if(!r->isIncome)
+            cn.replace(QRegExp("[0-9]{1,2}$"), "");
+        if(cn != r->client){
+            r->client = cn;
+            t->item(i,TI_CLIENT)->setText(cn);
+        }
         InvoiceClientItem* ti = static_cast<InvoiceClientItem*>(t->item(i,TI_CLIENT)) ;
         SubjectNameItem* ni = matchedHashs.value(r->client);
         if(ni){

@@ -228,6 +228,8 @@ void PzSearchDialog::init()
     if(sMgr->month() == 0)
         ui->rdoCurPzSet->setEnabled(false);
     enDateScopeEdit(false);
+    connect(ui->edtInvoice,SIGNAL(returnPressed()),this,SLOT(on_btnFind_clicked()));
+    connect(ui->edtContent,SIGNAL(returnPressed()),this,SLOT(on_btnFind_clicked()));
     connect(ui->rdoCurSuilte,SIGNAL(toggled(bool)),this,SLOT(dateScopeChanged(bool)));
     connect(ui->rdoCurPzSet,SIGNAL(toggled(bool)),this,SLOT(dateScopeChanged(bool)));
     connect(ui->rdoDateLimit,SIGNAL(toggled(bool)),this,SLOT(dateScopeChanged(bool)));

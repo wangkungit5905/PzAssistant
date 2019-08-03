@@ -1706,14 +1706,15 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
     QList<CurInvoiceRecord* > invoices;
     if(isIncome){
         foreach(CurInvoiceRecord* r, *getCurInvoiceRecords()){
-            if(r->inum == "00000000") //不开票收入
+            if(r->inum == "00000000" || r->state == 2) //不开票收入或废票
                 continue;
+
             invoices<<r;
         }
     }
     else{
         foreach(CurInvoiceRecord* r, *getCurInvoiceRecords(false)){
-            if(r->inum == "00000000")
+            if(r->inum == "00000000" || r->state == 2) //不开票收入或废票
                 continue;
             invoices<<r;
         }
@@ -2448,14 +2449,19 @@ PingZheng* AccountSuiteManager::crtJxTaxPz(QList<CurAuthCostInvoiceInfo *> caInc
     QString summary;
     foreach(CurAuthCostInvoiceInfo* ca,caIncoices){
         ba = pz->appendBlank();
-        summary = tr("付%1运费 %2").arg(ca->ni->getShortName()).arg(ca->inum);
+        if(ca->originalSummary.isEmpty())
+            summary = tr("付%1运费 %2").arg(ca->ni->getShortName()).arg(ca->inum);
+        else{
+            QString s = ca->originalSummary.split(" ").at(0);
+            summary = tr("%1 %2").arg(s).arg(ca->inum);
+        }
         ba->setSummary(summary);
         ba->setFirstSubject(yjsjFSub);
         ba->setSecondSubject(jxseSSub);
         ba->setMt(mmt,ca->taxMoney);
         ba->setDir(MDIR_J);
         ba = pz->appendBlank();
-        summary = tr("付%1运费 %2（税金）").arg(ca->ni->getShortName()).arg(ca->inum);
+        summary.append(tr("（税金）"));
         ba->setSummary(summary);
         ba->setFirstSubject(yfFSub);
         ba->setSecondSubject(yfFSub->getChildSub(ca->ni));

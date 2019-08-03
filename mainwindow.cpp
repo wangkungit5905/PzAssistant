@@ -460,6 +460,12 @@ void SubWinGroupMgr::subWindowClosed(MyMdiSubWindow *subWin)
         if(w)
             disconnect(w,SIGNAL(openRelatedPz(int,int)),this,SLOT(openSpecPz(int,int)));
     }
+    else if(t == SUBWIN_JXTAXMGR){
+        JxTaxMgrDlg* w = static_cast<JxTaxMgrDlg*>(subWin->widget());
+        if(w->isDirty() && myHelper::ShowMessageBoxQuesion(tr("内容已修改，要保存吗？")) == QDialog::Accepted)
+            w->save();
+        delete w;
+    }
     AppConfig::getInstance()->saveSubWinInfo(t,dim,commonState);
     if(curAccount)
         curAccount->getDbUtil()->saveSubWinInfo(t,properState);
@@ -4591,13 +4597,10 @@ void MainWindow::on_actICManage_triggered()
  */
 void MainWindow::on_actJxTaxMgr_triggered()
 {
-//    JxTaxMgrDlg* dlg = new JxTaxMgrDlg(curAccount);
-//    dlg->show();
-
-//    if(!curUser->isAdmin() && !curUser->isSuperUser()){
-//        myHelper::ShowMessageBoxWarning(tr("当前登录用户没有执行此功能的权限！"));
-//        return;
-//    }
+    if(!curAccount->isJxTaxManaged()){
+        myHelper::ShowMessageBoxInfo(tr("本账户未启用进项税管理，如需启用，则在账户配置基本页内设置启用。"));
+        return;
+    }
     if(!curSuiteMgr->isPzSetOpened()){
         pzsWarning();
         return;

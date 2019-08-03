@@ -23,12 +23,14 @@ struct CurAuthCostInvoiceInfo{
     bool edited;
     bool isCur;                 //true：本月计入，false：历史调整计入
     Double taxMoney,money;      //税额，发票金额
-    QString inum,cName;         //发票号码，发票客户名
+    QString inum;               //发票号码
     SubjectNameItem* ni;        //和客户对应的名称条目
+    QString originalSummary;    //分录的原始摘要（协助处理快递费、电费等专票暂放在应付-其他的情形）
     CurAuthCostInvoiceInfo(){
         id = 0;
         isCur = true;
-        edited = false;
+        edited = true;
+        ni=0;
     }
 };
 
@@ -89,6 +91,8 @@ class JxTaxMgrDlg : public QDialog
 public:
     explicit JxTaxMgrDlg(Account* account,QWidget *parent = 0);
     ~JxTaxMgrDlg();
+    bool isDirty();
+    void save();
 
 private slots:
     void initHistoryDatas();
@@ -97,11 +101,6 @@ private slots:
     void curAuthMenyRequested(const QPoint &pos);
     void addCurAuthInvoice();
     void DataChanged(QTableWidgetItem *item);
-    void on_btnApply_clicked();
-
-    void on_btnVerify_clicked();
-
-    void on_actAddHis_triggered();
 
     void on_actDelHis_triggered();
 
@@ -119,26 +118,33 @@ private slots:
 
     void on_actJrby_triggered();
 
+    void on_edtFilter_textChanged(const QString &t);
+
+    void on_rdbFilter_toggled(bool checked);
+
+    void on_btnAddCurs_clicked();
+
+    void on_btnOk_clicked();
+
 private:
     void init();
     void showCaInvoices();
     void calCurAuthTaxSum();
     void showHaInvoices();
-    //void VerifyCurInvoices();
     void turnDataInspect(bool on=true);
     VerifyState isInvoiceAuthed(QString inum, Double tax);
     VerifyState inHistory(QString num,SecondSubject* sub,Double tax);
     void setInvoiceColor(QTableWidgetItem* item,VerifyState state);
+    SubjectNameItem *findMatchedNiForClientName(QString cname);
 
     Ui::JxTaxMgrForm *ui;
-    QPushButton* btnAddCa;                                       //新增本月认证发票按钮
     Account* account;
     AccountSuiteManager* asMgr;
     SubjectManager* sm;
     QList<CurAuthCostInvoiceInfo*> caInvoices;       //本月认证发票
-    QList<HisAuthCostInvoiceInfo*> haInvoices,haInvoices_del;       //历史未认证发票，被删除的记录缓存
-    Double taxAmount;                                                  //本月认证发票税金总额
-
+    QList<HisAuthCostInvoiceInfo*> haInvoices,haInvoices_del;  //历史未认证发票，被删除的记录缓存
+    Double taxAmount;                                          //本月认证发票税金总额
+    bool curTaxEdited,hisTaxEdited;                            //税金更改标志
     QColor c_ok,c_adjust,c_error,c_noexist;
 };
 

@@ -5190,13 +5190,14 @@ bool DbUtil::saveIsolatedNameAlias(NameItemAlias *nameAlias)
 
 /**
  * @brief 读取指定发票号码的成本发票的税额、金额与客户名
- * @param inum
- * @param tax
- * @param money
- * @param client
+ * @param inum    发票号
+ * @param tax     税金
+ * @param money   金额
+ * @param client  客户名
+ * @param date    开票日期
  * @return
  */
-bool DbUtil::readCostInvoiceForTax(QString inum, Double &tax, Double &money, QString &client)
+bool DbUtil::readCostInvoiceForTax(QString inum, Double &tax, Double &money, QString &client, QString &date)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1 where %2='%3'").arg(tbl_cur_invoices).arg(fld_ci__iNumber).arg(inum);
@@ -5208,6 +5209,7 @@ bool DbUtil::readCostInvoiceForTax(QString inum, Double &tax, Double &money, QSt
         tax = q.value(FI_CI_TAXMONEY).toDouble();
         money = q.value(FI_CI_MONEY).toDouble();
         client = q.value(FI_CI_CLIENT).toString();
+        date = q.value(FI_CI_DATE).toString();
     }
     return true;
 }
@@ -7567,8 +7569,8 @@ bool DbUtil::crtJxTaxTable()
         LOG_SQLERROR(sql);
         return false;
     }
-    sql = QString("create table %1(id INTEGER PRIMARY KEY,year INTEGER, month INTEGER, %2 TEXT,%3 REAL,%4 REAL,%5 TEXT)")
-            .arg(tblCurAuthInvoices).arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_client);
+    sql = QString("create table %1(id INTEGER PRIMARY KEY,year INTEGER, month INTEGER, %2 TEXT,%3 REAL,%4 REAL,%5 INTEGER,%6 INTEGER)")
+            .arg(tblCurAuthInvoices).arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_cni).arg(fld_caci_isCur);
     if(!q.exec(sql)){
         LOG_SQLERROR(sql);
         return false;
@@ -7652,9 +7654,10 @@ bool DbUtil::updateCurAuthCostInvAmount(int y, int m, Double value)
  * @param y
  * @param m
  * @param rs
+ * @param sm
  * @return
  */
-bool DbUtil::readCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo *> &rs)
+bool DbUtil::readCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo *> &rs, SubjectManager *sm)
 {
     QSqlQuery q(db);
     QString s = QString("select * from %1 where year==%2 and month==%3 and %4!='%5'").arg(tblCurAuthInvoices)
@@ -7667,10 +7670,12 @@ bool DbUtil::readCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo 
         CurAuthCostInvoiceInfo* ri = new CurAuthCostInvoiceInfo;
         ri->edited = false;
         ri->id = q.value(0).toInt();
-        ri->cName = q.value(fld_caci_client).toString();
         ri->inum = q.value(fld_caci_num).toString();
         ri->taxMoney = q.value(fld_caci_taxMoney).toDouble();
         ri->money = q.value(fld_caci_money).toDouble();
+        int nid = q.value(fld_caci_cni).toInt();
+        ri->ni = sm->getNameItem(nid);
+        ri->isCur = q.value(fld_caci_isCur).toBool();
         rs<<ri;
     }
     return true;
@@ -7688,14 +7693,14 @@ bool DbUtil::saveCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo 
     if(rs.isEmpty())
         return true;
     QSqlQuery q1(db),q2(db);
-    QString s = QString("update %1 set %2=:inum,%3=:tax,%4=:money,%5=:client where id=:id").arg(tblCurAuthInvoices)
-            .arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_client);
+    QString s = QString("update %1 set %2=:inum,%3=:tax,%4=:money,%5=:client,%6=:isCur where id=:id").arg(tblCurAuthInvoices)
+            .arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_cni).arg(fld_caci_isCur);
     if(!q1.prepare(s)){
         LOG_SQLERROR(s);
         return false;
     }
-    s = QString("insert into %1(year,month,%2,%3,%4,%5) values(:year,:month,:inum,:tax,:money,:client)").arg(tblCurAuthInvoices)
-            .arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_client);
+    s = QString("insert into %1(year,month,%2,%3,%4,%5,%6) values(:year,:month,:inum,:tax,:money,:client,:isCur)").arg(tblCurAuthInvoices)
+            .arg(fld_caci_num).arg(fld_caci_taxMoney).arg(fld_caci_money).arg(fld_caci_cni).arg(fld_caci_isCur);
     if(!q2.prepare(s)){
         LOG_SQLERROR(s);
         return false;
@@ -7705,13 +7710,14 @@ bool DbUtil::saveCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo 
         return false;
     }
     foreach(CurAuthCostInvoiceInfo* ri,rs){
-        if(ri->edited == false)
+        if(!ri->edited)
             continue;
-        else if(ri->id!=0){
+        else if(ri->id != 0){
             q1.bindValue(":inum",ri->inum);
             q1.bindValue(":tax",ri->taxMoney.toString2());
             q1.bindValue(":money",ri->money.toString2());
-            q1.bindValue(":client",ri->cName);
+            q1.bindValue(":client",ri->ni->getId());
+            q1.bindValue(":isCur",ri->isCur?1:0);
             q1.bindValue(":id",ri->id);
             if(!q1.exec()){
                 LOG_SQLERROR(q1.lastQuery());
@@ -7724,12 +7730,15 @@ bool DbUtil::saveCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo 
             q2.bindValue(":inum",ri->inum);
             q2.bindValue(":tax",ri->taxMoney.toString2());
             q2.bindValue(":money",ri->money.toString2());
-            q2.bindValue(":client",ri->cName);
+            q2.bindValue(":client",ri->ni->getId());
+            q2.bindValue(":isCur",ri->isCur?1:0);
             if(!q2.exec()){
                 LOG_SQLERROR(q2.lastQuery());
                 return false;
             }
+            ri->id = q2.lastInsertId().toInt();
         }
+        ri->edited = false;
     }
     if(!db.commit()){
         LOG_SQLERROR("Commit transaction failed on save current month cost invoice infomations!");
@@ -7849,6 +7858,23 @@ bool DbUtil::removeHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> &rs)
     qDeleteAll(rs);
     rs.clear();
     return true;
+}
+
+/**
+ * @brief DbUtil::getOriginalSummary
+ * 获取指定分录的摘要信息
+ * @param bid  分录id
+ * @return
+ */
+QString DbUtil::getOriginalSummary(int bid)
+{
+    QSqlQuery q(db);
+    QString s = QString("select %1 from %2 where id=%3").arg(fld_ba_summary).arg(tbl_ba).arg(bid);
+    if(!q.exec(s))
+        return "";
+    if(q.next())
+        return q.value(0).toString();
+    return "";
 }
 
 /**

@@ -618,11 +618,13 @@ const QString tblCurAuthInvoices = "curAuthCostInvoices";
 const QString fld_caci_num = "inum";            //发票号
 const QString fld_caci_taxMoney = "taxMoney";   //税额
 const QString fld_caci_money = "money";         //发票金额
-const QString fld_caci_client = "clientName";   //发票对应客户
+const QString fld_caci_cni = "cni";             //发票对应客户的名称对象id
+const QString fld_caci_isCur = "isCur";         //1：当月成本发票，0：以前月份调整计入的成本发票
 const int FI_CACI_NUM = 3;
 const int FI_CACI_TAXMONEY = 4;
 const int FI_CACI_MONEY = 5;
 const int FI_CACI_CLIENT = 6;
+const int FI_CACI_ISCUR = 7;
 const QString fld_taxamount_tag = "TAX AMOUNT";     //该表存放每月认证进项税额合计值记录的标记发票号字段
 
 

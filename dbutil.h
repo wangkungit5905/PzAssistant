@@ -242,7 +242,7 @@ public:
     bool saveCurInvoice(int y, int m, const QList<CurInvoiceRecord*> &records);
     bool clearCurInvoice(int y, int m,int scope=0);
     bool saveIsolatedNameAlias(NameItemAlias* nameAlias);
-    bool readCostInvoiceForTax(QString inum,Double &tax,Double &money,QString &client);
+    bool readCostInvoiceForTax(QString inum,Double &tax,Double &money,QString &client,QString &date);
 
     //分录模板数据访问函数
     bool existBaTemlateDatas(int type);
@@ -256,11 +256,12 @@ public:
     bool clearCurAutoInv(int y,int m);
     bool readCurAuthCostInvAmount(int y, int m,Double& value);
     bool updateCurAuthCostInvAmount(int y, int m,Double value);
-    bool readCurAuthCostInvoices(int y,int m,QList<CurAuthCostInvoiceInfo*>& rs);
+    bool readCurAuthCostInvoices(int y,int m,QList<CurAuthCostInvoiceInfo*>& rs,SubjectManager* sm);
     bool saveCurAuthCostInvoices(int y,int m,QList<CurAuthCostInvoiceInfo*> rs);
     bool readHisNotAuthCostInvoices(SubjectManager *sm, QList<HisAuthCostInvoiceInfo*> &rs);
     bool updateHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo*> rs);
     bool removeHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> &rs);
+    QString getOriginalSummary(int bid);
 
     //自动凭证生成相关
     bool saveJournals(QList<Journal* > js);

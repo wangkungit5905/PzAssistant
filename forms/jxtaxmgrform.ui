@@ -17,7 +17,7 @@
    <item>
     <widget class="QTabWidget" name="tabWidget">
      <property name="currentIndex">
-      <number>2</number>
+      <number>0</number>
      </property>
      <widget class="QWidget" name="tabHistory">
       <attribute name="title">
@@ -34,6 +34,9 @@
          </property>
          <property name="selectionBehavior">
           <enum>QAbstractItemView::SelectRows</enum>
+         </property>
+         <property name="sortingEnabled">
+          <bool>true</bool>
          </property>
          <attribute name="horizontalHeaderStretchLastSection">
           <bool>true</bool>
@@ -94,8 +97,18 @@
          </item>
          <item>
           <widget class="QPushButton" name="btnSaveHis">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string>保存历史数据</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="btnAddCurs">
+           <property name="text">
+            <string>添加本月未认证</string>
            </property>
           </widget>
          </item>
@@ -113,76 +126,25 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="label">
+          <widget class="QRadioButton" name="rdbFilter">
            <property name="text">
             <string>查询发票号</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLineEdit" name="lineEdit"/>
-         </item>
-        </layout>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tabCost">
-      <attribute name="title">
-       <string>本月成本专票</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_3">
-       <item>
-        <widget class="QTableWidget" name="twCost">
-         <property name="editTriggers">
-          <set>QAbstractItemView::NoEditTriggers</set>
-         </property>
-         <property name="selectionBehavior">
-          <enum>QAbstractItemView::SelectRows</enum>
-         </property>
-         <attribute name="horizontalHeaderStretchLastSection">
-          <bool>true</bool>
-         </attribute>
-         <column>
-          <property name="text">
-           <string>所属凭证</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>发票号码</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>税额</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>客户</string>
-          </property>
-         </column>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="horizontalLayout_4">
-         <item>
-          <spacer name="horizontalSpacer">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+          <widget class="QLineEdit" name="edtFilter">
+           <property name="enabled">
+            <bool>false</bool>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
+           <property name="inputMask">
+            <string>00000000</string>
            </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QPushButton" name="btnVerify">
-           <property name="text">
-            <string>验证</string>
+           <property name="maxLength">
+            <number>8</number>
+           </property>
+           <property name="clearButtonEnabled">
+            <bool>true</bool>
            </property>
           </widget>
          </item>
@@ -239,30 +201,15 @@
        <item>
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
-           <item>
-            <widget class="QLabel" name="label_3">
-             <property name="text">
-              <string>税额总计：</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="DemandedEdit" name="edtTaxAmount">
-             <property name="toolTip">
-              <string>双击可录入金额</string>
-             </property>
-             <property name="readOnly">
-              <bool>true</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
+          <layout class="QHBoxLayout" name="horizontalLayout_2"/>
          </item>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <item>
             <widget class="QPushButton" name="btnSaveCur">
+             <property name="enabled">
+              <bool>false</bool>
+             </property>
              <property name="text">
               <string>保存</string>
              </property>
@@ -270,6 +217,9 @@
            </item>
            <item>
             <widget class="QPushButton" name="btnCrtPz">
+             <property name="enabled">
+              <bool>true</bool>
+             </property>
              <property name="text">
               <string>创建调整凭证</string>
              </property>
@@ -332,13 +282,6 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="btnApply">
-       <property name="text">
-        <string>应用</string>
-       </property>
-      </widget>
-     </item>
-     <item>
       <widget class="QPushButton" name="btnOk">
        <property name="text">
         <string>确定</string>
@@ -355,14 +298,6 @@
     </layout>
    </item>
   </layout>
-  <action name="actAddHis">
-   <property name="text">
-    <string>新增记录</string>
-   </property>
-   <property name="toolTip">
-    <string>新增历史记录</string>
-   </property>
-  </action>
   <action name="actDelHis">
    <property name="text">
     <string>删除记录</string>
@@ -388,13 +323,23 @@
    </property>
   </action>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>DemandedEdit</class>
-   <extends>QLineEdit</extends>
-   <header>widgets.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>btnCancel</sender>
+   <signal>clicked()</signal>
+   <receiver>JxTaxMgrForm</receiver>
+   <slot>reject()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>728</x>
+     <y>452</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>553</x>
+     <y>469</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

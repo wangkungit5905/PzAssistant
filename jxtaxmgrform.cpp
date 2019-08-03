@@ -8,22 +8,20 @@
 #include "subject.h"
 #include "pz.h"
 #include "utils.h"
+#include "commands.h"
 
 #include <QDoubleValidator>
 #include <QMenu>
 #include <QDateEdit>
 
 JxTaxMgrDlg::JxTaxMgrDlg(Account *account, QWidget *parent) : QDialog(parent), ui(new Ui::JxTaxMgrForm),
-    account(account)
+    account(account),curTaxEdited(false),hisTaxEdited(false)
 {
     ui->setupUi(this);
     asMgr = account->getSuiteMgr();
     sm = account->getSubjectManager(asMgr->getSuiteRecord()->subSys);
     if(!asMgr->isPzSetOpened())
         return;
-    QDoubleValidator* validator = new QDoubleValidator(this);
-    validator->setDecimals(2);
-    ui->edtTaxAmount->setValidator(validator);
     c_ok=QColor("darkGreen");
     c_adjust = QColor("blue");
     c_error = QColor("darkMagenta");
@@ -110,6 +108,8 @@ void JxTaxMgrDlg::initHistoryDatas()
     }
     QHashIterator<QString,QString> it(pzNums);
     ui->twHistorys->setRowCount(pzNums.count());
+    QString clientName,date;
+    Double tax,money;
     while(it.hasNext()){
         it.next();
         HisAuthCostInvoiceInfo* hi = new HisAuthCostInvoiceInfo;
@@ -119,6 +119,13 @@ void JxTaxMgrDlg::initHistoryDatas()
         hi->iNum = it.key();
         hi->taxMoney = taxed.value(it.key());
         hi->client = clients.value(it.key());
+        tax=0;money=0;clientName="";date="";
+        if(account->getDbUtil()->readCostInvoiceForTax(it.key(),tax,money,clientName,date)){
+            hi->date = date;
+            hi->money = money;
+        }
+        if(hi->client->getName() == tr("其他"))
+            hi->summary = account->getDbUtil()->getOriginalSummary(hi->baId);
         haInvoices<<hi;
     }
     showHaInvoices();
@@ -144,12 +151,21 @@ void JxTaxMgrDlg::scanCurrentTax()
                 ci->inum = inum;
                 if(!inum.isEmpty()){
                     Double tm;
-                    account->getDbUtil()->readCostInvoiceForTax(inum,tm,ci->money,ci->cName);
+                    QString clientName;
+                    QString date;
+                    account->getDbUtil()->readCostInvoiceForTax(inum,tm,ci->money,clientName,date);
+                    ci->ni = findMatchedNiForClientName(clientName);
+                    if(!ci->ni)
+                        myHelper::ShowMessageBoxWarning(tr("没有找到与客户名“%1”对应的名称对象").arg(clientName));
                 }
                 ci->taxMoney = ba->getValue();
                 caInvoices<<ci;
             }
         }
+    }
+    if(!caInvoices.isEmpty()){
+        curTaxEdited = true;
+        ui->btnSaveCur->setEnabled(true);
     }
 }
 
@@ -158,13 +174,13 @@ void JxTaxMgrDlg::scanCurrentTax()
  * @param pos
  */
 void JxTaxMgrDlg::cusContextMenuRequested(const QPoint &pos)
-{
-    QMenu m;
-    m.addAction(ui->actAddHis);
-    if(ui->twHistorys->itemAt(pos))
+{    
+    if(ui->twHistorys->itemAt(pos)){
+        QMenu m;
         m.addAction(ui->actDelHis);
         m.addAction(ui->actJrby);
-    m.exec(ui->twHistorys->mapToGlobal(pos));
+        m.exec(ui->twHistorys->mapToGlobal(pos));
+    }
 }
 
 void JxTaxMgrDlg::curAuthMenyRequested(const QPoint &pos)
@@ -214,46 +230,66 @@ void JxTaxMgrDlg::DataChanged(QTableWidgetItem *item)
             return;
         }
         ri->inum = item->text();
-        if(account->getDbUtil()->readCostInvoiceForTax(ri->inum,ri->taxMoney,ri->money,ri->cName)){
+        QString clientName,date;
+        if(account->getDbUtil()->readCostInvoiceForTax(ri->inum,ri->taxMoney,ri->money,clientName,date)){
+            ri->ni = findMatchedNiForClientName(clientName);
+            if(!ri->ni)
+                myHelper::ShowMessageBoxWarning(tr("没有找到与客户名“%1”对应的名称对象").arg(clientName));
             turnDataInspect(false);
             ui->twCurAuth->item(r,CICA_TAX)->setText(ri->taxMoney.toString());
             ui->twCurAuth->item(r,CICA_MONEY)->setText(ri->money.toString());
-            ui->twCurAuth->item(r,CICA_CLIENT)->setText(ri->cName);
+            ui->twCurAuth->item(r,CICA_CLIENT)->setText(ri->ni?ri->ni->getLongName():clientName);
             calCurAuthTaxSum();
             turnDataInspect();
         }
+        curTaxEdited = true;
         break;
     }
     case CICA_TAX:{
             ri->taxMoney = item->text().toDouble();
             calCurAuthTaxSum();
+            curTaxEdited = true;
         }
         break;
     case CICA_MONEY:
         ri->money = item->text().toDouble();
+        curTaxEdited = true;
         break;
     case CICA_CLIENT:
-        ri->cName = item->text();
+    {
+        QString name = item->text();
+        ri->ni = findMatchedNiForClientName(name);
+        if(!ri->ni){
+            myHelper::ShowMessageBoxWarning(tr("不存在一个现有名称对象与输入的客户名匹配，请重新输入！"));
+        }
+        curTaxEdited = true;
         break;
     }
+    }
+    if(curTaxEdited)
+        ui->btnSaveCur->setEnabled(true);
 }
 
 void JxTaxMgrDlg::init()
 {
     DbUtil* du = account->getDbUtil();
-    if(!du->readCurAuthCostInvAmount(asMgr->year(),asMgr->month(),taxAmount)||!du->readCurAuthCostInvoices(asMgr->year(),asMgr->month(),caInvoices)){
+    if(!du->readCurAuthCostInvoices(asMgr->year(),asMgr->month(),caInvoices,sm)){
         myHelper::ShowMessageBoxError(tr("在读取本月认证发票信息时发生错误！"));
         return;
     }
     if(caInvoices.isEmpty())
-        scanCurrentTax();
+        scanCurrentTax();    
     showCaInvoices();
     if(!du->readHisNotAuthCostInvoices(sm,haInvoices)){
         myHelper::ShowMessageBoxError(tr("在读取历史未认证发票信息时发生错误！"));
         return;
     }
+    foreach(HisAuthCostInvoiceInfo* hi, haInvoices){
+        if(hi->client->getName() == tr("其他")){
+            hi->summary = du->getOriginalSummary(hi->baId);
+        }
+    }
     showHaInvoices();
-    //VerifyCurInvoices();
     turnDataInspect();
 }
 
@@ -262,26 +298,24 @@ void JxTaxMgrDlg::init()
  */
 void JxTaxMgrDlg::showCaInvoices()
 {
-    if(taxAmount != 0)
-        ui->edtTaxAmount->setText(taxAmount.toString());
-    ui->twCurAuth->setRowCount(caInvoices.count()+1);   
+    ui->twCurAuth->setRowCount(caInvoices.count()+1);
     Double sum; int row=0;
+    bool exist = false;
     foreach (CurAuthCostInvoiceInfo* ri, caInvoices) {
         ui->twCurAuth->setItem(row,CICA_ISCUR,new QTableWidgetItem(ri->isCur?" + ":"=>"));
         ui->twCurAuth->setItem(row,CICA_NUM,new QTableWidgetItem(ri->inum));
         ui->twCurAuth->item(row,CICA_NUM)->setData(DR_VERIFY_STATE,VS_NOEXIST);
         ui->twCurAuth->setItem(row,CICA_TAX,new QTableWidgetItem(ri->taxMoney.toString()));
         ui->twCurAuth->setItem(row,CICA_MONEY,new QTableWidgetItem(ri->money.toString()));
-        ui->twCurAuth->setItem(row,CICA_CLIENT,new QTableWidgetItem(ri->cName));
+        ui->twCurAuth->setItem(row,CICA_CLIENT,new QTableWidgetItem(ri->ni->getLongName()));
         row++;
         sum += ri->taxMoney;
+        if(!ri->isCur)
+            exist = true;
     }
-//    ui->btnApply->setEnabled(sum == taxAmount);
-//    btnAddCa = new QPushButton(tr("新增"),this);
-//    connect(btnAddCa,SIGNAL(clicked()),this,SLOT(addCurAuthInvoice()));
-//    ui->twCurAuth->setCellWidget(row,CICA_NUM,btnAddCa);
     ui->twCurAuth->setItem(row,CICA_NUM,new QTableWidgetItem(tr("合计")));
     ui->twCurAuth->setItem(row,CICA_TAX,new QTableWidgetItem(sum.toString()));
+    ui->btnCrtPz->setEnabled(exist);
 }
 
 /**
@@ -308,85 +342,12 @@ void JxTaxMgrDlg::showHaInvoices()
         ui->twHistorys->setItem(row,CIH_DATE,new QTableWidgetItem(ri->date));
         ui->twHistorys->setItem(row,CIH_TAX,new QTableWidgetItem(ri->taxMoney.toString()));
         ui->twHistorys->setItem(row,CIH_MONEY,new QTableWidgetItem(ri->money.toString()));
-        ui->twHistorys->setItem(row,CIH_CLIENT,new QTableWidgetItem(ri->client->getLName()));
+        QTableWidgetItem* item = new QTableWidgetItem(ri->client->getLName());
+        item->setToolTip(ri->summary);
+        ui->twHistorys->setItem(row,CIH_CLIENT,item);
         row++;
     }
 }
-
-/**
- * @brief 验证本月进项税归置是否正确
- */
-//void JxTaxMgrDlg::VerifyCurInvoices()
-//{
-//    FirstSubject* yjsjFSub = sm->getYjsjSub();
-//    FirstSubject* yfFSub = sm->getYfSub();
-//    SecondSubject* jxSSub = sm->getJxseSSub();
-//    QList<PingZheng *> pzs;
-//    asMgr->getPzSet(asMgr->month(),pzs);
-//    foreach (PingZheng* pz, pzs) {
-//        //首先判断凭证是否为进项税调节凭证（即将暂存在应付借方的税金移入进项税）
-//        //按约定，此凭证不许容纳其他无关分录
-//        bool isAdjustPz = true;
-//        foreach (BusiAction* ba, pz->baList()) {
-//            if(ba->getFirstSubject() != yjsjFSub && ba->getFirstSubject() != yfFSub){
-//                isAdjustPz = false;
-//                break;
-//            }
-//        }
-//        int row = 0;
-//        foreach (BusiAction* ba, pz->baList()) {
-//             //如果不是调整凭证，则遇到进项税，则检查本月认证表。
-//            if(!isAdjustPz && ba->getDir() == MDIR_J && ba->getFirstSubject() == yjsjFSub && ba->getSecondSubject() == jxSSub){
-//                QString inum,cName; Double wbMoney;
-//                PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney);
-//                PaUtils::extractCustomerName(ba->getSummary(),cName);
-//                SubjectNameItem* ni = SubjectManager::getNameItem(cName);
-//                if(ni)
-//                    cName = ni->getLongName();
-//                ui->twCost->insertRow(row);
-//                ui->twCost->setItem(row,CIC_PZ,new QTableWidgetItem(QString::number(pz->number())));
-//                ui->twCost->setItem(row,CIC_NUMBER,new QTableWidgetItem(inum));
-//                VerifyState vs = isInvoiceAuthed(inum,ba->getValue());
-//                setInvoiceColor(ui->twCost->item(row,CIC_NUMBER),vs);
-//                ui->twCost->item(row,CIC_NUMBER)->setData(DR_VERIFY_STATE,vs);
-//                ui->twCost->setItem(row,CIC_TAX,new QTableWidgetItem(ba->getValue().toString()));
-//                ui->twCost->setItem(row,CIC_CLIENT,new QTableWidgetItem(cName));
-//                ui->twCost->item(row,CIC_PZ)->setData(Qt::UserRole,ba->getId());
-//                row++;
-//            }
-//            //如果是调整凭证，则遇到进项税，则检查本月认证表，遇到应付，则检查历史未认证表
-//            else if(isAdjustPz ){
-//                QString inum;Double wbMoney;
-//                PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wbMoney);
-//                if(ba->getDir() == MDIR_D && ba->getFirstSubject()==yfFSub){
-//                    SecondSubject* cSub = ba->getSecondSubject();
-//                    VerifyState vs = inHistory(inum,cSub,ba->getValue());
-//                }
-//                else if(ba->getDir() == MDIR_J && ba->getFirstSubject() == yjsjFSub && ba->getSecondSubject() == jxSSub){
-//                    VerifyState vs = isInvoiceAuthed(inum,ba->getValue());
-//                    ui->twCost->insertRow(row);
-//                    ui->twCost->setItem(row,CIC_PZ,new QTableWidgetItem(QString::number(pz->number())));
-//                    ui->twCost->setItem(row,CIC_NUMBER,new QTableWidgetItem(inum));
-//                    setInvoiceColor(ui->twCost->item(row,CIC_NUMBER),vs);
-//                    ui->twCost->item(row,CIC_NUMBER)->setData(DR_VERIFY_STATE,vs);
-//                    ui->twCost->setItem(row,CIC_TAX,new QTableWidgetItem(ba->getValue().toString()));
-//                    QString cName;
-//                    PaUtils::extractCustomerName(ba->getSummary(),cName);
-//                    SubjectNameItem* ni = SubjectManager::getNameItem(cName);
-//                    if(ni)
-//                        cName = ni->getLongName();
-//                    ui->twCost->setItem(row,CIC_CLIENT,new QTableWidgetItem(cName));
-//                    ui->twCost->item(row,CIC_PZ)->setData(Qt::UserRole,ba->getId());
-//                    row++;
-//                }
-//            }
-//        }
-//    }
-//    if(ui->twCost->rowCount() == 0){
-//        myHelper::ShowMessageBoxInfo(tr("本月未发生借方的进项税额！"));
-//    }
-//}
-
 
 void JxTaxMgrDlg::turnDataInspect(bool on)
 {
@@ -442,16 +403,6 @@ JxTaxMgrDlg::VerifyState JxTaxMgrDlg::inHistory(QString num, SecondSubject *sub,
     return VS_NOEXIST;
 }
 
-void JxTaxMgrDlg::on_btnApply_clicked()
-{
-    //从本月认证发票列表提取一个发票号，如果它存在于新增发票表中，则跳过，否则检查是否存在于历史缓存中，
-    //如果存在，则将其加入待转换列表中（在最后步骤将基于此表创建转换凭证，即将暂存于应付账款下的金额计入到
-    //进项税额中），否则加入到缺失发票列表中（即认证的发票没有在当前认证和历史未认证列表中出现）
-    //持续迭代，直至最后一张发票。
-    //如果转换列表不空，则创建新凭证
-    //如果缺失列表不空，则提示用户缺失的凭证号
-}
-
 void JxTaxMgrDlg::setInvoiceColor(QTableWidgetItem *item, JxTaxMgrDlg::VerifyState state)
 {
     QColor c;
@@ -475,54 +426,34 @@ void JxTaxMgrDlg::setInvoiceColor(QTableWidgetItem *item, JxTaxMgrDlg::VerifySta
 }
 
 /**
- * @brief 验证本月进项税归置是否正确
+ * @brief JxTaxMgrDlg::findMatchedNiForClientName
+ * 查找匹配客户名的名称对象
+ * @param cname
+ * @return
  */
-void JxTaxMgrDlg::on_btnVerify_clicked()
+SubjectNameItem *JxTaxMgrDlg::findMatchedNiForClientName(QString cname)
 {
-    //VerifyCurInvoices();
+    foreach(SubjectNameItem* ni,sm->getAllNameItems()){
+        if(ni->getLongName() == cname){
+            return ni;
+        }
+    }
+    return 0;
 }
 
-/**
- * @brief 新增历史记录
- */
-void JxTaxMgrDlg::on_actAddHis_triggered()
+bool JxTaxMgrDlg::isDirty()
 {
-    initHistoryDatas();
-    /*客户
-     凭证（xxxx年xx月xxx#）发票号
-    开票日期    税额    金额*/
-    //输入前三项，自动查找指定凭证内的是否存在对应分录，如果找到则设置分录id，否则提示用户输入无效
-//    QDialog dlg(this);
-//    QLabel lClient(tr("客户："),&dlg);
-//    QLineEdit eCSName(&dlg);
-//    QLineEdit eLSName(&dlg);eLSName.setReadOnly(true);
-//    QHBoxLayout lc;
-//    lc.addWidget(&lClient,1); lc.addWidget(&eCSName,1); lc.addWidget(&eLSName,2);
-//    QLabel lPz(tr("凭证号："),&dlg);
-//    QDateEdit dePz(&dlg); dePz.displayFormat("yyyy-MM");
-//    dePz.setMinimumDate(account->getStartDate());
-//    dePz.setMaximumDate(account->getEndDate());
-//    QSpinBox sbPzNum(&dlg); sbPzNum.setMinimum(1); sbPzNum.setMaximum(1000);
-//    QLabel lInvoice(tr("发票号："),&dlg);
-//    QLineEdit edInvoice(&dlg);edInvoice.setInputMask("99999999");
-//    QHBoxLayout lp; lp.addWidget(&lPz); lp.addWidget(&dePz); lp.addWidget(&sbPzNum);
-//    lp.addWidget(&lInvoice); lp.addWidget(&edInvoice);
-//    QLabel lDate(tr("开票日期"),&dlg);
-//    QDateEdit deDate(&dlg);deDate.setMinimumDate(account->getStartDate()); deDate.setMaximumDate(account->getEndDate());
-//    QLabel lTax(tr("税额："),&dlg); QLineEdit edTax(&dlg);
-//    QLabel lMoney(tr("金额"),&dlg); QLineEdit edMoney(&dlg);
-//    QDoubleValidator dv; dv.setDecimals(2); edTax.setValidator(&dv); edMoney.setValidator(&dv);
-//    QHBoxLayout lyTax; lyTax.addWidget(&lDate); lyTax.addWidget(&deDate); lyTax.addWidget(&lTax);
-//    lyTax.addWidget(&edTax); lyTax.addWidget(&lMoney); lyTax.addWidget(&edMoney);
-//    QPushButton btnOk(tr("确定"),&dlg); QPushButton btnCancel(tr("取消"),&dlg);
-//    connect(&btnOk,SIGNAL(clicked(),&dlg,SLOT(accept()));
-//    connect(&btnCancel,SIGNAL(clicked(),&dlg,SLOT(reject()));
-//    QHBoxLayout lb; lb.addWidget(&btnOk); lb.addWidget(&btnCancel);
-//    QVBoxLayout *lm = new QVBoxLayout;
-//    lm->addLayout(&lc); lm->addLayout(&lp); lm->addLayout(lyTax); lm->addLayout(&lb);
-//    dlg.setLayout(lm);
-//    dlg.show();
+    return curTaxEdited || hisTaxEdited;
 }
+
+void JxTaxMgrDlg::save()
+{
+    if(curTaxEdited)
+        on_btnSaveCur_clicked();
+    if(hisTaxEdited)
+        on_btnSaveHis_clicked();
+}
+
 
 /**
  * @brief 删除历史记录
@@ -533,11 +464,17 @@ void JxTaxMgrDlg::on_actDelHis_triggered()
     delete haInvoices.at(row);
     haInvoices.removeAt(row);
     ui->twHistorys->removeRow(row);
+    hisTaxEdited = true;
+    ui->btnSaveHis->setEnabled(true);
 }
 
 void JxTaxMgrDlg::on_btnInitHis_clicked()
 {
     initHistoryDatas();
+    if(!haInvoices.isEmpty()){
+        hisTaxEdited = true;
+        ui->btnSaveHis->setEnabled(true);
+    }
 }
 
 void JxTaxMgrDlg::on_btnSaveHis_clicked()
@@ -548,6 +485,8 @@ void JxTaxMgrDlg::on_btnSaveHis_clicked()
     }
     if(!haInvoices_del.isEmpty() && !account->getDbUtil()->removeHisNotAuthCosInvoices(haInvoices_del))
         myHelper::ShowMessageBoxError(tr("在移除历史未认证发票信息时发生错误！"));
+    hisTaxEdited = false;
+    ui->btnSaveHis->setEnabled(false);
 }
 
 /**
@@ -555,10 +494,10 @@ void JxTaxMgrDlg::on_btnSaveHis_clicked()
  */
 void JxTaxMgrDlg::on_btnSaveCur_clicked()
 {
-    if(!account->getDbUtil()->updateCurAuthCostInvAmount(asMgr->year(),asMgr->month(),ui->edtTaxAmount->text().toDouble()))
-        myHelper::ShowMessageBoxError(tr("在保存本期认证发票税额总数时发生错误！"));
-    if(!account->getDbUtil()->saveCurAuthCostInvoices(asMgr->year(),asMgr->month(),caInvoices))
+    if(curTaxEdited && !account->getDbUtil()->saveCurAuthCostInvoices(asMgr->year(),asMgr->month(),caInvoices))
         myHelper::ShowMessageBoxError(tr("在保存本期认证发票税额信息时发生错误！"));
+    curTaxEdited = false;
+    ui->btnSaveCur->setEnabled(false);
 }
 
 void JxTaxMgrDlg::on_chkInited_clicked(bool checked)
@@ -566,6 +505,11 @@ void JxTaxMgrDlg::on_chkInited_clicked(bool checked)
     ui->btnInitHis->setEnabled(!checked);
 }
 
+
+/**
+ * @brief JxTaxMgrDlg::on_actDelCur_triggered
+ * 移除本月认证发票
+ */
 void JxTaxMgrDlg::on_actDelCur_triggered()
 {
     int row = ui->twCurAuth->currentRow();
@@ -573,6 +517,7 @@ void JxTaxMgrDlg::on_actDelCur_triggered()
     caInvoices.removeAt(row);
     ui->twCurAuth->removeRow(row);
     calCurAuthTaxSum();
+    curTaxEdited = true;
 }
 
 /**
@@ -594,7 +539,9 @@ void JxTaxMgrDlg::on_btnCrtPz_clicked()
         myHelper::ShowMessageBoxInfo(tr("在创建历史进项税调整凭证时发生错误！"));
         return;
     }
-    asMgr->append(pz);
+    AppendPzCmd* cmd = new AppendPzCmd(asMgr,pz);
+    asMgr->getUndoStack()->push(cmd);
+    ui->btnCrtPz->setEnabled(false);
 }
 
 /**
@@ -603,16 +550,24 @@ void JxTaxMgrDlg::on_btnCrtPz_clicked()
 void JxTaxMgrDlg::on_actJrby_triggered()
 {
     int row = ui->twHistorys->currentRow();
+    QString hInum = ui->twHistorys->item(row,CIH_INVOICE)->text();
     ui->twHistorys->removeRow(row);
-    HisAuthCostInvoiceInfo* hi = haInvoices.takeAt(row);
-    haInvoices_del<<hi;
+    HisAuthCostInvoiceInfo* hi=0;
+    foreach (HisAuthCostInvoiceInfo* thi,haInvoices){
+        if(thi->iNum == hInum){
+            hi = thi;
+            haInvoices_del<<thi;
+            haInvoices.removeOne(thi);
+            break;
+        }
+    }
     CurAuthCostInvoiceInfo* ci = new CurAuthCostInvoiceInfo;
     ci->isCur = false;
-    ci->cName = hi->client->getName();
     ci->ni = hi->client->getNameItem();
     ci->inum = hi->iNum;
     ci->taxMoney = hi->taxMoney;
     ci->money = hi->money;
+    ci->originalSummary = hi->summary;
     caInvoices<<ci;
     row = caInvoices.count();
     turnDataInspect(false);
@@ -621,9 +576,93 @@ void JxTaxMgrDlg::on_actJrby_triggered()
     ui->twCurAuth->setItem(row-1,CICA_NUM,new QTableWidgetItem(ci->inum));
     ui->twCurAuth->setItem(row-1,CICA_MONEY,new QTableWidgetItem(ci->money.toString()));
     ui->twCurAuth->setItem(row-1,CICA_TAX,new QTableWidgetItem(ci->taxMoney.toString()));
-    ui->twCurAuth->setItem(row-1,CICA_CLIENT,new QTableWidgetItem(ci->cName));
+    QTableWidgetItem* item = new QTableWidgetItem(ci->ni->getLongName());
+    item->setToolTip(ci->originalSummary);
+    ui->twCurAuth->setItem(row-1,CICA_CLIENT,item);
     Double sum = Double(ui->twCurAuth->item(row,CICA_TAX)->text().toDouble());
     sum += ci->taxMoney;
     ui->twCurAuth->item(row,CICA_TAX)->setText(sum.toString());
     turnDataInspect();
+    hisTaxEdited = true;
+    curTaxEdited = true;
+    ui->btnSaveHis->setEnabled(true);
+    ui->btnSaveCur->setEnabled(true);
+    ui->btnCrtPz->setEnabled(true);
+}
+
+/**
+ * @brief JxTaxMgrDlg::on_edtFilter_textChanged
+ * 当用户输入待查询发票号时
+ * @param arg1
+ */
+void JxTaxMgrDlg::on_edtFilter_textChanged(const QString &t)
+{
+    for(int r = 0; r < ui->twHistorys->rowCount(); ++r){
+        if(ui->twHistorys->item(r,CIH_INVOICE)->text().startsWith(t))
+            ui->twHistorys->showRow(r);
+        else
+            ui->twHistorys->hideRow(r);
+    }
+}
+
+void JxTaxMgrDlg::on_rdbFilter_toggled(bool checked)
+{
+    ui->edtFilter->setEnabled(checked);
+}
+
+/**
+ * @brief JxTaxMgrDlg::on_btnAddCurs_clicked
+ * 扫描本月凭证集，将未认证发票添加到历史表中
+ */
+void JxTaxMgrDlg::on_btnAddCurs_clicked()
+{
+    QList<PingZheng *> pzs;
+    asMgr->getPzSet(asMgr->month(),pzs);    
+    int row = haInvoices.count();
+    foreach(PingZheng* pz, pzs){
+        foreach(BusiAction* ba, pz->baList()){
+            if(ba->getDir() == MDIR_J && ba->getFirstSubject() == sm->getYfSub() &&
+                    ba->getSummary().contains(tr("（税金）"))){                
+                QString inum; Double wb;
+                PaUtils::extractOnlyInvoiceNum(ba->getSummary(),inum,wb);
+                if(inum.isEmpty()){
+                    myHelper::ShowMessageBoxWarning(tr("无法提取出有效的认证发票的发票号，摘要信息：“%1”").arg(ba->getSummary()));
+                    continue;
+                }
+                HisAuthCostInvoiceInfo* hi = new HisAuthCostInvoiceInfo;
+                hi->id=0;
+                QString d = pz->getDate();
+                hi->pzNum = tr("%1年%2月%3#").arg(d.left(4)).arg(d.mid(5,2)).arg(pz->number());
+                hi->baId = ba->getId();
+                hi->iNum = inum;
+                hi->taxMoney = ba->getValue();
+                hi->client = ba->getSecondSubject();
+                if(hi->client->getName() == tr("其他"))
+                    hi->summary = ba->getSummary();
+                Double money,tax;
+                QString clientName,date;
+                if(account->getDbUtil()->readCostInvoiceForTax(inum,tax,money,clientName,date)){
+                    hi->date = date;
+                    hi->money = money;
+                }
+                haInvoices<<hi;
+                hisTaxEdited = true;
+                ui->twHistorys->insertRow(row);
+                ui->twHistorys->setItem(row,CIH_PZ,new QTableWidgetItem(hi->pzNum));
+                ui->twHistorys->setItem(row,CIH_INVOICE,new QTableWidgetItem(hi->iNum));
+                ui->twHistorys->setItem(row,CIH_DATE,new QTableWidgetItem(hi->date));
+                ui->twHistorys->setItem(row,CIH_TAX,new QTableWidgetItem(hi->taxMoney.toString()));
+                ui->twHistorys->setItem(row,CIH_MONEY,new QTableWidgetItem(hi->money.toString()));
+                ui->twHistorys->setItem(row,CIH_CLIENT,new QTableWidgetItem(hi->client->getLName()));
+                row++;
+            }
+        }
+    }
+    ui->btnSaveHis->setEnabled(hisTaxEdited);
+}
+
+void JxTaxMgrDlg::on_btnOk_clicked()
+{
+    save();
+    accept();
 }

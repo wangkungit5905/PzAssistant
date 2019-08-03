@@ -180,7 +180,7 @@ void JournalizingPreviewDlg::init()
     jcb_z = new Journal;
     jcb_z->id = -4;
     jcb_z->summary = tr("成本专票");
-    jcb_p->date = ds;
+    jcb_z->date = ds;
     titles<<"凭证号"<<"组"<<"摘要"<<"一级科目"<<"二级科目"<<"币种"<<"借方"<<"贷方"<<"借贷平衡";
     ui->twJos->setHorizontalHeaderLabels(titles);
     ui->twJos->setColumnWidth(JCI_PNUM,60);
@@ -1910,6 +1910,8 @@ QList<Journalizing*> JournalizingPreviewDlg::genGatherBas(int gnum, bool isIncom
     if(!ls->isEmpty()){
         for(int i=0; i<startPos; ++i){
             r = ls->at(i);
+            if(r->state == 2)
+                continue;
             //sum += r->money;
             j1 = new Journalizing;
             j1->journal = isIncome?jsr_p:jcb_p;
@@ -1992,6 +1994,8 @@ QList<Journalizing*> JournalizingPreviewDlg::genGatherBas(int gnum, bool isIncom
     if(startPos != -1){
         for(int i=startPos; i<ls->count(); ++i){
             r = ls->at(i);
+            if(r->state == 2)
+                continue;
             numInGroup++;
             QString cname = r->ni?r->ni->getShortName():r->client;
             sum += r->money - r->taxMoney;

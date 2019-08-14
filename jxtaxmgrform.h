@@ -25,6 +25,7 @@ struct CurAuthCostInvoiceInfo{
     Double taxMoney,money;      //税额，发票金额
     QString inum;               //发票号码
     SubjectNameItem* ni;        //和客户对应的名称条目
+    QString clientName;         //发票客户名
     QString originalSummary;    //分录的原始摘要（协助处理快递费、电费等专票暂放在应付-其他的情形）
     CurAuthCostInvoiceInfo(){
         id = 0;

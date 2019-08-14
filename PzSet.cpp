@@ -1706,7 +1706,7 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
     QList<CurInvoiceRecord* > invoices;
     if(isIncome){
         foreach(CurInvoiceRecord* r, *getCurInvoiceRecords()){
-            if(r->inum == "00000000" || r->state == 2) //不开票收入或废票
+            if(r->inum == "00000000" || r->state == 2 || r->money == 0) //不开票收入或作废发票
                 continue;
 
             invoices<<r;
@@ -1714,7 +1714,7 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
     }
     else{
         foreach(CurInvoiceRecord* r, *getCurInvoiceRecords(false)){
-            if(r->inum == "00000000" || r->state == 2) //不开票收入或废票
+            if(r->inum == "00000000" || r->state == 2 || r->money == 0) //不开票成本或作废发票
                 continue;
             invoices<<r;
         }

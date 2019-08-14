@@ -456,6 +456,33 @@ void ImpJournaryDlg::on_btnSave_clicked()
         if(j->id == 0){
             j->bankId = ssub->getId();
             js<<j;
+            QString d = tw->item(r,TI_DATE)->text();
+            if(d != j->date)
+                j->date = d;
+            d = tw->item(r,TI_SUMMARY)->text();
+            if(d != j->summary)
+                j->summary = d;
+            Double vj = Double(tw->item(r,TI_INCOME)->text().toDouble());
+            Double vd = Double(tw->item(r,TI_PAY)->text().toDouble());
+            MoneyDirection dir = MDIR_J;
+            Double v = vj;
+            if(vd != 0){
+                v = vd;
+                dir = MDIR_D;
+            }
+            if(v != j->value)
+                j->value = v;
+            if(dir != j->dir)
+                j->dir = dir;
+            v = tw->item(r,TI_BALANCE)->text().toDouble();
+            if(v != j->balance)
+                j->balance = v;
+            d = tw->item(r,TI_INVOICE)->text();
+            if(d != j->invoices)
+                j->invoices = d;
+            d = tw->item(r,TI_REMARK)->text();
+            if(d != j->remark)
+                j->remark = d;
         }
         else{
             bool edited = false;

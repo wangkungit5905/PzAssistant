@@ -7716,7 +7716,7 @@ bool DbUtil::saveCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo 
             q1.bindValue(":inum",ri->inum);
             q1.bindValue(":tax",ri->taxMoney.toString2());
             q1.bindValue(":money",ri->money.toString2());
-            q1.bindValue(":client",ri->ni->getId());
+            q1.bindValue(":client",ri->ni?ri->ni->getId():0);
             q1.bindValue(":isCur",ri->isCur?1:0);
             q1.bindValue(":id",ri->id);
             if(!q1.exec()){
@@ -7730,7 +7730,7 @@ bool DbUtil::saveCurAuthCostInvoices(int y, int m, QList<CurAuthCostInvoiceInfo 
             q2.bindValue(":inum",ri->inum);
             q2.bindValue(":tax",ri->taxMoney.toString2());
             q2.bindValue(":money",ri->money.toString2());
-            q2.bindValue(":client",ri->ni->getId());
+            q2.bindValue(":client",ri->ni?ri->ni->getId():0);
             q2.bindValue(":isCur",ri->isCur?1:0);
             if(!q2.exec()){
                 LOG_SQLERROR(q2.lastQuery());
@@ -7812,6 +7812,7 @@ bool DbUtil::updateHisNotAuthCosInvoices(QList<HisAuthCostInvoiceInfo *> rs)
                 LOG_SQLERROR(q1.lastQuery());
                 return false;
             }
+            ri->id = q1.lastInsertId().toInt();
         }
         else{
             q2.bindValue(":pzNum",ri->pzNum);

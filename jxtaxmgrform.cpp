@@ -151,12 +151,11 @@ void JxTaxMgrDlg::scanCurrentTax()
                 ci->inum = inum;
                 if(!inum.isEmpty()){
                     Double tm;
-                    QString clientName;
                     QString date;
-                    account->getDbUtil()->readCostInvoiceForTax(inum,tm,ci->money,clientName,date);
-                    ci->ni = findMatchedNiForClientName(clientName);
+                    account->getDbUtil()->readCostInvoiceForTax(inum,tm,ci->money,ci->clientName,date);
+                    ci->ni = findMatchedNiForClientName(ci->clientName);
                     if(!ci->ni)
-                        myHelper::ShowMessageBoxWarning(tr("没有找到与客户名“%1”对应的名称对象").arg(clientName));
+                        myHelper::ShowMessageBoxWarning(tr("没有找到与客户名“%1”对应的名称对象").arg(ci->clientName));
                 }
                 ci->taxMoney = ba->getValue();
                 caInvoices<<ci;
@@ -307,7 +306,7 @@ void JxTaxMgrDlg::showCaInvoices()
         ui->twCurAuth->item(row,CICA_NUM)->setData(DR_VERIFY_STATE,VS_NOEXIST);
         ui->twCurAuth->setItem(row,CICA_TAX,new QTableWidgetItem(ri->taxMoney.toString()));
         ui->twCurAuth->setItem(row,CICA_MONEY,new QTableWidgetItem(ri->money.toString()));
-        ui->twCurAuth->setItem(row,CICA_CLIENT,new QTableWidgetItem(ri->ni->getLongName()));
+        ui->twCurAuth->setItem(row,CICA_CLIENT,new QTableWidgetItem(ri->ni?ri->ni->getLongName():ri->clientName));
         row++;
         sum += ri->taxMoney;
         if(!ri->isCur)

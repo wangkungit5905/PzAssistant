@@ -21,7 +21,7 @@
 
 InvoiceNumberEdit::InvoiceNumberEdit(QWidget *parent):QLineEdit(parent)
 {
-    re.setPattern("\\s{0,}(\\d{8})(((/\\d{2,4}){0,})|((-\\d{2,2}){0,1}))");
+    re.setPattern("\\s{0,}(\\d{8})(((/\\d{2,4}){0,})|((-\\d{2,3}){0,1}))");
     connect(this,SIGNAL(returnPressed()),this,SLOT(invoiceEditCompleted()));
 }
 
@@ -56,15 +56,21 @@ void InvoiceNumberEdit::invoiceEditCompleted()
                 int start = re.cap(1).right(len).toInt();
                 int end = re.cap(2).right(len).toInt();
                 if(abs(start-end)>0){
+                    QList<int> sufNums;
                     if(start > end){
-                        int tem = start;
-                        start = end;
-                        end = tem;
+                        for(int i = start-1; i >=end; i--)
+                            sufNums<<i;
                     }
-                    for(int i = start+1; i <= end; ++i){
+                    else{
+                        for(int i = start+1; i <= end; ++i)
+                            sufNums<<i;
+                    }
+                    foreach(int i, sufNums){
                         QString suffix;
-                        if(i < 10)
+                        if((len == 2 && i < 10) || (len == 3 && i >= 10 && i < 100))
                             suffix = "0" + QString::number(i);
+                        else if(len == 3 && i < 10)
+                            suffix = "00" + QString::number(i);
                         else
                             suffix = QString::number(i);
                         QString ins = preStr+suffix;
@@ -1375,7 +1381,6 @@ void BaTemplateForm::dkProcess()
     InvoiceTableItem* item = static_cast<InvoiceTableItem*>(ui->tw->currentItem());
     if(!item)
         return;
-    int row = item->row();
     QAction* act = static_cast<QAction*>(sender());
     if(!act)
         return;
@@ -1383,74 +1388,109 @@ void BaTemplateForm::dkProcess()
         item->setType(IIT_COMMON);
     else if(act == ui->actDkCost2In){
         foreach(int row, selectedRows()){
-            item->setType(IIT_COST2IN);
-            autoSetInCost(row,item->text(),false);
+            item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+            if(item){
+                item->setType(IIT_COST2IN);
+                autoSetInCost(row,item->text(),false);
+            }
         }
     }
     else if(act == ui->actDkCost2Ys){
         foreach(int row, selectedRows()){
-            item->setType(IIT_COST2YS);
-            autoSetInCost(row,item->text(),false);
+            item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+            if(item){
+                item->setType(IIT_COST2YS);
+                autoSetInCost(row,item->text(),false);
+            }
         }
     }
     else if(act == ui->actDkIn2Cost){
         foreach(int row, selectedRows()){
-            item->setType(IIT_IN2COST);
-            autoSetInCost(row,item->text());
+            item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+            if(item){
+                item->setType(IIT_IN2COST);
+                autoSetInCost(row,item->text());
+            }
         }
     }
     else if(act == ui->actDkIn2Yf){
         foreach(int row, selectedRows()){
-            item->setType(IIT_IN2YF);
-            autoSetInCost(row,item->text());
+            item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+            if(item){
+                item->setType(IIT_IN2YF);
+                autoSetInCost(row,item->text());
+            }
         }
     }
     else if(act == ui->actRegardYs){//作为应收
-        item->setType(IIT_YS);
         if(curCusSSub){
-            foreach(int row, selectedRows())
-                setYsYfMoney(row,curCusSSub);
+            foreach(int row, selectedRows()){
+                item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+                if(item){
+                    item->setType(IIT_YS);
+                    setYsYfMoney(row,curCusSSub);
+                }
+            }
         }
     }
-    else if(act == ui->actRegardYf){ //作为应付
-        item->setType(IIT_YF);
+    else if(act == ui->actRegardYf){ //作为应付        
         if(curCusSSub){
-            foreach(int row, selectedRows())
-                setYsYfMoney(row,curCusSSub);
+            foreach(int row, selectedRows()){
+                item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+                if(item){
+                    item->setType(IIT_YF);
+                    setYsYfMoney(row,curCusSSub);
+                }
+            }
         }
     }
     else{
-        if(act == ui->actDkYf2In){
-            item->setType(IIT_YF2IN);
+        if(act == ui->actDkYf2In){            
             if(curCusSSub){
                 SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
-                foreach(int row, selectedRows())
-                    setYsYfMoney(row,ssub);
+                foreach(int row, selectedRows()){
+                    item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+                    if(item){
+                        item->setType(IIT_YF2IN);
+                        setYsYfMoney(row,ssub);
+                    }
+                }
             }
         }
-        else if(act == ui->actDkYf2Ys){
-            item->setType(IIT_YF2YS);
+        else if(act == ui->actDkYf2Ys){            
             if(curCusSSub){
                 SecondSubject* ssub = yfFSub->getChildSub(curCusSSub->getName());
-                foreach(int row, selectedRows())
-                    setYsYfMoney(row,ssub);
-            }
-
-        }
-        else if(act == ui->actDkYs2Cost){
-            item->setType(IIT_YS2COST);
-            if(curCusSSub){
-                SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
-                foreach(int row, selectedRows())
-                    setYsYfMoney(row,ssub);
+                foreach(int row, selectedRows()){
+                    item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+                    if(item){
+                        item->setType(IIT_YF2YS);
+                        setYsYfMoney(row,ssub);
+                    }
+                }
             }
         }
-        else if(act == ui->actDkYs2Yf){
-            item->setType(IIT_YS2YF);
+        else if(act == ui->actDkYs2Cost){            
             if(curCusSSub){
                 SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
-                foreach(int row, selectedRows())
-                    setYsYfMoney(row,ssub);
+                foreach(int row, selectedRows()){
+                    item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+                    if(item){
+                        item->setType(IIT_YS2COST);
+                        setYsYfMoney(row,ssub);
+                    }
+                }
+            }
+        }
+        else if(act == ui->actDkYs2Yf){            
+            if(curCusSSub){
+                SecondSubject* ssub = ysFSub->getChildSub(curCusSSub->getName());
+                foreach(int row, selectedRows()){
+                    item = static_cast<InvoiceTableItem*>(ui->tw->item(row,CI_INVOICE));
+                    if(item){
+                        item->setType(IIT_YS2YF);
+                        setYsYfMoney(row,ssub);
+                    }
+                }
             }
         }
     }
@@ -2635,7 +2675,7 @@ void BaTemplateForm::autoSetInCost(int row, QString inum, bool isIncome)
 
 /**
  * @brief 查找应收/应付对应发票，并填充金额
- * 从方法应用于抵扣发票的金额的填写
+ * 本方法应用于抵扣发票的金额的填写
  * @param row
  * @param inum
  * @param ssub

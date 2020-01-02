@@ -1771,42 +1771,43 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
         PingZheng* pz = 0;
         PingZheng* p = new PingZheng(this);
         //普票
-        if(startPos>0){
-            for(int i = 0; i < startPos; ++i){
-                r = invoices.at(i);
-                QString cname = r->ni?r->ni->getShortName():r->client;
-                ba1 = new BusiAction();
-                ba1->setParent(p);
-                ba1->setValue(r->money);
-                ba1->setMt(mmt,r->money);
-                if(isIncome){
-                    ba1->setDir(MDIR_J);
-                    ba1->fsub = ysFSub;
-                    ssub = ysFSub->getChildSub(r->ni);
-                    if(!ssub)
-                        ssub = ysFSub->addChildSub(r->ni);
-                    ba1->setSecondSubject(ssub);
-                    if(r->wbMoney != 0)
-                        summary = tr("应收%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
-                    else
-                        summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
-                    ba1->setSummary(summary);
-                }
-                else{
-                    ba1->setDir(MDIR_D);
-                    ba1->setFirstSubject(yfFSub);
-                    ssub = yfFSub->getChildSub(r->ni);
-                    if(!ssub)
-                        ssub = ysFSub->addChildSub(r->ni);
-                    ba1->setSecondSubject(ssub);
-                    if(r->wbMoney != 0)
-                        summary = tr("应付%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
-                    else
-                        summary = tr("应付%1运费 %2").arg(cname).arg(r->inum);
-                    ba1->setSummary(summary);
-                }
-                bas<<ba1;
+        int endPos = startPos; //普票截止索引
+        if(startPos == -1)
+            endPos = invoices.count();
+        for(int i = 0; i < endPos; ++i){
+            r = invoices.at(i);
+            QString cname = r->ni?r->ni->getShortName():r->client;
+            ba1 = new BusiAction();
+            ba1->setParent(p);
+            ba1->setValue(r->money);
+            ba1->setMt(mmt,r->money);
+            if(isIncome){
+                ba1->setDir(MDIR_J);
+                ba1->fsub = ysFSub;
+                ssub = ysFSub->getChildSub(r->ni);
+                if(!ssub)
+                    ssub = ysFSub->addChildSub(r->ni);
+                ba1->setSecondSubject(ssub);
+                if(r->wbMoney != 0)
+                    summary = tr("应收%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
+                else
+                    summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
+                ba1->setSummary(summary);
             }
+            else{
+                ba1->setDir(MDIR_D);
+                ba1->setFirstSubject(yfFSub);
+                ssub = yfFSub->getChildSub(r->ni);
+                if(!ssub)
+                    ssub = ysFSub->addChildSub(r->ni);
+                ba1->setSecondSubject(ssub);
+                if(r->wbMoney != 0)
+                    summary = tr("应付%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
+                else
+                    summary = tr("应付%1运费 %2").arg(cname).arg(r->inum);
+                ba1->setSummary(summary);
+            }
+            bas<<ba1;
         }
         //创建普票凭证
         Double sum;

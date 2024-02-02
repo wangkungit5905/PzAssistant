@@ -4857,6 +4857,7 @@ bool MainWindow::impTestDatas()
     QString t4= "01060698-702/01060694/01060695/01060696/01060698/01587695-01587703";
     QString t5="11.15票07358194-07358195/09537061-09537072";
     QString t6="2018.11.21票09700070-09700075/2018.12.17票09700154-09700160/04461244-04461297";
+    QString t7 = "23932000000022953104 23932000000022972958/18767837/18767838/01060698-702";
 //    QString t7="";
 //    QString t8="";
 //    QString t9="";
@@ -4870,14 +4871,17 @@ bool MainWindow::impTestDatas()
 //    PaUtils::extractInvoiceNum2(t8,inums);
 //    PaUtils::extractInvoiceNum2(t9,inums);
 
-    QString s1 = "台州市森田2卫浴有限公司2";
-    QString s2 = "台州市森田43卫浴有限公司12";
-    QString s3 = "华泓国际货代(中国)有限公司宁波分公司";
-    s1.replace(QRegExp("[0-9]{1,2}$"), "");
-    s2.replace(QRegExp("[0-9]{1,2}$"), "");
-    s3.replace('(', "（");
-    s3.replace(')', "）");
-    int i;
+//    QString s1 = "台州市森田2卫浴有限公司2";
+//    QString s2 = "台州市森田43卫浴有限公司12";
+//    QString s3 = "华泓国际货代(中国)有限公司宁波分公司";
+//    s1.replace(QRegExp("[0-9]{1,2}$"), "");
+//    s2.replace(QRegExp("[0-9]{1,2}$"), "");
+//    s3.replace('(', "（");
+//    s3.replace(')', "）");
+    PaUtils::extractInvoiceNum4(t7,inums);
+
+    int i=0;
+    i++;
 }
 
 /**

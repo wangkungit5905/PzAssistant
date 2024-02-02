@@ -8,6 +8,7 @@
 
 #include <QTableWidget>
 #include <QPushButton>
+#include <QHeaderView>
 
 SuiteSwitchPanel::SuiteSwitchPanel(Account *account, QWidget *parent) :
     QWidget(parent), ui(new Ui::SuiteSwitchPanel), account(account)

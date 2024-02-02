@@ -4,6 +4,8 @@
 #include <QPrinter>
 #include <QDomDocument>
 #include <QPainter>
+#include <QTableView>
+#include <QHeaderView>
 
 #include "iconhelper.h"
 #include "widgets.h"

@@ -1842,7 +1842,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
         return;
     }
     //检测是否缺必填项（发票号）
-    QRegExp re("^\\d{8}$");
+    QRegExp re("^\\d{8}|\\d{20}$");
     for(int r = sr; r <= er; ++r){
         QString inum = tw->item(r,invoiceColumn)->text().trimmed();
         if(inum.isEmpty() || re.indexIn(inum) == -1){
@@ -1890,6 +1890,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
     int y = suiteMgr->year();
     int m = suiteMgr->month();
     int num = rs->count() + 1;
+    QString iNum;
     for(int r = sr; r <= er; ++r,num++){
         CurInvoiceRecord* rc = new CurInvoiceRecord;
         rc->y=y;rc->m=m;
@@ -1912,7 +1913,10 @@ void CurInvoiceStatForm::on_btnImport_clicked()
                     rc->dateStr = tw->item(r,c)->text();
                 break;
             case CT_INVOICE:
-                rc->inum = tw->item(r,c)->text();
+                iNum = tw->item(r,c)->text().trimmed();
+                if(iNum.size() == 20)
+                    iNum = iNum.right(8);
+                rc->inum = iNum;
                 break;
             case CT_CLIENT:
                 rc->client = tw->item(r,c)->text();

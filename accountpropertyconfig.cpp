@@ -1091,7 +1091,7 @@ void ApcBank::enWidget(bool en)
         ui->delBank->setEnabled(ui->lstBank->currentRow() != -1);
     if(curBank && ui->tvAccList->rowCount() > 0){
         for(int i = 0; i < curBank->bas.count(); ++i){
-            if(curBank->bas.at(i)->niObj == UNID){
+            if(curBank->bas.at(i)->niObj == NULL){
                 QPushButton* btn = qobject_cast<QPushButton*>(ui->tvAccList->cellWidget(i,CI_NAME));
                 if(btn)
                     btn->setEnabled(en);

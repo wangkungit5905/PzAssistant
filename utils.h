@@ -597,6 +597,7 @@ public:
     static void extractInvoiceNum(QString summary, QList<int> &months, QList<QStringList> &invoiceNums);
     static void extractInvoiceNum2(QString summary,QStringList &invoiceNums);
     static void extractInvoiceNum3(QString t, QStringList &invoiceNums);
+    static void extractInvoiceNum4(QString t, QStringList &invoiceNums);
     static void extractUSD(QString summary, bool &isYs, QString &invoiceNum, Double &value);
     static bool extractOnlyInvoiceNum(QString summary, QString &invoiceNumber, Double &money);
     static bool extractCustomerName(QString summary, QString &name);
@@ -607,6 +608,7 @@ public:
 
 
     static void getNumberFromSequence(QString text, QStringList &InvoiceNums);
+    static void getNumberFromSequence4(QString text, QStringList &InvoiceNums);
     static int comparePrefix(QStringList pnums, int plen, int start, int &fondedNum);
 private:
 

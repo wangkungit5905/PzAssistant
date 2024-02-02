@@ -2,6 +2,7 @@
 #define DIALOG2_H
 
 #include <QtGlobal>
+#include <QSet>
 
 #include "ui_printselectdialog.h"
 

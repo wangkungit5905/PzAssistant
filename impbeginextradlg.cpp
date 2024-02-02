@@ -107,6 +107,10 @@ void ImpBeginExtraDlg::readExtra(bool isYs)
         if(subCode.isEmpty())
             break;
         clientName = sheet->read(row,colClientName).toString();
+        //+++++++临时添加去除科目名前的主目名称前缀
+        QString rName = isYs?tr("应收账款-"):tr("应付账款-");
+        clientName = clientName.remove(rName);
+        //+++++++
         JV = Double(sheet->read(row,colJValue).toDouble());
         DV = Double(sheet->read(row,colDValue).toDouble());
         appendExtraRow(subCode,clientName,JV,DV,tw);

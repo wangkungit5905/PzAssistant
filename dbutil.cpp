@@ -1335,10 +1335,11 @@ int DbUtil::getBankSubMatchMoney(SecondSubject *sub)
     if(!sub)
         return 0;
     QSqlQuery q(db);
-    if(!db.transaction()){
-        LOG_ERROR(QObject::tr("Start transaction failed!"));
-        return 0;
-    }
+//    if(!db.transaction()){
+//        LOG_ERROR(QObject::tr("Start transaction failed!"));
+//        QString info = db.lastError().text();
+//        return 0;
+//    }
 
     QString s = QString("select %1 from %2 where %3=%4").arg(fld_bankAcc_mt).arg(tbl_bankAcc)
             .arg(fld_bankAcc_nameId).arg(sub->getNameItem()->getId());
@@ -1359,10 +1360,10 @@ int DbUtil::getBankSubMatchMoney(SecondSubject *sub)
         return 0;
     int mt = q.value(0).toInt();
 
-    if(!db.commit()){
-        LOG_ERROR(QObject::tr("commit transaction failed!"));
-        return 0;
-    }
+//    if(!db.commit()){
+//        LOG_ERROR(QObject::tr("commit transaction failed!"));
+//        return 0;
+//    }
     return mt;
 }
 

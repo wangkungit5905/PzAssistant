@@ -2,6 +2,7 @@
 #include <QBuffer>
 #include <QInputDialog>
 #include <QToolTip>
+#include <QAction>
 
 #include "pzdialog.h"
 #include "cal.h"

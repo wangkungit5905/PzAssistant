@@ -662,7 +662,11 @@ QString JournalizingPreviewDlg::genTerseInvoiceNums(QList<InvoiceRecord *> invoi
 QStringList JournalizingPreviewDlg::extractInvoice(QString t)
 {
     QStringList invoices;
-    PaUtils::extractInvoiceNum3(t,invoices);
+    PaUtils::extractInvoiceNum4(t,invoices);//这里的发票号可能包含了20位的数传发票号，必须先将其转换为传统的8位
+    for(int i = 0; i<invoices.count(); i++){
+        if(invoices[i].size() == 20)
+            invoices[i] = invoices[i].right(8);
+    }
     return invoices;
 }
 

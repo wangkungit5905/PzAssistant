@@ -5507,6 +5507,19 @@ void PaUtils::extractInvoiceNum3(QString t, QStringList &invoiceNums)
     }
 }
 
+void PaUtils::extractInvoiceNum4(QString t, QStringList &invoiceNums)
+{
+    QRegExp re("((\\d{8}|\\d{20})(-\\d{1,8}){0,1}/{0,1})");
+    int pos = re.indexIn(t);
+    QString s;
+    while(pos != -1){
+          s = re.cap(0);
+        getNumberFromSequence4(re.cap(0),invoiceNums);
+        pos += re.cap(0).count();
+        pos = re.indexIn(t,pos);
+    }
+}
+
 /**
  * @brief 从摘要中提取发票号及其相关的美金金额
  * 这个主要使用在提取应收和应付对应发票的美金金额
@@ -5669,6 +5682,47 @@ void PaUtils::getNumberFromSequence(QString text, QStringList &InvoiceNums)
         }
     }
 }
+
+void PaUtils::getNumberFromSequence4(QString text, QStringList &InvoiceNums)
+{
+    QRegExp re1("(\\d{8}|\\d{20})(/\\d{2,4}){0,}");  //断续型
+    QRegExp re2("(\\d{8}|\\d{20})(-\\d{2,8}){0,}");  //连续型
+    int i1 = re1.indexIn(text);
+    if(i1 == -1)
+        return;
+    re2.indexIn(text);
+    QStringList cs1 = re1.capturedTexts();
+    QStringList cs2 = re2.capturedTexts();
+    if(cs1.at(2).isEmpty() && cs2.at(2).isEmpty()){
+        InvoiceNums<<cs1.at(1);
+        return;
+    }
+    if(!cs1.at(2).isEmpty()){   //处理断续型
+        InvoiceNums<<re1.cap(1);
+        QString suff = text.mid(i1+8,re1.captureCount()-8);
+        getSuffixeNumber(suff,re1.cap(1),InvoiceNums);
+
+    }
+    else{                       //处理连续型
+        InvoiceNums<<re2.cap(1);
+        int suffLen = re2.cap(2).count()-1;
+        if(suffLen>3) //实际连续型的后缀长度3位足以
+            suffLen=3;
+        QString endNumStr = re2.cap(2).right(suffLen);
+        int si = re2.cap(1).right(endNumStr.count()).toInt()+1;
+        int ei = endNumStr.toInt();
+        if(si > ei)    //遵循升序
+            return;
+        QString prefix = re2.cap(1).left(8-endNumStr.count());
+        for(int i = si; i <= ei; ++i){
+            QString suffer = QString::number(i);
+            while(suffer.count()<endNumStr.count())
+                suffer = "0"+suffer;
+            InvoiceNums<<prefix+suffer;
+        }
+    }
+}
+
 
 //以前版本，只能正确取得2位后缀连续型
 //void PaUtils::getNumberFromSequence(QString text, QStringList &InvoiceNums)

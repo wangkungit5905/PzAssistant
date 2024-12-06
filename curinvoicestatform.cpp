@@ -581,7 +581,8 @@ void CurInvoiceStatForm::sheetListContextMeny(const QPoint &pos)
     //if(!readTag)
     //    m->addAction(ui->actReadSheet);
     InvoiceType type = (InvoiceType)li->data(DR_ITYPE).toInt();
-    ui->actYS->setChecked(type == IT_INCOME);
+    ui->actYS_COMM->setChecked(type == IT_INCOME_COMMON);
+    ui->actYS_SPEC->setChecked(type == IT_INCOME_SPECIAL);
     ui->actYF->setChecked(type == IT_COST);
     m->addActions(ag3->actions());
     m->popup(ui->lwSheets->mapToGlobal(pos));
@@ -668,10 +669,16 @@ void CurInvoiceStatForm::processYsYfSelected(bool checked)
     if(!checked)
         return;
     QAction* a = qobject_cast<QAction*>(sender());
-    if(a == ui->actYS){
-        ui->lwSheets->currentItem()->setData(DR_ITYPE,IT_INCOME);
+    if(a == ui->actYS_COMM){
+        ui->lwSheets->currentItem()->setData(DR_ITYPE,IT_INCOME_COMMON);
         ui->lwSheets->currentItem()->setForeground(QBrush(QColor("blue")));
-        ui->lwSheets->currentItem()->setToolTip(tr("应收发票"));
+        ui->lwSheets->currentItem()->setToolTip(tr("应收普票"));
+        ui->lwSheets->currentItem()->setData(Qt::DecorationRole,icon_income);
+    }
+    else if(a == ui->actYS_SPEC){
+        ui->lwSheets->currentItem()->setData(DR_ITYPE,IT_INCOME_SPECIAL);
+        ui->lwSheets->currentItem()->setForeground(QBrush(QColor("blue")));
+        ui->lwSheets->currentItem()->setToolTip(tr("应收专票"));
         ui->lwSheets->currentItem()->setData(Qt::DecorationRole,icon_income);
     }
     else{
@@ -1185,7 +1192,8 @@ void CurInvoiceStatForm::init()
     ag2->addAction(ui->actStartRow);
     ag2->addAction(ui->actEndRow);
     mnuRowTypes->addActions(ag2->actions());
-    ag3->addAction(ui->actYS);
+    ag3->addAction(ui->actYS_COMM);
+    ag3->addAction((ui->actYS_SPEC));
     ag3->addAction(ui->actYF);
 
     switchHActions();
@@ -1198,7 +1206,8 @@ void CurInvoiceStatForm::init()
     connect(ui->lwSheets,SIGNAL(customContextMenuRequested(QPoint)),this,SLOT(sheetListContextMeny(QPoint)));
     connect(ui->lwSheets,SIGNAL(currentRowChanged(int)),this,SLOT(curSheetChanged(int)));
     connect(ui->lwSheets,SIGNAL(itemDoubleClicked(QListWidgetItem*)),this,SLOT(doubleItemReadSheet(QListWidgetItem*)));
-    connect(ui->actYS,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
+    connect(ui->actYS_COMM,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
+    connect(ui->actYS_SPEC,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
     connect(ui->actYF,SIGNAL(toggled(bool)),this,SLOT(processYsYfSelected(bool)));
     initTable();
     connect(ui->tabWidget,SIGNAL(currentChanged(int)),this,SLOT(curTableChanged(int)));
@@ -1806,7 +1815,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
     }
     int sr = li->data(DR_STARTROW).toInt();
     int er = li->data(DR_ENDROW).toInt();
-    InvoiceType icType = (InvoiceType)li->data(DR_ITYPE).toInt();
+    InvoiceType icType = (InvoiceType)li->data(DR_ITYPE).toInt();  //当前导入的发票类型（收入普票、收入专票、成本票）
     if(sr == -1)
         errors = tr("未设置表格数据开始行；");
     if(er == -1)
@@ -1855,7 +1864,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
     }
     QTableWidget* t = 0;
     QList<CurInvoiceRecord *> *rs;
-    if(icType == IT_INCOME){
+    if(icType == IT_INCOME_COMMON | icType == IT_INCOME_SPECIAL){
         t = ui->twIncome;
         rs = incomes;
     }
@@ -1894,9 +1903,8 @@ void CurInvoiceStatForm::on_btnImport_clicked()
     for(int r = sr; r <= er; ++r,num++){
         CurInvoiceRecord* rc = new CurInvoiceRecord;
         rc->y=y;rc->m=m;
-        rc->isIncome = (icType == IT_INCOME);
+        rc->isIncome = (icType == IT_INCOME_COMMON | icType == IT_INCOME_SPECIAL);
         rc->num = num;
-        bool isCommon = false;
         for(int c = 0; c < tw->columnCount(); ++c){
             if(!tw->item(r,c))
                 continue;
@@ -1914,7 +1922,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
                 break;
             case CT_INVOICE:
                 iNum = tw->item(r,c)->text().trimmed();
-                if(iNum.size() == 20)
+                if(iNum.size() == 20)  //将20位的数传发票号截断为后8位
                     iNum = iNum.right(8);
                 rc->inum = iNum;
                 break;
@@ -1934,18 +1942,17 @@ void CurInvoiceStatForm::on_btnImport_clicked()
                 break;
             case CT_SFINFO:
                 rc->sfInfo = tw->item(r,c)->text();
-                if(rc->sfInfo.contains(tr("普票")))
-                    isCommon = true;
-            case CT_ICLASS:{
-                QTableWidgetItem* ti = tw->item(r,c);
-                if(ti && ti->text().contains(tr("普票")))
-                    isCommon = true;}
+                break;
             }
         }
-        if(isCommon)
-            rc->type = false;
+        if(rc->isIncome){  //如果是收入发票，则发票是否是普票和专票，由用户人为指定
+            if(icType == IT_INCOME_COMMON)
+                rc->type = false;  //普票
+            else
+                rc->type = true;   //专票
+        }
         else
-            rc->type = (rc->taxMoney != 0);
+            rc->type = (rc->taxMoney != 0); //对于成本发票，则根据是否有税金来判断（因为成本发票通常普票和专票是混合在一张表格中的）
         rs->append(rc);
     }    
     //因为导入后是以原始顺序显示的，因此必须将排序方式复位，且禁用过滤

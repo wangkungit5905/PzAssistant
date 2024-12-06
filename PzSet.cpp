@@ -1695,11 +1695,11 @@ bool AccountSuiteManager::save(SaveWitch witch)
 }
 
 /**
- * @brief 创建应收或应付聚合分录，此方法在所有与发票相关的凭证都做完后，调用此方法将一流的发票聚合成凭证
+ * @brief 创建应收或应付聚合分录，此方法在所有与发票相关的凭证都做完后，调用此方法将遗留的发票聚合成凭证
  * @param y
  * @param m
  * @param createdPzs
- * @param isIncome
+ * @param isIncome  //true：普票，false：专票
  */
 bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdPzs, bool isIncome)
 {
@@ -1758,7 +1758,8 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
             qSort(invoices.begin(),invoices.end(),incomeInvoiceThan);
         else
             qSort(invoices.begin(),invoices.end(),costInvoiceThan);
-        int startPos=-1;  //专票开始索引位
+        //确定专票开始索引位置
+        int startPos=-1;
         for(int i=0; i<invoices.count(); ++i){
             if(invoices.at(i)->type){
                 startPos = i;
@@ -1780,8 +1781,8 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
             ba1 = new BusiAction();
             ba1->setParent(p);
             ba1->setValue(r->money);
-            ba1->setMt(mmt,r->money);
-            if(isIncome){
+            ba1->setMt(mmt,r->money);            
+            if(isIncome){  //普票收入
                 ba1->setDir(MDIR_J);
                 ba1->fsub = ysFSub;
                 ssub = ysFSub->getChildSub(r->ni);
@@ -1793,8 +1794,20 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
                 else
                     summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
                 ba1->setSummary(summary);
+                bas<<ba1;
+                if(r->taxMoney != 0){  //包含了税金的普票
+                    ba2 = new BusiAction();
+                    ba2->setParent(p);
+                    ba2->setSummary(tr("应收%1运费 %2").arg(cname).arg(r->inum));
+                    ba2->setDir(MDIR_D);
+                    ba2->fsub = yjsjFSub;
+                    ba2->ssub = xxseSSub;
+                    ba2->setValue(r->taxMoney);
+                    ba2->setMt(mmt,r->taxMoney);
+                    bas<<ba2;
+                }
             }
-            else{
+            else{  //普票成本
                 ba1->setDir(MDIR_D);
                 ba1->setFirstSubject(yfFSub);
                 ssub = yfFSub->getChildSub(r->ni);
@@ -1806,9 +1819,10 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
                 else
                     summary = tr("应付%1运费 %2").arg(cname).arg(r->inum);
                 ba1->setSummary(summary);
-            }
-            bas<<ba1;
+                bas<<ba1;
+            }            
         }
+
         //创建普票凭证
         Double sum;
         while(!bas.isEmpty()){
@@ -1835,7 +1849,10 @@ bool AccountSuiteManager::crtGatherPz(int y, int m, QList<PingZheng *> &createdP
             ba1->setFirstSubject(isIncome?zysrFSub:zycbFSub);
             ba1->setSecondSubject(ba1->getFirstSubject()->getDefaultSubject());
             foreach(BusiAction* b,bs)
-                sum += b->getValue();
+                if(isIncome && b->dir == DIR_D)  //对于普票收入的税金，因为借贷方向不同，因此需要减
+                    sum -= b->getValue();
+                else
+                    sum += b->getValue();
             ba1->setMt(mmt,sum);
             ba1->setDir(isIncome?MDIR_D:MDIR_J);
             if(isIncome)

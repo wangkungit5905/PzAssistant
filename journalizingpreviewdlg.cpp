@@ -1923,7 +1923,7 @@ QList<Journalizing*> JournalizingPreviewDlg::genGatherBas(int gnum, bool isIncom
             j1->value = r->money;
             j1->mt = mmt;
             QString cname = r->ni?r->ni->getShortName():r->client;
-            if(isIncome){
+            if(isIncome){  //普票收入
                 j1->dir = MDIR_J;
                 j1->fsub = ysSub;
                 ssub = ysSub->getChildSub(r->ni);
@@ -1934,8 +1934,21 @@ QList<Journalizing*> JournalizingPreviewDlg::genGatherBas(int gnum, bool isIncom
                     j1->summary = tr("应收%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
                 else
                     j1->summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
+                js<<j1;
+                if(r->taxMoney != 0){  //如果普票包含税金，则还要新增一条销项税分录
+                    j1 = new Journalizing;
+                    j1->journal = isIncome?jsr_p:jcb_p;
+                    j1->numInGroup = i+2;
+                    j1->value = r->taxMoney;
+                    j1->mt = mmt;
+                    j1->dir = MDIR_D;
+                    j1->fsub = yjsjSub;
+                    j1->ssub = xxseSSub;
+                    j1->summary = tr("应收%1运费 %2").arg(cname).arg(r->inum);
+                    js<<j1;
+                }
             }
-            else{
+            else{  //普票成本
                 j1->dir = MDIR_D;
                 j1->fsub = yfSub;
                 ssub = yfSub->getChildSub(r->ni);
@@ -1946,8 +1959,8 @@ QList<Journalizing*> JournalizingPreviewDlg::genGatherBas(int gnum, bool isIncom
                     j1->summary = tr("应付%1运费 %2（$%3）").arg(cname).arg(r->inum).arg(r->wbMoney.toString());
                 else
                     j1->summary = tr("应付%1运费 %2").arg(cname).arg(r->inum);
+                js<<j1;
             }
-            js<<j1;
         }        
     }
     //对分录进行分组，避免过多的分录数目
@@ -1964,7 +1977,10 @@ QList<Journalizing*> JournalizingPreviewDlg::genGatherBas(int gnum, bool isIncom
         for(int i = 0; i < ei; ++i){
             Journalizing* jo = js.takeAt(0);
             jo->gnum = gnum;
-            sum += jo->value;
+            if(isIncome && jo->dir == DIR_D) //对于普票收入的税金，它会出现在贷方，需要减
+                sum -= jo->value;
+            else
+                sum += jo->value;
             ts<<jo;
         }
         j2 = new Journalizing;
@@ -3197,7 +3213,7 @@ bool journalThan(Journal *j1, Journal *j2)
 
 
 /**
- * @brief 收入发票排序函数（按先普后专，发票号顺序）
+ * @brief 收入发票排序函数（按先普后专，再发票号顺序）
  * @param i1
  * @param i2
  * @return

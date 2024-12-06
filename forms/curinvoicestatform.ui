@@ -417,12 +417,15 @@
     <string>普通行</string>
    </property>
   </action>
-  <action name="actYS">
+  <action name="actYS_COMM">
    <property name="checkable">
     <bool>true</bool>
    </property>
    <property name="text">
-    <string>收入发票</string>
+    <string>收入普票</string>
+   </property>
+   <property name="toolTip">
+    <string>收入普票</string>
    </property>
   </action>
   <action name="actYF">
@@ -465,6 +468,17 @@
    </property>
    <property name="text">
     <string>发票类别列</string>
+   </property>
+  </action>
+  <action name="actYS_SPEC">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>收入专票</string>
+   </property>
+   <property name="toolTip">
+    <string>收入专票</string>
    </property>
   </action>
  </widget>

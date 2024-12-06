@@ -147,15 +147,16 @@ class CurInvoiceStatForm : public QWidget
 public:
     enum ItemDataRole{
         DR_READED   = Qt::UserRole,     //表单是否已读取（bool）
-        DR_ITYPE    = Qt::UserRole + 1, //发票类型（0:未指定，1：应收，2：应付）
+        DR_ITYPE    = Qt::UserRole + 1, //发票类型（0:未指定，1：应收普票，2：应收专票，3：应付）
         DR_STARTROW = Qt::UserRole + 2, //表单数据开始行，基于0
         DR_ENDROW   = Qt::UserRole + 3  //表单数据结束行
     };
 
     enum InvoiceType{
         IT_NONE   = 0,    //未指定
-        IT_INCOME = 1,    //收入
-        IT_COST   = 2     //成本
+        IT_INCOME_COMMON = 1,    //收入（普票）
+        IT_INCOME_SPECIAL = 2,    //收入（专票）
+        IT_COST   = 3     //成本
     };
 
     enum RowType{

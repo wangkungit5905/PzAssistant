@@ -598,6 +598,7 @@ public:
     static void extractInvoiceNum2(QString summary,QStringList &invoiceNums);
     static void extractInvoiceNum3(QString t, QStringList &invoiceNums);
     static void extractInvoiceNum4(QString t, QStringList &invoiceNums);
+    static bool isContainediValidInvoiceNumber(QString t);
     static void extractUSD(QString summary, bool &isYs, QString &invoiceNum, Double &value);
     static bool extractOnlyInvoiceNum(QString summary, QString &invoiceNumber, Double &money);
     static bool extractCustomerName(QString summary, QString &name);

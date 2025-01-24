@@ -1851,7 +1851,7 @@ void CurInvoiceStatForm::on_btnImport_clicked()
         return;
     }
     //检测是否缺必填项（发票号）
-    QRegExp re("^\\d{8}|\\d{20}$");
+    QRegExp re("^\\d{8}$|^\\d{20}$");
     for(int r = sr; r <= er; ++r){
         QString inum = tw->item(r,invoiceColumn)->text().trimmed();
         if(inum.isEmpty() || re.indexIn(inum) == -1){

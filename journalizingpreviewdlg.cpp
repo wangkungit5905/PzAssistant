@@ -662,12 +662,61 @@ QString JournalizingPreviewDlg::genTerseInvoiceNums(QList<InvoiceRecord *> invoi
 QStringList JournalizingPreviewDlg::extractInvoice(QString t)
 {
     QStringList invoices;
+    if(!PaUtils::isContainediValidInvoiceNumber(t)){
+        QMessageBox::warning(this, msgTitle_info, tr("发现包含无效发票号码：“%1”").arg(t));
+        return invoices;
+    }
     PaUtils::extractInvoiceNum4(t,invoices);//这里的发票号可能包含了20位的数传发票号，必须先将其转换为传统的8位
     for(int i = 0; i<invoices.count(); i++){
         if(invoices[i].size() == 20)
             invoices[i] = invoices[i].right(8);
     }
     return invoices;
+}
+
+/**
+ * @brief isValidInvoiceNumber
+ * @param t 是否包含多个发票号的连写形式的串（比如使用斜杠、连字符和空格）
+ * @return
+ * 判断是否包含无效的发票号
+ */
+bool JournalizingPreviewDlg::isValidInvoiceNumber(QString t){
+    //基本的测试思路是，先将斜杠替换为空格，将其以空格为分隔符分离为单独的子串列表，再对每个子串判定处理
+    //（对于使用连字符方式的连号，删除每个连字符后的所有字符串，所得到的字符串长度必须是8或20，否则视为无效）
+    if(t.isEmpty())
+        return true;
+    t = t.simplified();
+    t = t.replace('/',' ');
+    QStringList ts = t.split(' ');
+    QRegularExpression re("(\\d{7,})"); // 匹配长度大于6的连续数字序列
+    QRegularExpressionMatch match;
+
+    foreach(QString s, ts){
+        if(s.isEmpty())
+            continue;
+        match = re.match(s);
+        if(!match.hasMatch())  //子串不是代表发票号，可能是其他叙述文，比如中文叙述、日期等，可以忽略。
+            continue;
+        if(s.length() == 8 || s.length() == 20)
+            continue;
+        if(!s.contains('-')){
+            s = match.captured(1);
+            if(s.length() == 8 || s.length() == 20)
+                continue;
+            else
+                return false;
+        }
+        int i = s.indexOf('-');
+        int end = match.capturedEnd();
+        if(i == end){
+            s = match.captured(1);
+            if(s.length() == 8 || s.length() == 20)
+                continue;
+            else
+                return false;
+        }
+    }
+    return true;
 }
 
 
@@ -1702,7 +1751,7 @@ QList<Journalizing*> JournalizingPreviewDlg::genBaForIncomeOrCost(Journal *jo, i
         j->mt = mmt;
         j->value = r->money;
         js<<j;
-        if(r->type){  //专票
+        if(r->type || (!r->type && r->isIncome && r->taxMoney != 0)){  //专票或者含有税金的收入普票
             j->value = r->money - r->taxMoney;
             j = new Journalizing;
             j->journal = jo;

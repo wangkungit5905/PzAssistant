@@ -158,6 +158,7 @@ private:
     void moveGroupTo(int sg,int dg);
     void movePzTo(int sp, int dp);
     bool selectedGroups();
+    bool isValidInvoiceNumber(QString t);
 
     Ui::JournalizingPreviewDlg *ui;
     QStringList titles;

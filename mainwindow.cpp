@@ -4850,6 +4850,8 @@ bool MainWindow::impTestDatas()
 //    kwCash.clear();
 //    kwCash = kwSetting->value("cash").toStringList();
 //    kwSetting->endGroup();
+
+    QRegExp re("^\\d$");
     QStringList inums;
     QString t1= "04467808/04467795";
     QString t2= "01924743";
@@ -4878,8 +4880,63 @@ bool MainWindow::impTestDatas()
 //    s2.replace(QRegExp("[0-9]{1,2}$"), "");
 //    s3.replace('(', "（");
 //    s3.replace(')', "）");
-    PaUtils::extractInvoiceNum4(t7,inums);
+//    PaUtils::extractInvoiceNum4(t7,inums);
 
+//    QString t8  = "11.29票94370057";
+//    QString t9 = "24932000000088671144（剩余2741元在8.16日已收到了）";
+//    QRegularExpression re2("(\\d{7,})"); // 匹配长度大于6的连续数字序列
+//    QRegularExpressionMatch match;
+//    QString filteredString;
+//    match = re2.match(t8);
+//    if(match.hasMatch()){
+//        filteredString = match.captured(1); // 提取匹配的数字序列
+//    }
+//    match = re2.match(t9);
+//    if(match.hasMatch()){
+//        filteredString = match.captured(1); // 提取匹配的数字序列
+//    }
+//    QString filteredString = t8.remove(QRegularExpression("[^0-9-]"));
+//    filteredString = t6.remove(QRegularExpression("[^0-9-]"));
+
+    bool r;
+    //基本的测试思路是，先将斜杠替换为空格，将其以空格为分隔符分离为单独的子串列表，再对每个子串判定处理
+    //（删除每个连字符后的所有字符串，所得到的字符串长度必须是8或20，否则视为无效）
+    QString t = "12.05票 963218097-98 /12.11票 98411237-38 12.24票0319178-80 / 12.25票 04193228/04193524";
+    r = PaUtils::isContainediValidInvoiceNumber(t);
+//    if(t.isEmpty())
+//        r = true;;
+//    t = t.simplified();
+//    t = t.replace('/',' ');
+//    QStringList ts = t.split(' ');
+//    QRegularExpression re2("(\\d{7,})"); // 匹配长度大于6的连续数字序列
+//    QRegularExpressionMatch match;
+//    foreach(QString s, ts){
+//        match = re2.match(s);
+//        if(!match.hasMatch())  //子串不是代表发票号，可能是其他叙述文，比如中文叙述、日期等，可以忽略。
+//            continue;
+//        if(s.length() == 8 || s.length() == 20)
+//            continue;
+//        if(!s.contains('-')){
+//            s = match.captured(1);
+//            if(s.length() == 8 || s.length() == 20)
+//                continue;
+//            else
+//                r = false;
+//        }
+//        else{
+//            int i = s.indexOf('-');
+//            int end = match.capturedEnd();
+//            if(i == end){
+//                s = match.captured(1);
+//                if(s.length() == 8 || s.length() == 20)
+//                    continue;
+//                else
+//                    r = false;
+//            }
+//            r = false;
+//        }
+//    }
+//    r = true;
     int i=0;
     i++;
 }

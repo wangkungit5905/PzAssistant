@@ -39,10 +39,10 @@ public:
     };
 
     enum ItemDataRole{
-        DR_SUBJECT   = Qt::UserRole,      //表单对应的现金或银行子目对象
-        DR_READED    = Qt::UserRole + 1,  //是否已读取表单（布尔）
-        DR_OBJ       = Qt::UserRole + 2   //保存流水账记录结构对象
-        //DR_EDITTAG   = Qt::UserRole + 3   //修改标志
+        DR_SUBJECT   = Qt::UserRole,         //表单对应的现金或银行子目对象
+        DR_READED    = Qt::UserRole + 1,     //是否已读取表单（布尔）
+        DR_READ_FORM_DB = Qt::UserRole + 2,  //流水账是否读取自数据库（True:读取自数据库，False：读取自Excel电子表格）
+        DR_OBJ       = Qt::UserRole + 3      //保存流水账记录结构对象
     };
 
     explicit ImpJournaryDlg(SubjectManager* sm,QWidget *parent = 0);

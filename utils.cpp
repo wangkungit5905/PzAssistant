@@ -5,6 +5,7 @@
 #include "utils.h"
 #include "securitys.h"
 #include "subject.h"
+#include "QRegularExpression"
 
 
 QSet<int> BusiUtil::pset; //具有正借负贷特性的一级科目id集合
@@ -5518,6 +5519,51 @@ void PaUtils::extractInvoiceNum4(QString t, QStringList &invoiceNums)
         pos += re.cap(0).count();
         pos = re.indexIn(t,pos);
     }
+}
+
+/**
+ * @brief PaUtils::isContainediValidInvoiceNumber
+ * 判定银行流水账摘要中是否包含有效的发票号
+ * @param s
+ */
+bool PaUtils::isContainediValidInvoiceNumber(QString t)
+{
+    //基本的测试思路是，先将斜杠替换为空格，将其以空格为分隔符分离为单独的子串列表，再对每个子串判定处理
+        //（对于使用连字符方式的连号，删除每个连字符后的所有字符串，所得到的字符串长度必须是8或20，否则视为无效）
+        if(t.isEmpty())
+            return true;
+        t = t.simplified();
+        t = t.replace('/',' ');
+        QStringList ts = t.split(' ');
+        QRegularExpression re("(\\d{7,})"); // 匹配长度大于6的连续数字序列
+        QRegularExpressionMatch match;
+
+        foreach(QString s, ts){
+            if(s.isEmpty())
+                continue;
+            match = re.match(s);
+            if(!match.hasMatch())  //子串不是代表发票号，可能是其他叙述文，比如中文叙述、日期等，可以忽略。
+                continue;
+            if(s.length() == 8 || s.length() == 20)
+                continue;
+            if(!s.contains('-')){
+                s = match.captured(1);
+                if(s.length() == 8 || s.length() == 20)
+                    continue;
+                else
+                    return false;
+            }
+            int i = s.indexOf('-');
+            int end = match.capturedEnd();
+            if(i == end){
+                s = match.captured(1);
+                if(s.length() == 8 || s.length() == 20)
+                    continue;
+                else
+                    return false;
+            }
+        }
+        return true;
 }
 
 /**

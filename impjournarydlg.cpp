@@ -7,6 +7,7 @@
 #include "commdatastruct.h"
 #include "PzSet.h"
 #include "dbutil.h"
+#include "utils.h"
 
 #include <QMenu>
 #include <QDir>
@@ -91,6 +92,7 @@ void ImpJournaryDlg::initJs()
         QList<Journal* >* js = jjs.at(t);
         QListWidgetItem* li = new QListWidgetItem(sub->getName(),ui->lwSheets);
         li->setData(DR_READED,true);
+        li->setData(DR_READ_FORM_DB,true);
         QVariant v;
         v.setValue<SecondSubject*>(sub);
         li->setData(DR_SUBJECT,v);
@@ -422,8 +424,10 @@ void ImpJournaryDlg::doubleItemReadSheet(QListWidgetItem *item)
     QTableWidget* tw = qobject_cast<QTableWidget*>(ui->stackedWidget->widget(index));
     if(!readSheet(index,tw))
        myHelper::ShowMessageBoxError(tr("读取表单“%1”时出错！").arg(ui->lwSheets->item(index)->text()));
-    else
+    else{
        item->setData(DR_READED,true);
+       item->setData(DR_READ_FORM_DB,false);
+    }
     ui->stackedWidget->setCurrentWidget(tw);
 }
 
@@ -451,7 +455,9 @@ void ImpJournaryDlg::on_btnSave_clicked()
         myHelper::ShowMessageBoxWarning(tr("未指定银行或现金科目！"));
         return;
     }
-    for(int r = 1; r < tw->rowCount()-1; ++r){
+    QStringList errorInvoiceNums;
+    int startRow = ui->lwSheets->currentItem()->data(DR_READ_FORM_DB).toBool()?0:1;
+    for(int r = startRow; r < tw->rowCount()-1; ++r){
         j = tw->item(r,TI_DATE)->data(DR_OBJ).value<Journal*>();
         if(j->id == 0){
             j->bankId = ssub->getId();
@@ -478,8 +484,11 @@ void ImpJournaryDlg::on_btnSave_clicked()
             if(v != j->balance)
                 j->balance = v;
             d = tw->item(r,TI_INVOICE)->text();
-            if(d != j->invoices)
+            if(d != j->invoices){
                 j->invoices = d;
+                if(!PaUtils::isContainediValidInvoiceNumber(d))
+                    errorInvoiceNums<<d;
+            }
             d = tw->item(r,TI_REMARK)->text();
             if(d != j->remark)
                 j->remark = d;
@@ -518,9 +527,12 @@ void ImpJournaryDlg::on_btnSave_clicked()
                 edited = true;
             }
             d = tw->item(r,TI_INVOICE)->text();
+            if(!PaUtils::isContainediValidInvoiceNumber(d))
+                errorInvoiceNums<<tr("第%1行：%2").arg(r+1).arg(d);
             if(d != j->invoices){
                 j->invoices = d;
                 edited = true;
+
             }
             d = tw->item(r,TI_REMARK)->text();
             if(d != j->remark){
@@ -533,8 +545,12 @@ void ImpJournaryDlg::on_btnSave_clicked()
             }
         }
     }
+    if(!errorInvoiceNums.isEmpty()){
+        errorInvoiceNums.insert(0,tr("发现如下错误发票号:\n"));
+        myHelper::ShowMessageBoxWarning(errorInvoiceNums.join("\n"));
+    }
     if(js.isEmpty())
-        return;
+        return;    
     DbUtil *dbUtil = sm->getAccount()->getDbUtil();
     if(!dbUtil->saveJournals(js))
         myHelper::ShowMessageBoxWarning(tr("保存流水账时出错！"));
@@ -567,6 +583,7 @@ void ImpJournaryDlg::on_btnBrower_clicked()
     for(int i = 0; i < sheets.count(); ++i){
         QListWidgetItem* li = new QListWidgetItem(sheets.at(i),ui->lwSheets);
         li->setData(DR_READED,false);
+        li->setData(DR_READ_FORM_DB,false);
         QTableWidget* tw = new QTableWidget(this);
         tw->setColumnCount(titles.count());
         tw->setHorizontalHeaderLabels(titles);
